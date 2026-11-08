@@ -13,6 +13,9 @@ type Sort = 'recent' | 'title' | 'added';
 
 interface Props {
   books: LibraryBook[];
+  initialTag: string;
+  globalSearch: string;
+  onGlobalSearch: (query: string) => void;
   theme: ReaderTheme;
   onThemeChange: (theme: ReaderTheme) => void;
   onImportClick: () => void;
@@ -51,14 +54,14 @@ export function Cover({ book, variant = 'normal' }: { book: LibraryBook; variant
 }
 
 export default function LibraryDashboard({
-  books, theme, onThemeChange, onImportClick, onFiles, onOpen, onRead, onDelete,
+  books, initialTag, globalSearch, onGlobalSearch, theme, onThemeChange, onImportClick, onFiles, onOpen, onRead, onDelete,
   importing, notice, error, storageError, cloudRepo, cloudSession,
   cloudBusy, cloudMessage, onCloudRepo, onCloudLogin, onCloudLogout, onCloudRefresh, onCloudPublishCached,
 }: Props) {
   const [filter, setFilter] = useState<Filter>('all');
   const [sort, setSort] = useState<Sort>('recent');
   const [query, setQuery] = useState('');
-  const [selectedTag, setSelectedTag] = useState('');
+  const [selectedTag, setSelectedTag] = useState(initialTag);
   const availableTags = useMemo(() => tagCounts(books), [books]);
   const [repoDraft, setRepoDraft] = useState(cloudRepo);
   const [showCloud, setShowCloud] = useState(false);
@@ -69,18 +72,31 @@ export default function LibraryDashboard({
   const finished = books.filter((book) => book.progress >= 99.5);
   const featured = [...reading].sort((a, b) => (b.lastOpenedAt || 0) - (a.lastOpenedAt || 0))[0] || books[0];
 
+  const globalMode = globalSearch.trim().length > 0;
   const visible = useMemo(() => {
-    const q = query.trim().toLowerCase();
+    const q = (globalMode ? globalSearch : query).trim().toLocaleLowerCase();
     return books.filter((book) => {
-      if (filter === 'reading' && !(book.progress > 0 && book.progress < 99.5)) return false;
-      if (filter === 'finished' && book.progress < 99.5) return false;
-      if (filter === 'unread' && book.progress > 0) return false;
-      if (selectedTag && !includesTag(book, selectedTag)) return false;
-      return !q || `${book.title} ${book.author} ${bookTags(book).join(' ')}`.toLowerCase().includes(q);
-    }).sort((a, b) => sort === 'title' ? a.title.localeCompare(b.title)
-      : sort === 'added' ? b.importedAt - a.importedAt
+      // Global search always spans the entire library; local search stays scoped.
+      if (!globalMode) {
+        if (filter === 'reading' && !(book.progress > 0 && book.progress < 99.5)) return false;
+        if (filter === 'finished' && book.progress < 99.5) return false;
+        if (filter === 'unread' && book.progress > 0) return false;
+        if (selectedTag && !includesTag(book, selectedTag)) return false;
+      }
+      return !q || `${book.title} ${book.author} ${bookTags(book).join(' ')}`.toLocaleLowerCase().includes(q);
+    }).sort((a, b) => globalMode || selectedTag || sort === 'title'
+      ? a.title.localeCompare(b.title) : sort === 'added' ? b.importedAt - a.importedAt
       : (b.lastOpenedAt ?? b.importedAt) - (a.lastOpenedAt ?? a.importedAt));
-  }, [books, filter, sort, query, selectedTag]);
+  }, [books, filter, sort, query, selectedTag, globalSearch, globalMode]);
+  function browseTag(tag: string) {
+    setSelectedTag(tag);
+    setQuery('');
+    setFilter('all');
+    onGlobalSearch('');
+    setSidebarOpen(false);
+  }
+  function clearTag() { setSelectedTag(''); setQuery(''); }
+
 
   function drop(event: DragEvent<HTMLElement>) {
     event.preventDefault();
@@ -94,7 +110,7 @@ export default function LibraryDashboard({
   function leave(event: DragEvent<HTMLElement>) {
     if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setDragging(false);
   }
-  function goTo(newFilter: Filter) { setFilter(newFilter); setSidebarOpen(false); }
+  function goTo(newFilter: Filter) { setFilter(newFilter); clearTag(); onGlobalSearch(''); setSidebarOpen(false); }
 
 
   const navEntries = [
@@ -119,7 +135,7 @@ export default function LibraryDashboard({
               </button>
             ))}
           </nav>
-          {availableTags.length > 0 && <><p className="side-caption collection-caption">BROWSE BY TAG</p><div className="sidebar-tag-list">{availableTags.slice(0, 12).map(({ tag, count }) => <button key={tag} type="button" className={`sidebar-tag ${selectedTag.toLowerCase() === tag.toLowerCase() ? 'active' : ''}`} onClick={() => { setSelectedTag(selectedTag.toLowerCase() === tag.toLowerCase() ? '' : tag); setSidebarOpen(false); }}><Hash size={14} /><span>{tag}</span><em>{count}</em></button>)}</div></>}
+          {availableTags.length > 0 && <><p className="side-caption collection-caption">BROWSE BY TAG</p><div className="sidebar-tag-list">{availableTags.slice(0, 12).map(({ tag, count }) => <button key={tag} type="button" className={`sidebar-tag ${selectedTag.toLowerCase() === tag.toLowerCase() ? 'active' : ''}`} onClick={() => browseTag(selectedTag.toLowerCase() === tag.toLowerCase() ? '' : tag)}><Hash size={14} /><span>{tag}</span><em>{count}</em></button>)}</div></>}
           <p className="side-caption collection-caption">YOUR COLLECTION</p>
           <button className="collection-link" onClick={onImportClick}><span className="collection-icon"><Plus size={16} /></span><span>Add a new novel</span></button>
           <div className="side-note"><Sparkles size={17} /><p>“There is no friend as loyal as a book.”<small>ERNEST HEMINGWAY</small></p></div>
@@ -128,7 +144,7 @@ export default function LibraryDashboard({
       </aside>
 
       <main className="main-panel">
-        <header className="topbar"><button className="icon-button mobile-menu" onClick={() => setSidebarOpen(true)} aria-label="Open menu"><Menu size={22} /></button><div className="breadcrumbs"><span>MY LIBRARY</span><span className="crumb-slash">/</span><strong>{filter === 'all' ? 'All books' : navEntries.find((i) => i.id === filter)?.name}</strong></div><div className="top-actions"><span className="private-chip"><LockKeyhole size={13} /> PERSONAL SPACE</span><button className="icon-button theme-switch" onClick={() => onThemeChange(themes[(themes.indexOf(theme) + 1) % themes.length])} title="Change theme" aria-label="Change theme">{theme === 'dark' ? <Moon size={19} /> : <Sun size={19} />}</button></div></header>
+        <header className="topbar"><button className="icon-button mobile-menu" onClick={() => setSidebarOpen(true)} aria-label="Open menu"><Menu size={22} /></button><div className="breadcrumbs"><span>MY LIBRARY</span><span className="crumb-slash">/</span><strong>{globalMode ? 'Global search' : selectedTag ? `Tag: ${selectedTag}` : filter === 'all' ? 'All books' : navEntries.find((i) => i.id === filter)?.name}</strong></div><div className="top-actions"><label className="global-search-field"><Search size={16} /><input aria-label="Search all novels" placeholder="Search all novels…" value={globalSearch} onChange={event => onGlobalSearch(event.target.value)} />{globalSearch && <button type="button" aria-label="Clear global search" onClick={() => onGlobalSearch('')}><X size={15} /></button>}</label><span className="private-chip"><LockKeyhole size={13} /> PERSONAL SPACE</span><button className="icon-button theme-switch" onClick={() => onThemeChange(themes[(themes.indexOf(theme) + 1) % themes.length])} title="Change theme" aria-label="Change theme">{theme === 'dark' ? <Moon size={19} /> : <Sun size={19} />}</button></div></header>
         <div className="page-content">
           <section className="cloud-connect" aria-label="Cloud library storage">
             <div className="cloud-connect-head"><span><Cloud size={16} /><strong>Cloud library</strong><small className={cloudRepo && cloudSession ? 'connection-badge is-connected' : 'connection-badge'}>{cloudRepo && cloudSession ? 'Connected' : cloudRepo ? 'Disconnected' : 'Not set up'}</small></span><button type="button" className="secondary-button" aria-expanded={showCloud} onClick={() => setShowCloud(v => !v)}>{showCloud ? 'Close' : 'Settings'}</button></div>
@@ -164,10 +180,10 @@ export default function LibraryDashboard({
             <section className="feature-panel" aria-label="Featured book"><div className="feature-decoration" aria-hidden="true">✺</div><div className="feature-copy"><div className="feature-eyebrow"><span className="feature-dot" /> {featured.progress > 0 ? 'PICK UP WHERE YOU LEFT OFF' : 'A STORY IS WAITING FOR YOU'}</div><h2><button type="button" className="featured-title-link" onClick={() => onOpen(featured)}>{featured.title}</button></h2><p className="feature-author">by {featured.author}</p><div className="feature-stats"><span><BookOpen size={15} /> {featured.chapterCount ? `${featured.chapterCount} chapters` : 'EPUB edition'}</span><span className="feature-stat-sep">·</span><span>{featured.progress ? `${Math.round(featured.progress)}% read` : 'Ready to begin'}</span></div><button className="feature-button" onClick={() => onRead(featured)}>{featured.progress > 0 ? 'Continue reading' : 'Start reading'} <ArrowRight size={17} /></button></div><div className="featured-cover-wrap"><Cover book={featured} variant="feature" /></div></section>
           )}
 
-          <section className="library-section" aria-label="Book collection"><div className="section-titlebar"><div><div className="section-overline">THE COLLECTION</div><h2>{filter === 'all' ? 'All your stories' : navEntries.find((i) => i.id === filter)?.name}<span className="title-count">{visible.length}</span></h2></div><span className="library-description">A little world on every shelf</span></div>
-            <div className="library-toolbar"><div className="filter-tabs">{(['all', 'reading', 'unread', 'finished'] as Filter[]).map((name) => <button key={name} onClick={() => setFilter(name)} className={filter === name ? 'selected' : ''}>{name === 'all' ? 'All' : name === 'reading' ? 'Reading' : name === 'unread' ? 'Unread' : 'Finished'}</button>)}</div><div className="toolbar-right"><label className="tag-filter"><Tag size={16} /><select aria-label="Filter novels by tag" value={selectedTag} onChange={(e) => setSelectedTag(e.target.value)}><option value="">All tags</option>{availableTags.map(({tag, count}) => <option key={tag} value={tag}>{tag} ({count})</option>)}</select><ChevronDown size={14} /></label><label className="search-field"><Search size={17} /><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search your library…" aria-label="Search books" />{query && <button aria-label="Clear search" onClick={() => setQuery('')}><X size={14} /></button>}</label><label className="sort-field"><Settings2 size={16} /><select value={sort} onChange={(e) => setSort(e.target.value as Sort)} aria-label="Sort books"><option value="recent">Recent</option><option value="title">Title A–Z</option><option value="added">Date added</option></select><ChevronDown size={14} /></label></div></div>
+          <section className="library-section" aria-label="Book collection"><div className="section-titlebar"><div><div className="section-overline">{globalMode ? 'ALL NOVELS' : selectedTag ? 'BROWSING TAG' : 'THE COLLECTION'}</div><h2>{globalMode ? 'Global search results' : selectedTag ? selectedTag : filter === 'all' ? 'All your stories' : navEntries.find((i) => i.id === filter)?.name}<span className="title-count">{visible.length}</span></h2></div><span className="library-description">A little world on every shelf</span></div>
+            {selectedTag && !globalMode && <div className="tag-collection-head"><span>Novels tagged <strong>{selectedTag}</strong> · Sorted A–Z</span><button type="button" onClick={clearTag}>Show all novels <X size={13} /></button></div>}<div className="library-toolbar"><div className="filter-tabs">{(['all', 'reading', 'unread', 'finished'] as Filter[]).map((name) => <button key={name} onClick={() => { setFilter(name); onGlobalSearch(''); }} className={filter === name ? 'selected' : ''}>{name === 'all' ? 'All' : name === 'reading' ? 'Reading' : name === 'unread' ? 'Unread' : 'Finished'}</button>)}</div><div className="toolbar-right"><label className="tag-filter"><Tag size={16} /><select aria-label="Filter novels by tag" value={selectedTag} onChange={(e) => browseTag(e.target.value)}><option value="">All tags</option>{availableTags.map(({tag, count}) => <option key={tag} value={tag}>{tag} ({count})</option>)}</select><ChevronDown size={14} /></label><label className="search-field"><Search size={17} /><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={selectedTag ? `Search ${selectedTag} novels…` : "Search this shelf…"} aria-label="Search within current list" />{query && <button aria-label="Clear search" onClick={() => setQuery('')}><X size={14} /></button>}</label><label className="sort-field"><Settings2 size={16} /><select value={selectedTag || globalMode ? 'title' : sort} disabled={!!selectedTag || globalMode} onChange={(e) => setSort(e.target.value as Sort)} aria-label="Sort books"><option value="recent">Recent</option><option value="title">Title A–Z</option><option value="added">Date added</option></select><ChevronDown size={14} /></label></div></div>
 
-            {visible.length ? <div className="book-grid">{visible.map((book) => <article className="book-tile" key={book.id}><button className="cover-button" onClick={() => onOpen(book)} aria-label={`View details for ${book.title}`}><Cover book={book} /></button><div className="tile-meta"><div className="tile-title-row"><button className="tile-title" onClick={() => onOpen(book)} title={book.title}>{book.title}</button><button className="tile-delete" aria-label={`Remove ${book.title}`} title={book.cloud ? "Hosted in your private cloud dataset" : "Remove from this device"} onClick={() => onDelete(book)}><Trash2 size={14} /></button></div><p>{book.author}</p>{bookTags(book).length > 0 && <div className="tile-tags">{bookTags(book).slice(0, 3).map((tag) => <span key={tag}>{tag}</span>)}{bookTags(book).length > 3 && <span>+{bookTags(book).length - 3}</span>}</div>}<div className="tile-bottom">{book.personalRating && <span className="book-rating-pill"><Star size={12} fill="currentColor" /> {book.personalRating}/10</span>}{book.progress > 0 ? <><div className="mini-progress"><i style={{ width: `${book.progress}%` }} /></div><span>{Math.round(book.progress)}%</span></> : <span className="unread-label">NOT STARTED</span>}</div></div></article>)}</div> : <div className="no-results"><BookOpen size={27} /><h3>{books.length ? 'No novels on this shelf' : 'Your library is waiting'}</h3><p>{books.length ? 'Try a different search or tag.' : 'Import a novel ZIP, then connect your private cloud dataset to use the same collection on other devices.'}</p>{!books.length && <button className="secondary-button" onClick={onImportClick}><Upload size={17} /> Choose a ZIP or EPUB</button>}</div>}
+            {visible.length ? <div className="book-grid">{visible.map((book) => <article className="book-tile" key={book.id}><button className="cover-button" onClick={() => onOpen(book)} aria-label={`View details for ${book.title}`}><Cover book={book} /></button><div className="tile-meta"><div className="tile-title-row"><button className="tile-title" onClick={() => onOpen(book)} title={book.title}>{book.title}</button><button className="tile-delete" aria-label={`Remove ${book.title}`} title={book.cloud ? "Hosted in your private cloud dataset" : "Remove from this device"} onClick={() => onDelete(book)}><Trash2 size={14} /></button></div><p>{book.author}</p>{bookTags(book).length > 0 && <div className="tile-tags">{bookTags(book).slice(0, 3).map((tag) => <button type="button" key={tag} onClick={() => browseTag(tag)} aria-label={`Browse novels tagged ${tag}`}>{tag}</button>)}{bookTags(book).length > 3 && <span>+{bookTags(book).length - 3}</span>}</div>}<div className="tile-bottom">{book.personalRating && <span className="book-rating-pill"><Star size={12} fill="currentColor" /> {book.personalRating}/10</span>}{book.progress > 0 ? <><div className="mini-progress"><i style={{ width: `${book.progress}%` }} /></div><span>{Math.round(book.progress)}%</span></> : <span className="unread-label">NOT STARTED</span>}</div></div></article>)}</div> : <div className="no-results"><BookOpen size={27} /><h3>{books.length ? 'No novels on this shelf' : 'Your library is waiting'}</h3><p>{books.length ? 'Try a different search or tag.' : 'Import a novel ZIP, then connect your private cloud dataset to use the same collection on other devices.'}</p>{!books.length && <button className="secondary-button" onClick={onImportClick}><Upload size={17} /> Choose a ZIP or EPUB</button>}</div>}
             <div className="collection-footer"><span><CloudOff size={15} /> {cloudSession && cloudRepo ? 'Novel archives upload to your private dataset' : 'Novels imported locally until cloud is connected'}</span><span>{books.length} {books.length === 1 ? 'book' : 'books'} in your private collection</span></div>
           </section>
           <button className="mobile-fab" onClick={onImportClick} aria-label="Add a novel"><Plus size={24} /></button>
