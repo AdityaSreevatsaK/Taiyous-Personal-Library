@@ -61,7 +61,7 @@ try {
       transaction.objectStore('books').put({
         id: 'aaaaaaaaaaaaaaaaaaaaaaaa', title: 'Sample Library Book', author: 'Test Author',
         originalFileName: 'sample.epub', importedAt: Date.now(),
-        progress: 0, size: 128, metadataScanned: true,
+        progress: 0, size: 128, metadataScanned: true, sourceTags: ['Fantasy'],
       });
       transaction.objectStore('files').put({ id: 'aaaaaaaaaaaaaaaaaaaaaaaa', epub: new Blob(['mock epub']) });
       await new Promise((resolve, reject) => {
@@ -87,7 +87,20 @@ try {
     if (await page.locator('.details-review-card .rating-choices').count()) {
       throw new Error('Rating controls must live in title panel, not comments card');
     }
-    await page.getByRole('button', { name: 'My library' }).click();
+    await page.getByRole('button', { name: 'Browse novels tagged Fantasy' }).first().click();
+    await page.getByRole('heading', { name: /Fantasy/ }).first().waitFor();
+    await page.getByRole('textbox', { name: 'Search within current list' }).fill('unmatched');
+    if (await page.getByRole('button', { name: 'View details for Sample Library Book' }).count()) {
+      throw new Error('Tag-local search failed to limit results');
+    }
+    await page.getByRole('textbox', { name: 'Search within current list' }).fill('Sample');
+    await page.getByRole('button', { name: 'View details for Sample Library Book' }).waitFor();
+    await page.getByRole('textbox', { name: 'Search all novels' }).fill('Test Author');
+    await page.getByRole('button', { name: 'View details for Sample Library Book' }).waitFor();
+    await page.getByRole('button', { name: 'Clear global search' }).click();
+    await page.getByRole('button', { name: 'Show all novels' }).click();
+    // Continue standard verification on the unfiltered shelf.
+    // 
     await page.locator('.book-rating-pill').getByText('8/10').waitFor();
     if (errors.length) throw new Error(`Browser errors: ${errors.join(' | ')}`);
     if (failedAssets.length) throw new Error(`Failed local assets: ${failedAssets.join(' | ')}`);
