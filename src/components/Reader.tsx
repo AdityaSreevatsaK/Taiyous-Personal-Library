@@ -13,6 +13,7 @@ interface Props {
   settings: ReaderSettings;
   onSettings: (settings: ReaderSettings) => void;
   onBack: () => void;
+  onNovelDetails: () => void;
   initialChapterHref?: string;
   onProgress: (patch: Partial<LibraryBook>) => void;
 }
@@ -49,6 +50,7 @@ function applyAppearance(rendition: any, settings: ReaderSettings) {
       'max-width': 'none !important',
       margin: '0 !important',
       'box-sizing': 'border-box !important',
+      'overflow-x': 'hidden !important',
     },
     body: {
       background: `${tone.background} !important`,
@@ -58,6 +60,8 @@ function applyAppearance(rendition: any, settings: ReaderSettings) {
       width: '100% !important',
       'max-width': 'none !important',
       'min-width': '0 !important',
+      'overflow-x': 'hidden !important',
+      'overflow-wrap': 'anywhere !important',
       margin: '0 !important',
       'box-sizing': 'border-box !important',
       'font-family': `${font} !important`,
@@ -80,7 +84,7 @@ function applyAppearance(rendition: any, settings: ReaderSettings) {
   rendition.themes.fontSize(`${settings.fontSize}%`);
 }
 
-export default function Reader({ book, settings, onSettings, onBack, onProgress, initialChapterHref }: Props) {
+export default function Reader({ book, settings, onSettings, onBack, onNovelDetails, onProgress, initialChapterHref }: Props) {
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const bookRef = useRef<any>(null);
   const renditionRef = useRef<any>(null);
@@ -138,6 +142,10 @@ export default function Reader({ book, settings, onSettings, onBack, onProgress,
             const cleanup = doc.createElement('style');
             cleanup.setAttribute('data-taiyou-hide-empty-embeds', '');
             cleanup.textContent = `
+              html, body { overflow-x: hidden !important; max-width: 100% !important; }
+              body { overflow-wrap: anywhere !important; word-wrap: break-word !important; }
+              img, svg, video, table { max-width: 100% !important; }
+              pre, code { white-space: pre-wrap !important; overflow-wrap: anywhere !important; }
               iframe:not([src]):not([srcdoc]),
               iframe[src=""]:not([srcdoc]) {
                 display: none !important;
@@ -286,12 +294,12 @@ export default function Reader({ book, settings, onSettings, onBack, onProgress,
     <div className={`reader-shell theme-${settings.theme}`} style={{ '--reading-width': settings.readingWidth === 0 ? 'none' : `${settings.readingWidth}px` } as CSSProperties}>
       <header className="reader-header">
         <div className="reader-head-left">
-          <button className="reader-back icon-button" onClick={onBack} title="Back to library" aria-label="Back to library"><ArrowLeft size={19} /></button>
+          <button className="reader-back icon-button" onClick={onNovelDetails} title="Back to novel details" aria-label="Back to novel details"><ArrowLeft size={19} /></button>
           <div className="reader-divider" />
-          <div className="reader-brand"><BookOpen size={18} /><span>Taiyou's Personal Library</span></div>
+          <button type="button" className="reader-brand reader-home-link" onClick={onBack} title="Go to library home" aria-label="Go to library home"><BookOpen size={18} /><span>Taiyou's Personal Library</span></button>
         </div>
         <div className="reader-head-center" aria-live="polite" aria-atomic="true">
-          <strong title={book.title}>{book.title}</strong>
+          <button type="button" className="reader-novel-link" onClick={onNovelDetails} title="Go to novel details" aria-label={`Go to ${book.title} details`}>{book.title}</button>
           <small>{currentChapterIndex >= 0 ? `Chapter ${displayedChapterIndex} of ${displayedChapterCount}` : chapter} <span className="reader-progress-percent"> · {Math.round(progress)}% read</span></small>
         </div>
         <nav className="reader-head-right" aria-label="Reader controls">
