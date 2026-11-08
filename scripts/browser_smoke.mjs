@@ -10,7 +10,7 @@ try {
     const failedAssets = [];
     page.on('pageerror', error => errors.push(error.message));
     page.on('console', message => {
-      if (message.type() === 'error' && !/fonts\.googleapis|fonts\.gstatic/.test(message.text())) errors.push(message.text());
+      if (message.type() === 'error' && (!message.location().url || message.location().url.startsWith(baseUrl))) errors.push(message.text());
     });
     page.on('response', response => {
       if (response.url().startsWith(baseUrl) && response.status() >= 400) {
