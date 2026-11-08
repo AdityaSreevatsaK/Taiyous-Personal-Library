@@ -263,6 +263,18 @@ export default function App() {
     setBooks(booksRef.current);
   }, []);
 
+  const savePersonalReview = useCallback(async (bookId: string, rating: number | undefined, review: string) => {
+    const current = booksRef.current.find(book => book.id === bookId);
+    if (!current) throw new Error('Novel not found in local library');
+    if (rating !== undefined && (!Number.isInteger(rating) || rating < 1 || rating > 10)) {
+      throw new Error('Rating must be between 1 and 10');
+    }
+    const updated = { ...current, personalRating: rating, personalReview: review.trim().slice(0, 10000) };
+    await updateBook(updated);
+    booksRef.current = booksRef.current.map(book => book.id === bookId ? updated : book);
+    setBooks(booksRef.current);
+  }, []);
+
   const openBook = useCallback((book: LibraryBook, chapterHref?: string) => {
     setLoadingBook(book.title);
     void (async () => {
@@ -326,7 +338,8 @@ export default function App() {
         onBack={() => setDetailsId(null)} onRead={() => openBook(detailBook)}
         onReadChapter={href => openBook(detailBook, href)}
         onSaveTags={tags => savePersonalTags(detailBook.id, tags)}
-        onSaveSummary={summary => savePersonalSummary(detailBook.id, summary)} error={error} />
+        onSaveSummary={summary => savePersonalSummary(detailBook.id, summary)}
+        onSaveReview={(rating, review) => savePersonalReview(detailBook.id, rating, review)} error={error} />
     ) : (
       <LibraryDashboard books={books} theme={settings.theme}
         onThemeChange={theme => setSettings(settings => ({ ...settings, theme }))}
