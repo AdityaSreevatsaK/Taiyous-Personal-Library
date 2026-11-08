@@ -143,6 +143,24 @@ try {
     // The current novel title returns to details; the library brand goes home.
     await page.getByRole('button', { name: 'View details for Sample Library Book' }).click();
     await page.getByRole('button', { name: 'Start reading' }).click();
+    // Reader navigation belongs in the bottom strip, outside the hosting overlay.
+    const footer = page.getByRole('navigation', { name: 'Chapter navigation' });
+    await footer.waitFor({ state: 'visible' });
+    const prevChapter = footer.getByRole('button', { name: 'Previous chapter' });
+    const nextChapter = footer.getByRole('button', { name: 'Next chapter' });
+    await prevChapter.waitFor({ state: 'visible' });
+    await nextChapter.waitFor({ state: 'visible' });
+    if (await page.locator('.reader-header').getByRole('button', { name: 'Next chapter' }).count()) {
+      throw new Error('Next chapter control must no longer be in the top header');
+    }
+    const prevBox = await prevChapter.boundingBox();
+    const nextBox = await nextChapter.boundingBox();
+    const footerBox = await footer.boundingBox();
+    if (!prevBox || !nextBox || !footerBox || prevBox.x >= nextBox.x ||
+        Math.abs(prevBox.y - nextBox.y) > 12 ||
+        footerBox.y < viewport.height - 120 || nextBox.x + nextBox.width > viewport.width + 1) {
+      throw new Error('Chapter controls must be visible at bottom left and bottom right');
+    }
     await page.getByRole('button', { name: 'Go to Sample Library Book details' }).waitFor();
     await page.locator('.reader-page iframe').first().waitFor({ state: 'visible', timeout: 20000 });
     const hasContentOverflow = await page.locator('.reader-page iframe').first().evaluate((frame) => {
