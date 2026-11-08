@@ -104,8 +104,29 @@ try {
     await page.getByRole('button', { name: 'View details for Sample Library Book' }).waitFor();
     await page.getByRole('button', { name: 'Clear global search' }).click();
     await page.getByRole('button', { name: 'Show all novels' }).click();
-    // Continue standard verification on the unfiltered shelf.
-    // 
+    // Collections are independent from tags, work offline and survive reload.
+    await page.getByRole('button', { name: 'Create collection' }).click();
+    await page.getByRole('textbox', { name: 'Collection name' }).fill('Example Series');
+    await page.getByRole('button', { name: 'Save new collection' }).click();
+    await page.getByRole('button', { name: 'Open collection Example Series' }).waitFor();
+    await page.getByRole('combobox', { name: 'Add Sample Library Book to collection' }).selectOption({ label: 'Example Series' });
+    await page.getByRole('button', { name: 'Open collection Example Series' }).click();
+    await page.getByRole('button', { name: 'View details for Sample Library Book' }).waitFor();
+    await page.reload({ waitUntil: 'networkidle' });
+    await page.getByRole('button', { name: 'Open collection Example Series' }).waitFor();
+    await page.getByRole('button', { name: 'Open collection Example Series' }).click();
+    await page.getByRole('button', { name: 'View details for Sample Library Book' }).waitFor();
+    // The current novel title returns to details; the library brand goes home.
+    await page.getByRole('button', { name: 'View details for Sample Library Book' }).click();
+    await page.getByRole('button', { name: 'Start reading' }).click();
+    await page.getByRole('button', { name: 'Go to Sample Library Book details' }).waitFor();
+    const overflow = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 2);
+    if (overflow) throw new Error('Reader produced horizontal page overflow');
+    await page.getByRole('button', { name: 'Go to Sample Library Book details' }).click();
+    await page.getByRole('heading', { name: 'Sample Library Book' }).waitFor();
+    await page.getByRole('button', { name: 'Start reading' }).click();
+    await page.getByRole('button', { name: 'Go to library home' }).click();
+    await page.getByRole('navigation', { name: 'Library sections' }).waitFor();
     await page.locator('.book-rating-pill').getByText('8/10').waitFor();
     if (errors.length) throw new Error(`Browser errors: ${errors.join(' | ')}`);
     if (failedAssets.length) throw new Error(`Failed local assets: ${failedAssets.join(' | ')}`);
