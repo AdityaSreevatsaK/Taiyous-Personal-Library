@@ -261,6 +261,7 @@ export function blendCloudAndLocal(remote: CloudEntry[], local: LibraryBook[]): 
     existing.set(entry.id, { ...entry.metadata, cloud: true,
       ...(prior ? { personalTags: prior.personalTags, userDescription: prior.userDescription,
         personalRating: prior.personalRating, personalReview: prior.personalReview,
+        personalReviewUpdatedAt: prior.personalReviewUpdatedAt,
         progress: prior.progress, currentChapter: prior.currentChapter,
         currentChapterIndex: prior.currentChapterIndex, currentChapterNumber: prior.currentChapterNumber,
         lastCfi: prior.lastCfi, lastOpenedAt: prior.lastOpenedAt } : {}),
