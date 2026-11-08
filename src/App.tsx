@@ -322,7 +322,7 @@ export default function App() {
   }, [cloudRepo, cloudSession]);
 
   const downloadFile = useCallback((blob: Blob, title: string, extension: 'epub' | 'zip') => {
-    const safeName = (title.replace(/[<>:"/\\\\|?*\\x00-\\x1f]/g, '_').trim() || 'novel').slice(0, 100);
+    const safeName = (title.replace(/[^\p{L}\p{N} ._()-]/gu, '_').trim() || 'novel').slice(0, 100);
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement('a');
     anchor.href = url;
