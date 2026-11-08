@@ -23,6 +23,12 @@ try {
     await page.waitForTimeout(1000);
     const rootText = (await page.locator('#root').innerText()).trim();
     if (rootText.length < 20) throw new Error('Compiled React app did not visibly render');
+    // Assert the real library dashboard rendered, rather than a long error message.
+    await page.locator('.app-shell').waitFor({ state: 'visible' });
+    await page.getByRole('navigation', { name: 'Library sections' }).waitFor({ state: 'attached' });
+    if (!rootText.includes('Personal Library') || !rootText.includes('YOUR SHELVES')) {
+      throw new Error('Expected library dashboard content is missing');
+    }
     if (errors.length) throw new Error(`Browser errors: ${errors.join(' | ')}`);
     if (failedAssets.length) throw new Error(`Failed local assets: ${failedAssets.join(' | ')}`);
     console.log(`Browser render passed at ${viewport.width}x${viewport.height}`);
