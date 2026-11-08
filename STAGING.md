@@ -35,3 +35,7 @@ This branch is separate from the restored production v1.0.4 baseline. No workflo
 - The original repository did not contain `package-lock.json`. Current npm installation therefore does not yet have fully reproducible dependency resolution. Add a reviewed lockfile and switch to `npm ci` after generating it with working npm registry access.
 - Playwright does not currently test private HF authentication, EPUB interactions or browser-local progress persistence. Those still need additional dedicated integration tests and live staging validation.
 - There is no production deployment workflow; this is intentionally a staging-only CI/CD change.
+
+## CI retry
+
+A new push to `dev` was requested on 2026-11-08 to re-test GitHub-hosted runner availability. No production promotion is implied by a successful staging run.
