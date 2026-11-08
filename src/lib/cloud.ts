@@ -117,6 +117,65 @@ export async function fetchCloudEpub(repo: string, entry: CloudEntry, session: C
   return blob;
 }
 
+/** Private, device-independent annotations; never mixed into the shared novel catalogue. */
+export interface CloudPersonalReview {
+  version: 1;
+  bookId: string;
+  rating: number | null;
+  comments: string;
+  updatedAt: number;
+}
+
+function personalReviewPath(bookId: string): string {
+  if (!ID_PATTERN.test(bookId)) throw new Error('Invalid novel ID for personal notes.');
+  return `data/personal/reviews/${bookId}.json`;
+}
+
+export function parseCloudPersonalReview(value: unknown, bookId: string): CloudPersonalReview {
+  if (!value || typeof value !== 'object') throw new Error('Invalid personal review document.');
+  const note = value as Partial<CloudPersonalReview>;
+  if (note.version !== 1 || note.bookId !== bookId ||
+    !(note.rating === null || (Number.isInteger(note.rating) && typeof note.rating === 'number' && note.rating >= 1 && note.rating <= 10)) ||
+    typeof note.comments !== 'string' || note.comments.length > 10000 ||
+    typeof note.updatedAt !== 'number' || !Number.isFinite(note.updatedAt) || note.updatedAt < 0) {
+    throw new Error('Unsupported personal review document.');
+  }
+  return note as CloudPersonalReview;
+}
+
+export async function fetchCloudPersonalReview(repo: string, bookId: string, session: CloudSession): Promise<CloudPersonalReview | null> {
+  const response = await privateGet(repo, personalReviewPath(bookId), session);
+  if (response.status === 404) return null;
+  if (!response.ok) throw new Error(`Unable to load synced notes for this novel (${response.status}).`);
+  return parseCloudPersonalReview(await response.json(), bookId);
+}
+
+/** Write a single book's annotation, never a catalogue or EPUB. */
+export async function saveCloudPersonalReview(
+  repo: string, bookId: string, session: CloudSession, rating: number | undefined, comments: string, updatedAt: number,
+): Promise<CloudPersonalReview> {
+  await assertPrivateDataset(repo, session);
+  const value = parseCloudPersonalReview({
+    version: 1, bookId, rating: rating ?? null, comments: comments.trim().slice(0, 10000), updatedAt,
+  }, bookId);
+  await uploadFiles({
+    repo: { type: 'dataset', name: validateDatasetRepo(repo) },
+    accessToken: session.accessToken,
+    files: [{ path: personalReviewPath(bookId), content: new Blob([JSON.stringify(value, null, 2) + '\\n'], { type: 'application/json' }) }],
+    commitTitle: 'Update private reading notes',
+  });
+  return value;
+}
+
+export async function fetchCloudArchive(repo: string, entry: CloudEntry, session: CloudSession): Promise<Blob> {
+  if (!validEntry(entry) || !entry.archivePath) throw new Error('No original ZIP archive is available for this novel.');
+  const response = await privateGet(repo, entry.archivePath, session);
+  if (!response.ok) throw new Error(`Unable to download original ZIP (${response.status}).`);
+  const blob = await response.blob();
+  if (!blob.size) throw new Error('The original ZIP is empty.');
+  return blob;
+}
+
 function cloudMetadata(book: LibraryBook): LibraryBook {
   // Personal tags, reading position and per-device timestamps are NOT published.
   return {
