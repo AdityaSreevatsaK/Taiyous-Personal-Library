@@ -17,10 +17,11 @@ interface Props {
   onSaveTags: (tags: string[]) => Promise<void>;
   onSaveSummary: (summary: string) => Promise<void>;
   onSaveReview: (rating: number | undefined, review: string) => Promise<void>;
+  onBrowseTag: (tag: string) => void;
   error: string | null;
 }
 
-export default function BookDetails({ book, theme, onBack, onRead, onReadChapter, onSaveTags, onSaveSummary, onSaveReview, error }: Props) {
+export default function BookDetails({ book, theme, onBack, onRead, onReadChapter, onSaveTags, onSaveSummary, onSaveReview, onBrowseTag, error }: Props) {
   const [tagInput, setTagInput] = useState('');
   const [editingSummary, setEditingSummary] = useState(false);
   const [summaryDraft, setSummaryDraft] = useState(book.userDescription || book.description || '');
@@ -100,7 +101,7 @@ export default function BookDetails({ book, theme, onBack, onRead, onReadChapter
             {book.status && <span><Check size={16} /> {book.status}</span>}
             {book.language && <span>{book.language.toUpperCase()}</span>}
           </div>
-          {allTags.length > 0 && <div className="details-hero-tags" aria-label="Novel tags">{allTags.slice(0, 9).map((tag) => <span key={tag}>{tag}</span>)}</div>}
+          {allTags.length > 0 && <div className="details-hero-tags" aria-label="Novel tags">{allTags.slice(0, 9).map((tag) => <button type="button" key={tag} onClick={() => onBrowseTag(tag)} aria-label={`Browse novels tagged ${tag}`}>{tag}</button>)}</div>}
           <form className="hero-rating" aria-label="Personal novel rating" onSubmit={(event) => void saveReview(event)}>
             <fieldset className="hero-rating-fieldset">
               <legend><Star size={15} /> My rating {book.personalRating ? `· ${book.personalRating}/10` : '· Not rated'}</legend>
@@ -157,9 +158,9 @@ export default function BookDetails({ book, theme, onBack, onRead, onReadChapter
             <div className="details-section-header"><div><span className="details-label">ORGANISE YOUR READING</span><h2 id="detail-tags-heading">Tags & genres</h2></div><Tag size={20} className="details-section-icon" /></div>
             <p className="details-help">Imported genres are taken from the EPUB or source metadata. Add your own tags to organise your library.</p>
             <h3 className="details-tags-label">Imported genres</h3>
-            <div className="details-tag-row">{originalTags.length ? originalTags.map((tag) => <span className="details-tag imported-tag" key={tag}><Hash size={13} />{tag}</span>) : <span className="details-muted small">No imported genres found.</span>}</div>
+            <div className="details-tag-row">{originalTags.length ? originalTags.map((tag) => <button type="button" className="details-tag imported-tag" key={tag} onClick={() => onBrowseTag(tag)} aria-label={`Browse novels tagged ${tag}`}><Hash size={13} />{tag}</button>) : <span className="details-muted small">No imported genres found.</span>}</div>
             <h3 className="details-tags-label">My tags</h3>
-            <div className="details-tag-row">{customTags.length ? customTags.map((tag) => <span className="details-tag personal-tag" key={tag}>{tag}<button type="button" disabled={saving} onClick={() => void removeTag(tag)} title={`Remove ${tag}`} aria-label={`Remove tag ${tag}`}><X size={14} /></button></span>) : <span className="details-muted small">You haven't added any personal tags yet.</span>}</div>
+            <div className="details-tag-row">{customTags.length ? customTags.map((tag) => <span className="details-tag personal-tag" key={tag}><button className="tag-browse-button" type="button" onClick={() => onBrowseTag(tag)} aria-label={`Browse novels tagged ${tag}`}>{tag}</button><button type="button" disabled={saving} onClick={() => void removeTag(tag)} title={`Remove ${tag}`} aria-label={`Remove tag ${tag}`}><X size={14} /></button></span>) : <span className="details-muted small">You haven't added any personal tags yet.</span>}</div>
             <form className="details-tag-form" onSubmit={(e) => void addTag(e)}><label htmlFor="new-novel-tag" className="sr-only">New personal tag</label><input id="new-novel-tag" value={tagInput} maxLength={45} onChange={(e) => setTagInput(e.target.value)} placeholder="e.g. Favourite, Cultivation, Slow burn..." /><button className="primary-button" type="submit" disabled={saving || !tagInput.trim() || customTags.length >= 50}><Plus size={18} /> Add tag</button></form>
           </section>
         </div>
