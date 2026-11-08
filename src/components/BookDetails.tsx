@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import {
-  ArrowLeft, ArrowRight, BookOpen, Bookmark, Check, ExternalLink, Hash,
+  ArrowLeft, ArrowRight, BookOpen, Bookmark, Check, Download, ExternalLink, Hash,
   Info, Pencil, Plus, Star, Tag, X,
 } from 'lucide-react';
 import { Cover } from './LibraryDashboard';
@@ -13,6 +13,9 @@ interface Props {
   theme: ReaderTheme;
   onBack: () => void;
   onRead: () => void;
+  onDownloadEpub: () => Promise<void>;
+  onDownloadArchive?: () => Promise<void>;
+  cloudConnected: boolean;
   onReadChapter: (href: string) => void;
   onSaveTags: (tags: string[]) => Promise<void>;
   onSaveSummary: (summary: string) => Promise<void>;
@@ -21,13 +24,14 @@ interface Props {
   error: string | null;
 }
 
-export default function BookDetails({ book, theme, onBack, onRead, onReadChapter, onSaveTags, onSaveSummary, onSaveReview, onBrowseTag, error }: Props) {
+export default function BookDetails({ book, theme, onBack, onRead, onDownloadEpub, onDownloadArchive, cloudConnected, onReadChapter, onSaveTags, onSaveSummary, onSaveReview, onBrowseTag, error }: Props) {
   const [tagInput, setTagInput] = useState('');
   const [editingSummary, setEditingSummary] = useState(false);
   const [summaryDraft, setSummaryDraft] = useState(book.userDescription || book.description || '');
   const [ratingDraft, setRatingDraft] = useState<number | undefined>(book.personalRating);
   const [reviewDraft, setReviewDraft] = useState(book.personalReview || '');
   const [saving, setSaving] = useState(false);
+  const [downloading, setDownloading] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
   const originalTags = book.sourceTags || [];
   const customTags = book.personalTags || [];
@@ -77,9 +81,11 @@ export default function BookDetails({ book, theme, onBack, onRead, onReadChapter
     setSaving(true); setFeedback(null);
     try {
       await onSaveReview(ratingDraft, reviewDraft);
-      setFeedback('Your rating and comments were saved on this device.');
-    } catch {
-      setFeedback('Unable to save your rating or comments. Check browser storage.');
+      setFeedback(cloudConnected && book.cloud
+        ? 'Your rating and comments are saved to your private cloud library.'
+        : 'Saved on this device. Connect your private cloud library to synchronise across devices.');
+    } catch (reason) {
+      setFeedback(reason instanceof Error ? reason.message : 'Unable to save rating or comments.');
     } finally { setSaving(false); }
   }
 
@@ -114,7 +120,17 @@ export default function BookDetails({ book, theme, onBack, onRead, onReadChapter
             </fieldset>
             <button type="submit" className="hero-rating-save" disabled={saving}>Save rating</button>
           </form>
-          <button type="button" className="details-start" onClick={onRead}>{book.progress > 0 ? 'Continue reading' : 'Start reading'} <ArrowRight size={20} /></button>
+          <div className="details-hero-actions">
+            <button type="button" className="details-start" onClick={onRead}>{book.progress > 0 ? 'Continue reading' : 'Start reading'} <ArrowRight size={20} /></button>
+            <button type="button" className="details-download" disabled={downloading} onClick={() => {
+              setDownloading(true); setFeedback(null);
+              void onDownloadEpub().catch(reason => setFeedback(`Download failed: ${String(reason)}`)).finally(() => setDownloading(false));
+            }}><Download size={17} /> {downloading ? 'Preparing…' : 'Download EPUB'}</button>
+            {onDownloadArchive && <button type="button" className="details-download" disabled={downloading} onClick={() => {
+              setDownloading(true); setFeedback(null);
+              void onDownloadArchive().catch(reason => setFeedback(`ZIP download failed: ${String(reason)}`)).finally(() => setDownloading(false));
+            }}><Download size={17} /> Original ZIP</button>}
+          </div>
         </div>
       </div>
 
@@ -135,11 +151,11 @@ export default function BookDetails({ book, theme, onBack, onRead, onReadChapter
           </section>
           <section className="details-card details-review-card" aria-labelledby="detail-review-heading">
             <div className="details-section-header"><div><span className="details-label">YOUR PERSONAL IMPRESSIONS</span><h2 id="detail-review-heading">Comments & reading notes</h2></div><Star size={20} className="details-section-icon" /></div>
-            <p className="details-help">Capture your thoughts about this novel. Your comments and the rating above are stored only in this browser, not in the shared novel dataset.</p>
+            <p className="details-help">Capture your thoughts about this novel. When connected, your private ratings and comments are synchronised across devices without changing the shared novel catalogue.</p>
             <form className="personal-review-form" onSubmit={(event) => void saveReview(event)}>
               <label htmlFor="personal-review">My comments / reading notes</label>
               <textarea id="personal-review" rows={5} maxLength={10000} value={reviewDraft} onChange={event => setReviewDraft(event.target.value)} placeholder="Memorable characters, plot points, or your thoughts..." />
-              <div className="personal-review-actions"><span>Stored on this device only</span><button type="submit" className="primary-button" disabled={saving}><Check size={16} /> Save comments</button></div>
+              <div className="personal-review-actions"><span>{cloudConnected && book.cloud ? 'Stored in your private cloud library' : 'Saved locally until cloud is connected'}</span><button type="submit" className="primary-button" disabled={saving}><Check size={16} /> Save comments</button></div>
             </form>
           </section>
 
