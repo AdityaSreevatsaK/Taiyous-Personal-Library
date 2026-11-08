@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import {
   ArrowLeft, ArrowRight, BookOpen, Bookmark, Check, ExternalLink, Hash,
-  Info, Pencil, Plus, Tag, X,
+  Info, Pencil, Plus, Star, Tag, X,
 } from 'lucide-react';
 import { Cover } from './LibraryDashboard';
 import ChapterBrowser from './ChapterBrowser';
@@ -16,13 +16,16 @@ interface Props {
   onReadChapter: (href: string) => void;
   onSaveTags: (tags: string[]) => Promise<void>;
   onSaveSummary: (summary: string) => Promise<void>;
+  onSaveReview: (rating: number | undefined, review: string) => Promise<void>;
   error: string | null;
 }
 
-export default function BookDetails({ book, theme, onBack, onRead, onReadChapter, onSaveTags, onSaveSummary, error }: Props) {
+export default function BookDetails({ book, theme, onBack, onRead, onReadChapter, onSaveTags, onSaveSummary, onSaveReview, error }: Props) {
   const [tagInput, setTagInput] = useState('');
   const [editingSummary, setEditingSummary] = useState(false);
   const [summaryDraft, setSummaryDraft] = useState(book.userDescription || book.description || '');
+  const [ratingDraft, setRatingDraft] = useState<number | undefined>(book.personalRating);
+  const [reviewDraft, setReviewDraft] = useState(book.personalReview || '');
   const [saving, setSaving] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
   const originalTags = book.sourceTags || [];
@@ -32,6 +35,7 @@ export default function BookDetails({ book, theme, onBack, onRead, onReadChapter
   const chapterText = book.currentChapter || (book.progress ? 'Position saved' : 'Not started');
 
   useEffect(() => { setSummaryDraft(book.userDescription || book.description || ''); }, [book.id, book.userDescription, book.description]);
+  useEffect(() => { setRatingDraft(book.personalRating); setReviewDraft(book.personalReview || ''); }, [book.id, book.personalRating, book.personalReview]);
 
   async function addTag(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -64,6 +68,18 @@ export default function BookDetails({ book, theme, onBack, onRead, onReadChapter
     try { await onSaveSummary(summaryDraft); setEditingSummary(false); setFeedback('Summary saved on this device.'); }
     catch { setFeedback('Could not save your summary.'); }
     finally { setSaving(false); }
+  }
+
+  async function saveReview(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (saving) return;
+    setSaving(true); setFeedback(null);
+    try {
+      await onSaveReview(ratingDraft, reviewDraft);
+      setFeedback('Your rating and comments were saved on this device.');
+    } catch {
+      setFeedback('Unable to save your rating or comments. Check browser storage.');
+    } finally { setSaving(false); }
   }
 
   return <div className={`details-shell theme-${theme}`}>
@@ -99,6 +115,24 @@ export default function BookDetails({ book, theme, onBack, onRead, onReadChapter
             {editingSummary ? <form onSubmit={(e) => void saveSummary(e)} className="summary-form"><label htmlFor="summary-editor" className="setting-help">Your version is stored only in this browser; the imported summary remains available.</label><textarea id="summary-editor" value={summaryDraft} onChange={(e) => setSummaryDraft(e.target.value)} maxLength={24000} rows={9} placeholder="Write a short summary of the story..." /><div className="summary-form-actions"><button type="button" className="secondary-button" onClick={() => setEditingSummary(false)}>Cancel</button><button type="submit" className="primary-button" disabled={saving}><Check size={16} /> Save summary</button></div></form>
               : summary ? <p className="details-synopsis">{summary}</p>
                 : <p className="details-muted">No synopsis is present in this EPUB. You can add your own with <strong>Edit summary</strong>.</p>}
+          </section>
+
+          <section className="details-card details-review-card" aria-labelledby="detail-review-heading">
+            <div className="details-section-header"><div><span className="details-label">YOUR PERSONAL IMPRESSIONS</span><h2 id="detail-review-heading">Rating & comments</h2></div><Star size={20} className="details-section-icon" /></div>
+            <p className="details-help">Give this novel a score from 1 to 10 and save your private thoughts. These stay in this browser, not in the shared novel dataset.</p>
+            <form className="personal-review-form" onSubmit={(event) => void saveReview(event)}>
+              <fieldset className="rating-fieldset"><legend>My rating (1–10)</legend>
+                <div className="rating-choices">
+                  {Array.from({ length: 10 }, (_, index) => index + 1).map(value =>
+                    <button key={value} type="button" className={ratingDraft === value ? 'rating-choice selected' : 'rating-choice'} onClick={() => setRatingDraft(value)} aria-label={`Rate ${value} out of 10`} aria-pressed={ratingDraft === value}>{value}</button>
+                  )}
+                  <button type="button" className="rating-clear" onClick={() => setRatingDraft(undefined)} disabled={ratingDraft === undefined}>Clear</button>
+                </div>
+              </fieldset>
+              <label htmlFor="personal-review">My comments / reading notes</label>
+              <textarea id="personal-review" rows={5} maxLength={10000} value={reviewDraft} onChange={event => setReviewDraft(event.target.value)} placeholder="What did you enjoy? Memorable characters, plot points, or your thoughts..." />
+              <div className="personal-review-actions"><span>Stored on this device only</span><button type="submit" className="primary-button" disabled={saving}><Check size={16} /> Save rating & comments</button></div>
+            </form>
           </section>
 
           <ChapterBrowser book={book} onReadChapter={onReadChapter} />
