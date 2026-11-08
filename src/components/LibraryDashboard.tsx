@@ -154,7 +154,7 @@ export default function LibraryDashboard({
           <div className="side-collection-title"><p className="side-caption collection-caption">YOUR COLLECTIONS</p><button type="button" onClick={() => setCreatingCollection(v => !v)} aria-label="Create collection" title="Create collection"><Plus size={17} /></button></div>
           {creatingCollection && <form className="collection-create-form" onSubmit={event => {
             event.preventDefault(); if (!newCollectionName.trim()) return;
-            void onCreateCollection(newCollectionName).then(() => { setNewCollectionName(''); setCreatingCollection(false); });
+            void onCreateCollection(newCollectionName).then(() => { setNewCollectionName(''); setCreatingCollection(false); setSidebarOpen(false); });
           }}>
             <label className="sr-only" htmlFor="collection-name-input">Collection name</label>
             <input id="collection-name-input" maxLength={90} value={newCollectionName} onChange={event => setNewCollectionName(event.target.value)} placeholder="e.g. Harry Potter" required />
