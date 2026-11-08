@@ -668,3 +668,17 @@ button.details-tag.imported-tag:hover { background: var(--surface-soft); text-de
 .details-download:hover { background: #ffffff2b; }
 .details-download:focus-visible { outline: 2px solid #f1f7ee; outline-offset: 2px; }
 @media (max-width: 700px) { .details-hero-actions { margin-top: 16px; gap: 8px; } .details-download { min-height: 39px; padding: 9px 11px; font-size: 11px; } }
+
+
+/* EPUB horizontal overflow fix: keep vertical reading scroll, never a bottom track. */
+html, body, #root { max-width: 100%; overflow-x: clip; }
+.reader-shell, .reader-main, .reader-content, .reader-page { max-width: 100%; min-width: 0; overflow-x: clip; }
+.reader-page .epub-container, .reader-page .epub-view, .reader-page iframe { max-width: 100% !important; overflow-x: hidden !important; }
+.reader-page .epub-container { overflow-y: auto; }
+.reader-page iframe { display: block; }
+.reader-home-link, .reader-novel-link { border: 0; background: transparent; cursor: pointer; }
+.reader-home-link { padding: 4px; border-radius: 7px; }
+.reader-home-link:hover, .reader-home-link:focus-visible { background: var(--surface-soft); }
+.reader-novel-link { display: block; width: 100%; max-width: 100%; text-align: center; font: inherit; font-size: 12px; font-weight: 700; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; padding: 4px 3px; border-radius: 5px; color: var(--text); }
+.reader-novel-link:hover, .reader-novel-link:focus-visible { text-decoration: underline; background: var(--surface-soft); }
+@media (max-width: 700px) { .reader-novel-link { font-size: 11px; } }
