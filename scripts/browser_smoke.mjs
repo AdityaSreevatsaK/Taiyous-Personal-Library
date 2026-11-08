@@ -29,6 +29,8 @@ try {
     const failedAssets = [];
     page.on('pageerror', error => errors.push(error.message));
     page.on('console', message => {
+      // Chromium logs this benign Permissions-Policy message when epub.js replaces an iframe.
+      if (/Permissions policy violation: unload is not allowed in this document/i.test(message.text())) return;
       if (message.type() === 'error' && (!message.location().url || message.location().url.startsWith(baseUrl))) errors.push(message.text());
     });
     page.on('response', response => {
