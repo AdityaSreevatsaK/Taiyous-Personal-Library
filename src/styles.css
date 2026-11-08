@@ -659,3 +659,12 @@ button.details-tag.imported-tag:hover { background: var(--surface-soft); text-de
   .breadcrumbs > .crumb-slash { display: none; }
   .tag-collection-head { align-items: flex-start; }
 }
+
+
+/* Downloads are independent from opening the reader; both controls stay visible. */
+.details-hero-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 22px; }
+.details-hero-actions .details-start { margin-top: 0; }
+.details-download { display: inline-flex; align-items: center; justify-content: center; gap: 8px; border: 1px solid #d5e6d8a8; border-radius: 9px; min-height: 45px; padding: 11px 16px; color: #f1f7ee; background: #ffffff16; font-size: 12px; font-weight: 700; }
+.details-download:hover { background: #ffffff2b; }
+.details-download:focus-visible { outline: 2px solid #f1f7ee; outline-offset: 2px; }
+@media (max-width: 700px) { .details-hero-actions { margin-top: 16px; gap: 8px; } .details-download { min-height: 39px; padding: 9px 11px; font-size: 11px; } }
