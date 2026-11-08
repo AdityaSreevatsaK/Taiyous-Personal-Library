@@ -607,3 +607,30 @@ button, input, select { -webkit-tap-highlight-color: transparent; }
 .personal-review-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; }
 .personal-review-actions span { font-size: 11px; color: var(--subtext); }
 @media (max-width: 700px) { .page-content > .cloud-connect { padding-left: 8px; } .connection-badge { padding: 4px 7px; } .page-content > .cloud-connect .cloud-connect-head .secondary-button { padding: 6px 8px; } }
+
+
+/* Staging: rating actions live in the title hero; supporting cards are left-aligned. */
+.details-columns { grid-template-columns: minmax(265px, 1fr) minmax(0, 1.65fr); }
+.details-aside { grid-column: 1; grid-row: 1; }
+.details-main-column { grid-column: 2; grid-row: 1; }
+.hero-rating { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end; margin-top: 22px; }
+.hero-rating-fieldset { min-width: 0; border: 0; padding: 0; margin: 0; }
+.hero-rating-fieldset legend { display: flex; align-items: center; gap: 7px; margin-bottom: 8px; color: #deeadc; font-size: 12px; font-weight: 700; }
+.hero-rating-choices { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; }
+.hero-rating-choice { display: inline-grid; place-items: center; min-width: 31px; height: 32px; padding: 0 4px; border: 1px solid #95b19d7d; border-radius: 7px; background: #ffffff17; color: #f2f7ed; font-size: 12px; font-weight: 700; }
+.hero-rating-choice:hover { background: #ffffff36; }
+.hero-rating-choice.selected { background: #f1f5ea; color: #254332; border-color: #f1f5ea; }
+.hero-rating-clear { border: 0; color: #deeadc; background: transparent; padding: 5px 8px; font-size: 11px; text-decoration: underline; }
+.hero-rating-save { min-height: 32px; padding: 6px 12px; border: 1px solid #d3e4d5; border-radius: 7px; background: #d3e4d5; color: #254332; font-size: 12px; font-weight: 750; }
+.hero-rating-save:hover { background: #ffffff; }
+.details-hero .details-start { margin-top: 20px; }
+@media (max-width: 900px) {
+  .details-columns { grid-template-columns: 1fr; }
+  .details-aside, .details-main-column { grid-column: 1; grid-row: auto; }
+  .details-aside { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); }
+}
+@media (max-width: 700px) {
+  .details-aside { display: flex; }
+  .hero-rating { margin-top: 17px; }
+  .hero-rating-choice { min-width: 28px; height: 30px; }
+}
