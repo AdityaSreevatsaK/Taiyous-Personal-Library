@@ -45,6 +45,50 @@ try {
     if (await page.locator('.empty-feature').count()) {
       throw new Error('Oversized empty-state hero must not obscure the bookshelf');
     }
+    // Seed a synthetic, local-only book so CI tests details without accessing the real dataset.
+    await page.evaluate(async () => {
+      const request = indexedDB.open('folio-personal-library-v1', 1);
+      const db = await new Promise((resolve, reject) => {
+        request.onupgradeneeded = () => {
+          const database = request.result;
+          if (!database.objectStoreNames.contains('books')) database.createObjectStore('books', { keyPath: 'id' });
+          if (!database.objectStoreNames.contains('files')) database.createObjectStore('files', { keyPath: 'id' });
+        };
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+      });
+      const transaction = db.transaction(['books', 'files'], 'readwrite');
+      transaction.objectStore('books').put({
+        id: 'aaaaaaaaaaaaaaaaaaaaaaaa', title: 'Sample Library Book', author: 'Test Author',
+        originalFileName: 'sample.epub', importedAt: Date.now(),
+        progress: 0, size: 128, metadataScanned: true,
+      });
+      transaction.objectStore('files').put({ id: 'aaaaaaaaaaaaaaaaaaaaaaaa', epub: new Blob(['mock epub']) });
+      await new Promise((resolve, reject) => {
+        transaction.oncomplete = () => resolve();
+        transaction.onerror = () => reject(transaction.error);
+      });
+      db.close();
+    });
+    await page.reload({ waitUntil: 'networkidle' });
+    await page.getByRole('button', { name: 'View details for Sample Library Book' }).click();
+    await page.getByRole('heading', { name: 'Sample Library Book' }).waitFor();
+    await page.getByRole('button', { name: 'Rate 8 out of 10' }).click();
+    await page.getByRole('button', { name: 'Save rating' }).click();
+    await page.getByText('Your rating and comments were saved on this device.').waitFor();
+    await page.locator('.details-hero').getByText('8/10').waitFor();
+    await page.getByLabel('My comments / reading notes').fill('Local test note');
+    await page.getByRole('button', { name: 'Save comments' }).click();
+    const aside = await page.locator('.details-aside').boundingBox();
+    const mainColumn = await page.locator('.details-main-column').boundingBox();
+    if (viewport.width > 900 && (!aside || !mainColumn || aside.x >= mainColumn.x)) {
+      throw new Error('Progress and details must appear to the left of the synopsis on desktop');
+    }
+    if (await page.locator('.details-review-card .rating-choices').count()) {
+      throw new Error('Rating controls must live in title panel, not comments card');
+    }
+    await page.getByRole('button', { name: 'My library' }).click();
+    await page.locator('.book-rating-pill').getByText('8/10').waitFor();
     if (errors.length) throw new Error(`Browser errors: ${errors.join(' | ')}`);
     if (failedAssets.length) throw new Error(`Failed local assets: ${failedAssets.join(' | ')}`);
     console.log(`Browser render passed at ${viewport.width}x${viewport.height}`);
