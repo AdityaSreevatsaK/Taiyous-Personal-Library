@@ -175,6 +175,24 @@ export async function uploadNovelToCloud(
   return 'added';
 }
 
+/**
+ * Resolve a book against the PRIVATE cloud catalogue. Older browser imports may
+ * have a different content hash than the hosted copy of the same title.
+ * Only use a fallback when title AND author agree and the match is unique.
+ */
+export function findCloudEntryForBook(entries: CloudEntry[], book: Pick<LibraryBook, 'id' | 'title' | 'author'>): CloudEntry | undefined {
+  const direct = entries.find(entry => validEntry(entry) && entry.id === book.id);
+  if (direct) return direct;
+  const normalise = (value: string): string => value.trim().replace(/\\s+/g, ' ').toLocaleLowerCase();
+  const title = normalise(book.title);
+  const author = normalise(book.author);
+  if (!title || !author || author === 'unknown') return undefined;
+  const matches = entries.filter(entry => validEntry(entry) &&
+    normalise(entry.metadata.title) === title &&
+    normalise(entry.metadata.author) === author);
+  return matches.length === 1 ? matches[0] : undefined;
+}
+
 export function blendCloudAndLocal(remote: CloudEntry[], local: LibraryBook[]): LibraryBook[] {
   const existing = new Map(local.map(book => [book.id, book]));
   for (const entry of remote) {
