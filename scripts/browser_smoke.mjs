@@ -75,8 +75,13 @@ try {
     await page.getByRole('heading', { name: 'Sample Library Book' }).waitFor();
     await page.getByRole('button', { name: 'Rate 8 out of 10' }).click();
     await page.getByRole('button', { name: 'Save rating' }).click();
-    await page.getByText('Your rating and comments were saved on this device.').waitFor();
+    await page.getByText('Saved on this device. Connect your private cloud library to synchronise across devices.').waitFor();
     await page.locator('.details-hero').getByText('8/10').waitFor();
+    // A real browser download should be offered in novel details, distinct from opening to read.
+    const downloadStarted = page.waitForEvent('download');
+    await page.getByRole('button', { name: 'Download EPUB' }).click();
+    const download = await downloadStarted;
+    if (!download.suggestedFilename().endsWith('.epub')) throw new Error('Missing EPUB download filename');
     await page.getByLabel('My comments / reading notes').fill('Local test note');
     await page.getByRole('button', { name: 'Save comments' }).click();
     const aside = await page.locator('.details-aside').boundingBox();
