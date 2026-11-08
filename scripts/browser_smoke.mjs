@@ -29,6 +29,21 @@ try {
     if (!rootText.includes('Personal Library') || !rootText.includes('YOUR SHELVES')) {
       throw new Error('Expected library dashboard content is missing');
     }
+    // Cloud connection must not dominate the bookshelf by default, but remain accessible.
+    const cloudSettings = page.getByRole('button', { name: 'Cloud settings' });
+    await cloudSettings.waitFor();
+    if (await page.locator('.cloud-connect-body').count()) {
+      throw new Error('Cloud settings should be collapsed by default');
+    }
+    await cloudSettings.click();
+    await page.getByRole('textbox', { name: 'Private dataset repository' }).waitFor();
+    await page.getByRole('button', { name: 'Hide settings' }).click();
+    if (await page.locator('.cloud-connect-body').count()) {
+      throw new Error('Cloud settings did not collapse');
+    }
+    if (await page.locator('.empty-feature').count()) {
+      throw new Error('Oversized empty-state hero must not obscure the bookshelf');
+    }
     if (errors.length) throw new Error(`Browser errors: ${errors.join(' | ')}`);
     if (failedAssets.length) throw new Error(`Failed local assets: ${failedAssets.join(' | ')}`);
     console.log(`Browser render passed at ${viewport.width}x${viewport.height}`);
