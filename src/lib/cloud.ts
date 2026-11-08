@@ -161,7 +161,7 @@ export async function saveCloudPersonalReview(
   await uploadFiles({
     repo: { type: 'dataset', name: validateDatasetRepo(repo) },
     accessToken: session.accessToken,
-    files: [{ path: personalReviewPath(bookId), content: new Blob([JSON.stringify(value, null, 2) + '\\n'], { type: 'application/json' }) }],
+    files: [{ path: personalReviewPath(bookId), content: new Blob([JSON.stringify(value, null, 2)], { type: 'application/json' }) }],
     commitTitle: 'Update private reading notes',
   });
   return value;
