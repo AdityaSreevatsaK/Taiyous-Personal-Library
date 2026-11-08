@@ -19,6 +19,8 @@ export default function App() {
   const [readingId, setReadingId] = useState<string | null>(null);
   const [startChapterHref, setStartChapterHref] = useState<string | null>(null);
   const [detailsId, setDetailsId] = useState<string | null>(null);
+  const [browseTag, setBrowseTag] = useState('');
+  const [globalSearch, setGlobalSearch] = useState('');
   const [importing, setImporting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -348,9 +350,11 @@ export default function App() {
         onReadChapter={href => openBook(detailBook, href)}
         onSaveTags={tags => savePersonalTags(detailBook.id, tags)}
         onSaveSummary={summary => savePersonalSummary(detailBook.id, summary)}
-        onSaveReview={(rating, review) => savePersonalReview(detailBook.id, rating, review)} error={error} />
+        onSaveReview={(rating, review) => savePersonalReview(detailBook.id, rating, review)}
+        onBrowseTag={tag => { setBrowseTag(tag); setGlobalSearch(''); setDetailsId(null); }} error={error} />
     ) : (
       <LibraryDashboard books={books} theme={settings.theme}
+        initialTag={browseTag} globalSearch={globalSearch} onGlobalSearch={setGlobalSearch}
         onThemeChange={theme => setSettings(settings => ({ ...settings, theme }))}
         onImportClick={() => filePicker.current?.click()}
         onFiles={files => void importFiles(files)} onOpen={showDetails}
