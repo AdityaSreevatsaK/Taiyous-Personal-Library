@@ -30,14 +30,15 @@ try {
       throw new Error('Expected library dashboard content is missing');
     }
     // Cloud connection must not dominate the bookshelf by default, but remain accessible.
-    const cloudSettings = page.getByRole('button', { name: 'Cloud settings' });
+    const cloudSettings = page.getByRole('button', { name: 'Settings', exact: true });
     await cloudSettings.waitFor();
+    if (!(await page.locator('.connection-badge').count())) throw new Error('Cloud status pill missing');
     if (await page.locator('.cloud-connect-body').count()) {
       throw new Error('Cloud settings should be collapsed by default');
     }
     await cloudSettings.click();
     await page.getByRole('textbox', { name: 'Private dataset repository' }).waitFor();
-    await page.getByRole('button', { name: 'Hide settings' }).click();
+    await page.getByRole('button', { name: 'Close', exact: true }).click();
     if (await page.locator('.cloud-connect-body').count()) {
       throw new Error('Cloud settings did not collapse');
     }
