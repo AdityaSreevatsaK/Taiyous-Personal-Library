@@ -24,10 +24,12 @@ export interface LibraryBook {
   description?: string;
   /** Optional user-supplied replacement summary. */
   userDescription?: string;
-  /** Personal rating from 1 to 10, stored only in this browser. */
+  /** Personal rating from 1 to 10; synchronised with private dataset when connected. */
   personalRating?: number;
-  /** Private reading comments/review, never written to the novel dataset. */
+  /** Private comments, stored in a separate private notes file when connected. */
   personalReview?: string;
+  /** Latest rating/comments edit timestamp to merge cloud notes safely. */
+  personalReviewUpdatedAt?: number;
   status?: string;
   sourceUrl?: string;
   /** Old imports are enriched lazily when their detail pages are opened. */
