@@ -7,7 +7,7 @@ import { normalizeTags } from './lib/tags';
 import { deleteBook, getBookFile, getBooks, readSettings, saveBook, updateBook, writeSettings } from './lib/storage';
 import {
   blendCloudAndLocal, clearCloudSession, createCloudSession, assertPrivateDataset,
-  fetchCloudCatalog, fetchCloudEpub, readDatasetRepo, saveDatasetRepo,
+  fetchCloudCatalog, fetchCloudEpub, findCloudEntryForBook, readDatasetRepo, saveDatasetRepo,
   uploadNovelToCloud, validateDatasetRepo,
   type CloudEntry, type CloudSession,
 } from './lib/cloud';
@@ -205,9 +205,18 @@ export default function App() {
   const ensureCached = useCallback(async (book: LibraryBook) => {
     try { await getBookFile(book.id); return; }
     catch { /* this novel may exist only in the hosted dataset */ }
-    const entry = cloudEntries.current.get(book.id);
-    if (!entry) throw new Error('This EPUB is not stored locally and could not be found in the hosted catalogue.');
-    if (!cloudRepo || !cloudSession) throw new Error('Connect your private dataset to download the hosted EPUB.');
+    if (!cloudRepo || !cloudSession) throw new Error('Connect your private dataset to download this hosted EPUB.');
+    // The in-memory entry map can be stale after reconnection or an older local
+    // import may have a different EPUB hash from the hosted copy.
+    let entry = findCloudEntryForBook([...cloudEntries.current.values()], book);
+    if (!entry) {
+      const catalog = await fetchCloudCatalog(validateDatasetRepo(cloudRepo), cloudSession);
+      cloudEntries.current = new Map(catalog.books.map(item => [item.id, item]));
+      entry = findCloudEntryForBook(catalog.books, book);
+    }
+    if (!entry) {
+      throw new Error(`No matching hosted EPUB was found for "${book.title}" after refreshing the private catalogue. Check the catalogue and original files; do not re-upload or delete anything yet.`);
+    }
     const file = await fetchCloudEpub(cloudRepo, entry, cloudSession);
     const current = booksRef.current.find(item => item.id === book.id) || book;
     await saveBook(current, file);
