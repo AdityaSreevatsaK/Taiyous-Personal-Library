@@ -697,3 +697,12 @@ html, body, #root { max-width: 100%; overflow-x: clip; }
 .book-collection-tools select { min-width: 0; max-width: 100%; font-size: 10px; border: 1px solid var(--border); border-radius: 6px; color: var(--subtext); background: var(--surface); padding: 6px 5px; }
 .book-collection-tools button { border: 0; padding: 4px 6px; color: var(--subtext); background: var(--pale); border-radius: 6px; font-size: 10px; }
 .book-collection-tools button:hover { text-decoration: underline; }
+
+
+/* On narrow readers show the library-home book icon instead of two left controls. */
+@media (max-width: 700px) {
+  .reader-header .reader-back { display: none; }
+  .reader-header .reader-home-link { display: flex; width: 37px; height: 40px; min-width: 37px; justify-content: center; }
+  .reader-header .reader-home-link span { display: none; }
+  .reader-head-left { flex: 0 0 37px; }
+}
