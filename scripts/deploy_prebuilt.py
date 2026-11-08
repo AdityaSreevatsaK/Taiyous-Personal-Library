@@ -7,7 +7,7 @@ No raw book archives, `.env` files, `node_modules`, or source code are uploaded.
 from pathlib import Path
 from huggingface_hub import HfApi, CommitOperationAdd
 
-SPACE = "AdityaSreevatsaK/Taiyous-Personal-Library"
+SPACE = "AdityaSreevatsaK/Taiyous-Personal-Library-Staging"
 ROOT = Path(__file__).resolve().parent.parent
 DIST = ROOT / "dist"
 README = ROOT / "README.md"
@@ -24,10 +24,16 @@ operations = [
         for p in sorted(DIST.rglob("*")) if p.is_file()
     ],
 ]
-result = HfApi().create_commit(
+api = HfApi()
+repo = api.repo_info(repo_id=SPACE, repo_type="space")
+if not repo.private:
+    raise SystemExit("Refusing deployment: Staging Space is NOT private.")
+if not SPACE.endswith("-Staging"):
+    raise SystemExit("Refusing deployment: not a staging target.")
+result = api.create_commit(
     repo_id=SPACE,
     repo_type="space",
     operations=operations,
-    commit_message="Deploy prebuilt Taiyou's Personal Library v1.0.4",
+    commit_message="Deploy prebuilt Taiyou's Personal Library to private staging",
 )
 print("Deployment commit:", result.commit_url)
