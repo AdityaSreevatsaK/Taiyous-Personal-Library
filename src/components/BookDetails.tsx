@@ -132,15 +132,6 @@ export default function BookDetails({ book, theme, onBack, onRead, onReadChapter
           <section className="details-card details-info-card"><div className="details-section-header"><div><span className="details-label">BOOK INFORMATION</span><h2>Details</h2></div><Info size={20} className="details-section-icon" /></div>
             <dl><div><dt>Author</dt><dd>{book.author}</dd></div><div><dt>Chapters</dt><dd>{book.chapterCount ? book.chapterCount.toLocaleString() : 'Unknown'}</dd></div><div><dt>Language</dt><dd>{book.language?.toUpperCase() || 'Not supplied'}</dd></div>{book.status && <div><dt>Status</dt><dd>{book.status}</dd></div>}<div><dt>Personal tags</dt><dd>{customTags.length}</dd></div>{book.sourceUrl && <div><dt>Original source</dt><dd><a href={book.sourceUrl} target="_blank" rel="noopener noreferrer">Open original <ExternalLink size={13} /></a></dd></div>}</dl>
           </section>
-        </aside>
-        <div className="details-main-column">
-          <section className="details-card details-description" aria-labelledby="detail-summary-heading">
-            <div className="details-section-header"><div><span className="details-label">ABOUT THE STORY</span><h2 id="detail-summary-heading">Synopsis</h2></div><button className="details-text-action" onClick={() => setEditingSummary(!editingSummary)} type="button"><Pencil size={15} /> {editingSummary ? 'Cancel' : 'Edit summary'}</button></div>
-            {editingSummary ? <form onSubmit={(e) => void saveSummary(e)} className="summary-form"><label htmlFor="summary-editor" className="setting-help">Your version is stored only in this browser; the imported summary remains available.</label><textarea id="summary-editor" value={summaryDraft} onChange={(e) => setSummaryDraft(e.target.value)} maxLength={24000} rows={9} placeholder="Write a short summary of the story..." /><div className="summary-form-actions"><button type="button" className="secondary-button" onClick={() => setEditingSummary(false)}>Cancel</button><button type="submit" className="primary-button" disabled={saving}><Check size={16} /> Save summary</button></div></form>
-              : summary ? <p className="details-synopsis">{summary}</p>
-                : <p className="details-muted">No synopsis is present in this EPUB. You can add your own with <strong>Edit summary</strong>.</p>}
-          </section>
-
           <section className="details-card details-review-card" aria-labelledby="detail-review-heading">
             <div className="details-section-header"><div><span className="details-label">YOUR PERSONAL IMPRESSIONS</span><h2 id="detail-review-heading">Comments & reading notes</h2></div><Star size={20} className="details-section-icon" /></div>
             <p className="details-help">Capture your thoughts about this novel. Your comments and the rating above are stored only in this browser, not in the shared novel dataset.</p>
@@ -149,6 +140,15 @@ export default function BookDetails({ book, theme, onBack, onRead, onReadChapter
               <textarea id="personal-review" rows={5} maxLength={10000} value={reviewDraft} onChange={event => setReviewDraft(event.target.value)} placeholder="Memorable characters, plot points, or your thoughts..." />
               <div className="personal-review-actions"><span>Stored on this device only</span><button type="submit" className="primary-button" disabled={saving}><Check size={16} /> Save comments</button></div>
             </form>
+          </section>
+
+        </aside>
+        <div className="details-main-column">
+          <section className="details-card details-description" aria-labelledby="detail-summary-heading">
+            <div className="details-section-header"><div><span className="details-label">ABOUT THE STORY</span><h2 id="detail-summary-heading">Synopsis</h2></div><button className="details-text-action" onClick={() => setEditingSummary(!editingSummary)} type="button"><Pencil size={15} /> {editingSummary ? 'Cancel' : 'Edit summary'}</button></div>
+            {editingSummary ? <form onSubmit={(e) => void saveSummary(e)} className="summary-form"><label htmlFor="summary-editor" className="setting-help">Your version is stored only in this browser; the imported summary remains available.</label><textarea id="summary-editor" value={summaryDraft} onChange={(e) => setSummaryDraft(e.target.value)} maxLength={24000} rows={9} placeholder="Write a short summary of the story..." /><div className="summary-form-actions"><button type="button" className="secondary-button" onClick={() => setEditingSummary(false)}>Cancel</button><button type="submit" className="primary-button" disabled={saving}><Check size={16} /> Save summary</button></div></form>
+              : summary ? <p className="details-synopsis">{summary}</p>
+                : <p className="details-muted">No synopsis is present in this EPUB. You can add your own with <strong>Edit summary</strong>.</p>}
           </section>
 
           <ChapterBrowser book={book} onReadChapter={onReadChapter} />
