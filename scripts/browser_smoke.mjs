@@ -1,5 +1,24 @@
 // Smoke-test the exact compiled Vite app through Chromium, not a synthetic HTML fixture.
 import { chromium } from 'playwright';
+import JSZip from 'jszip';
+
+// A valid, original EPUB fixture lets Chromium exercise epub.js and real scrolling.
+async function makeTestEpub() {
+  const zip = new JSZip();
+  zip.file('mimetype', 'application/epub+zip', { compression: 'STORE' });
+  zip.file('META-INF/container.xml', `<?xml version="1.0" encoding="UTF-8"?>
+<container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container"><rootfiles><rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/></rootfiles></container>`);
+  zip.file('OEBPS/content.opf', `<?xml version="1.0" encoding="UTF-8"?>
+<package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="uid"><metadata xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:identifier id="uid">urn:taiyou:test:smoke</dc:identifier><dc:title>Sample Library Book</dc:title><dc:language>en</dc:language></metadata><manifest><item id="chapter" href="chapter.xhtml" media-type="application/xhtml+xml"/><item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/></manifest><spine><itemref idref="chapter"/></spine></package>`);
+  zip.file('OEBPS/nav.xhtml', `<?xml version="1.0" encoding="UTF-8"?>
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops"><head><title>Contents</title></head><body><nav epub:type="toc"><ol><li><a href="chapter.xhtml">Chapter 1</a></li></ol></nav></body></html>`);
+  const paragraphs = Array.from({ length: 90 }, (_, i) =>
+    `<p>Paragraph ${i + 1}: This original sample text tests natural vertical chapter scrolling without a horizontal scrollbar.</p>`).join('');
+  zip.file('OEBPS/chapter.xhtml', `<?xml version="1.0" encoding="UTF-8"?>
+<html xmlns="http://www.w3.org/1999/xhtml"><head><title>Chapter 1</title></head><body><h1>Chapter 1</h1>${paragraphs}</body></html>`);
+  return Array.from(await zip.generateAsync({ type: 'uint8array', compression: 'DEFLATE' }));
+}
+const epubBytes = await makeTestEpub();
 
 const baseUrl = process.env.SMOKE_URL || 'http://127.0.0.1:4173';
 const browser = await chromium.launch({ headless: true });
@@ -46,7 +65,7 @@ try {
       throw new Error('Oversized empty-state hero must not obscure the bookshelf');
     }
     // Seed a synthetic, local-only book so CI tests details without accessing the real dataset.
-    await page.evaluate(async () => {
+    await page.evaluate(async (epubData) => {
       const request = indexedDB.open('folio-personal-library-v1', 1);
       const db = await new Promise((resolve, reject) => {
         request.onupgradeneeded = () => {
@@ -63,13 +82,13 @@ try {
         originalFileName: 'sample.epub', importedAt: Date.now(),
         progress: 0, size: 128, metadataScanned: true, sourceTags: ['Fantasy'],
       });
-      transaction.objectStore('files').put({ id: 'aaaaaaaaaaaaaaaaaaaaaaaa', epub: new Blob(['mock epub']) });
+      transaction.objectStore('files').put({ id: 'aaaaaaaaaaaaaaaaaaaaaaaa', epub: new Blob([new Uint8Array(epubData)], { type: 'application/epub+zip' }) });
       await new Promise((resolve, reject) => {
         transaction.oncomplete = () => resolve();
         transaction.onerror = () => reject(transaction.error);
       });
       db.close();
-    });
+    }, epubBytes);
     await page.reload({ waitUntil: 'networkidle' });
     await page.getByRole('button', { name: 'View details for Sample Library Book' }).click();
     await page.getByRole('heading', { name: 'Sample Library Book' }).waitFor();
@@ -120,6 +139,12 @@ try {
     await page.getByRole('button', { name: 'View details for Sample Library Book' }).click();
     await page.getByRole('button', { name: 'Start reading' }).click();
     await page.getByRole('button', { name: 'Go to Sample Library Book details' }).waitFor();
+    await page.locator('.reader-page iframe').first().waitFor({ state: 'visible', timeout: 20000 });
+    const hasContentOverflow = await page.locator('.reader-page iframe').first().evaluate((frame) => {
+      const doc = frame.contentDocument;
+      return doc ? doc.documentElement.scrollWidth > doc.documentElement.clientWidth + 3 : false;
+    });
+    if (hasContentOverflow) throw new Error('EPUB itself caused horizontal overflow');
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 2);
     if (overflow) throw new Error('Reader produced horizontal page overflow');
     await page.getByRole('button', { name: 'Go to Sample Library Book details' }).click();
