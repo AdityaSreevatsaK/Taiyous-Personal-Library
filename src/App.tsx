@@ -7,7 +7,8 @@ import { normalizeTags } from './lib/tags';
 import { deleteBook, getBookFile, getBooks, readSettings, saveBook, updateBook, writeSettings } from './lib/storage';
 import {
   blendCloudAndLocal, clearCloudSession, createCloudSession, assertPrivateDataset,
-  fetchCloudCatalog, fetchCloudEpub, findCloudEntryForBook, readDatasetRepo, saveDatasetRepo,
+  fetchCloudCatalog, fetchCloudEpub, fetchCloudArchive, fetchCloudPersonalReview, findCloudEntryForBook, readDatasetRepo, saveDatasetRepo,
+  saveCloudPersonalReview,
   uploadNovelToCloud, validateDatasetRepo,
   type CloudEntry, type CloudSession,
 } from './lib/cloud';
@@ -63,10 +64,27 @@ export default function App() {
       // Reload saved metadata first so progress from this browser is preserved.
       const local = await getBooks();
       const merged = blendCloudAndLocal(catalog.books, local);
-      booksRef.current = merged;
-      setBooks(merged);
-      await Promise.all(merged.filter(book => book.cloud).map(book => updateBook(book)));
-      setCloudMessage(`${catalog.books.length} hosted ${catalog.books.length === 1 ? 'novel' : 'novels'} available on this device.`);
+      // Read personal annotations separately. A missing per-book file (404) is
+      // normal for unreviewed novels. Never use the shared novel catalogue for
+      // personal comments, and never erase local notes on a transient error.
+      let notesWarning = false;
+      const synced = await Promise.all(merged.map(async book => {
+        const entry = findCloudEntryForBook(catalog.books, book);
+        if (!entry) return book;
+        try {
+          const note = await fetchCloudPersonalReview(repo, entry.id, session);
+          if (!note || note.updatedAt < (book.personalReviewUpdatedAt ?? 0)) return book;
+          return { ...book, personalRating: note.rating ?? undefined,
+            personalReview: note.comments, personalReviewUpdatedAt: note.updatedAt };
+        } catch {
+          notesWarning = true;
+          return book;
+        }
+      }));
+      booksRef.current = synced;
+      setBooks(synced);
+      await Promise.all(synced.filter(book => book.cloud).map(book => updateBook(book)));
+      setCloudMessage(`${catalog.books.length} hosted ${catalog.books.length === 1 ? 'novel' : 'novels'} available on this device.${notesWarning ? ' Some personal notes could not be synced. Please refresh cloud to retry.' : ''}`);
     } catch (reason) {
       setCloudMessage(`Cloud library unavailable: ${reason instanceof Error ? reason.message : String(reason)}`);
     } finally {
@@ -280,11 +298,63 @@ export default function App() {
     if (rating !== undefined && (!Number.isInteger(rating) || rating < 1 || rating > 10)) {
       throw new Error('Rating must be between 1 and 10');
     }
-    const updated = { ...current, personalRating: rating, personalReview: review.trim().slice(0, 10000) };
+    const updatedAt = Date.now();
+    const updated = { ...current, personalRating: rating, personalReview: review.trim().slice(0, 10000),
+      personalReviewUpdatedAt: updatedAt };
     await updateBook(updated);
     booksRef.current = booksRef.current.map(book => book.id === bookId ? updated : book);
     setBooks(booksRef.current);
+    if (cloudRepo && cloudSession && current.cloud) {
+      const known = [...cloudEntries.current.values()];
+      let entry = findCloudEntryForBook(known, current);
+      if (!entry) {
+        const catalog = await fetchCloudCatalog(cloudRepo, cloudSession);
+        cloudEntries.current = new Map(catalog.books.map(item => [item.id, item]));
+        entry = findCloudEntryForBook(catalog.books, current);
+      }
+      if (!entry) throw new Error('Saved locally, but the hosted novel could not be matched. Cloud sync did not complete.');
+      try {
+        await saveCloudPersonalReview(cloudRepo, entry.id, cloudSession, rating, updated.personalReview, updatedAt);
+      } catch (error) {
+        throw new Error(`Saved on this device, but cloud synchronisation failed: ${String(error)}`);
+      }
+    }
+  }, [cloudRepo, cloudSession]);
+
+  const downloadFile = useCallback((blob: Blob, title: string, extension: 'epub' | 'zip') => {
+    const safeName = (title.replace(/[<>:"/\\\\|?*\\x00-\\x1f]/g, '_').trim() || 'novel').slice(0, 100);
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = `${safeName}.${extension}`;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 30000);
   }, []);
+
+  const downloadEpub = useCallback(async (book: LibraryBook) => {
+    setError(null);
+    setLoadingBook(`Preparing ${book.title} download`);
+    try {
+      await ensureCached(book);
+      downloadFile(await getBookFile(book.id), book.title, 'epub');
+    } catch (error) {
+      setError(`Unable to download EPUB: ${String(error)}`);
+      throw error;
+    } finally { setLoadingBook(null); }
+  }, [ensureCached, downloadFile]);
+
+  const downloadArchive = useCallback(async (book: LibraryBook) => {
+    if (!cloudRepo || !cloudSession) throw new Error('Connect your private dataset to download its original ZIP.');
+    let entry = findCloudEntryForBook([...cloudEntries.current.values()], book);
+    if (!entry) {
+      const catalog = await fetchCloudCatalog(cloudRepo, cloudSession);
+      entry = findCloudEntryForBook(catalog.books, book);
+    }
+    if (!entry?.archivePath) throw new Error('This novel has no hosted original ZIP.');
+    downloadFile(await fetchCloudArchive(cloudRepo, entry, cloudSession), book.title, 'zip');
+  }, [cloudRepo, cloudSession, downloadFile]);
 
   const openBook = useCallback((book: LibraryBook, chapterHref?: string) => {
     setLoadingBook(book.title);
@@ -348,6 +418,10 @@ export default function App() {
       <BookDetails book={detailBook} theme={settings.theme}
         onBack={() => setDetailsId(null)} onRead={() => openBook(detailBook)}
         onReadChapter={href => openBook(detailBook, href)}
+        onDownloadEpub={() => downloadEpub(detailBook)}
+        onDownloadArchive={cloudSession && findCloudEntryForBook([...cloudEntries.current.values()], detailBook)?.archivePath
+          ? () => downloadArchive(detailBook) : undefined}
+        cloudConnected={!!cloudSession && !!cloudRepo}
         onSaveTags={tags => savePersonalTags(detailBook.id, tags)}
         onSaveSummary={summary => savePersonalSummary(detailBook.id, summary)}
         onSaveReview={(rating, review) => savePersonalReview(detailBook.id, rating, review)}
