@@ -634,3 +634,28 @@ button, input, select { -webkit-tap-highlight-color: transparent; }
   .hero-rating { margin-top: 17px; }
   .hero-rating-choice { min-width: 28px; height: 30px; }
 }
+
+
+/* Tag navigation and separate global versus collection-scoped searches. */
+.global-search-field { display: flex; align-items: center; gap: 8px; padding: 0 11px; height: 37px; width: clamp(175px, 21vw, 300px); min-width: 0; border: 1px solid var(--border); border-radius: 9px; background: var(--bg); color: var(--subtext); }
+.global-search-field input { width: 100%; min-width: 0; border: none; outline: none; background: transparent; color: var(--text); font-size: 12px; }
+.global-search-field button { border: 0; background: none; color: var(--subtext); padding: 3px; display: flex; }
+.tag-collection-head { margin: 0 0 12px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; padding: 11px 15px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; font-size: 12px; color: var(--subtext); }
+.tag-collection-head strong { color: var(--text); }
+.tag-collection-head button { border: 0; color: var(--text); background: var(--pale); padding: 6px 9px; border-radius: 7px; font-size: 11px; display: inline-flex; align-items: center; gap: 5px; }
+.details-hero-tags button { font-size: 10px; padding: 6px 10px; color: #e0eee1; border-radius: 6px; border: 1px solid #7a948485; background: #ffffff12; cursor: pointer; }
+.details-hero-tags button:hover, .details-hero-tags button:focus-visible { border-color: #e0eee1; background: #ffffff2d; text-decoration: underline; }
+button.details-tag.imported-tag { font: inherit; font-size: 12px; cursor: pointer; }
+button.details-tag.imported-tag:hover { background: var(--surface-soft); text-decoration: underline; }
+.details-tag .tag-browse-button { color: var(--text); font: inherit; text-decoration: underline; text-decoration-color: transparent; }
+.details-tag .tag-browse-button:hover { text-decoration-color: currentColor; }
+.tile-tags button { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; border-radius: 5px; border: 0; background: var(--pale); color: var(--subtext); font-size: 9px; padding: 4px 7px; cursor: pointer; }
+.tile-tags button:hover { color: var(--text); text-decoration: underline; }
+@media (max-width: 700px) {
+  .global-search-field { width: clamp(120px, 41vw, 225px); }
+  .top-actions { gap: 5px; }
+  .breadcrumbs { font-size: 9px; gap: 5px; }
+  .breadcrumbs > span:first-child { display: none; }
+  .breadcrumbs > .crumb-slash { display: none; }
+  .tag-collection-head { align-items: flex-start; }
+}
