@@ -1,7 +1,7 @@
 import { useMemo, useState, type DragEvent } from 'react';
 import {
-  ArrowRight, Book, BookMarked, BookOpen, CheckCircle2, ChevronDown, CloudOff,
-  Feather, FilePlus2, Hash, Library, LockKeyhole, Menu, Moon, Plus, Search, Settings2,
+  ArrowRight, Book, BookOpen, CheckCircle2, ChevronDown, CloudOff,
+  Feather, Hash, Library, LockKeyhole, Menu, Moon, Plus, Search, Settings2,
   Sparkles, Sun, Tag, Trash2, Upload, X, Cloud, RefreshCw, LogIn, LogOut,
 } from 'lucide-react';
 import type { LibraryBook, ReaderTheme } from '../types';
@@ -61,7 +61,7 @@ export default function LibraryDashboard({
   const [selectedTag, setSelectedTag] = useState('');
   const availableTags = useMemo(() => tagCounts(books), [books]);
   const [repoDraft, setRepoDraft] = useState(cloudRepo);
-  const [showCloud, setShowCloud] = useState(!cloudRepo);
+  const [showCloud, setShowCloud] = useState(false);
   const [datasetToken, setDatasetToken] = useState('');
   const [dragging, setDragging] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -158,12 +158,10 @@ export default function LibraryDashboard({
           </section>
           {notice && <div className="alert success-alert" role="status"><CheckCircle2 size={17} />{notice}</div>}
           {(error || storageError) && <div className="alert error-alert" role="alert">{error || storageError}</div>}
-          <div className="page-head"><div><div className="eyebrow"><span className="eyebrow-line" /> YOUR READING CORNER</div><h1>Your shelf<span className="serif-accent">.</span></h1><p>Every story deserves a beautiful place to live.</p></div><button className="primary-button desktop-import" onClick={onImportClick} disabled={importing}><Plus size={18} />{importing ? 'Importing…' : 'Add a novel'}</button></div>
+          <div className="page-head"><div><div className="eyebrow"><span className="eyebrow-line" /> YOUR READING CORNER</div><h1>Your library<span className="serif-accent">.</span></h1><p>Every story deserves a beautiful place to live.</p></div><button className="primary-button desktop-import" onClick={onImportClick} disabled={importing}><Plus size={18} />{importing ? 'Importing…' : 'Add a novel'}</button></div>
 
-          {featured ? (
+          {reading.length > 0 && featured && (
             <section className="feature-panel" aria-label="Featured book"><div className="feature-decoration" aria-hidden="true">✺</div><div className="feature-copy"><div className="feature-eyebrow"><span className="feature-dot" /> {featured.progress > 0 ? 'PICK UP WHERE YOU LEFT OFF' : 'A STORY IS WAITING FOR YOU'}</div><h2><button type="button" className="featured-title-link" onClick={() => onOpen(featured)}>{featured.title}</button></h2><p className="feature-author">by {featured.author}</p><div className="feature-stats"><span><BookOpen size={15} /> {featured.chapterCount ? `${featured.chapterCount} chapters` : 'EPUB edition'}</span><span className="feature-stat-sep">·</span><span>{featured.progress ? `${Math.round(featured.progress)}% read` : 'Ready to begin'}</span></div><button className="feature-button" onClick={() => onRead(featured)}>{featured.progress > 0 ? 'Continue reading' : 'Start reading'} <ArrowRight size={17} /></button></div><div className="featured-cover-wrap"><Cover book={featured} variant="feature" /></div></section>
-          ) : (
-            <section className="empty-feature"><div className="empty-feature-icon"><BookMarked size={27} /></div><div><span className="feature-eyebrow">A LIBRARY OF YOUR OWN</span><h2>Your next favourite story begins here.</h2><p>Import an EPUB or your original novel ZIP. The chapters stay in this browser, ready when you are.</p></div><button className="feature-button" onClick={onImportClick}><FilePlus2 size={17} /> Import your first novel</button></section>
           )}
 
           <section className="library-section" aria-label="Book collection"><div className="section-titlebar"><div><div className="section-overline">THE COLLECTION</div><h2>{filter === 'all' ? 'All your stories' : navEntries.find((i) => i.id === filter)?.name}<span className="title-count">{visible.length}</span></h2></div><span className="library-description">A little world on every shelf</span></div>
