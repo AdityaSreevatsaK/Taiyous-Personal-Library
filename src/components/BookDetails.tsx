@@ -101,6 +101,18 @@ export default function BookDetails({ book, theme, onBack, onRead, onReadChapter
             {book.language && <span>{book.language.toUpperCase()}</span>}
           </div>
           {allTags.length > 0 && <div className="details-hero-tags" aria-label="Novel tags">{allTags.slice(0, 9).map((tag) => <span key={tag}>{tag}</span>)}</div>}
+          <form className="hero-rating" aria-label="Personal novel rating" onSubmit={(event) => void saveReview(event)}>
+            <fieldset className="hero-rating-fieldset">
+              <legend><Star size={15} /> My rating {book.personalRating ? `· ${book.personalRating}/10` : '· Not rated'}</legend>
+              <div className="hero-rating-choices">
+                {Array.from({ length: 10 }, (_, index) => index + 1).map(value =>
+                  <button key={value} type="button" className={ratingDraft === value ? 'hero-rating-choice selected' : 'hero-rating-choice'} onClick={() => setRatingDraft(value)} aria-label={`Rate ${value} out of 10`} aria-pressed={ratingDraft === value}>{value}</button>
+                )}
+                <button type="button" className="hero-rating-clear" onClick={() => setRatingDraft(undefined)} disabled={ratingDraft === undefined}>Clear</button>
+              </div>
+            </fieldset>
+            <button type="submit" className="hero-rating-save" disabled={saving}>Save rating</button>
+          </form>
           <button type="button" className="details-start" onClick={onRead}>{book.progress > 0 ? 'Continue reading' : 'Start reading'} <ArrowRight size={20} /></button>
         </div>
       </div>
@@ -109,6 +121,18 @@ export default function BookDetails({ book, theme, onBack, onRead, onReadChapter
       {feedback && <p className="details-feedback" role="status">{feedback}</p>}
 
       <div className="details-columns">
+        <aside className="details-aside">
+          <section className="details-card details-progress-card" aria-label="Reading progress"><div className="details-section-header"><div><span className="details-label">YOUR JOURNEY</span><h2>Reading progress</h2></div><Bookmark size={20} className="details-section-icon" /></div>
+            <div className="details-percent">{Math.round(book.progress)}<span>%</span></div>
+            <div className="details-progress-track"><i style={{ width: `${Math.max(0, Math.min(book.progress, 100))}%` }} /></div>
+            <div className="details-progress-status">{book.progress <= 0 ? 'Not started' : book.progress >= 99.5 ? 'Finished' : 'Currently reading'}</div>
+            <div className="details-location"><span>Last reading position</span><strong>{chapterText}</strong>{book.currentChapterNumber && <small>Chapter {book.currentChapterNumber}{book.chapterCount ? ` of ${book.chapterCount}` : ''}</small>}</div>
+            <button type="button" className="details-resume" onClick={onRead}>{book.progress > 0 ? 'Resume at saved position' : 'Begin this novel'} <ArrowRight size={17} /></button>
+          </section>
+          <section className="details-card details-info-card"><div className="details-section-header"><div><span className="details-label">BOOK INFORMATION</span><h2>Details</h2></div><Info size={20} className="details-section-icon" /></div>
+            <dl><div><dt>Author</dt><dd>{book.author}</dd></div><div><dt>Chapters</dt><dd>{book.chapterCount ? book.chapterCount.toLocaleString() : 'Unknown'}</dd></div><div><dt>Language</dt><dd>{book.language?.toUpperCase() || 'Not supplied'}</dd></div>{book.status && <div><dt>Status</dt><dd>{book.status}</dd></div>}<div><dt>Personal tags</dt><dd>{customTags.length}</dd></div>{book.sourceUrl && <div><dt>Original source</dt><dd><a href={book.sourceUrl} target="_blank" rel="noopener noreferrer">Open original <ExternalLink size={13} /></a></dd></div>}</dl>
+          </section>
+        </aside>
         <div className="details-main-column">
           <section className="details-card details-description" aria-labelledby="detail-summary-heading">
             <div className="details-section-header"><div><span className="details-label">ABOUT THE STORY</span><h2 id="detail-summary-heading">Synopsis</h2></div><button className="details-text-action" onClick={() => setEditingSummary(!editingSummary)} type="button"><Pencil size={15} /> {editingSummary ? 'Cancel' : 'Edit summary'}</button></div>
@@ -118,20 +142,12 @@ export default function BookDetails({ book, theme, onBack, onRead, onReadChapter
           </section>
 
           <section className="details-card details-review-card" aria-labelledby="detail-review-heading">
-            <div className="details-section-header"><div><span className="details-label">YOUR PERSONAL IMPRESSIONS</span><h2 id="detail-review-heading">Rating & comments</h2></div><Star size={20} className="details-section-icon" /></div>
-            <p className="details-help">Give this novel a score from 1 to 10 and save your private thoughts. These stay in this browser, not in the shared novel dataset.</p>
+            <div className="details-section-header"><div><span className="details-label">YOUR PERSONAL IMPRESSIONS</span><h2 id="detail-review-heading">Comments & reading notes</h2></div><Star size={20} className="details-section-icon" /></div>
+            <p className="details-help">Capture your thoughts about this novel. Your comments and the rating above are stored only in this browser, not in the shared novel dataset.</p>
             <form className="personal-review-form" onSubmit={(event) => void saveReview(event)}>
-              <fieldset className="rating-fieldset"><legend>My rating (1–10)</legend>
-                <div className="rating-choices">
-                  {Array.from({ length: 10 }, (_, index) => index + 1).map(value =>
-                    <button key={value} type="button" className={ratingDraft === value ? 'rating-choice selected' : 'rating-choice'} onClick={() => setRatingDraft(value)} aria-label={`Rate ${value} out of 10`} aria-pressed={ratingDraft === value}>{value}</button>
-                  )}
-                  <button type="button" className="rating-clear" onClick={() => setRatingDraft(undefined)} disabled={ratingDraft === undefined}>Clear</button>
-                </div>
-              </fieldset>
               <label htmlFor="personal-review">My comments / reading notes</label>
-              <textarea id="personal-review" rows={5} maxLength={10000} value={reviewDraft} onChange={event => setReviewDraft(event.target.value)} placeholder="What did you enjoy? Memorable characters, plot points, or your thoughts..." />
-              <div className="personal-review-actions"><span>Stored on this device only</span><button type="submit" className="primary-button" disabled={saving}><Check size={16} /> Save rating & comments</button></div>
+              <textarea id="personal-review" rows={5} maxLength={10000} value={reviewDraft} onChange={event => setReviewDraft(event.target.value)} placeholder="Memorable characters, plot points, or your thoughts..." />
+              <div className="personal-review-actions"><span>Stored on this device only</span><button type="submit" className="primary-button" disabled={saving}><Check size={16} /> Save comments</button></div>
             </form>
           </section>
 
@@ -147,18 +163,6 @@ export default function BookDetails({ book, theme, onBack, onRead, onReadChapter
             <form className="details-tag-form" onSubmit={(e) => void addTag(e)}><label htmlFor="new-novel-tag" className="sr-only">New personal tag</label><input id="new-novel-tag" value={tagInput} maxLength={45} onChange={(e) => setTagInput(e.target.value)} placeholder="e.g. Favourite, Cultivation, Slow burn..." /><button className="primary-button" type="submit" disabled={saving || !tagInput.trim() || customTags.length >= 50}><Plus size={18} /> Add tag</button></form>
           </section>
         </div>
-        <aside className="details-aside">
-          <section className="details-card details-progress-card" aria-label="Reading progress"><div className="details-section-header"><div><span className="details-label">YOUR JOURNEY</span><h2>Reading progress</h2></div><Bookmark size={20} className="details-section-icon" /></div>
-            <div className="details-percent">{Math.round(book.progress)}<span>%</span></div>
-            <div className="details-progress-track"><i style={{ width: `${Math.max(0, Math.min(book.progress, 100))}%` }} /></div>
-            <div className="details-progress-status">{book.progress <= 0 ? 'Not started' : book.progress >= 99.5 ? 'Finished' : 'Currently reading'}</div>
-            <div className="details-location"><span>Last reading position</span><strong>{chapterText}</strong>{book.currentChapterNumber && <small>Chapter {book.currentChapterNumber}{book.chapterCount ? ` of ${book.chapterCount}` : ''}</small>}</div>
-            <button type="button" className="details-resume" onClick={onRead}>{book.progress > 0 ? 'Resume at saved position' : 'Begin this novel'} <ArrowRight size={17} /></button>
-          </section>
-          <section className="details-card details-info-card"><div className="details-section-header"><div><span className="details-label">BOOK INFORMATION</span><h2>Details</h2></div><Info size={20} className="details-section-icon" /></div>
-            <dl><div><dt>Author</dt><dd>{book.author}</dd></div><div><dt>Chapters</dt><dd>{book.chapterCount ? book.chapterCount.toLocaleString() : 'Unknown'}</dd></div><div><dt>Language</dt><dd>{book.language?.toUpperCase() || 'Not supplied'}</dd></div>{book.status && <div><dt>Status</dt><dd>{book.status}</dd></div>}<div><dt>Personal tags</dt><dd>{customTags.length}</dd></div>{book.sourceUrl && <div><dt>Original source</dt><dd><a href={book.sourceUrl} target="_blank" rel="noopener noreferrer">Open original <ExternalLink size={13} /></a></dd></div>}</dl>
-          </section>
-        </aside>
       </div>
     </main>
   </div>;
