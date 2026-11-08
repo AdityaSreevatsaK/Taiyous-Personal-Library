@@ -1,0 +1,36 @@
+{
+  "name": "taiyous-personal-library",
+  "private": true,
+  "version": "1.0.4",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview --host 127.0.0.1",
+    "test": "vitest run",
+    "typecheck": "tsc -b"
+  },
+  "dependencies": {
+    "epubjs": "^0.3.93",
+    "idb": "^8.0.3",
+    "jszip": "^3.10.1",
+    "lucide-react": "^0.468.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "@huggingface/hub": "^2.17.10"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^4.3.4",
+    "typescript": "~5.7.3",
+    "vite": "^6.0.5",
+    "vitest": "^2.1.9",
+    "@types/node": "^22.10.2"
+  },
+  "overrides": {
+    "epubjs": {
+      "@xmldom/xmldom": "0.8.15"
+    }
+  }
+}

@@ -1,0 +1,60 @@
+export type ReaderTheme = 'light' | 'dark' | 'sepia';
+export type FontChoice = 'literary' | 'classic' | 'georgia' | 'sans' | 'clear';
+
+export interface ReaderSettings {
+  theme: ReaderTheme;
+  font: FontChoice;
+  fontSize: number;
+  lineHeight: number;
+  readingWidth: number;
+}
+
+export interface LibraryBook {
+  id: string;
+  /** True if this novel also exists in the private Hugging Face data repository. */
+  cloud?: boolean;
+  title: string;
+  author: string;
+  language?: string;
+  chapterCount?: number;
+  /** Automatically extracted genres and subjects from the ZIP/EPUB. */
+  sourceTags?: string[];
+  /** User-created tags stored only in IndexedDB. */
+  personalTags?: string[];
+  description?: string;
+  /** Optional user-supplied replacement summary. */
+  userDescription?: string;
+  status?: string;
+  sourceUrl?: string;
+  /** Old imports are enriched lazily when their detail pages are opened. */
+  metadataScanned?: boolean;
+  currentChapterNumber?: number;
+  originalFileName: string;
+  importedAt: number;
+  lastOpenedAt?: number;
+  lastCfi?: string;
+  progress: number;
+  currentChapter?: string;
+  currentChapterIndex?: number;
+  size: number;
+}
+
+export interface ImportedBook {
+  metadata: LibraryBook;
+  epub: Blob;
+}
+
+export interface ChapterItem {
+  label: string;
+  href: string;
+  level: number;
+}
+
+export const DEFAULT_SETTINGS: ReaderSettings = {
+  theme: 'sepia',
+  font: 'literary',
+  fontSize: 115,
+  lineHeight: 1.65,
+  // 0 means full available width, with small responsive side gutters.
+  readingWidth: 0,
+};
