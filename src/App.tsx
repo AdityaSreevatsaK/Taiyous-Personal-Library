@@ -13,6 +13,7 @@ import {
   type CloudEntry, type CloudSession,
 } from './lib/cloud';
 import type { LibraryBook, ReaderSettings } from './types';
+import { fetchCloudCollections, mergeCollections, readLocalCollections, saveCloudCollections, writeLocalCollections, type BookCollection } from './lib/collections';
 
 export default function App() {
   const [books, setBooks] = useState<LibraryBook[]>([]);
@@ -22,6 +23,7 @@ export default function App() {
   const [detailsId, setDetailsId] = useState<string | null>(null);
   const [browseTag, setBrowseTag] = useState('');
   const [globalSearch, setGlobalSearch] = useState('');
+  const [collections, setCollections] = useState<BookCollection[]>(readLocalCollections);
   const [importing, setImporting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -33,6 +35,7 @@ export default function App() {
   const [loadingBook, setLoadingBook] = useState<string | null>(null);
   const filePicker = useRef<HTMLInputElement | null>(null);
   const booksRef = useRef<LibraryBook[]>([]);
+  const collectionsRef = useRef<BookCollection[]>(collections);
   const cloudEntries = useRef<Map<string, CloudEntry>>(new Map());
   const busyRef = useRef(false);
   const syncRef = useRef(false);
@@ -84,7 +87,25 @@ export default function App() {
       booksRef.current = synced;
       setBooks(synced);
       await Promise.all(synced.filter(book => book.cloud).map(book => updateBook(book)));
-      setCloudMessage(`${catalog.books.length} hosted ${catalog.books.length === 1 ? 'novel' : 'novels'} available on this device.${notesWarning ? ' Some personal notes could not be synced. Please refresh cloud to retry.' : ''}`);
+      // Separate private collections data is merged by record timestamp;
+      // offline edits are retained, and newer local edits are published on reconnection.
+      let collectionsWarning = false;
+      try {
+        const localCollections = collectionsRef.current;
+        const hostedCollections = await fetchCloudCollections(repo, session);
+        const allCollections = mergeCollections(hostedCollections, localCollections);
+        const needsPublish = allCollections.some(item => {
+          const remote = hostedCollections.find(other => other.id === item.id);
+          return !remote || item.updatedAt > remote.updatedAt;
+        });
+        const finalCollections = needsPublish
+          ? await saveCloudCollections(repo, session, allCollections)
+          : allCollections;
+        collectionsRef.current = finalCollections;
+        writeLocalCollections(finalCollections);
+        setCollections(finalCollections);
+      } catch { collectionsWarning = true; }
+      setCloudMessage(`${catalog.books.length} hosted ${catalog.books.length === 1 ? 'novel' : 'novels'} available on this device.${notesWarning ? ' Some personal notes could not be synced.' : ''}${collectionsWarning ? ' Collections sync needs a retry.' : ''}`);
     } catch (reason) {
       setCloudMessage(`Cloud library unavailable: ${reason instanceof Error ? reason.message : String(reason)}`);
     } finally {
@@ -356,6 +377,56 @@ export default function App() {
     downloadFile(await fetchCloudArchive(cloudRepo, entry, cloudSession), book.title, 'zip');
   }, [cloudRepo, cloudSession, downloadFile]);
 
+  // Optimistically save collection edits locally, then publish a separately
+  // versioned private collection list. EPUB files and data/library.json are not touched.
+  const changeCollections = useCallback(async (edit: (current: BookCollection[]) => BookCollection[]) => {
+    const next = edit(collectionsRef.current);
+    collectionsRef.current = next;
+    writeLocalCollections(next);
+    setCollections(next);
+    if (cloudRepo && cloudSession) {
+      try {
+        const synced = await saveCloudCollections(cloudRepo, cloudSession, next);
+        const combined = mergeCollections(synced, collectionsRef.current);
+        collectionsRef.current = combined;
+        writeLocalCollections(combined);
+        setCollections(combined);
+      } catch (cause) {
+        setError(`Collections saved on this device, but cloud sync failed: ${String(cause)}`);
+      }
+    }
+  }, [cloudRepo, cloudSession]);
+
+  const createCollection = useCallback(async (name: string) => {
+    const cleaned = name.trim().slice(0, 90);
+    if (!cleaned) return;
+    await changeCollections(current => {
+      if (current.some(c => !c.deleted && c.name.toLocaleLowerCase() === cleaned.toLocaleLowerCase())) return current;
+      return [...current, { id: crypto.randomUUID(), name: cleaned, bookIds: [], updatedAt: Date.now() }];
+    });
+  }, [changeCollections]);
+
+  const changeCollectionMembership = useCallback(async (collectionId: string, bookId: string, include: boolean) => {
+    await changeCollections(current => current.map(c => {
+      if (c.id !== collectionId || c.deleted) return c;
+      const ids = new Set(c.bookIds);
+      if (include) ids.add(bookId); else ids.delete(bookId);
+      return { ...c, bookIds: [...ids], updatedAt: Math.max(Date.now(), c.updatedAt + 1) };
+    }));
+  }, [changeCollections]);
+
+  const renameCollection = useCallback(async (collectionId: string, name: string) => {
+    const cleaned = name.trim().slice(0, 90);
+    if (!cleaned) return;
+    await changeCollections(current => current.map(c => c.id === collectionId && !c.deleted
+      ? { ...c, name: cleaned, updatedAt: Math.max(Date.now(), c.updatedAt + 1) } : c));
+  }, [changeCollections]);
+
+  const deleteCollection = useCallback(async (collectionId: string) => {
+    await changeCollections(current => current.map(c => c.id === collectionId
+      ? { ...c, deleted: true, updatedAt: Math.max(Date.now(), c.updatedAt + 1) } : c));
+  }, [changeCollections]);
+
   const openBook = useCallback((book: LibraryBook, chapterHref?: string) => {
     setLoadingBook(book.title);
     void (async () => {
@@ -413,7 +484,8 @@ export default function App() {
     {activeBook ? (
       <Reader key={activeBook.id} book={activeBook} settings={settings} onSettings={setSettings}
         initialChapterHref={startChapterHref || undefined}
-        onBack={() => { setReadingId(null); setStartChapterHref(null); }} onProgress={recordProgress} />
+        onBack={() => { setReadingId(null); setDetailsId(null); setStartChapterHref(null); }}
+        onNovelDetails={() => { setReadingId(null); setDetailsId(activeBook.id); setStartChapterHref(null); }} onProgress={recordProgress} />
     ) : detailBook ? (
       <BookDetails book={detailBook} theme={settings.theme}
         onBack={() => setDetailsId(null)} onRead={() => openBook(detailBook)}
@@ -428,6 +500,11 @@ export default function App() {
         onBrowseTag={tag => { setBrowseTag(tag); setGlobalSearch(''); setDetailsId(null); }} error={error} />
     ) : (
       <LibraryDashboard books={books} theme={settings.theme}
+        collections={collections.filter(c => !c.deleted)}
+        onCreateCollection={createCollection}
+        onRenameCollection={renameCollection}
+        onDeleteCollection={deleteCollection}
+        onCollectionMembership={changeCollectionMembership}
         initialTag={browseTag} globalSearch={globalSearch} onGlobalSearch={setGlobalSearch}
         onThemeChange={theme => setSettings(settings => ({ ...settings, theme }))}
         onImportClick={() => filePicker.current?.click()}
