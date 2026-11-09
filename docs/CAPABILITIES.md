@@ -16,7 +16,7 @@
 | EPUB and ZIP download | **Download EPUB** saves a real `.epub` file through the browser. Uses a cached EPUB, or obtains one from the authorised private dataset if missing. **Original ZIP** is offered only when a hosted archive exists and requires a network fetch |
 | Book imports | Local EPUB/ZIP imports and IndexedDB caching. When connected, may publish EPUB, ZIP (when provided) and catalogue to the separate private dataset |
 | Cloud session | Connect a private dataset using a fine-grained HF token in memory; the token is not persisted and must be re-entered after refresh |
-| Standalone PWA deployment | Prepared independent Cloudflare Pages preview workflow on `dev`, with manually gated publish and required Access verification. **Not hosted until the user's Cloudflare account/project is connected.** |
+| Standalone PWA deployment | Prepared independent Cloudflare Pages preview workflow on `dev`, with manually gated publish. The Pages app shell is deliberately **public**, while novels, reading progress and personal notes remain protected by the **private Hugging Face dataset token**. **Not hosted until deployment credentials are configured.** |
 | Bulk offline library | **Save all offline** downloads missing EPUBs sequentially with progress and per-book failure reporting |
 | Reading-position sync | Per-book private progress JSON, local pending queue and timestamp-based restore/retry when connected |
 | Build/deploy | TypeScript, Vitest, Vite build, production dependency audit, browser smoke tests and deployment to the **staging Space only** from `dev` |
@@ -60,7 +60,7 @@ The bookshelf displays browser connectivity, the count of EPUBs downloaded local
 
 ### Standalone installation
 
-The independent standalone PWA deployment has been prepared but needs the user's **Cloudflare Pages account/project, Access rules and GitHub environment secrets** before it can be published. Follow [Standalone PWA setup](STANDALONE_PWA.md). Publishing is manually gated and never affects the Hugging Face production Space.
+The independent standalone PWA deployment has been prepared but needs the user's **Cloudflare Pages deployment account ID, API token and GitHub environment configuration** before it can be published. A Cloudflare Zero Trust subscription or billing card is **not required** when the public app shell is acceptable. Follow [Standalone PWA setup](STANDALONE_PWA.md). Publishing is manually gated and never affects the Hugging Face production Space.
 
 ### Outstanding offline work
 
