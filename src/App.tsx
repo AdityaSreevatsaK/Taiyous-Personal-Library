@@ -8,7 +8,7 @@ import { deleteBook, getBookFile, getBooks, getCachedEpubIds, readSettings, save
 import {
   blendCloudAndLocal, clearCloudSession, createCloudSession, assertPrivateDataset,
   fetchCloudCatalog, fetchCloudEpub, fetchCloudArchive, fetchCloudPersonalReview, findCloudEntryForBook, readDatasetRepo, saveDatasetRepo,
-  saveCloudPersonalReview,
+  saveCloudPersonalReview, fetchCloudReadingProgress, saveCloudReadingProgress, applyCloudReadingProgress,
   uploadNovelToCloud, validateDatasetRepo,
   type CloudEntry, type CloudSession,
 } from './lib/cloud';
@@ -116,9 +116,29 @@ export default function App() {
           return book;
         }
       }));
-      booksRef.current = synced;
-      setBooks(synced);
-      await Promise.all(synced.filter(book => book.cloud).map(book => updateBook(book)));
+      let progressWarning = false;
+      const withProgress = await Promise.all(synced.map(async book => {
+        const entry = findCloudEntryForBook(catalog.books, book);
+        if (!entry) return book;
+        try {
+          const remote = await fetchCloudReadingProgress(repo, entry.id, session);
+          const localTimestamp = book.progressUpdatedAt ?? book.lastOpenedAt ?? 0;
+          if (remote && remote.updatedAt >= localTimestamp) {
+            return applyCloudReadingProgress(book, remote);
+          }
+          if (book.pendingProgressSync || book.progress > 0) {
+            const uploading = { ...book, progressUpdatedAt: Math.max(localTimestamp, Date.now()) };
+            await saveCloudReadingProgress(repo, entry.id, session, uploading);
+            return { ...uploading, pendingProgressSync: false };
+          }
+        } catch {
+          progressWarning = true;
+        }
+        return book;
+      }));
+      booksRef.current = withProgress;
+      setBooks(withProgress);
+      await Promise.all(withProgress.filter(book => book.cloud).map(book => updateBook(book)));
       // Separate private collections data is merged by record timestamp;
       // offline edits are retained, and newer local edits are published on reconnection.
       let collectionsWarning = false;
@@ -143,7 +163,7 @@ export default function App() {
         writeCollectionsPending(true);
         setCollectionsSyncPending(true);
       }
-      setCloudMessage(`${catalog.books.length} hosted ${catalog.books.length === 1 ? 'novel' : 'novels'} available on this device.${notesWarning ? ' Some personal notes could not be synced.' : ''}${collectionsWarning ? ' Collections sync needs a retry.' : ''}`);
+      setCloudMessage(`${catalog.books.length} hosted ${catalog.books.length === 1 ? 'novel' : 'novels'} available on this device.${notesWarning ? ' Some personal notes could not be synced.' : ''}${progressWarning ? ' Some reading progress could not be synced.' : ''}${collectionsWarning ? ' Collections sync needs a retry.' : ''}`);
     } catch (reason) {
       setCloudMessage(`Cloud library unavailable: ${reason instanceof Error ? reason.message : String(reason)}`);
     } finally {
@@ -162,6 +182,48 @@ export default function App() {
     return () => window.removeEventListener('online', onReconnect);
   }, [cloudRepo, cloudSession, refreshCloud]);
 
+
+  // Persist in-reader progress periodically, avoiding one dataset commit per scroll.
+  // Pending metadata stays in IndexedDB and survives offline sessions.
+  useEffect(() => {
+    if (!cloudRepo || !cloudSession) return;
+    let busy = false;
+    const sync = async () => {
+      if (busy || syncRef.current || !navigator.onLine) return;
+      busy = true;
+      try {
+        for (const snapshot of booksRef.current.filter(book => book.cloud && book.pendingProgressSync)) {
+          const entry = findCloudEntryForBook([...cloudEntries.current.values()], snapshot);
+          if (!entry) continue;
+          try {
+            const remote = await fetchCloudReadingProgress(cloudRepo, entry.id, cloudSession);
+            const current = booksRef.current.find(book => book.id === snapshot.id);
+            if (!current?.pendingProgressSync) continue;
+            const localTimestamp = current.progressUpdatedAt ?? 0;
+            let updated: LibraryBook;
+            if (remote && remote.updatedAt >= localTimestamp) {
+              updated = applyCloudReadingProgress(current, remote);
+            } else {
+              await saveCloudReadingProgress(cloudRepo, entry.id, cloudSession, current);
+              updated = { ...current, pendingProgressSync: false };
+            }
+            // A new scroll may have occurred during upload; never clear newer edits.
+            const latest = booksRef.current.find(book => book.id === snapshot.id);
+            if (latest && latest.progressUpdatedAt === localTimestamp) {
+              booksRef.current = booksRef.current.map(book => book.id === latest.id ? updated : book);
+              setBooks(booksRef.current);
+              await updateBook(updated);
+            }
+          } catch {
+            // Leave the pending flag set for a later authorised retry.
+          }
+        }
+      } finally { busy = false; }
+    };
+    const timer = window.setInterval(() => { void sync(); }, 60000);
+    window.addEventListener('online', sync);
+    return () => { window.clearInterval(timer); window.removeEventListener('online', sync); };
+  }, [cloudRepo, cloudSession]);
 
   const saveCloudRepository = useCallback((value: string) => {
     try {
@@ -574,7 +636,8 @@ export default function App() {
     if (!readingId) return;
     const current = booksRef.current.find(item => item.id === readingId);
     if (!current) return;
-    const updated = { ...current, ...patch };
+    const updated = { ...current, ...patch,
+      ...(current.cloud ? { progressUpdatedAt: Date.now(), pendingProgressSync: true } : {}) };
     booksRef.current = booksRef.current.map(book => book.id === readingId ? updated : book);
     setBooks(booksRef.current);
     void updateBook(updated).catch(() => setStorageError('Reading progress could not be saved. Check available browser storage.'));
@@ -628,6 +691,7 @@ export default function App() {
         cachingId={cachingId} onCacheForOffline={book => void makeAvailableOffline(book)}
         bulkOfflineProgress={bulkOfflineProgress} onCacheAllOffline={() => void saveAllOffline()}
         pendingReviewCount={books.filter(book => book.pendingReviewSync).length}
+        pendingProgressCount={books.filter(book => book.pendingProgressSync).length}
         collectionsSyncPending={collectionsSyncPending}
         collections={collections.filter(c => !c.deleted)}
         onCreateCollection={createCollection}
