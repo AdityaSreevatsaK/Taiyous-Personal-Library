@@ -193,13 +193,26 @@ try {
     });
     await page.context().setOffline(true);
     try {
-      await page.reload({ waitUntil: 'domcontentloaded', timeout: 20000 });
-      await page.getByRole('navigation', { name: 'Library sections' }).waitFor({ state: 'attached' });
+      const offlineResponse = await page.reload({ waitUntil: 'domcontentloaded', timeout: 20000 });
+      await page.waitForTimeout(1200);
+      const appVisible = await page.locator('.app-shell').count();
+      if (!appVisible) {
+        const diagnostic = await page.evaluate(async () => ({
+          url: location.href,
+          title: document.title,
+          root: document.querySelector('#root')?.textContent?.slice(0, 300) || '(missing root)',
+          controller: navigator.serviceWorker?.controller?.scriptURL || '(none)',
+          caches: await caches.keys(),
+          scripts: [...document.querySelectorAll('script')].map(s => s.src),
+        }));
+        throw new Error(`Offline reload did not bootstrap React: HTTP ${offlineResponse?.status()}; ${JSON.stringify(diagnostic)}`);
+      }
+      await page.locator('nav[aria-label="Library sections"]').waitFor({ state: 'attached' });
       await page.getByRole('button', { name: 'View details for Sample Library Book' }).click();
       await page.getByRole('button', { name: 'Start reading' }).click();
       await page.locator('.reader-page iframe').first().waitFor({ state: 'visible', timeout: 20000 });
       await page.getByRole('button', { name: 'Go to library home' }).click();
-      await page.getByRole('navigation', { name: 'Library sections' }).waitFor({ state: 'attached' });
+      await page.locator('nav[aria-label="Library sections"]').waitFor({ state: 'attached' });
       await page.getByText('Available offline').first().waitFor();
     } finally {
       await page.context().setOffline(false);
