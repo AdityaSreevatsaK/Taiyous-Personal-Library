@@ -66,11 +66,13 @@ self.addEventListener('fetch', event => {
     })());
     return;
   }
-  // Only serve assets explicitly generated from dist, never arbitrary API data.
-  if (!shellUrls.includes(url.href)) return;
+  // Serve only assets already stored at install time. Other same-origin
+  // requests fall through to the network, but are never cached or persisted.
+  // Cross-origin private Hugging Face dataset requests are never intercepted.
   event.respondWith((async () => {
     const cached = await caches.match(request, { ignoreSearch: true });
-    return cached || fetch(request);
+    if (cached) return cached;
+    return fetch(request);
   })());
 });
 `;
