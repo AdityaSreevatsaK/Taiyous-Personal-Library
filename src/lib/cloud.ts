@@ -262,6 +262,7 @@ export function blendCloudAndLocal(remote: CloudEntry[], local: LibraryBook[]): 
       ...(prior ? { personalTags: prior.personalTags, userDescription: prior.userDescription,
         personalRating: prior.personalRating, personalReview: prior.personalReview,
         personalReviewUpdatedAt: prior.personalReviewUpdatedAt,
+        pendingReviewSync: prior.pendingReviewSync,
         progress: prior.progress, currentChapter: prior.currentChapter,
         currentChapterIndex: prior.currentChapterIndex, currentChapterNumber: prior.currentChapterNumber,
         lastCfi: prior.lastCfi, lastOpenedAt: prior.lastOpenedAt } : {}),
