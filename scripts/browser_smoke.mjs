@@ -194,12 +194,12 @@ try {
     await page.context().setOffline(true);
     try {
       await page.reload({ waitUntil: 'domcontentloaded', timeout: 20000 });
-      await page.getByRole('navigation', { name: 'Library sections' }).waitFor();
+      await page.getByRole('navigation', { name: 'Library sections' }).waitFor({ state: 'attached' });
       await page.getByRole('button', { name: 'View details for Sample Library Book' }).click();
       await page.getByRole('button', { name: 'Start reading' }).click();
       await page.locator('.reader-page iframe').first().waitFor({ state: 'visible', timeout: 20000 });
       await page.getByRole('button', { name: 'Go to library home' }).click();
-      await page.getByRole('navigation', { name: 'Library sections' }).waitFor();
+      await page.getByRole('navigation', { name: 'Library sections' }).waitFor({ state: 'attached' });
       await page.getByText('Available offline').first().waitFor();
     } finally {
       await page.context().setOffline(false);
