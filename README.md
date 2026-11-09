@@ -13,9 +13,9 @@ short_description: Private novel library with EPUB and ZIP storage
 # Taiyou's Personal Library (dev / staging)
 
 
-> **Development / staging:** This branch has features beyond production `master`: ratings and comments, named collections, tag browsing, global/local search, real EPUB download, optional hosted ZIP download and bottom chapter navigation. For the current feature list, storage and **actual offline limitations**, read **[Dev capabilities and offline behaviour](docs/CAPABILITIES.md)**. These improvements should not be described as production features until separately promoted and deployed.
+> **Development / staging:** This branch has features beyond production `master`: ratings and comments, named collections, tag browsing, global/local search, offline app shell and book caching, real EPUB download, optional hosted ZIP download and bottom chapter navigation. For the current feature list, storage and **actual offline limitations**, read **[Dev capabilities and offline behaviour](docs/CAPABILITIES.md)**. These improvements should not be described as production features until separately promoted and deployed.
 
-**Offline summary:** With an already-open app, cached EPUBs can be read and downloaded without internet. First-time cloud retrieval, original ZIP download and cloud synchronisation require connectivity and credentials. A fresh app launch or reload offline is **not guaranteed**, since there is no service worker/PWA or cached app shell. See the linked capability document.
+**Offline/PWA summary:** `dev` now builds a precached application shell and web manifest, shows a per-novel **Save offline** control and **Available offline** badge, and retries pending private notes/collection changes on reconnect. Cached EPUBs can be read and exported offline. A standalone offline reload can work where the service worker controls the app, **but a private Hugging Face Space wrapper may not load offline or permit PWA installation**. Cloud retrieval, original ZIP downloads and synchronisation still require connectivity and dataset authentication. See the linked capability document.
 
 **Deployment:** Pushes to `dev` run staging CI/CD. They do not deploy production. See [STAGING.md](STAGING.md).
 
