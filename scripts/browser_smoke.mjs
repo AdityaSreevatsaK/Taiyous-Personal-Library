@@ -194,7 +194,7 @@ try {
     await page.context().setOffline(true);
     try {
       const offlineResponse = await page.reload({ waitUntil: 'domcontentloaded', timeout: 20000 });
-      await page.waitForTimeout(1200);
+      await page.locator('.app-shell').waitFor({ state: 'attached', timeout: 7000 }).catch(() => undefined);
       const appVisible = await page.locator('.app-shell').count();
       if (!appVisible) {
         const diagnostic = await page.evaluate(async () => ({
@@ -204,6 +204,16 @@ try {
           controller: navigator.serviceWorker?.controller?.scriptURL || '(none)',
           caches: await caches.keys(),
           scripts: [...document.querySelectorAll('script')].map(s => s.src),
+          cachedAssets: await Promise.all((await caches.keys()).map(async name => {
+            const cache = await caches.open(name);
+            return { name, assets: (await cache.keys()).map(k => k.url) };
+          })),
+          scriptStatus: await Promise.all([...document.querySelectorAll('script[src]')].map(async script => ({
+            url: script.src, cached: Boolean(await caches.match(script.src)),
+          }))),
+          document: document.querySelector('#root')?.outerHTML.slice(0, 500),
+          readyState: document.readyState,
+          failedAssets: performance.getEntriesByType('resource').map(e => e.name).filter(n => n.includes('assets/')).slice(0, 12),
         }));
         throw new Error(`Offline reload did not bootstrap React: HTTP ${offlineResponse?.status()}; ${JSON.stringify(diagnostic)}`);
       }
