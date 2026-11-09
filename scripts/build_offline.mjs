@@ -3,9 +3,10 @@
 import { readdir, readFile, writeFile } from 'node:fs/promises';
 import { join, relative, sep } from 'node:path';
 import { createHash } from 'node:crypto';
+import { fileURLToPath } from 'node:url';
 
 const dist = new URL('../dist/', import.meta.url);
-const root = dist.pathname;
+const root = fileURLToPath(dist);
 const files = [];
 async function walk(dir) {
   for (const item of await readdir(dir, { withFileTypes: true })) {
