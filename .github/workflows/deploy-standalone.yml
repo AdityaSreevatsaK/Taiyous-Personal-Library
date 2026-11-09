@@ -3,12 +3,7 @@ on:
   workflow_dispatch:
     inputs:
       publish:
-        description: 'Deploy after Cloudflare Pages and Access have been configured'
-        required: true
-        type: boolean
-        default: false
-      access_protected:
-        description: 'I verified Access protects both the pages.dev root and preview URLs'
+        description: 'Publish the public app shell (never private novels or credentials)'
         required: true
         type: boolean
         default: false
@@ -72,7 +67,7 @@ jobs:
 
   deploy:
     needs: validate
-    if: github.repository == 'AdityaSreevatsaK/Taiyous-Personal-Library' && github.ref == 'refs/heads/dev' && inputs.publish == true && inputs.access_protected == true
+    if: github.repository == 'AdityaSreevatsaK/Taiyous-Personal-Library' && github.ref == 'refs/heads/dev' && inputs.publish == true
     runs-on: ubuntu-latest
     environment: standalone-staging
     timeout-minutes: 15
