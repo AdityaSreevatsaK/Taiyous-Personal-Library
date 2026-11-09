@@ -19,6 +19,8 @@ interface Props {
   offlineShellReady: boolean;
   cachingId: string | null;
   onCacheForOffline: (book: LibraryBook) => void;
+  bulkOfflineProgress: { done: number; total: number } | null;
+  onCacheAllOffline: () => void;
   pendingReviewCount: number;
   collectionsSyncPending: boolean;
   collections: BookCollection[];
@@ -67,7 +69,7 @@ export function Cover({ book, variant = 'normal' }: { book: LibraryBook; variant
 }
 
 export default function LibraryDashboard({
-  books, cachedEpubIds, online, offlineShellReady, cachingId, onCacheForOffline, pendingReviewCount, collectionsSyncPending,
+  books, cachedEpubIds, online, offlineShellReady, cachingId, onCacheForOffline, bulkOfflineProgress, onCacheAllOffline, pendingReviewCount, collectionsSyncPending,
   collections, onCreateCollection, onRenameCollection, onDeleteCollection, onCollectionMembership,
   initialTag, globalSearch, onGlobalSearch, theme, onThemeChange, onImportClick, onFiles, onOpen, onRead, onDelete,
   importing, notice, error, storageError, cloudRepo, cloudSession,
@@ -187,6 +189,11 @@ export default function LibraryDashboard({
               {online ? 'Online' : 'Offline'}
             </span>
             <span><Download size={14} /> {cachedEpubIds.length} of {books.length} EPUBs saved on this device</span>
+            {cachedEpubIds.length < books.length && books.length > 0 && <button type="button" className="offline-cache-all-btn"
+              onClick={onCacheAllOffline} disabled={!online || !!bulkOfflineProgress}
+              aria-label="Save all novels for offline reading"><Download size={13} />
+              {bulkOfflineProgress ? `Saving ${bulkOfflineProgress.done} of ${bulkOfflineProgress.total}…` : 'Save all offline'}
+            </button>}
             <span>{offlineShellReady ? 'Offline app assets cached' : 'Offline app assets not yet cached'}</span>
             {pendingReviewCount > 0 && <span className="pending-sync-status">{pendingReviewCount} note{pendingReviewCount === 1 ? '' : 's'} waiting to sync</span>}
             {collectionsSyncPending && <span className="pending-sync-status">Collections waiting to sync</span>}
