@@ -10,10 +10,10 @@ This branch is separate from the restored production v1.0.4 baseline. No workflo
 - `scripts/deploy_prebuilt.py` checks that the staging Space is private, then uploads only README and dist content. It does not touch the separate novel dataset.
 - No automatic production deployment exists.
 
-## Required one-time setup
+## One-time setup (already configured; retained as recovery instructions)
 
-1. **Fix GitHub Actions runner eligibility:** In GitHub repository Settings > Actions > General, ensure Actions and GitHub-hosted runners are allowed. Check account Settings > Billing and licensing > Actions usage, billing/payment and spending limits. Earlier runs 42500697631 and 42500728610 failed before getting a runner; the exact cause is not established by the job metadata.
-2. **Add a Hugging Face Trusted Publisher:** Open the *private staging Space* Settings > Trusted Publishers and add GitHub Actions with:
+1. **GitHub Actions runner eligibility (resolved in November 2026):** In GitHub repository Settings > Actions > General, ensure Actions and GitHub-hosted runners are allowed. Check account Settings > Billing and licensing > Actions usage, billing/payment and spending limits. Earlier runs 42500697631 and 42500728610 failed before getting a runner; the exact cause is not established by the job metadata.
+2. **Hugging Face Trusted Publisher (configured):** Open the *private staging Space* Settings > Trusted Publishers and add GitHub Actions with:
    - Repository: `AdityaSreevatsaK/Taiyous-Personal-Library`
    - Branch: `dev`
    - Workflow: `deploy-staging.yml`
@@ -30,11 +30,13 @@ This branch is separate from the restored production v1.0.4 baseline. No workflo
 - Keep the last-good staging Space commit ID. If a staging build fails live verification, roll back the staging Space using its Hugging Face commit history. Preserve the production v1.0.4 Space commit `9d146d8876`.
 - GitHub workflow artifacts are retained 14 days. The publication step copies the exact tested `dist/` artifact; it does not rebuild it.
 
-## Limitations
+## Verified coverage and limitations
 
-- The original repository did not contain `package-lock.json`. Current npm installation therefore does not yet have fully reproducible dependency resolution. Add a reviewed lockfile and switch to `npm ci` after generating it with working npm registry access.
-- Playwright does not currently test private HF authentication, EPUB interactions or browser-local progress persistence. Those still need additional dedicated integration tests and live staging validation.
-- There is no production deployment workflow; this is intentionally a staging-only CI/CD change.
+- The browser test now seeds a **synthetic local EPUB**, verifies details and rating persistence, a real EPUB download event, reading navigation, horizontal overflow checks, named collections and mobile layout. This is **not** an authenticated end-to-end test with the real private novels.
+- CI does **not** exercise real private Hugging Face dataset authentication, cross-device notes/collection sync, genuine hosted EPUB retrieval, live reading-position persistence on a second device, or a fresh browser start offline. Those require separate live staging checks.
+- The app is **not an offline-installed PWA**; locally cached EPUBs are readable and downloadable while the app is already running, but opening/reloading the Space without internet is not guaranteed. See [Dev capabilities and offline behaviour](docs/CAPABILITIES.md).
+- The repository still lacks a committed `package-lock.json`. Generate, review and commit one before switching to reproducible `npm ci`.
+- There is **no production deployment workflow**. `master` and production Space are not automatically changed by the staging workflow.
 
 ## CI retry
 
