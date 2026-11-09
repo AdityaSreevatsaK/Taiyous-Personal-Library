@@ -5,7 +5,7 @@ import re
 ROOT = Path(__file__).resolve().parent.parent
 DIST = ROOT / "dist"
 README = ROOT / "README.md"
-SAFE_SUFFIXES = {".html", ".js", ".css", ".svg", ".png", ".jpg", ".jpeg", ".webp", ".gif", ".ico", ".woff", ".woff2", ".ttf", ".otf", ".map", ".json", ".txt"}
+SAFE_SUFFIXES = {".html", ".js", ".css", ".svg", ".png", ".jpg", ".jpeg", ".webp", ".gif", ".ico", ".woff", ".woff2", ".ttf", ".otf", ".map", ".json", ".webmanifest", ".txt"}
 BLOCKED_SUFFIXES = {".epub", ".zip", ".env", ".pem", ".key", ".p12", ".pfx", ".db", ".sqlite"}
 SECRETS = [
     re.compile(rb"hf_[A-Za-z0-9]{20,}"),
