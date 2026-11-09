@@ -12,6 +12,12 @@ short_description: Private novel library with EPUB and ZIP storage
 
 # Taiyou's Personal Library v1.0.4
 
+
+> **Production baseline:** This README documents the restored `master` v1.0.4 source, not the newer staged features. For the exact features, storage behaviour and limitations on this branch, read **[Master capabilities and offline behaviour](docs/CAPABILITIES.md)**. The `dev` branch has additional functionality that has not been promoted to production.
+
+**Offline summary:** A previously cached EPUB can be read while the app remains open, but opening/reloading the app offline is not reliably supported (no service worker/PWA). This baseline has no dedicated Download EPUB or original ZIP button; the automatic private EPUB fetch caches a browser reading copy. See the linked capability document.
+
+
 This version builds on the approved v0.7.0 reader and adds **hosted novel storage** without requiring a running backend or embedding a long-lived Hugging Face token in the web app.
 
 ## Release notes: private Space authentication compatibility
