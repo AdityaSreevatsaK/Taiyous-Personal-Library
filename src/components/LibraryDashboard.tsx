@@ -20,6 +20,7 @@ interface Props {
   cachingId: string | null;
   onCacheForOffline: (book: LibraryBook) => void;
   pendingReviewCount: number;
+  collectionsSyncPending: boolean;
   collections: BookCollection[];
   onCreateCollection: (name: string) => Promise<void>;
   onRenameCollection: (id: string, name: string) => Promise<void>;
@@ -66,7 +67,7 @@ export function Cover({ book, variant = 'normal' }: { book: LibraryBook; variant
 }
 
 export default function LibraryDashboard({
-  books, cachedEpubIds, online, offlineShellReady, cachingId, onCacheForOffline, pendingReviewCount,
+  books, cachedEpubIds, online, offlineShellReady, cachingId, onCacheForOffline, pendingReviewCount, collectionsSyncPending,
   collections, onCreateCollection, onRenameCollection, onDeleteCollection, onCollectionMembership,
   initialTag, globalSearch, onGlobalSearch, theme, onThemeChange, onImportClick, onFiles, onOpen, onRead, onDelete,
   importing, notice, error, storageError, cloudRepo, cloudSession,
@@ -188,6 +189,7 @@ export default function LibraryDashboard({
             <span><Download size={14} /> {cachedEpubIds.length} of {books.length} EPUBs saved on this device</span>
             <span>{offlineShellReady ? 'App ready for offline launch' : 'Offline launch not yet confirmed'}</span>
             {pendingReviewCount > 0 && <span className="pending-sync-status">{pendingReviewCount} note{pendingReviewCount === 1 ? '' : 's'} waiting to sync</span>}
+            {collectionsSyncPending && <span className="pending-sync-status">Collections waiting to sync</span>}
           </div>
           <section className="cloud-connect" aria-label="Cloud library storage">
             <div className="cloud-connect-head"><span><Cloud size={16} /><strong>Cloud library</strong><small className={cloudRepo && cloudSession ? 'connection-badge is-connected' : 'connection-badge'}>{cloudRepo && cloudSession ? 'Connected' : cloudRepo ? 'Disconnected' : 'Not set up'}</small></span><button type="button" className="secondary-button" aria-expanded={showCloud} onClick={() => setShowCloud(v => !v)}>{showCloud ? 'Close' : 'Settings'}</button></div>
