@@ -30,6 +30,8 @@ export interface LibraryBook {
   personalReview?: string;
   /** Latest rating/comments edit timestamp to merge cloud notes safely. */
   personalReviewUpdatedAt?: number;
+  /** Saved locally and awaiting publication to the private dataset. */
+  pendingReviewSync?: boolean;
   status?: string;
   sourceUrl?: string;
   /** Old imports are enriched lazily when their detail pages are opened. */
