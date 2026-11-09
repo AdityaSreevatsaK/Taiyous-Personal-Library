@@ -22,6 +22,7 @@ interface Props {
   bulkOfflineProgress: { done: number; total: number } | null;
   onCacheAllOffline: () => void;
   pendingReviewCount: number;
+  pendingProgressCount: number;
   collectionsSyncPending: boolean;
   collections: BookCollection[];
   onCreateCollection: (name: string) => Promise<void>;
@@ -69,7 +70,7 @@ export function Cover({ book, variant = 'normal' }: { book: LibraryBook; variant
 }
 
 export default function LibraryDashboard({
-  books, cachedEpubIds, online, offlineShellReady, cachingId, onCacheForOffline, bulkOfflineProgress, onCacheAllOffline, pendingReviewCount, collectionsSyncPending,
+  books, cachedEpubIds, online, offlineShellReady, cachingId, onCacheForOffline, bulkOfflineProgress, onCacheAllOffline, pendingReviewCount, pendingProgressCount, collectionsSyncPending,
   collections, onCreateCollection, onRenameCollection, onDeleteCollection, onCollectionMembership,
   initialTag, globalSearch, onGlobalSearch, theme, onThemeChange, onImportClick, onFiles, onOpen, onRead, onDelete,
   importing, notice, error, storageError, cloudRepo, cloudSession,
@@ -196,6 +197,7 @@ export default function LibraryDashboard({
             </button>}
             <span>{offlineShellReady ? 'Offline app assets cached' : 'Offline app assets not yet cached'}</span>
             {pendingReviewCount > 0 && <span className="pending-sync-status">{pendingReviewCount} note{pendingReviewCount === 1 ? '' : 's'} waiting to sync</span>}
+            {pendingProgressCount > 0 && <span className="pending-sync-status">{pendingProgressCount} reading position{pendingProgressCount === 1 ? '' : 's'} waiting to sync</span>}
             {collectionsSyncPending && <span className="pending-sync-status">Collections waiting to sync</span>}
           </div>
           <section className="cloud-connect" aria-label="Cloud library storage">
