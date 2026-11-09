@@ -38,6 +38,7 @@ export default function App() {
   const [online, setOnline] = useState(() => navigator.onLine);
   const [offlineShellReady, setOfflineShellReady] = useState(false);
   const [cachingId, setCachingId] = useState<string | null>(null);
+  const [bulkOfflineProgress, setBulkOfflineProgress] = useState<{ done: number; total: number } | null>(null);
   const filePicker = useRef<HTMLInputElement | null>(null);
   const booksRef = useRef<LibraryBook[]>([]);
   const collectionsRef = useRef<BookCollection[]>(collections);
@@ -326,6 +327,48 @@ export default function App() {
     } finally { setCachingId(null); }
   }, [online, cachedEpubIds, ensureCached]);
 
+  const saveAllOffline = useCallback(async () => {
+    if (!navigator.onLine) {
+      setError('Connect to the internet to save uncached novels for offline use.');
+      return;
+    }
+    if (bulkOfflineProgress) return;
+    setError(null);
+    setNotice(null);
+    const locallyAvailable = new Set(await getCachedEpubIds());
+    const needed = booksRef.current.filter(book => !locallyAvailable.has(book.id));
+    if (!needed.length) {
+      setNotice('Every novel is already available offline on this device.');
+      return;
+    }
+    setBulkOfflineProgress({ done: 0, total: needed.length });
+    const failures: string[] = [];
+    let done = 0;
+    try {
+      // Keep concurrent downloads low so large EPUBs do not exhaust browser memory.
+      for (const book of needed) {
+        if (!navigator.onLine) {
+          failures.push('Connection lost. Unfinished novels remain available for retry.');
+          break;
+        }
+        try {
+          await ensureCached(book);
+          setCachedEpubIds(ids => ids.includes(book.id) ? ids : [...ids, book.id]);
+        } catch (reason) {
+          failures.push(`${book.title}: ${String(reason)}`);
+        }
+        done++;
+        setBulkOfflineProgress({ done, total: needed.length });
+      }
+      if (navigator.storage?.persist) void navigator.storage.persist().catch(() => undefined);
+      const successful = done - failures.filter(x => x.includes(': ')).length;
+      setNotice(`${successful} of ${needed.length} novels saved for offline reading.`);
+      if (failures.length) setError(`Some downloads could not finish: ${failures.slice(0, 3).join(' | ')}`);
+    } finally {
+      setBulkOfflineProgress(null);
+    }
+  }, [bulkOfflineProgress, ensureCached]);
+
   const showDetails = useCallback((book: LibraryBook) => {
     setError(null);
     setNotice(null);
@@ -583,6 +626,7 @@ export default function App() {
       <LibraryDashboard books={books} theme={settings.theme}
         cachedEpubIds={cachedEpubIds} online={online} offlineShellReady={offlineShellReady}
         cachingId={cachingId} onCacheForOffline={book => void makeAvailableOffline(book)}
+        bulkOfflineProgress={bulkOfflineProgress} onCacheAllOffline={() => void saveAllOffline()}
         pendingReviewCount={books.filter(book => book.pendingReviewSync).length}
         collectionsSyncPending={collectionsSyncPending}
         collections={collections.filter(c => !c.deleted)}
