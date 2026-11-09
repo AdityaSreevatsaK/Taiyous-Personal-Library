@@ -767,3 +767,22 @@ html, body, #root { max-width: 100%; overflow-x: clip; }
 .offline-cache-btn:hover:not(:disabled) { color: var(--text); background: var(--pale); }
 .offline-cache-btn:disabled { opacity: .55; cursor: not-allowed; }
 @media (max-width: 700px) { .offline-health { gap: 5px 10px; font-size: 10px; } }
+
+
+/* Bulk device-local EPUB downloads, separate from browser's file export action. */
+.offline-cache-all-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  min-height: 29px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  background: var(--surface);
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.offline-cache-all-btn:hover:not(:disabled) { background: var(--pale); }
+.offline-cache-all-btn:disabled { opacity: .55; cursor: not-allowed; }
