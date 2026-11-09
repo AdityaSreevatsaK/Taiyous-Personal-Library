@@ -12,7 +12,7 @@ async function walk(dir) {
     if (item.name.startsWith('.')) continue;
     const file = join(dir, item.name);
     if (item.isDirectory()) await walk(file);
-    else if (item.isFile() && /\.(?:html|js|css|svg|png|jpg|jpeg|webp|woff2?|ico|json)$/.test(item.name)) {
+    else if (item.isFile() && /\.(?:html|js|css|svg|png|jpg|jpeg|webp|woff2?|ico|json|webmanifest)$/.test(item.name)) {
       const path = relative(root, file).split(sep).join('/');
       if (path !== 'sw.js') files.push(path);
     }
