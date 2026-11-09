@@ -187,7 +187,7 @@ export default function LibraryDashboard({
               {online ? 'Online' : 'Offline'}
             </span>
             <span><Download size={14} /> {cachedEpubIds.length} of {books.length} EPUBs saved on this device</span>
-            <span>{offlineShellReady ? 'App ready for offline launch' : 'Offline launch not yet confirmed'}</span>
+            <span>{offlineShellReady ? 'Offline app assets cached' : 'Offline app assets not yet cached'}</span>
             {pendingReviewCount > 0 && <span className="pending-sync-status">{pendingReviewCount} note{pendingReviewCount === 1 ? '' : 's'} waiting to sync</span>}
             {collectionsSyncPending && <span className="pending-sync-status">Collections waiting to sync</span>}
           </div>
