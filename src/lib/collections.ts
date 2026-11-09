@@ -17,6 +17,15 @@ export interface CollectionDocument {
 }
 
 const STORAGE_KEY = 'taiyou.personal-collections.v1';
+const PENDING_KEY = 'taiyou.personal-collections-pending.v1';
+export function readCollectionsPending(): boolean {
+  try { return localStorage.getItem(PENDING_KEY) === 'yes'; } catch { return false; }
+}
+export function writeCollectionsPending(value: boolean): void {
+  try { if (value) localStorage.setItem(PENDING_KEY, 'yes'); else localStorage.removeItem(PENDING_KEY); }
+  catch { /* Browser storage unavailable; collection data is still held in React state. */ }
+}
+
 const CLOUD_PATH = 'data/personal/collections.json';
 const validId = /^[a-zA-Z0-9_-]{8,100}$/;
 
