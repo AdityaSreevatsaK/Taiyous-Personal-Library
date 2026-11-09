@@ -18,6 +18,12 @@ def validate():
     readme = README.read_text(encoding="utf-8")
     if "sdk: static" not in readme or "app_file: dist/index.html" not in readme:
         raise ValueError("Expected static Space metadata is missing")
+    for required in ("sw.js", "manifest.webmanifest", "library-icon.svg"):
+        if not (DIST / required).is_file():
+            raise ValueError(f"Offline app asset missing: {required}")
+    shell = (DIST / "sw.js").read_text(encoding="utf-8")
+    if "SHELL_CACHE" not in shell or "APP_FILES" not in shell or "request.mode === 'navigate'" not in shell:
+        raise ValueError("Offline service worker missing expected app shell behaviour")
     files = [p for p in DIST.rglob("*") if p.is_file()]
     if not files:
         raise ValueError("Empty deployment directory")
