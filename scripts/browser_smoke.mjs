@@ -40,6 +40,25 @@ try {
     });
     const response = await page.goto(baseUrl, { waitUntil: 'networkidle', timeout: 30000 });
     if (!response?.ok()) throw new Error(`App returned HTTP ${response?.status()}`);
+    const installManifest = await page.evaluate(async () => {
+      const response = await fetch(new URL('manifest.webmanifest', document.baseURI));
+      if (!response.ok) throw new Error('No standalone PWA manifest');
+      const manifest = await response.json();
+      const results = await Promise.all([192, 512].map(async size => {
+        const entry = manifest.icons?.find(icon => icon.sizes === `${size}x${size}` && icon.type === 'image/png');
+        if (!entry) throw new Error(`Missing ${size}x${size} PWA install icon`);
+        const image = await fetch(new URL(entry.src, document.baseURI));
+        if (!image.ok || image.headers.get('content-type')?.includes('html')) throw new Error(`Missing ${size}x${size} PNG`);
+        const data = new Uint8Array(await image.arrayBuffer());
+        if (data.length < 16 || data[0] !== 137 || data[1] !== 80 || data[2] !== 78 || data[3] !== 71) throw new Error('Invalid PNG signature');
+        return size;
+      }));
+      return { name: manifest.name, display: manifest.display, results };
+    });
+    if (!installManifest.name?.includes('Taiyou') || installManifest.display !== 'standalone') {
+      throw new Error('Invalid installable PWA manifest');
+    }
+
     await page.locator('#root').waitFor({ state: 'visible', timeout: 15000 });
     await page.waitForTimeout(1000);
     const rootText = (await page.locator('#root').innerText()).trim();
