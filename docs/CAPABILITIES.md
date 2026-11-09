@@ -27,22 +27,36 @@
 
 **Sync limitations:** Reading progress, last position, personal tags, personal summaries and typography are still local to each browser. Ratings/comments and collections use private cloud files when connected; writes made offline remain local until successfully published or manually retried. Avoid simultaneous edits from multiple devices: collections use timestamp-based merging rather than transactional multi-writer guarantees; cloud notes also lack conflict-proof concurrent editing. A passing CI run does not replace testing with the actual private dataset.
 
-## Offline operation: current behaviour, not a PWA guarantee
+## Offline-first PWA behaviour (staging)
 
-| Situation | Supported behaviour |
+The `dev` build now generates a versioned **same-origin service worker** (`dist/sw.js`) and **web app manifest**; the worker precaches exactly the compiled HTML/JS/CSS/icon assets and provides a cached page fallback for offline navigation. Book contents are **not** stored in Cache Storage or precached by the worker; EPUBs remain in IndexedDB, and HF credentials remain in memory only. **Private dataset network responses must never be cached by the service worker.**
+
+The bookshelf displays browser connectivity, the count of EPUBs downloaded locally, a per-novel **Available offline** indicator or **Save offline** button, and pending review/collection sync status. Clicking Save offline fetches and stores that novel's EPUB in IndexedDB; the browser is also asked to allow persistent storage, but can decline.
+
+| Situation | Expected behaviour |
 | --- | --- |
-| App already open and book already cached | Read EPUB offline, turn chapters and update local progress; **Download EPUB** exports the cached binary without network |
-| App already open, novel not yet cached | The first open/EPUB download needs a cloud fetch; no internet means it cannot finish |
-| App first opened or refreshed with no internet | **Not reliably supported**: no service worker, precache manifest, offline app shell or installable PWA lifecycle |
-| Original ZIP download | Fetches from the private hosted dataset; requires internet and authorisation. Original ZIP is **not** cached merely because the EPUB was cached |
-| Existing EPUB downloaded to the device | Can be read separately in an offline-capable EPUB reader regardless of whether the web app can launch |
-| Rating, comments, collections, progress updated offline | Local updates can be made while the app is running; cloud sync cannot happen until network and dataset authentication are available. **Do not assume every offline update is automatically replayed later.** |
+| App already open and EPUB cached | Read and move between chapters; save local progress; export **Download EPUB** without internet |
+| App shell successfully controlled by the service worker | The app shell **can** reload offline at that same origin if the browser retains the service-worker cache, and the already-cached EPUB is available |
+| App loaded through the private Hugging Face Space wrapper | The surrounding Hugging Face page or iframe may still need an internet connection and may restrict service-worker registration/installation. **An offline launch from the HF Space page is not guaranteed** |
+| Hosted book not cached | First-time **Save offline**, EPUB download or open requires access to the private dataset while connected |
+| Hosted original ZIP download | Requires internet and dataset authentication; the ZIP is not cached merely by caching the EPUB |
+| Offline edits to personal ratings/comments | Saved locally with a persisted pending flag. They are retried when online with a still-active cloud session or when the private dataset is reconnected, provided the app can reach the cloud. Newer remote notes are not overwritten by older local edits |
+| Offline collection edits | Stored locally, marked pending and merged with private cloud collections during the next successful authorised refresh. Timestamp-based merging is **not** a transactional conflict-resolution service |
+| Offline progress and personal tags | Local to that browser, not synchronised across devices |
 
-**Practical offline preparation:** While online, open each novel to cause its EPUB to be cached, then use **Download EPUB** to save an independent file. Downloading a file is the most reliable choice for reading without connectivity: a browser can evict IndexedDB and an offline reload of this Static Space may fail. Clearing site data, changing browser/site origin or using private/incognito windows can lose locally stored books/metadata. Fonts may fall back to system faces offline.
+### Prepare to read without internet
 
-### Recommended future work (not implemented)
+1. While online, open the staging app and connect the private dataset.
+2. For each novel, select **Save offline** and wait for **Available offline**; alternatively open the book once to cache its EPUB.
+3. Confirm the app displays **Offline app assets cached**. If it does not, this browser/Space context may not support an offline app shell.
+4. Where supported, install/add the web app from the browser's PWA menu while online, and test a fresh offline launch **before** relying on it. Private HF wrapper limitations may prevent installing it; in that case export the EPUB and use an independent offline EPUB reader.
+5. For the most dependable independent backup, use **Download EPUB** to save actual files outside the browser's IndexedDB. Keep the original ZIP separately.
 
-Add a properly tested service-worker-backed PWA for offline app loading; explicit cache/pre-download management; durable sync queue with conflict resolution and offline indicators; independent data backup/export; and end-to-end authenticated private-dataset tests.
+**Important:** Browser storage can be evicted or cleared; private browsing, origin changes and browser resets may remove both EPUBs and app-shell caches. After a refresh, the fine-grained private dataset token must be re-entered before cloud sync can resume. “Online” is based on browser connectivity status and is not proof that Hugging Face is reachable.
+
+### Outstanding offline work
+
+Test **actual** private Hugging Face staging embedding, installed-PWA behaviour and reconnection using authorised credentials; handle simultaneous multi-device edits with explicit conflict UI/transactional revision checks; add bulk offline download management and an independent metadata backup/restore flow. Browser CI exercises a synthetic EPUB; it never contains private novel content or tokens.
 
 ## Release and production safety
 
