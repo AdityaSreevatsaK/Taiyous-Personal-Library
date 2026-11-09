@@ -16,16 +16,19 @@
 | EPUB and ZIP download | **Download EPUB** saves a real `.epub` file through the browser. Uses a cached EPUB, or obtains one from the authorised private dataset if missing. **Original ZIP** is offered only when a hosted archive exists and requires a network fetch |
 | Book imports | Local EPUB/ZIP imports and IndexedDB caching. When connected, may publish EPUB, ZIP (when provided) and catalogue to the separate private dataset |
 | Cloud session | Connect a private dataset using a fine-grained HF token in memory; the token is not persisted and must be re-entered after refresh |
+| Standalone PWA deployment | Prepared independent Cloudflare Pages preview workflow on `dev`, with manually gated publish and required Access verification. **Not hosted until the user's Cloudflare account/project is connected.** |
+| Bulk offline library | **Save all offline** downloads missing EPUBs sequentially with progress and per-book failure reporting |
+| Reading-position sync | Per-book private progress JSON, local pending queue and timestamp-based restore/retry when connected |
 | Build/deploy | TypeScript, Vitest, Vite build, production dependency audit, browser smoke tests and deployment to the **staging Space only** from `dev` |
 
 ### Storage map
 
 - **Browser IndexedDB:** cached EPUB binaries, book metadata, reading position and progress, ratings/comments as locally available metadata.
 - **Browser localStorage:** display preferences, private dataset repository ID, named collections and other local UI state. The Hugging Face token is not persisted.
-- **Private Hugging Face Dataset:** `data/library.json` catalogue and `data/novels/<book-id>/source.epub`; optional `original.zip`; per-book notes at `data/personal/reviews/<book-id>.json`; collections at `data/personal/collections.json`.
+- **Private Hugging Face Dataset:** `data/library.json` catalogue and `data/novels/<book-id>/source.epub`; optional `original.zip`; per-book notes at `data/personal/reviews/<book-id>.json`; per-book reading positions at `data/personal/progress/<book-id>.json`; collections at `data/personal/collections.json`.
 - **GitHub repository/Space:** source code and built UI only; **never** the private novel dataset or user tokens.
 
-**Sync limitations:** Reading progress, last position, personal tags, personal summaries and typography are still local to each browser. Ratings/comments and collections use private cloud files when connected; writes made offline remain local until successfully published or manually retried. Avoid simultaneous edits from multiple devices: collections use timestamp-based merging rather than transactional multi-writer guarantees; cloud notes also lack conflict-proof concurrent editing. A passing CI run does not replace testing with the actual private dataset.
+**Sync limitations:** Reading progress/last position, ratings/comments and collections use private cloud files when connected. Offline edits remain locally pending until a successful authorised retry. Personal tags, custom summaries and typography remain local to each browser. Avoid simultaneous edits from multiple devices: collections use timestamp-based merging rather than transactional multi-writer guarantees; cloud notes also lack conflict-proof concurrent editing. A passing CI run does not replace testing with the actual private dataset.
 
 ## Offline-first PWA behaviour (staging)
 
@@ -42,21 +45,26 @@ The bookshelf displays browser connectivity, the count of EPUBs downloaded local
 | Hosted original ZIP download | Requires internet and dataset authentication; the ZIP is not cached merely by caching the EPUB |
 | Offline edits to personal ratings/comments | Saved locally with a persisted pending flag. They are retried when online with a still-active cloud session or when the private dataset is reconnected, provided the app can reach the cloud. Newer remote notes are not overwritten by older local edits |
 | Offline collection edits | Stored locally, marked pending and merged with private cloud collections during the next successful authorised refresh. Timestamp-based merging is **not** a transactional conflict-resolution service |
-| Offline progress and personal tags | Local to that browser, not synchronised across devices |
+| Offline progress | Locally saved with a pending-sync marker and uploaded to separate private progress files after reconnection and authorisation; simultaneous edits use timestamps and are not transactionally conflict-proof |
+| Personal tags and custom summaries | Local to that browser, not synchronised across devices |
 
 ### Prepare to read without internet
 
 1. While online, open the staging app and connect the private dataset.
-2. For each novel, select **Save offline** and wait for **Available offline**; alternatively open the book once to cache its EPUB.
+2. Select **Save all offline** to download uncached novels one at a time, or use an individual **Save offline** button. Wait for **Available offline** on each novel.
 3. Confirm the app displays **Offline app assets cached**. If it does not, this browser/Space context may not support an offline app shell.
 4. Where supported, install/add the web app from the browser's PWA menu while online, and test a fresh offline launch **before** relying on it. Private HF wrapper limitations may prevent installing it; in that case export the EPUB and use an independent offline EPUB reader.
 5. For the most dependable independent backup, use **Download EPUB** to save actual files outside the browser's IndexedDB. Keep the original ZIP separately.
 
 **Important:** Browser storage can be evicted or cleared; private browsing, origin changes and browser resets may remove both EPUBs and app-shell caches. After a refresh, the fine-grained private dataset token must be re-entered before cloud sync can resume. “Online” is based on browser connectivity status and is not proof that Hugging Face is reachable.
 
+### Standalone installation
+
+The independent standalone PWA deployment has been prepared but needs the user's **Cloudflare Pages account/project, Access rules and GitHub environment secrets** before it can be published. Follow [Standalone PWA setup](STANDALONE_PWA.md). Publishing is manually gated and never affects the Hugging Face production Space.
+
 ### Outstanding offline work
 
-Test **actual** private Hugging Face staging embedding, installed-PWA behaviour and reconnection using authorised credentials; handle simultaneous multi-device edits with explicit conflict UI/transactional revision checks; add bulk offline download management and an independent metadata backup/restore flow. Browser CI exercises a synthetic EPUB; it never contains private novel content or tokens.
+Test **actual** private Hugging Face staging embedding, installed-PWA behaviour and reconnection using authorised credentials; handle simultaneous multi-device edits with explicit conflict UI/transactional revision checks; add bulk-download cancellation/storage-quota management and an independent metadata backup/restore flow. Browser CI exercises a synthetic EPUB; it never contains private novel content or tokens.
 
 ## Release and production safety
 
