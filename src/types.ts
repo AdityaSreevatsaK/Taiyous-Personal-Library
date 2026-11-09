@@ -44,6 +44,10 @@ export interface LibraryBook {
   progress: number;
   currentChapter?: string;
   currentChapterIndex?: number;
+  /** Newest local progress edit; used to resolve cross-device updates. */
+  progressUpdatedAt?: number;
+  /** Progress waiting to be written to the private cloud after reconnect. */
+  pendingProgressSync?: boolean;
   size: number;
 }
 
