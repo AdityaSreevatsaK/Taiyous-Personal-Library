@@ -176,6 +176,34 @@ try {
     await page.getByRole('button', { name: 'Go to library home' }).click();
     await page.getByRole('navigation', { name: 'Library sections' }).waitFor();
     await page.locator('.book-rating-pill').getByText('8/10').waitFor();
+    // Verify a true offline *reload* of the compiled app, then open/read the
+    // already-cached synthetic EPUB without any network or HF credentials.
+    await page.evaluate(async () => {
+      if (!('serviceWorker' in navigator)) throw new Error('Browser lacks service worker support');
+      await navigator.serviceWorker.ready;
+      if (!navigator.serviceWorker.controller) {
+        await new Promise((resolve, reject) => {
+          const timeout = setTimeout(() => reject(new Error('Offline shell did not take control')), 12000);
+          navigator.serviceWorker.addEventListener('controllerchange', () => {
+            clearTimeout(timeout);
+            resolve();
+          }, { once: true });
+        });
+      }
+    });
+    await page.context().setOffline(true);
+    try {
+      await page.reload({ waitUntil: 'domcontentloaded', timeout: 20000 });
+      await page.getByRole('navigation', { name: 'Library sections' }).waitFor();
+      await page.getByRole('button', { name: 'View details for Sample Library Book' }).click();
+      await page.getByRole('button', { name: 'Start reading' }).click();
+      await page.locator('.reader-page iframe').first().waitFor({ state: 'visible', timeout: 20000 });
+      await page.getByRole('button', { name: 'Go to library home' }).click();
+      await page.getByRole('navigation', { name: 'Library sections' }).waitFor();
+      await page.getByText('Available offline').first().waitFor();
+    } finally {
+      await page.context().setOffline(false);
+    }
     if (errors.length) throw new Error(`Browser errors: ${errors.join(' | ')}`);
     if (failedAssets.length) throw new Error(`Failed local assets: ${failedAssets.join(' | ')}`);
     console.log(`Browser render passed at ${viewport.width}x${viewport.height}`);
