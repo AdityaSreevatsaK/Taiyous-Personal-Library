@@ -1,0 +1,94 @@
+name: Build and optionally deploy standalone PWA
+on:
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: 'Deploy after Cloudflare Pages and Access have been configured'
+        required: true
+        type: boolean
+        default: false
+      access_protected:
+        description: 'I verified Access protects both the pages.dev root and preview URLs'
+        required: true
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: taiyou-standalone-pwa
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    if: github.repository == 'AdityaSreevatsaK/Taiyous-Personal-Library' && github.ref == 'refs/heads/dev'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: npm install --no-fund --no-audit
+      - name: Type-check, unit tests and audit
+        run: |
+          npm run typecheck
+          npm test
+          npm audit --omit=dev --audit-level=high
+      - name: Build installable offline app
+        run: npm run build
+      - name: Check build contains no private data
+        run: python scripts/check_deployment_package.py
+      - name: Install Chromium
+        run: |
+          npm install --no-save --package-lock=false playwright
+          npx playwright install --with-deps chromium
+      - name: Prove offline reload and reading with no network
+        run: |
+          npm run preview -- --host 127.0.0.1 --port 4173 --strictPort > /tmp/taiyou-preview.log 2>&1 &
+          for i in $(seq 1 30); do
+            if curl --silent --fail http://127.0.0.1:4173/ >/dev/null; then break; fi
+            sleep 1
+          done
+          node scripts/browser_smoke.mjs
+      - name: Stage security headers for standalone hosting only
+        run: |
+          cp scripts/standalone-headers.txt dist/_headers
+          test -f dist/sw.js
+          test -f dist/manifest.webmanifest
+      - uses: actions/upload-artifact@v4
+        with:
+          name: standalone-pwa-${{ github.sha }}
+          path: dist/
+          if-no-files-found: error
+          retention-days: 14
+
+  deploy:
+    needs: validate
+    if: github.repository == 'AdityaSreevatsaK/Taiyous-Personal-Library' && github.ref == 'refs/heads/dev' && inputs.publish == true && inputs.access_protected == true
+    runs-on: ubuntu-latest
+    environment: standalone-staging
+    timeout-minutes: 15
+    env:
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+      CF_PAGES_PROJECT: ${{ vars.CF_PAGES_PROJECT }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: standalone-pwa-${{ github.sha }}
+          path: dist
+      - name: Require configured account, token and project
+        run: |
+          test -n "$CLOUDFLARE_ACCOUNT_ID" || { echo 'Missing CF_ACCOUNT_ID'; exit 1; }
+          test -n "$CLOUDFLARE_API_TOKEN" || { echo 'Missing CF_API_TOKEN'; exit 1; }
+          test -n "$CF_PAGES_PROJECT" || { echo 'Missing CF_PAGES_PROJECT'; exit 1; }
+      - name: Deploy dev build to Cloudflare Pages preview
+        run: npx --yes wrangler@4 pages deploy dist --project-name "$CF_PAGES_PROJECT" --branch dev --commit-hash "${{ github.sha }}"
