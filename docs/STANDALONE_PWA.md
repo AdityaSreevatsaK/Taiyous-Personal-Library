@@ -7,26 +7,27 @@ This is the setup for **Taiyou's Personal Library as an installed PWA**, separat
 - Source: GitHub `dev` branch.
 - Build: `npm run build` generates `dist/index.html`, `sw.js`, `manifest.webmanifest`, and original 192/512 PNG install icons. The service worker precaches only same-origin compiled assets.
 - Browser CI: synthetic EPUB, desktop/mobile navigation, EPUB download, offline reload and reading with the network disabled.
-- Standalone deploy: **not configured or live until the Cloudflare account, protected Pages project and GitHub environment are connected.** This is distinct from the Hugging Face staging deployment, which remains active.
+- Standalone deploy: **not live until the Cloudflare account and GitHub deployment environment are connected.** The Pages app shell is intentionally public; the Hugging Face dataset remains private. This is distinct from the Hugging Face staging deployment, which remains active.
 - Existing HF production Space and GitHub `master`: unchanged.
 
 ## Why use a separate URL?
 
 The HF private Space is wrapped in an authenticated Hugging Face page and iframe, which can require internet even when our reader shell is cached. A standalone `https://` Pages origin lets the service worker control the entire installed app, rather than only its embedded portion.
 
-Cloudflare Pages serves the **application shell**, not your novels. A public static shell alone does not expose the private dataset, but we still recommend Cloudflare Access so nobody else can open the library UI.
+Cloudflare Pages serves a **public application shell**, not your novels. Anyone can load the UI, but a fresh browser has no cloud catalogue or books without the owner's private Hugging Face dataset token. Local EPUBs and reading data remain on the same browser/device after disconnect so offline reading works. This is **not account-based UI sign-in**: anyone using an already-unlocked browser profile can see its locally stored books. Use a private device/browser profile and protect the device with a screen lock.
 
-## One-time setup in your Cloudflare account
+## One-time setup: public app shell, private novel dataset
 
-1. In Cloudflare Workers & Pages, create a new **Pages / Direct Upload** project. Pick a project name; keep a record of it. Do not use Git integration for this project because the provided workflow publishes prevalidated GitHub artifacts through Wrangler.
-2. Set up **Cloudflare Zero Trust → Access** and an Allow policy restricted to **your own email/account**, with an explicit Deny for everyone else.
-3. Protect the main `<project>.pages.dev` hostname **and** the branch/commit preview URLs `*.<project>.pages.dev`. The Pages setting **Enable access policy** protects previews only by default. For the main `pages.dev` hostname follow the Cloudflare Pages *Known issues → Enable Access on your pages.dev domain* procedure: enable preview Access, Manage the Access app, remove the wildcard from its subdomain field, save, then enable preview Access again. Configure any custom domain with its own Access app.
-4. Open the root and preview URLs in a **private/incognito browser** and check they cannot display the app without the authorised login. Repeat after deployment. Access configuration is your responsibility; CI cannot create a guarantee from a checkbox.
-5. Create a **GitHub Actions environment** named `standalone-staging`; configure required reviewers (you), and restrict deployments to the `dev` branch. Set its secrets `CF_ACCOUNT_ID` (Cloudflare account ID) and `CF_API_TOKEN` (a Cloudflare API token limited to Pages deployment privileges). Set the environment variable `CF_PAGES_PROJECT` to the exact Pages project name. Do not store these values in code or chat.
-6. Open **Actions → Build and optionally deploy standalone PWA → Run workflow**, select branch `dev`. First run with **publish unchecked** to build, validate and retain a clean artifact. After verifying your Access policy, rerun with **publish** and **access_protected** checked, and approve the GitHub environment if prompted.
-7. Use the stable branch preview address (typically `https://dev.<project>.pages.dev`) on Windows/Android to install via the browser's install/app menu; iOS may use **Share → Add to Home Screen**. Confirm the actual address and its Access policy before use.
+The user explicitly approved public access to the **app shell only**. **You do not need Zero Trust or payment-card details** to set up this hosting approach. The novel dataset remains private under Hugging Face permissions.
 
-**Access limitation:** Browser/PWA installation and offline launch under Cloudflare Access still require real-device testing: a cached shell can load without internet once installed, but a fresh device needs an online Access login. Never treat a service-worker cache as a substitute for access control; browser storage is not encrypted by this app.
+1. Create a Cloudflare Pages **Direct Upload** project named `taiyous-personal-library`. The initial placeholder page may remain public. **Do not add EPUB files or tokens to Cloudflare**.
+2. In the GitHub repository go to **Settings → Environments** and create `standalone-staging`. Restrict it to the `dev` branch if that setting is available, and optionally require your own approval for publishing.
+3. Under that environment's **Secrets**, set `CF_ACCOUNT_ID` to the Cloudflare account ID and `CF_API_TOKEN` to a **restricted Cloudflare Pages deployment token**. Under **Variables**, set `CF_PAGES_PROJECT` to `taiyous-personal-library`. These are Cloudflare **deployment** credentials; never put the private Hugging Face novel token in GitHub secrets, Pages project settings or code.
+4. In **Actions → Build and optionally deploy standalone PWA**, choose branch `dev` and run the workflow with **publish unchecked** to verify the build. Then run it with **publish checked** to update the public app shell only. There is no Access checkbox requirement.
+5. Visit the Pages URL (typically `https://dev.taiyous-personal-library.pages.dev`) in a fresh browser profile. It should show an **empty/unconnected library** until you explicitly connect to your private dataset. A separate person cannot retrieve private novels without their own authorised dataset token. **Do not place a token in the address bar or share one with others.**
+6. After confirming the shell works, use the browser's **Install app** or **Add to Home Screen** option. Test installation and offline startup on Windows/mobile.
+
+**Security boundary:** Public source code and UI are not encrypted or restricted. The Hugging Face dataset itself enforces private data access. Authentication is the **private dataset token** entered directly into the app and kept only in memory. A person with access to the same browser's IndexedDB may see previously downloaded EPUBs without re-entering the token; this is necessary for offline reading. Avoid shared-device profiles. Cloudflare Pages is not a place to store real user data or passwords.
 
 ## Preparing novels and transferring from the existing HF Space
 
@@ -53,8 +54,8 @@ Cloudflare Pages serves the **application shell**, not your novels. A public sta
 
 ## Security and release controls
 
-The workflow `.github/workflows/deploy-standalone.yml` only runs manually on `dev`. All checks must pass before the separate deploy job runs. The two deployment checkbox inputs are an operator acknowledgement, **not automated proof** that Cloudflare Access is configured.
+The workflow `.github/workflows/deploy-standalone.yml` only runs manually on `dev`. All checks must pass before the separate deploy job runs. The single `publish` checkbox is the operator's explicit approval to publish **public UI assets**; the private Hugging Face dataset is never included.
 
-The job publishes a static `dist/` with standalone-only security headers. Never add user EPUBs, Hugging Face tokens or Cloudflare credentials to the repository or CI artifact.
+The job publishes a static `dist/` with standalone-only security headers. It does not add any Cloudflare Access paywall. Never add user EPUBs, Hugging Face tokens or Cloudflare credentials to the repository or CI artifact.
 
 The existing HF staging workflow remains separate. Nothing in this workflow promotes `dev` to `master` or deploys the production HF Space.
