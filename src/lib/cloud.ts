@@ -117,6 +117,77 @@ export async function fetchCloudEpub(repo: string, entry: CloudEntry, session: C
   return blob;
 }
 
+/** Per-book reading state is private and independent of catalogue/EPUB data. */
+export interface CloudReadingProgress {
+  version: 1;
+  bookId: string;
+  progress: number;
+  currentChapter: string | null;
+  currentChapterIndex: number | null;
+  currentChapterNumber: number | null;
+  lastCfi: string | null;
+  lastOpenedAt: number | null;
+  updatedAt: number;
+}
+
+function readingProgressPath(id: string): string {
+  if (!ID_PATTERN.test(id)) throw new Error('Invalid book identifier for reading progress.');
+  return `data/personal/progress/${id}.json`;
+}
+
+export function validateReadingProgress(value: unknown, bookId: string): CloudReadingProgress {
+  if (!value || typeof value !== 'object') throw new Error('Invalid reading progress document.');
+  const raw = value as Partial<CloudReadingProgress>;
+  const optionalText = (v: unknown, limit: number) => v === null || (typeof v === 'string' && v.length <= limit);
+  const optionalInteger = (v: unknown) => v === null || (typeof v === 'number' && Number.isInteger(v) && v >= 0);
+  if (raw.version !== 1 || raw.bookId !== bookId ||
+      typeof raw.progress !== 'number' || !Number.isFinite(raw.progress) || raw.progress < 0 || raw.progress > 100 ||
+      !optionalText(raw.currentChapter, 600) || !optionalText(raw.lastCfi, 4000) ||
+      !optionalInteger(raw.currentChapterIndex) || !optionalInteger(raw.currentChapterNumber) ||
+      !optionalInteger(raw.lastOpenedAt) || !optionalInteger(raw.updatedAt) || raw.updatedAt === null) {
+    throw new Error('Invalid private reading progress fields.');
+  }
+  return raw as CloudReadingProgress;
+}
+
+export function applyCloudReadingProgress(book: LibraryBook, remote: CloudReadingProgress): LibraryBook {
+  if (book.id !== remote.bookId || remote.updatedAt < (book.progressUpdatedAt ?? 0)) return book;
+  return { ...book, progress: remote.progress,
+    currentChapter: remote.currentChapter ?? undefined,
+    currentChapterIndex: remote.currentChapterIndex ?? undefined,
+    currentChapterNumber: remote.currentChapterNumber ?? undefined,
+    lastCfi: remote.lastCfi ?? undefined,
+    lastOpenedAt: remote.lastOpenedAt ?? undefined,
+    progressUpdatedAt: remote.updatedAt, pendingProgressSync: false };
+}
+
+export async function fetchCloudReadingProgress(repo: string, bookId: string, session: CloudSession): Promise<CloudReadingProgress | null> {
+  const response = await privateGet(repo, readingProgressPath(bookId), session);
+  if (response.status === 404) return null;
+  if (!response.ok) throw new Error(`Unable to fetch private reading progress (${response.status}).`);
+  return validateReadingProgress(await response.json(), bookId);
+}
+
+export async function saveCloudReadingProgress(repo: string, bookId: string, session: CloudSession, book: LibraryBook): Promise<CloudReadingProgress> {
+  await assertPrivateDataset(repo, session);
+  const progress = validateReadingProgress({
+    version: 1, bookId, progress: book.progress,
+    currentChapter: book.currentChapter ?? null,
+    currentChapterIndex: book.currentChapterIndex ?? null,
+    currentChapterNumber: book.currentChapterNumber ?? null,
+    lastCfi: book.lastCfi ?? null,
+    lastOpenedAt: book.lastOpenedAt ?? null,
+    updatedAt: book.progressUpdatedAt ?? book.lastOpenedAt ?? Date.now(),
+  }, bookId);
+  await uploadFiles({
+    repo: { type: 'dataset', name: validateDatasetRepo(repo) },
+    accessToken: session.accessToken,
+    files: [{ path: readingProgressPath(bookId), content: new Blob([JSON.stringify(progress, null, 2)], { type: 'application/json' }) }],
+    commitTitle: 'Sync private reading progress',
+  });
+  return progress;
+}
+
 /** Private, device-independent annotations; never mixed into the shared novel catalogue. */
 export interface CloudPersonalReview {
   version: 1;
@@ -263,6 +334,7 @@ export function blendCloudAndLocal(remote: CloudEntry[], local: LibraryBook[]): 
         personalRating: prior.personalRating, personalReview: prior.personalReview,
         personalReviewUpdatedAt: prior.personalReviewUpdatedAt,
         pendingReviewSync: prior.pendingReviewSync,
+        progressUpdatedAt: prior.progressUpdatedAt, pendingProgressSync: prior.pendingProgressSync,
         progress: prior.progress, currentChapter: prior.currentChapter,
         currentChapterIndex: prior.currentChapterIndex, currentChapterNumber: prior.currentChapterNumber,
         lastCfi: prior.lastCfi, lastOpenedAt: prior.lastOpenedAt } : {}),
