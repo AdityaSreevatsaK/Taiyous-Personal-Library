@@ -752,3 +752,18 @@ html, body, #root { max-width: 100%; overflow-x: clip; }
 @media (max-width: 360px) {
   .reader-chapter-button { font-size: 10px; padding: 8px 7px; }
 }
+
+
+/* Offline/PWA readiness is informational; private EPUBs remain in IndexedDB. */
+.offline-health { display: flex; flex-wrap: wrap; align-items: center; gap: 9px 16px; margin: 0 0 14px; font-size: 11px; color: var(--subtext); }
+.offline-health > span { display: inline-flex; align-items: center; gap: 5px; }
+.offline-connection { font-weight: 750; }
+.offline-connection.online { color: #397c50; }
+.offline-connection.offline { color: #a45c2d; }
+.pending-sync-status { color: #946728; font-weight: 700; }
+.offline-book-status { margin: 2px 0 7px; min-height: 21px; display: flex; }
+.offline-ready-badge { display: inline-flex; gap: 4px; align-items: center; padding: 4px 8px; border-radius: 7px; color: #37684c; background: #dfeadf; font-size: 10px; font-weight: 750; }
+.offline-cache-btn { display: inline-flex; gap: 5px; align-items: center; padding: 4px 8px; border: 1px solid var(--border); border-radius: 7px; background: var(--surface); color: var(--subtext); font-size: 10px; cursor: pointer; }
+.offline-cache-btn:hover:not(:disabled) { color: var(--text); background: var(--pale); }
+.offline-cache-btn:disabled { opacity: .55; cursor: not-allowed; }
+@media (max-width: 700px) { .offline-health { gap: 5px 10px; font-size: 10px; } }
