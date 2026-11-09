@@ -10,9 +10,21 @@ header: mini
 short_description: Private novel library with EPUB and ZIP storage
 ---
 
-# Taiyou's Personal Library v1.0.4
+# Taiyou's Personal Library (dev / staging)
 
-This version builds on the approved v0.7.0 reader and adds **hosted novel storage** without requiring a running backend or embedding a long-lived Hugging Face token in the web app.
+
+> **Development / staging:** This branch has features beyond production `master`: ratings and comments, named collections, tag browsing, global/local search, real EPUB download, optional hosted ZIP download and bottom chapter navigation. For the current feature list, storage and **actual offline limitations**, read **[Dev capabilities and offline behaviour](docs/CAPABILITIES.md)**. These improvements should not be described as production features until separately promoted and deployed.
+
+**Offline summary:** With an already-open app, cached EPUBs can be read and downloaded without internet. First-time cloud retrieval, original ZIP download and cloud synchronisation require connectivity and credentials. A fresh app launch or reload offline is **not guaranteed**, since there is no service worker/PWA or cached app shell. See the linked capability document.
+
+**Deployment:** Pushes to `dev` run staging CI/CD. They do not deploy production. See [STAGING.md](STAGING.md).
+
+
+## Historical baseline notes
+
+The sections below were originally written for v1.0.4 and preserve setup and migration background. For what is **currently implemented on dev**, use the capabilities document linked above; some historic feature and verification descriptions below do not describe the current staging code.
+
+The original v1.0.4 version built on the approved v0.7.0 reader and added **hosted novel storage** without requiring a running backend or embedding a long-lived Hugging Face token in the web app.
 
 ## Release notes: private Space authentication compatibility
 
