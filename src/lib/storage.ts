@@ -37,6 +37,11 @@ export async function saveBook(book: LibraryBook, epub: Blob): Promise<void> {
   await tx.done;
 }
 
+/** Cached EPUB IDs in browser IndexedDB; does not access private cloud. */
+export async function getCachedEpubIds(): Promise<string[]> {
+  return (await (await db()).getAllKeys('files')).map(String);
+}
+
 export async function getBookFile(id: string): Promise<Blob> {
   const asset = await (await db()).get('files', id);
   if (!asset) throw new Error('The EPUB file could not be found. Please re-import this novel.');
