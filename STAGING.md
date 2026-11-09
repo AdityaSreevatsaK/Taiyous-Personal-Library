@@ -32,9 +32,9 @@ This branch is separate from the restored production v1.0.4 baseline. No workflo
 
 ## Verified coverage and limitations
 
-- The browser test now seeds a **synthetic local EPUB**, verifies details and rating persistence, a real EPUB download event, reading navigation, horizontal overflow checks, named collections and mobile layout. This is **not** an authenticated end-to-end test with the real private novels.
+- The browser test now seeds a **synthetic local EPUB**, verifies details and rating persistence, a real EPUB download event, reading navigation, horizontal overflow checks, named collections, mobile layout, **offline app-shell reload with browser network explicitly disabled, and offline reading of the cached test EPUB**. This is **not** an authenticated end-to-end test with the real private novels.
 - CI does **not** exercise real private Hugging Face dataset authentication, cross-device notes/collection sync, genuine hosted EPUB retrieval, live reading-position persistence on a second device, or a fresh browser start offline. Those require separate live staging checks.
-- The app is **not an offline-installed PWA**; locally cached EPUBs are readable and downloadable while the app is already running, but opening/reloading the Space without internet is not guaranteed. See [Dev capabilities and offline behaviour](docs/CAPABILITIES.md).
+- The app now generates a **versioned offline service worker and web app manifest**, and its local browser test checks offline reload. The **private Hugging Face Space wrapper may nevertheless prevent standalone offline launch or PWA installation**, so real hosted offline behaviour needs manual verification. See [Dev capabilities and offline behaviour](docs/CAPABILITIES.md).
 - The repository still lacks a committed `package-lock.json`. Generate, review and commit one before switching to reproducible `npm ci`.
 - There is **no production deployment workflow**. `master` and production Space are not automatically changed by the staging workflow.
 
