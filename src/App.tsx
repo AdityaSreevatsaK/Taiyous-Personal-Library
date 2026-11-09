@@ -4,7 +4,7 @@ import BookDetails from './components/BookDetails';
 import Reader from './components/Reader';
 import { extractEpubMetadata, prepareImport } from './lib/importer';
 import { normalizeTags } from './lib/tags';
-import { deleteBook, getBookFile, getBooks, readSettings, saveBook, updateBook, writeSettings } from './lib/storage';
+import { deleteBook, getBookFile, getBooks, getCachedEpubIds, readSettings, saveBook, updateBook, writeSettings } from './lib/storage';
 import {
   blendCloudAndLocal, clearCloudSession, createCloudSession, assertPrivateDataset,
   fetchCloudCatalog, fetchCloudEpub, fetchCloudArchive, fetchCloudPersonalReview, findCloudEntryForBook, readDatasetRepo, saveDatasetRepo,
@@ -33,6 +33,10 @@ export default function App() {
   const [cloudBusy, setCloudBusy] = useState(false);
   const [cloudMessage, setCloudMessage] = useState<string | null>(null);
   const [loadingBook, setLoadingBook] = useState<string | null>(null);
+  const [cachedEpubIds, setCachedEpubIds] = useState<string[]>([]);
+  const [online, setOnline] = useState(() => navigator.onLine);
+  const [offlineShellReady, setOfflineShellReady] = useState(false);
+  const [cachingId, setCachingId] = useState<string | null>(null);
   const filePicker = useRef<HTMLInputElement | null>(null);
   const booksRef = useRef<LibraryBook[]>([]);
   const collectionsRef = useRef<BookCollection[]>(collections);
@@ -50,10 +54,28 @@ export default function App() {
       if (!active) return;
       booksRef.current = saved;
       setBooks(saved);
+      void getCachedEpubIds().then(setCachedEpubIds).catch(() => undefined);
     }).catch(() => {
       if (active) setStorageError('This browser cannot open your local library. Enable IndexedDB or use a normal browsing window.');
     });
     return () => { active = false; };
+  }, []);
+
+  useEffect(() => {
+    const up = () => setOnline(true);
+    const down = () => setOnline(false);
+    window.addEventListener('online', up);
+    window.addEventListener('offline', down);
+    const checkShell = () => setOfflineShellReady(Boolean(navigator.serviceWorker?.controller));
+    window.addEventListener('taiyou-offline-shell-updated', checkShell);
+    navigator.serviceWorker?.addEventListener('controllerchange', checkShell);
+    checkShell();
+    return () => {
+      window.removeEventListener('online', up);
+      window.removeEventListener('offline', down);
+      window.removeEventListener('taiyou-offline-shell-updated', checkShell);
+      navigator.serviceWorker?.removeEventListener('controllerchange', checkShell);
+    };
   }, []);
 
   const refreshCloud = useCallback(async (repo = cloudRepo, session = cloudSession) => {
@@ -76,9 +98,17 @@ export default function App() {
         if (!entry) return book;
         try {
           const note = await fetchCloudPersonalReview(repo, entry.id, session);
-          if (!note || note.updatedAt < (book.personalReviewUpdatedAt ?? 0)) return book;
+          const localTimestamp = book.personalReviewUpdatedAt ?? 0;
+          // Offline edits are replayed only after reconnecting to an authorised
+          // dataset. A newer remote edit wins rather than being overwritten.
+          if (book.pendingReviewSync && localTimestamp > (note?.updatedAt ?? -1)) {
+            await saveCloudPersonalReview(repo, entry.id, session, book.personalRating, book.personalReview || '', localTimestamp);
+            return { ...book, pendingReviewSync: false };
+          }
+          if (!note) return book;
+          if (note.updatedAt < localTimestamp) return book;
           return { ...book, personalRating: note.rating ?? undefined,
-            personalReview: note.comments, personalReviewUpdatedAt: note.updatedAt };
+            personalReview: note.comments, personalReviewUpdatedAt: note.updatedAt, pendingReviewSync: false };
         } catch {
           notesWarning = true;
           return book;
@@ -115,6 +145,15 @@ export default function App() {
   }, [cloudRepo, cloudSession]);
 
   useEffect(() => { if (cloudRepo && cloudSession) void refreshCloud(); }, [cloudRepo, cloudSession, refreshCloud]);
+  // Once a token is re-entered, reconnect will also replay offline note edits.
+  // While the tab remains open, a browser online event retries automatically.
+  useEffect(() => {
+    if (!cloudRepo || !cloudSession) return;
+    const onReconnect = () => { void refreshCloud(cloudRepo, cloudSession); };
+    window.addEventListener('online', onReconnect);
+    return () => window.removeEventListener('online', onReconnect);
+  }, [cloudRepo, cloudSession, refreshCloud]);
+
 
   const saveCloudRepository = useCallback((value: string) => {
     try {
@@ -194,6 +233,7 @@ export default function App() {
       const latest = await getBooks();
       booksRef.current = latest;
       setBooks(latest);
+      void getCachedEpubIds().then(setCachedEpubIds).catch(() => undefined);
       if (added || duplicate || published) {
         const localText = `${added} newly imported, ${duplicate} already on this device.`;
         const remoteText = cloudRepo && cloudSession
@@ -261,7 +301,23 @@ export default function App() {
     const file = await fetchCloudEpub(cloudRepo, entry, cloudSession);
     const current = booksRef.current.find(item => item.id === book.id) || book;
     await saveBook(current, file);
+    setCachedEpubIds(ids => ids.includes(book.id) ? ids : [...ids, book.id]);
   }, [cloudRepo, cloudSession]);
+
+  const makeAvailableOffline = useCallback(async (book: LibraryBook) => {
+    setCachingId(book.id);
+    setError(null);
+    try {
+      if (!online && !cachedEpubIds.includes(book.id)) throw new Error('Connect to the internet and the private novel dataset to cache this EPUB.');
+      await ensureCached(book);
+      setCachedEpubIds(ids => ids.includes(book.id) ? ids : [...ids, book.id]);
+      // Request more durable browser storage when the user explicitly downloads.
+      if (navigator.storage?.persist) void navigator.storage.persist().catch(() => undefined);
+      setNotice(`"${book.title}" is available offline on this device. You may also export its EPUB from Novel Details.`);
+    } catch (reason) {
+      setError(`Unable to prepare offline EPUB: ${String(reason)}`);
+    } finally { setCachingId(null); }
+  }, [online, cachedEpubIds, ensureCached]);
 
   const showDetails = useCallback((book: LibraryBook) => {
     setError(null);
@@ -321,7 +377,7 @@ export default function App() {
     }
     const updatedAt = Date.now();
     const updated = { ...current, personalRating: rating, personalReview: review.trim().slice(0, 10000),
-      personalReviewUpdatedAt: updatedAt };
+      personalReviewUpdatedAt: updatedAt, pendingReviewSync: !!current.cloud };
     await updateBook(updated);
     booksRef.current = booksRef.current.map(book => book.id === bookId ? updated : book);
     setBooks(booksRef.current);
@@ -336,6 +392,13 @@ export default function App() {
       if (!entry) throw new Error('Saved locally, but the hosted novel could not be matched. Cloud sync did not complete.');
       try {
         await saveCloudPersonalReview(cloudRepo, entry.id, cloudSession, rating, updated.personalReview, updatedAt);
+        const latest = booksRef.current.find(item => item.id === bookId);
+        if (latest && latest.personalReviewUpdatedAt === updatedAt) {
+          const synced = { ...latest, pendingReviewSync: false };
+          await updateBook(synced);
+          booksRef.current = booksRef.current.map(item => item.id === bookId ? synced : item);
+          setBooks(booksRef.current);
+        }
       } catch (error) {
         throw new Error(`Saved on this device, but cloud synchronisation failed: ${String(error)}`);
       }
@@ -468,6 +531,7 @@ export default function App() {
       const current = booksRef.current.filter(item => item.id !== book.id);
       booksRef.current = current;
       setBooks(current);
+      setCachedEpubIds(ids => ids.filter(id => id !== book.id));
       if (detailsId === book.id) setDetailsId(null);
       setNotice('Local novel removed from this device.');
       setError(null);
@@ -500,6 +564,9 @@ export default function App() {
         onBrowseTag={tag => { setBrowseTag(tag); setGlobalSearch(''); setDetailsId(null); }} error={error} />
     ) : (
       <LibraryDashboard books={books} theme={settings.theme}
+        cachedEpubIds={cachedEpubIds} online={online} offlineShellReady={offlineShellReady}
+        cachingId={cachingId} onCacheForOffline={book => void makeAvailableOffline(book)}
+        pendingReviewCount={books.filter(book => book.pendingReviewSync).length}
         collections={collections.filter(c => !c.deleted)}
         onCreateCollection={createCollection}
         onRenameCollection={renameCollection}
