@@ -17,7 +17,9 @@ short_description: Private novel library with EPUB and ZIP storage
 
 **Offline/PWA summary:** `dev` now builds a precached application shell and web manifest, shows a per-novel **Save offline** control and **Available offline** badge, and retries pending private notes/collection changes on reconnect. Cached EPUBs can be read and exported offline. A standalone offline reload can work where the service worker controls the app, **but a private Hugging Face Space wrapper may not load offline or permit PWA installation**. Cloud retrieval, original ZIP downloads and synchronisation still require connectivity and dataset authentication. See the linked capability document.
 
-**Deployment:** Pushes to `dev` run staging CI/CD. They do not deploy production. See [STAGING.md](STAGING.md).
+**Deployments:** Pushes to `dev` continue to deploy the authenticated Hugging Face staging Space after CI. A **separate standalone installable PWA** is prepared for Cloudflare Pages, but needs a user-owned Cloudflare Pages project, Access protection and GitHub environment credentials before its first publish. See [Standalone PWA installation and hosting](docs/STANDALONE_PWA.md). Standalone publishing is manual and never deploys production.
+
+**Bulk offline and progress sync:** The current `dev` version adds **Save all offline** for EPUB caching, installable PNG icons, and per-book cloud reading-position synchronisation (plus existing reviews and collections sync) through private dataset metadata files. Never store HF tokens in GitHub or the Pages project.
 
 
 ## Historical baseline notes
