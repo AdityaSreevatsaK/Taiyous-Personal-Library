@@ -13,7 +13,7 @@ import {
   type CloudEntry, type CloudSession,
 } from './lib/cloud';
 import type { LibraryBook, ReaderSettings } from './types';
-import { fetchCloudCollections, mergeCollections, readLocalCollections, saveCloudCollections, writeLocalCollections, type BookCollection } from './lib/collections';
+import { fetchCloudCollections, mergeCollections, readLocalCollections, saveCloudCollections, writeLocalCollections, readCollectionsPending, writeCollectionsPending, type BookCollection } from './lib/collections';
 
 export default function App() {
   const [books, setBooks] = useState<LibraryBook[]>([]);
@@ -24,6 +24,7 @@ export default function App() {
   const [browseTag, setBrowseTag] = useState('');
   const [globalSearch, setGlobalSearch] = useState('');
   const [collections, setCollections] = useState<BookCollection[]>(readLocalCollections);
+  const [collectionsSyncPending, setCollectionsSyncPending] = useState(readCollectionsPending);
   const [importing, setImporting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -134,7 +135,13 @@ export default function App() {
         collectionsRef.current = finalCollections;
         writeLocalCollections(finalCollections);
         setCollections(finalCollections);
-      } catch { collectionsWarning = true; }
+        writeCollectionsPending(false);
+        setCollectionsSyncPending(false);
+      } catch {
+        collectionsWarning = true;
+        writeCollectionsPending(true);
+        setCollectionsSyncPending(true);
+      }
       setCloudMessage(`${catalog.books.length} hosted ${catalog.books.length === 1 ? 'novel' : 'novels'} available on this device.${notesWarning ? ' Some personal notes could not be synced.' : ''}${collectionsWarning ? ' Collections sync needs a retry.' : ''}`);
     } catch (reason) {
       setCloudMessage(`Cloud library unavailable: ${reason instanceof Error ? reason.message : String(reason)}`);
@@ -447,6 +454,8 @@ export default function App() {
     collectionsRef.current = next;
     writeLocalCollections(next);
     setCollections(next);
+    writeCollectionsPending(true);
+    setCollectionsSyncPending(true);
     if (cloudRepo && cloudSession) {
       try {
         const synced = await saveCloudCollections(cloudRepo, cloudSession, next);
@@ -454,6 +463,14 @@ export default function App() {
         collectionsRef.current = combined;
         writeLocalCollections(combined);
         setCollections(combined);
+        // If another edit happened during this upload, retain its pending flag.
+        if (collectionsRef.current.every(c => {
+          const syncedEntry = synced.find(s => s.id === c.id);
+          return syncedEntry && syncedEntry.updatedAt >= c.updatedAt;
+        })) {
+          writeCollectionsPending(false);
+          setCollectionsSyncPending(false);
+        }
       } catch (cause) {
         setError(`Collections saved on this device, but cloud sync failed: ${String(cause)}`);
       }
@@ -567,6 +584,7 @@ export default function App() {
         cachedEpubIds={cachedEpubIds} online={online} offlineShellReady={offlineShellReady}
         cachingId={cachingId} onCacheForOffline={book => void makeAvailableOffline(book)}
         pendingReviewCount={books.filter(book => book.pendingReviewSync).length}
+        collectionsSyncPending={collectionsSyncPending}
         collections={collections.filter(c => !c.deleted)}
         onCreateCollection={createCollection}
         onRenameCollection={renameCollection}
