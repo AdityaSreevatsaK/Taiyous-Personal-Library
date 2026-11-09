@@ -210,12 +210,17 @@ try {
           })),
           scriptStatus: await Promise.all([...document.querySelectorAll('script[src]')].map(async script => ({
             url: script.src, cached: Boolean(await caches.match(script.src)),
+            fetch: await fetch(script.src).then(r => ({ status: r.status, type: r.headers.get('content-type') })).catch(e => String(e)),
+          }))),
+          cssStatus: await Promise.all([...document.querySelectorAll('link[rel=stylesheet]')].filter(x => x.href.startsWith(location.origin)).map(async link => ({
+            url: link.href, cached: Boolean(await caches.match(link.href)),
+            fetch: await fetch(link.href).then(r => r.status).catch(e => String(e)),
           }))),
           document: document.querySelector('#root')?.outerHTML.slice(0, 500),
           readyState: document.readyState,
           failedAssets: performance.getEntriesByType('resource').map(e => e.name).filter(n => n.includes('assets/')).slice(0, 12),
         }));
-        throw new Error(`Offline reload did not bootstrap React: HTTP ${offlineResponse?.status()}; ${JSON.stringify(diagnostic)}`);
+        throw new Error(`Offline reload did not bootstrap React: HTTP ${offlineResponse?.status()}; ${JSON.stringify(diagnostic)}; scriptErrors=${JSON.stringify(errors)}; failedRequests=${JSON.stringify(failedAssets)}`);
       }
       await page.locator('nav[aria-label="Library sections"]').waitFor({ state: 'attached' });
       await page.getByRole('button', { name: 'View details for Sample Library Book' }).click();
