@@ -96,6 +96,6 @@ jobs:
           test -n "$CLOUDFLARE_API_TOKEN" || { echo 'Missing CF_API_TOKEN'; exit 1; }
           test -n "$CF_PAGES_PROJECT" || { echo 'Missing CF_PAGES_PROJECT'; exit 1; }
       - name: Compile private Pages Function before deployment
-        run: npx --yes wrangler@4 pages functions build functions --outfile /tmp/taiyou-functions.mjs
+        run: npx --yes wrangler@4 pages functions build functions --outfile /tmp/taiyou-functions.mjs --compatibility-date 2026-11-10 --compatibility-flags nodejs_compat
       - name: Deploy master app and private API to Cloudflare Pages
         run: npx --yes wrangler@4 pages deploy dist --project-name "$CF_PAGES_PROJECT" --branch master --commit-hash "${{ github.sha }}"
