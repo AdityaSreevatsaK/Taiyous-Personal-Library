@@ -1,0 +1,9 @@
+{
+  "client_id": "https://taiyous-personal-library.pages.dev/.well-known/oauth-cimd",
+  "client_name": "Taiyou's Personal Library",
+  "redirect_uris": [
+    "https://taiyous-personal-library.pages.dev/api/oauth/callback"
+  ],
+  "token_endpoint_auth_method": "none",
+  "client_uri": "https://taiyous-personal-library.pages.dev"
+}
