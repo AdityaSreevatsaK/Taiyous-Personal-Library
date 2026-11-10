@@ -25,7 +25,7 @@ jobs:
       - name: Check published OAuth client metadata
         run: |
           test -s dist/oauth-client.json
-          node -e "const fs=require('fs'); const m=JSON.parse(fs.readFileSync('dist/.well-known/oauth-cimd')); if(m.client_id!=='https://taiyous-personal-library.pages.dev/oauth-client.json'||m.token_endpoint_auth_method!=='none') process.exit(1)"
+          node -e "const fs=require('fs'); const m=JSON.parse(fs.readFileSync('dist/oauth-client.json')); if(m.client_id!=='https://taiyous-personal-library.pages.dev/oauth-client.json'||m.token_endpoint_auth_method!=='none') process.exit(1)"
       - name: Compile private Cloudflare Pages Functions
         run: |
           npx --yes wrangler@4 pages functions build functions --outfile /tmp/taiyou-functions.mjs --compatibility-date 2026-11-10 --compatibility-flags nodejs_compat
@@ -50,7 +50,7 @@ jobs:
           const fs = require('fs');
           const body = fs.readFileSync('/tmp/taiyou-metadata.json');
           const headers = fs.readFileSync('/tmp/taiyou-metadata-headers', 'utf8');
-          if (body.length > 5120 || !/content-type:\\s*application\\/json/i.test(headers)) {
+          if (body.length > 5120 || !/content-type:\s*application\/json/i.test(headers)) {
             throw new Error('Cloudflare Pages did not serve small JSON OAuth metadata: ' + headers);
           }
           const value = JSON.parse(body.toString('utf8'));
