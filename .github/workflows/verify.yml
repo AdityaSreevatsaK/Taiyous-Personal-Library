@@ -44,5 +44,10 @@ jobs:
           for (const [name, v] of Object.entries(report.vulnerabilities || {})) {
             console.log(`${v.severity.toUpperCase()} ${name} ${v.range || ''} fixAvailable=${JSON.stringify(v.fixAvailable)} direct=${v.isDirect}`);
           }
-          console.log('Total vulnerabilities by severity: ' + JSON.stringify(report.metadata?.vulnerabilities || {}));
+          const counts = report.metadata?.vulnerabilities || {};
+          console.log('Total vulnerabilities by severity: ' + JSON.stringify(counts));
+          if ((counts.high || 0) + (counts.critical || 0) > 0) {
+            console.error('CI blocked: high or critical npm advisories require remediation.');
+            process.exit(1);
+          }
           JS
