@@ -76,6 +76,16 @@ jobs:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
       CF_PAGES_PROJECT: ${{ vars.CF_PAGES_PROJECT }}
     steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      # Wrangler compiles the repository's functions/ folder when deployed
+      # from the project root. The built dist/ artifact alone is insufficient.
+      - name: Install Pages Function dependencies
+        run: npm install --no-fund --no-audit
       - uses: actions/download-artifact@v4
         with:
           name: standalone-pwa-${{ github.sha }}
@@ -85,5 +95,7 @@ jobs:
           test -n "$CLOUDFLARE_ACCOUNT_ID" || { echo 'Missing CF_ACCOUNT_ID'; exit 1; }
           test -n "$CLOUDFLARE_API_TOKEN" || { echo 'Missing CF_API_TOKEN'; exit 1; }
           test -n "$CF_PAGES_PROJECT" || { echo 'Missing CF_PAGES_PROJECT'; exit 1; }
-      - name: Deploy master build to permanent Cloudflare Pages URL
+      - name: Compile private Pages Function before deployment
+        run: npx --yes wrangler@4 pages functions build functions --outfile /tmp/taiyou-functions.mjs
+      - name: Deploy master app and private API to Cloudflare Pages
         run: npx --yes wrangler@4 pages deploy dist --project-name "$CF_PAGES_PROJECT" --branch master --commit-hash "${{ github.sha }}"
