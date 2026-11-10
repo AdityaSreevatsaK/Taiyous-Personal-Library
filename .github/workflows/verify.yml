@@ -20,6 +20,10 @@ jobs:
         run: npm test
       - name: Production build
         run: npm run build
+      - name: Compile private Cloudflare Pages Functions
+        run: |
+          npx --yes wrangler@4 pages functions build functions --outfile /tmp/taiyou-functions.mjs
+          test -s /tmp/taiyou-functions.mjs
       - name: Production dependency audit
         run: npm audit --omit=dev --audit-level=high
       - name: Install browser smoke test dependencies
