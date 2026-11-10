@@ -64,15 +64,38 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    let active = true;
     const up = () => setOnline(true);
     const down = () => setOnline(false);
     window.addEventListener('online', up);
     window.addEventListener('offline', down);
-    const checkShell = () => setOfflineShellReady(Boolean(navigator.serviceWorker?.controller));
+    const checkShell = () => {
+      // A controller alone does not prove offline startup will work: verify
+      // that the HTML and the compiled entry assets are actually cached.
+      void (async () => {
+        if (!navigator.serviceWorker?.controller || !('caches' in window)) {
+          if (active) setOfflineShellReady(false);
+          return;
+        }
+        try {
+          const root = new URL('./', document.baseURI).href;
+          const html = new URL('index.html', document.baseURI).href;
+          const shell = await caches.match(root) || await caches.match(html);
+          const scripts = [...document.querySelectorAll('script[src]')].map(el => (el as HTMLScriptElement).src);
+          const styles = [...document.querySelectorAll('link[rel="stylesheet"]')].map(el => (el as HTMLLinkElement).href);
+          const assets = [...scripts, ...styles].filter(url => url.startsWith(location.origin + '/'));
+          const assetHits = await Promise.all(assets.map(url => caches.match(url)));
+          if (active) setOfflineShellReady(Boolean(shell) && assetHits.every(Boolean));
+        } catch {
+          if (active) setOfflineShellReady(false);
+        }
+      })();
+    };
     window.addEventListener('taiyou-offline-shell-updated', checkShell);
     navigator.serviceWorker?.addEventListener('controllerchange', checkShell);
     checkShell();
     return () => {
+      active = false;
       window.removeEventListener('online', up);
       window.removeEventListener('offline', down);
       window.removeEventListener('taiyou-offline-shell-updated', checkShell);
