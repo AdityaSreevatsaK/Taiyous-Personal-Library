@@ -230,12 +230,20 @@ export default function LibraryDashboard({
             {collectionsSyncPending && <span className="pending-sync-status">Collections waiting to sync</span>}
           </div>}
           <section className="cloud-connect" aria-label="Cloud library storage">
-            <div className="cloud-connect-head"><span><Cloud size={16} /><strong>Cloud library</strong><small className={cloudRepo && cloudSession ? 'connection-badge is-connected' : 'connection-badge'}>{cloudRepo && cloudSession ? 'Connected' : cloudRepo ? 'Disconnected' : 'Not set up'}</small></span><button type="button" className="secondary-button" aria-expanded={showCloud} onClick={() => setShowCloud(v => !v)}>{showCloud ? 'Close' : 'Settings'}</button></div>
+            <div className="cloud-connect-head"><span><Cloud size={16} /><strong>Cloud library</strong><small className={cloudRepo && cloudSession ? 'connection-badge is-connected' : 'connection-badge'}>{cloudRepo && cloudSession ? 'Connected' : cloudRepo ? 'Disconnected' : 'Not set up'}</small></span>{!cloudSession && online && <button type="button" className="secondary-button oauth-header-login" onClick={() => window.location.assign('/api/oauth/login')}><LogIn size={14}/> Sign in with HF</button>}<button type="button" className="secondary-button" aria-expanded={showCloud} onClick={() => setShowCloud(v => !v)}>{showCloud ? 'Close' : 'Settings'}</button></div>
             {showCloud && <div className="cloud-connect-body">
               <p>Use one private Hugging Face dataset as the shared <code>data/</code> folder on PC and mobile. When connected, importing a ZIP saves its original archive, EPUB and catalogue to that repository.</p>
-              {cloudSession?.via === 'cloudflare' ? <p className="cloud-access-connected"><LockKeyhole size={15}/> Signed in using Cloudflare Access. Dataset credentials stay on the server; reopening the library reconnects automatically.</p> : <form onSubmit={event => {event.preventDefault(); onCloudRepo(repoDraft); }} className="cloud-repo-form"><label htmlFor="cloud-repo-input">Private dataset repository</label><input id="cloud-repo-input" value={repoDraft} onChange={event => setRepoDraft(event.target.value)} placeholder="your-username/taiyous-novels" autoComplete="off" /><button type="submit" className="secondary-button">Save</button></form>}
+              {cloudSession?.via === 'oauth' ? <p className="cloud-access-connected"><LockKeyhole size={15}/> Signed in with Hugging Face. Your private dataset token is kept in an encrypted server-side session cookie, not saved by this page.</p> : <form onSubmit={event => {event.preventDefault(); onCloudRepo(repoDraft); }} className="cloud-repo-form"><label htmlFor="cloud-repo-input">Private dataset repository</label><input id="cloud-repo-input" value={repoDraft} onChange={event => setRepoDraft(event.target.value)} placeholder="your-username/taiyous-novels" autoComplete="off" /><button type="submit" className="secondary-button">Save</button></form>}
               <div className="cloud-actions">
-                {cloudSession ? <><button type="button" className="secondary-button" disabled={!cloudRepo || cloudBusy} onClick={onCloudRefresh}><RefreshCw size={16}/>{cloudBusy ? 'Refreshing…' : 'Refresh cloud'}</button><button type="button" className="secondary-button" disabled={cloudBusy || !books.some(book => !book.cloud)} onClick={onCloudPublishCached}><Upload size={16}/> Publish cached EPUBs ({books.filter(book => !book.cloud).length})</button>{cloudSession.via !== 'cloudflare' && <button type="button" className="secondary-button" onClick={onCloudLogout}><LogOut size={16}/> Disconnect</button>}</> : <form className="cloud-token-form" onSubmit={event => {
+                {cloudSession ? <><button type="button" className="secondary-button" disabled={!cloudRepo || cloudBusy} onClick={onCloudRefresh}><RefreshCw size={16}/>{cloudBusy ? 'Refreshing…' : 'Refresh cloud'}</button><button type="button" className="secondary-button" disabled={cloudBusy || !books.some(book => !book.cloud)} onClick={onCloudPublishCached}><Upload size={16}/> Publish cached EPUBs ({books.filter(book => !book.cloud).length})</button><button type="button" className="secondary-button" onClick={onCloudLogout}><LogOut size={16}/> {cloudSession.via === 'oauth' ? 'Sign out' : 'Disconnect'}</button></> : <div className="oauth-login-options">
+                  <button type="button" className="primary-button" disabled={!online}
+                    onClick={() => window.location.assign('/api/oauth/login')}>
+                    <LogIn size={17}/> Sign in with Hugging Face
+                  </button>
+                  <p>Sign in once with your HF account. The connection is restored automatically on reload until the OAuth session expires.</p>
+                  <details className="legacy-token-login">
+                    <summary>Use a dataset token instead (fallback)</summary>
+                    <form className="cloud-token-form" onSubmit={event => {
                     event.preventDefault();
                     if (!datasetToken.trim()) return;
                     onCloudLogin(datasetToken);
@@ -249,9 +257,11 @@ export default function LibraryDashboard({
                   <button type="submit" className="primary-button" disabled={!cloudRepo || !datasetToken.trim() || cloudBusy}>
                     <LogIn size={16}/> Connect private dataset
                   </button>
-                </form>}
+                    </form>
+                  </details>
+                </div>}
               </div>
-              {cloudSession?.via !== 'cloudflare' && <p className="cloud-caution" id="cloud-token-note">Legacy manual connection: use only a fine-grained dataset token. It is held in memory only and not retained after restarting the app. Once the Cloudflare Access gateway is configured, the library reconnects without this token.</p>}
+              {cloudSession?.via !== 'oauth' && <p className="cloud-caution" id="cloud-token-note">Legacy manual connection: use only a fine-grained dataset token. It is held in memory only and not retained after restarting the app. The Hugging Face OAuth sign-in is preferred, so you need not re-enter a token on every visit.</p>}
             </div>}
             {cloudMessage && (!cloudSession || /unavailable|failed|error/i.test(cloudMessage)) && <p className="cloud-status" role="status">{cloudMessage}</p>}
           </section>
