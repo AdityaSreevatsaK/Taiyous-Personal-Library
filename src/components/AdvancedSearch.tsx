@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { ArrowLeft, BookOpen, Filter, Search, SlidersHorizontal, Star, Tag, X } from 'lucide-react';
 import { bookTags } from '../lib/tags';
 import type { LibraryBook } from '../types';
+import type { CloudSession } from '../lib/cloud';
 import { Cover } from './LibraryDashboard';
 
 export type SearchMode = 'all' | 'any';
@@ -49,12 +50,14 @@ interface Props {
   books: LibraryBook[];
   offlineIds: string[];
   initialName?: string;
+  cloudRepo: string;
+  cloudSession: CloudSession | null;
   onClose: () => void;
   onOpen: (book: LibraryBook) => void;
   onBrowseTag?: (tag: string) => void;
 }
 
-export default function AdvancedSearch({ books, offlineIds, initialName = '', onClose, onOpen, onBrowseTag }: Props) {
+export default function AdvancedSearch({ books, offlineIds, initialName = '', cloudRepo, cloudSession, onClose, onOpen, onBrowseTag }: Props) {
   const [criteria, setCriteria] = useState<SearchCriteria>({ ...defaultSearchCriteria, name: initialName });
   const [sort, setSort] = useState<'title' | 'rating' | 'recent'>('title');
   const availableTags = useMemo(
@@ -134,7 +137,7 @@ export default function AdvancedSearch({ books, offlineIds, initialName = '', on
         {results.length ? <div className="advanced-results-grid">
           {results.map(book => <article className="advanced-result" key={book.id}>
             <button type="button" className="advanced-result-cover" onClick={() => onOpen(book)}
-              aria-label={`View details for ${book.title}`}><Cover book={book}/></button>
+              aria-label={`View details for ${book.title}`}><Cover book={book} cloudRepo={cloudRepo} cloudSession={cloudSession}/></button>
             <div className="advanced-result-details">
               <button type="button" className="advanced-result-title" onClick={() => onOpen(book)}>{book.title}</button>
               <p>{book.author || 'Unknown author'}</p>
