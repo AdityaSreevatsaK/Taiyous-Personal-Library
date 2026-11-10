@@ -38,6 +38,9 @@ function fakeHf(token: string, username = owner) {
     if (url.endsWith('/api/datasets/' + DATASET_REPO)) {
       return new Response(JSON.stringify({ private: true }));
     }
+    if (url.includes('/resolve/main/data/novels/') && url.endsWith('/cover.jpg')) {
+      return new Response(new Uint8Array([255, 216, 255, 224, 0, 1, 2]), { headers: { 'Content-Type': 'image/jpeg' } });
+    }
     if (url.includes('/resolve/main/data/library.json')) {
       return new Response(JSON.stringify({ version: 1, books: [] }));
     }
@@ -55,6 +58,7 @@ describe('HF OAuth private dataset gateway', () => {
       'data/personal/progress/' + id + '.json',
       'data/novels/' + id + '/source.epub',
       'data/novels/' + id + '/original.zip',
+      'data/novels/' + id + '/cover.jpg',
     ]) expect(isAllowedDatasetPath(item)).toBe(true);
     for (const item of [
       '../.env', 'data/../secrets.json', 'data/private.txt',
@@ -151,6 +155,12 @@ describe('HF OAuth private dataset gateway', () => {
     ), env });
     expect(book.status).toBe(200);
     expect(await book.json()).toEqual({ version: 1, books: [] });
+    const artwork = await library({ request: new Request(origin + '/api/library?action=file&path=' +
+      encodeURIComponent('data/novels/' + 'a'.repeat(24) + '/cover.jpg'),
+      { headers: { Cookie: cookie } }), env });
+    expect(artwork.status).toBe(200);
+    expect(artwork.headers.get('Content-Type')).toBe('image/jpeg');
+    expect(Array.from(new Uint8Array(await artwork.arrayBuffer())).slice(0, 3)).toEqual([255, 216, 255]);
     expect(calls.some(item => item.includes('hf_oauth_valid012345'))).toBe(false);
   });
   it('requires same-origin and an explicit header for writes and logout', async () => {
