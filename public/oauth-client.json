@@ -1,5 +1,5 @@
 {
-  "client_id": "https://taiyous-personal-library.pages.dev/.well-known/oauth-cimd",
+  "client_id": "https://taiyous-personal-library.pages.dev/oauth-client.json",
   "client_name": "Taiyou's Personal Library",
   "redirect_uris": [
     "https://taiyous-personal-library.pages.dev/api/oauth/callback"

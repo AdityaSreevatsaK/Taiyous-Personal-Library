@@ -39,12 +39,12 @@ HF now supports **Client ID Metadata Documents (CIMD)** for OAuth registration w
 
 The project includes a public metadata document:
 
-- **Client ID:** `https://taiyous-personal-library.pages.dev/.well-known/oauth-cimd`
+- **Client ID:** `https://taiyous-personal-library.pages.dev/oauth-client.json`
 - **Redirect URI:** `https://taiyous-personal-library.pages.dev/api/oauth/callback`
 - **Permissions:** `profile read-repos write-repos`
 - **Client authentication:** `none` (public OAuth client using PKCE)
 
-The page is a public, non-sensitive OAuth descriptor. It must be available over HTTPS before you try signing in. Cloudflare's static `_headers` sets `Content-Type: application/json`.
+The page is a public, non-sensitive OAuth descriptor. It must be available over HTTPS before you try signing in. Cloudflare's static `_headers` sets `Content-Type: application/json`. This normal `.json` path avoids Cloudflare treating a hidden `/.well-known/` asset as an unknown SPA route.
 
 **Important permission trade-off:** Hugging Face's `write-repos` OAuth scope covers your personal repositories broadly; OAuth cannot currently be limited to just the `Taiyous-Novels` dataset through these standard scopes. The **Cloudflare backend** restricts actual file actions to that one specific dataset and a strict file-path allowlist. If that OAuth permission breadth is unacceptable, continue using the fine-grained manual token fallback.
 
@@ -58,7 +58,7 @@ No `CF_ACCESS_AUD`, `CF_ACCESS_TEAM_DOMAIN`, `CF_ACCESS_ALLOWED_EMAIL`, or `HF_D
 
 ## Test checklist
 
-1. Open the permanent Pages URL while online. Confirm `/.well-known/oauth-cimd` serves JSON and `/api/library?action=session` is denied before sign-in.
+1. Open the permanent Pages URL while online. Confirm `/oauth-client.json` serves JSON and `/api/library?action=session` is denied before sign-in.
 2. Click **Sign in with Hugging Face** and log in with the **Hugging Face account that owns the dataset**.
 3. Approve `read-repos` and `write-repos` permissions if comfortable with them. Do not grant access from an unexpected user account.
 4. After returning to the library, confirm Cloud library shows **Connected** and the private catalogue appears.

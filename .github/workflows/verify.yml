@@ -24,12 +24,41 @@ jobs:
         run: python scripts/check_deployment_package.py
       - name: Check published OAuth client metadata
         run: |
-          test -s dist/.well-known/oauth-cimd
-          node -e "const fs=require('fs'); const m=JSON.parse(fs.readFileSync('dist/.well-known/oauth-cimd')); if(m.client_id!=='https://taiyous-personal-library.pages.dev/.well-known/oauth-cimd'||m.token_endpoint_auth_method!=='none') process.exit(1)"
+          test -s dist/oauth-client.json
+          node -e "const fs=require('fs'); const m=JSON.parse(fs.readFileSync('dist/.well-known/oauth-cimd')); if(m.client_id!=='https://taiyous-personal-library.pages.dev/oauth-client.json'||m.token_endpoint_auth_method!=='none') process.exit(1)"
       - name: Compile private Cloudflare Pages Functions
         run: |
           npx --yes wrangler@4 pages functions build functions --outfile /tmp/taiyou-functions.mjs --compatibility-date 2026-11-10 --compatibility-flags nodejs_compat
           test -s /tmp/taiyou-functions.mjs
+      - name: Prove Cloudflare Pages serves client metadata as small JSON (not SPA HTML)
+        shell: bash
+        run: |
+          npx --yes wrangler@4 pages dev dist --ip 127.0.0.1 --port 8789 --compatibility-date 2026-11-10 --compatibility-flags nodejs_compat > /tmp/taiyou-metadata-pages.log 2>&1 &
+          server=$!
+          trap 'kill "$server" || true' EXIT
+          ok=0
+          for i in $(seq 1 35); do
+            if curl --silent --fail --dump-header /tmp/taiyou-metadata-headers --output /tmp/taiyou-metadata.json 'http://127.0.0.1:8789/oauth-client.json'; then ok=1; break; fi
+            sleep 1
+          done
+          if [ "$ok" != 1 ]; then
+            echo "Cloudflare Pages failed to serve OAuth metadata"
+            tail -50 /tmp/taiyou-metadata-pages.log
+            exit 1
+          fi
+          node - <<'JS'
+          const fs = require('fs');
+          const body = fs.readFileSync('/tmp/taiyou-metadata.json');
+          const headers = fs.readFileSync('/tmp/taiyou-metadata-headers', 'utf8');
+          if (body.length > 5120 || !/content-type:\\s*application\\/json/i.test(headers)) {
+            throw new Error('Cloudflare Pages did not serve small JSON OAuth metadata: ' + headers);
+          }
+          const value = JSON.parse(body.toString('utf8'));
+          if (value.client_id !== 'https://taiyous-personal-library.pages.dev/oauth-client.json' ||
+              value.redirect_uris?.[0] !== 'https://taiyous-personal-library.pages.dev/api/oauth/callback') {
+            throw new Error('OAuth Client ID or redirect does not match the public metadata URL');
+          }
+          JS
       - name: Prove the OAuth API fails closed without a session
         shell: bash
         run: |

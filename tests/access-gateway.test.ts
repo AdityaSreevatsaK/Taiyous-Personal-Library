@@ -50,6 +50,10 @@ function fakeHf(token: string, username = owner) {
   return { mock, calls };
 }
 describe('HF OAuth private dataset gateway', () => {
+  it('uses a public JSON metadata client ID on a normal Cloudflare Pages asset path', () => {
+    expect(CLIENT_ID).toBe(origin + '/oauth-client.json');
+    expect(CLIENT_ID).not.toContain('/.well-known/');
+  });
   it('only permits exact catalogue, EPUB, ZIP and personal data paths', () => {
     const id = 'a'.repeat(24);
     for (const item of [

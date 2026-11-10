@@ -1,7 +1,7 @@
 /** Server-only Hugging Face OAuth session helpers. No bearer token reaches React. */
 export const PUBLIC_ORIGIN = 'https://taiyous-personal-library.pages.dev';
 export const DATASET_REPO = 'AdityaSreevatsaK/Taiyous-Novels';
-export const CLIENT_ID = PUBLIC_ORIGIN + '/.well-known/oauth-cimd';
+export const CLIENT_ID = PUBLIC_ORIGIN + '/oauth-client.json';
 export const REDIRECT_URI = PUBLIC_ORIGIN + '/api/oauth/callback';
 export const OAUTH_SCOPE = 'profile read-repos write-repos';
 export const SESSION_COOKIE = '__Host-taiyou_session';
