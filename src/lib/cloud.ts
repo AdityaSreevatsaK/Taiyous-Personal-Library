@@ -109,7 +109,7 @@ export async function uploadPrivateDatasetFiles(
 
 function resolveUrl(repo: string, path: string): string {
   const repoId = validateDatasetRepo(repo);
-  if (!/^data\/[\w/-]+\.(epub|zip|json)$/.test(path) || path.includes('..')) throw new Error('Invalid library file path.');
+  if (!/^data\/[\w/-]+\.(epub|zip|json|jpg)$/.test(path) || path.includes('..')) throw new Error('Invalid library file path.');
   return `https://huggingface.co/datasets/${repoId}/resolve/main/${path.split('/').map(encodeURIComponent).join('/')}?v=${Date.now()}`;
 }
 
