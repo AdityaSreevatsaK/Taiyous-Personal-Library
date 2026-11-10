@@ -79,8 +79,8 @@ export default function App() {
     return () => { active = false; };
   }, []);
 
-  // On the protected Cloudflare hostname, Access already authenticates the
-  // reader. Discover the private server-side dataset bridge automatically.
+  // After Hugging Face OAuth signs the reader in on the production Cloudflare
+  // hostname, discover the private dataset session automatically.
   // No Hugging Face token is ever copied to browser state or local storage.
   useEffect(() => {
     let active = true;
