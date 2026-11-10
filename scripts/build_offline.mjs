@@ -31,11 +31,19 @@ const source = `/* Generated from dist by scripts/build_offline.mjs; never edit 
 const SHELL_CACHE = 'taiyou-shell-${version}';
 const APP_FILES = ${JSON.stringify(files.map(x => './' + x))};
 const SHELL_PAGE = './index.html';
+const ROOT_PAGE = './';
 const shellUrls = APP_FILES.map(path => new URL(path, self.registration.scope).href);
 self.addEventListener('install', event => {
   event.waitUntil((async () => {
     const cache = await caches.open(SHELL_CACHE);
-    await cache.addAll(shellUrls);
+    // Cache the canonical root URL as well as index.html. Some static hosts
+    // redirect /index.html to /; an offline launch navigates to /.
+    await cache.addAll([...new Set([...shellUrls, new URL(ROOT_PAGE, self.registration.scope).href])]);
+    // An incomplete or missing shell must never become the active offline worker.
+    if (!(await cache.match(new URL(ROOT_PAGE, self.registration.scope).href)) ||
+        !(await cache.match(new URL(SHELL_PAGE, self.registration.scope).href))) {
+      throw new Error('Offline navigation shell was not cached');
+    }
     await self.skipWaiting();
   })());
 });
@@ -60,7 +68,9 @@ self.addEventListener('fetch', event => {
         if (response.ok) return response;
         throw new Error('Navigation unavailable');
       } catch {
-        const cached = await caches.match(new URL(SHELL_PAGE, self.registration.scope).href);
+        const cache = await caches.open(SHELL_CACHE);
+        const cached = await cache.match(new URL(ROOT_PAGE, self.registration.scope).href) ||
+                       await cache.match(new URL(SHELL_PAGE, self.registration.scope).href);
         return cached || Response.error();
       }
     })());
