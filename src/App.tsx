@@ -85,7 +85,7 @@ export default function App() {
   useEffect(() => {
     let active = true;
     const connect = async () => {
-      const detected = await discoverCloudflareSession();
+      const detected = await discoverHostedOAuthSession();
       if (!active || !detected) return;
       try { saveDatasetRepo(detected.repo); } catch { /* localStorage may be unavailable */ }
       setCloudRepo(detected.repo);
