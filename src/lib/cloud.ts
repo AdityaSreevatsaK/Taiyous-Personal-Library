@@ -61,7 +61,7 @@ export function createCloudSession(repo: string, rawToken: string): CloudSession
   return { accessToken, username: 'Private dataset', expiresAt: Number.MAX_SAFE_INTEGER };
 }
 
-/** Detect a Cloudflare Access-authenticated session without exposing an HF token. */
+/** Detect a server-side Hugging Face OAuth session without exposing an HF token. */
 export async function discoverHostedOAuthSession(): Promise<{ repo: string; session: CloudSession } | null> {
   if (!navigator.onLine) return null;
   try {
