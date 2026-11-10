@@ -13,6 +13,7 @@
 | Rating and comments | Personal 1–10 rating in the green novel header, and separate reading notes. Locally cached; when connected for a hosted book, written to separate private per-book JSON documents and reloaded from cloud |
 | Reading | EPUB.js vertical chapter scroll; chapter selection/search; local reading progress and resume; chapter navigation at bottom-left (**Previous**) and bottom-right (**Next**); keyboard arrow shortcuts; header navigation to novel details and library |
 | Appearance | Sepia/light/dark themes, fonts, line height, font size and reading width |
+| Novel cover artwork | Real JPEG covers are loaded from the private Hugging Face Dataset when catalogue entries contain `coverPath: data/novels/<existing-id>/cover.jpg`. Images appear on the bookshelf, advanced search results and novel details, are cached in a new IndexedDB `covers` store for offline reuse, and fall back to generated covers when missing or unavailable. Existing EPUBs, ZIPs and novel IDs are unchanged. |
 | EPUB and ZIP download | **Download EPUB** saves a real `.epub` file through the browser. Uses a cached EPUB, or obtains one from the authorised private dataset if missing. **Original ZIP** is offered only when a hosted archive exists and requires a network fetch |
 | Book imports | Local EPUB/ZIP imports and IndexedDB caching. When connected, may publish EPUB, ZIP (when provided) and catalogue to the separate private dataset |
 | Cloud session | Connect a private dataset using a fine-grained HF token in memory; the token is not persisted and must be re-entered after refresh |
@@ -23,7 +24,7 @@
 
 ### Storage map
 
-- **Browser IndexedDB:** cached EPUB binaries, book metadata, reading position and progress, ratings/comments as locally available metadata.
+- **Browser IndexedDB:** cached EPUB binaries and optional JPEG cover artwork, book metadata, reading position and progress, ratings/comments as locally available metadata.
 - **Browser localStorage:** display preferences, private dataset repository ID, named collections and other local UI state. The Hugging Face token is not persisted.
 - **Private Hugging Face Dataset:** `data/library.json` catalogue and `data/novels/<book-id>/source.epub`; optional `original.zip`; per-book notes at `data/personal/reviews/<book-id>.json`; per-book reading positions at `data/personal/progress/<book-id>.json`; collections at `data/personal/collections.json`.
 - **GitHub repository/Cloudflare Pages:** source code and built UI only; **never** the private novel dataset or user tokens.
