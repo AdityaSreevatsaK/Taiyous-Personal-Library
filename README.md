@@ -7,181 +7,61 @@ sdk: static
 app_file: dist/index.html
 fullWidth: true
 header: mini
-short_description: Private novel library with EPUB and ZIP storage
+short_description: Personal offline-capable novel library with private cloud storage
 ---
 
-# Taiyou's Personal Library (dev / staging)
+# Taiyou's Personal Library
 
+A responsive EPUB/ZIP reader and installable offline-capable Progressive Web App (PWA).
 
-> **Development / staging:** This branch has features beyond production `master`: ratings and comments, named collections, tag browsing, global/local search, offline app shell and book caching, real EPUB download, optional hosted ZIP download and bottom chapter navigation. For the current feature list, storage and **actual offline limitations**, read **[Dev capabilities and offline behaviour](docs/CAPABILITIES.md)**. These improvements should not be described as production features until separately promoted and deployed.
+**One development branch:** `master`. The former `dev` branch was merged on 10 November 2026 and is no longer an active release channel.
 
-**Offline/PWA summary:** `dev` now builds a precached application shell and web manifest, shows a per-novel **Save offline** control and **Available offline** badge, and retries pending private notes/collection changes on reconnect. Cached EPUBs can be read and exported offline. A standalone offline reload can work where the service worker controls the app, **but a private Hugging Face Space wrapper may not load offline or permit PWA installation**. Cloud retrieval, original ZIP downloads and synchronisation still require connectivity and dataset authentication. See the linked capability document.
+## Live application
 
-**Deployments:** Pushes to `dev` continue to deploy the authenticated Hugging Face staging Space after CI. A **separate standalone installable PWA** is prepared for Cloudflare Pages with a **public app shell and private Hugging Face data**, requiring only restricted GitHub deployment credentials before its first publish. Cloudflare Zero Trust is optional and not required. See [Standalone PWA installation and hosting](docs/STANDALONE_PWA.md). Standalone publishing is manual and never deploys production.
+- **Cloudflare Pages:** https://dev.taiyous-personal-library.pages.dev
+- GitHub Actions: [Build and optionally deploy standalone PWA](.github/workflows/deploy-standalone.yml)
+- Private Hugging Face **Dataset:** `AdityaSreevatsaK/Taiyous-Novels` (novels, optional ZIP originals, catalogue and selected personal metadata)
 
-**Bulk offline and progress sync:** The current `dev` version adds **Save all offline** for EPUB caching, installable PNG icons, and per-book cloud reading-position synchronisation (plus existing reviews and collections sync) through private dataset metadata files. Never store HF tokens in GitHub or the Pages project.
+**Why the URL still begins with `dev.`:** This is a Cloudflare branch alias, **not** an active GitHub development branch. Existing installed PWAs and cached EPUBs use this origin. We deliberately preserve it until the user has safely migrated data to the permanent Pages hostname.
 
+The public Cloudflare app shell contains **no private novels or dataset credentials**. Connection to the user's private Hugging Face Dataset requires a repository-scoped token entered directly into the browser, held in memory only. Offline EPUBs remain in the browser's IndexedDB. Anyone who can access an unlocked browser profile can access its local books.
 
-## Historical baseline notes
+## Features
 
-The sections below were originally written for v1.0.4 and preserve setup and migration background. For what is **currently implemented on dev**, use the capabilities document linked above; some historic feature and verification descriptions below do not describe the current staging code.
+- Responsive desktop/mobile library, search, shelves, tags and independent named collections
+- EPUB.js vertical-scrolling reader with chapter navigation, chapter selection and resume
+- Sepia, light and dark themes; typography and reading-width controls
+- Personal ratings and comments, original ZIP download where available, and EPUB export
+- Individual **Save offline** and **Save all offline** actions
+- Service-worker-cached PWA shell, installed/offline restart and offline reading
+- Private-dataset synchronization for reviews, collections and per-book reading progress
 
-The original v1.0.4 version built on the approved v0.7.0 reader and added **hosted novel storage** without requiring a running backend or embedding a long-lived Hugging Face token in the web app.
+For details and limits, read [Capabilities and offline behaviour](docs/CAPABILITIES.md).
 
-## Release notes: private Space authentication compatibility
+## Local development
 
-The previous Hugging Face OAuth flow could not complete because **private Static Spaces
-cannot be opened through their direct `.hf.space` links**. This version keeps the Space
-private and uses the existing fine-grained **Taiyou-Novels-Storage** dataset token
-for authorised browser-to-dataset operations.
-
-1. Keep the **Space private** and the **Dataset private**.
-2. Open the app **only via the authenticated Hugging Face Space page**, not the direct `.hf.space` address.
-3. In Shared novel library, enter `AdityaSreevatsaK/Taiyous-Novels` and click **Save**.
-4. Paste your **Taiyou-Novels-Storage** fine-grained dataset token into the password field and click **Connect private dataset**.
-5. Import one small ZIP and verify the private dataset contains `data/library.json`, `source.epub` and `original.zip`.
-
-This token is **never bundled, stored in localStorage/sessionStorage, written to disk,
-or placed in the Space settings**. It stays in React memory until refreshing or
-closing the tab. You must reconnect after a page reload. Keep it restricted to
-read/write access on `AdityaSreevatsaK/Taiyous-Novels` only. Do not enter your
-Space deployment token. Do not upload book files with untrusted active scripts.
-
-The code includes a check that the target dataset is private. Browser-side cloud
-upload must still be tested live against your account before calling it verified.
-
-The earlier Windows v1.0.2 verification passed **20/20 tests**, production build,
-and `npm audit --omit=dev` with **zero production vulnerabilities**. Re-run these
-commands with this version to confirm no regressions.
-
-## What's new
-
-- Hosted books are stored in a **separate private Hugging Face Dataset repository**. The React app remains a free, private **Static Space**.
-- On the library dashboard, **Cloud settings** lets you enter the private dataset ID and connect with a repository-scoped Hugging Face access token. Sign-in is optional: without it, local imports still work just as they did in v0.7.0.
-- After connecting, **Add a novel** accepts multiple ZIP/EPUB files. Each successful new upload publishes the EPUB, the original ZIP (when supplied), and an updated `data/library.json` index to the **same data folder** in the dataset repository.
-- On other devices, entering the dataset-scoped token and connecting to the same dataset shows those novels without re-uploading. The EPUB downloads only when you first open a book and is cached in that browser's existing IndexedDB.
-- Progress, current position, personal tags, summaries and typography remain local to each browser. There is no cross-device progress sync.
-- Existing v0.7.0 books, settings, tags, positions and chapter selection are retained. **Previously imported ZIP bytes were not saved in v0.7.0**; to upload the original ZIP to the new cloud dataset, re-select the original ZIP with the new version after cloud sign-in.
-
-## IMPORTANT: Permissions and privacy
-
-- The novel dataset **MUST be PRIVATE**, and the Space **MUST be PRIVATE**. A public repository would expose the book files. Do not store copyrighted third-party books in the cloud without sufficient rights to do so, even if the repositories are private.
-- Use a **fine-grained token restricted to the one private novel dataset**. Do not use a token with access to unrelated repositories.
-- No permanent API key is committed to code or displayed to visitors. The token you paste stays only in browser application memory and is cleared on reload, tab close or disconnect. A new connection is required after reloading or using another device.
-- The dataset and Space are separate repositories so adding a novel **does not rebuild the React app**.
-- A private Static Space is not a writable server. The browser pushes files to the private dataset through the official `@huggingface/hub` API with your private dataset-scoped token.
-- Keep your own original ZIP backup. The cloud collection is not a substitute for an independent backup.
-
-## Static Spaces with no build credits
-
-For free static hosting, **build on your own PC and upload `dist/`**. The Space README has
-`sdk: static` and `app_file: dist/index.html` but deliberately has **no**
-`app_build_command` (which would require paid build credits on Hugging Face).
-
-```cmd
-"C:\Program Files\nodejs\npm.cmd" install
-"C:\Program Files\nodejs\npm.cmd" test
-"C:\Program Files\nodejs\npm.cmd" run build
+```sh
+npm install
+npm run typecheck
+npm test
+npm run build
 ```
 
-After building, upload the README and compiled `dist/` files using your existing
-fine-grained deployment token. A safe, one-command deploy script is included:
+For browser smoke tests, see `scripts/browser_smoke.mjs` and the GitHub workflow. CI uses synthetic EPUBs; no user novels or paid LLM/API calls are required.
 
-```cmd
-py scripts/deploy_prebuilt.py
-```
+## Deployments and release safety
 
-This uses your already active Hugging Face CLI credentials. It uploads only `README.md`
-and `dist/`; it does **not** upload novels, tokens or source files.
-Only the app files belong in the Space; the original novel ZIPs and EPUBs belong
-in the separate private dataset.
+1. Commit changes to `master`. The `Verify novel reader` workflow checks tests, build and audit.
+2. Run [Build and optionally deploy standalone PWA](.github/workflows/deploy-standalone.yml) from `master` with **Publish** enabled. The job validates the built app and deploys only the `dist/` files.
+3. Deploys use the existing `standalone-staging` GitHub environment secrets `CF_ACCOUNT_ID`, `CF_API_TOKEN` and variable `CF_PAGES_PROJECT`. The environment's historical name is retained to avoid changing working secrets.
+4. The job currently publishes to the Cloudflare **`dev` URL alias intentionally**, preserving the established PWA/IndexedDB origin. See [Standalone operation and URL migration](docs/STANDALONE_PWA.md) before changing this.
+5. The previous Hugging Face **Space** build/deployment workflow has been retired from `master`. Both HF Spaces are historical deployments; the **private HF Dataset must not be deleted**.
 
-## Private-space connection troubleshooting
+**Offline note:** The user validated offline cold launching and offline reading on Android on 10 November 2026. Browser storage may still be cleared/evicted by the operating system, so keep independent EPUB backups.
 
-- Open the **Hugging Face Space page**, not its standalone `.hf.space` URL.
-  Private Spaces are not available directly at the embed URL.
-- Paste the **novel-dataset token**, not the deployment token, into Shared novel library.
-- Token must have **read and write** permissions for `AdityaSreevatsaK/Taiyous-Novels`.
-- On each refresh, reconnect because no token is stored on disk.
-- Do not share credential strings or HTTP logs that include an Authorization header.
+## Data and sync limitations
 
-## Step-by-step Hugging Face setup
-
-### 1. Create your private Dataset repo
-
-1. While signed into Hugging Face, visit https://huggingface.co/new-dataset .
-2. Create dataset **`taiyous-novels`** (or another simple name). Select your own account as the owner and **Private** visibility.
-3. Note its repo ID: `YOUR-HF-USERNAME/taiyous-novels`.
-4. No data upload is necessary at this step. The first successful novel import creates `data/library.json` and the `data/novels/` entries automatically.
-
-### 2. Create a private Static Space
-
-1. Visit https://huggingface.co/new-space .
-2. Use `taiyous-personal-library`, SDK **Static**, visibility **Private**. No paid GPU/compute is needed.
-3. Build locally using `npm install && npm run build` and upload the prebuilt files with `py scripts/deploy_prebuilt.py`. A Hugging Face build command currently requires credits.
-4. Open the Space through its **App** tab on Hugging Face. Do not open the `.hf.space` URL directly while the Space is Private.
-
-**Never upload your book ZIPs into the Space's source repository.** They belong in the private Dataset. The Space rebuilds source code; the Dataset independently stores the book data.
-
-### 3. Connect the app to the dataset
-
-1. Open the deployed app, expand **Cloud settings** on the dashboard.
-2. Enter the private dataset ID `YOUR-HF-USERNAME/taiyous-novels` and click **Save**.
-3. Paste your **Taiyou-Novels-Storage** dataset-scoped token into the password field and click **Connect private dataset**. No new tab or OAuth redirect is needed.
-4. The app fetches the private dataset catalogue. Initially it will say `0 hosted novels`.
-5. Choose **Add a novel**, then select one or multiple files (`.zip` or `.epub`). The app creates locally cached reading copies and publishes original ZIP + EPUB + catalogue to the private Dataset. Check for the **cloud upload succeeded** message; a local import alone is not proof of publication.
-6. In the Dataset **Files and versions** tab, verify `data/library.json`, `data/novels/<id>/source.epub` and `data/novels/<id>/original.zip` (if you uploaded ZIP).
-
-### 4. Read on phone or another PC
-
-1. Sign in to your Hugging Face account and open your **private Space**.
-2. In Cloud settings, enter the **same private dataset ID** on this device and connect using your dataset-scoped token.
-3. Cloud novels appear in the bookshelf. Open one to cache its EPUB on that device and read.
-4. Your reading position and personal tags will be separate on each device until progress sync is implemented.
-
-### If you already had books in v0.7.0
-
-Your original browser's IndexedDB has the extracted EPUB, local tags and reading positions. You do **not** need to clear those or start from scratch. Use the same browser host + port during local development to preserve your existing library. To put the **original ZIPs** in cloud storage, connect to the dataset and re-select the original ZIPs using **Add a novel**. Duplicate local books are recognised by EPUB hash; if they're not on the cloud yet, they still get published. Alternatively, choose **Publish cached EPUBs** from Cloud settings to publish all locally cached novels as EPUBs. This does not restore the original ZIPs, which v0.7.0 never saved. If you upload just an EPUB, the cloud retains an EPUB but not a reconstructed copy of its original ZIP.
-
-### Managing storage
-
-Data in the private dataset is organised as:
-
-```text
-data/
-  library.json
-  novels/
-    <sha256-first-24-chars>/
-      source.epub
-      original.zip        # only when a ZIP was uploaded
-```
-
-The JSON catalogue stores published book metadata, but **not** your personal tags or reading position. Files use stable identifiers derived from EPUB bytes, so duplicate imports are detected across devices. Only the app account with repository write permission can publish.
-
-**Limitation:** Hosted novel deletion is not implemented through the app. To remove one permanently, delete its files from the private Dataset and remove its entry from `data/library.json` (back it up before editing). File uploads are serialised in the same browser; simultaneous writes from two devices can still conflict. Avoid adding novels from two devices at exactly the same time.
-
-## Local Windows development
-
-```powershell
-# Open PowerShell in this extracted folder, containing package.json
-& "C:\Program Files\nodejs\npm.cmd" install
-& "C:\Program Files\nodejs\npm.cmd" test
-& "C:\Program Files\nodejs\npm.cmd" run build
-& "C:\Program Files\nodejs\npm.cmd" run dev -- --port 5173 --strictPort
-```
-
-The app works without hosted configuration, importing only to the browser as before. Optional: you can set `VITE_HF_DATASET_REPO=YOUR-HF-USERNAME/taiyous-novels` as a Static Space variable to pre-fill the repository ID across devices; this value is **public configuration, not a secret**. You can also test a dataset-scoped token locally; enter it through the in-app password field only, never `.env`, Vite or persistent browser storage.
-
-### v0.7.0 reader features retained
-
-- Sepia default, light/dark themes and Literata/Georgia/Palatino/Inter/Atkinson fonts.
-- Adjustable reading text size, line height and full-width/wide/comfortable settings.
-- Whole-chapter vertical scroll, compact top bar with always-accessible Next/Previous Chapter.
-- Novel details with synopsis, source information, metadata tags and editable personal tags.
-- All-chapter browser with search, jumps and groups of 50.
-- Removal of empty source EPUB advertisement placeholders.
-- Mobile and PC-responsive design and local reading progress.
-
-## Verification status
-
-The source passes an offline TypeScript/JSX syntax parse and the supplied sample ZIP's integrity checks. The Windows user reported a successful v1.0.2 production build, 20 tests passing, and a zero-vulnerability production audit. v1.0.4 changes cloud authentication; live private dataset upload/download remain unverified. Run `npm test` and `npm run build` on your Windows machine before deployment, then test one ZIP end-to-end on Hugging Face before uploading your remaining library. Do not treat untested cloud operations as production-verified.
+- Cloud actions and cross-device sync need connectivity and an active dataset token; after a refresh, reconnect with the token.
+- Personal tags, custom summaries and typography settings are local rather than cloud-synced.
+- Concurrent edits across devices are timestamp-based, not transactionally conflict-free.
+- Installing the PWA on a **different hostname** creates separate browser storage. Do not uninstall, clear site data, or discard the old PWA before exporting/backing up unsynchronised changes and caching novels on the new origin.
