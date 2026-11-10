@@ -5,6 +5,7 @@ import { DEFAULT_SETTINGS } from '../types';
 interface NovelDB extends DBSchema {
   books: { key: string; value: LibraryBook };
   files: { key: string; value: { id: string; epub: Blob } };
+  covers: { key: string; value: { id: string; jpeg: Blob } };
 }
 
 const DB_NAME = 'folio-personal-library-v1';
@@ -12,10 +13,12 @@ let database: Promise<IDBPDatabase<NovelDB>> | null = null;
 
 function db(): Promise<IDBPDatabase<NovelDB>> {
   if (!database) {
-    database = openDB<NovelDB>(DB_NAME, 1, {
+    database = openDB<NovelDB>(DB_NAME, 2, {
       upgrade(upgradeDb) {
-        upgradeDb.createObjectStore('books', { keyPath: 'id' });
-        upgradeDb.createObjectStore('files', { keyPath: 'id' });
+        // Upgrade the existing database in place. Do not delete EPUBs or notes.
+        if (!upgradeDb.objectStoreNames.contains('books')) upgradeDb.createObjectStore('books', { keyPath: 'id' });
+        if (!upgradeDb.objectStoreNames.contains('files')) upgradeDb.createObjectStore('files', { keyPath: 'id' });
+        if (!upgradeDb.objectStoreNames.contains('covers')) upgradeDb.createObjectStore('covers', { keyPath: 'id' });
       },
     }).catch((error: unknown) => {
       database = null;
@@ -48,13 +51,25 @@ export async function getBookFile(id: string): Promise<Blob> {
   return asset.epub;
 }
 
+/** Cover art is downloaded only after authentication and stored for offline display. */
+export async function getCachedCover(id: string): Promise<Blob | null> {
+  return (await (await db()).get('covers', id))?.jpeg || null;
+}
+
+export async function cacheCover(id: string, jpeg: Blob): Promise<void> {
+  if (!/^[0-9a-f]{24}$/.test(id) || jpeg.type !== 'image/jpeg' || jpeg.size > 8 * 1024 * 1024) {
+    throw new Error('Invalid private cover artwork');
+  }
+  await (await db()).put('covers', { id, jpeg });
+}
+
 export async function updateBook(book: LibraryBook): Promise<void> {
   await (await db()).put('books', book);
 }
 
 export async function deleteBook(id: string): Promise<void> {
-  const tx = (await db()).transaction(['books', 'files'], 'readwrite');
-  await Promise.all([tx.objectStore('books').delete(id), tx.objectStore('files').delete(id)]);
+  const tx = (await db()).transaction(['books', 'files', 'covers'], 'readwrite');
+  await Promise.all([tx.objectStore('books').delete(id), tx.objectStore('files').delete(id), tx.objectStore('covers').delete(id)]);
   await tx.done;
 }
 
