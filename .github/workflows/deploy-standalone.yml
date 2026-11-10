@@ -99,3 +99,45 @@ jobs:
         run: npx --yes wrangler@4 pages functions build functions --outfile /tmp/taiyou-functions.mjs --compatibility-date 2026-11-10 --compatibility-flags nodejs_compat
       - name: Deploy master app and private API to Cloudflare Pages
         run: npx --yes wrangler@4 pages deploy dist --project-name "$CF_PAGES_PROJECT" --branch master --commit-hash "${{ github.sha }}"
+
+      # HF servers must fetch the client metadata without a Cloudflare Access
+      # session. A successful upload alone cannot prove public OAuth is usable.
+      - name: Verify deployed OAuth metadata is publicly accessible without Access
+        shell: bash
+        run: |
+          node --input-type=module <<'JS'
+          const url = 'https://taiyous-personal-library.pages.dev/oauth-client.json';
+          let last = 'no response';
+          for (let attempt = 1; attempt <= 12; attempt++) {
+            try {
+              const response = await fetch(url, { redirect: 'manual', cache: 'no-store',
+                signal: AbortSignal.timeout(15000), headers: { Accept: 'application/json' } });
+              const next = response.headers.get('location') || '';
+              if (response.status >= 300 && response.status < 400) {
+                if (/cloudflareaccess\.com|\/cdn-cgi\/access\//i.test(next)) {
+                  throw new Error('Cloudflare Access is intercepting the PUBLIC OAuth client metadata. In Cloudflare Zero Trust > Access > Applications, remove Access protection from taiyous-personal-library.pages.dev. Keep Access on previews if desired.');
+                }
+                last = 'HTTP redirect ' + response.status;
+              } else {
+                const type = response.headers.get('content-type') || '';
+                const body = await response.text();
+                if (response.status === 200 && type.toLowerCase().includes('application/json') &&
+                    Buffer.byteLength(body) <= 5120 &&
+                    JSON.parse(body).client_id === url) {
+                  console.log('Production OAuth client metadata is publicly accessible: HTTP 200, JSON under 5 KiB.');
+                  process.exit(0);
+                }
+                last = 'HTTP ' + response.status + ', Content-Type ' + type + ', size ' + Buffer.byteLength(body);
+              }
+            } catch (error) {
+              if (String(error).includes('Cloudflare Access is intercepting')) {
+                console.error('::error::' + String(error));
+                process.exit(1);
+              }
+              last = String(error);
+            }
+            if (attempt < 12) await new Promise(resolve => setTimeout(resolve, 3000));
+          }
+          console.error('::error::OAuth public metadata verification failed: ' + last);
+          process.exit(1);
+          JS
