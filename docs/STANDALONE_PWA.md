@@ -43,7 +43,7 @@ Before changing the Pages production branch or deploying only to a different hos
 5. Install the PWA from the new hostname and test offline cold startup and a novel.
 6. Only after confirming this works, retire the old PWA shortcut and its locally cached data. If preserving old URLs, optionally leave the old preview deployment accessible during the transition.
 
-Avoid deleting the existing `dev` Git branch or removing the existing preview-hosted app **before** these transition checks if a user still depends on that origin.
+The retired GitHub `dev` branch can be deleted after verifying the `master` deployment workflow; deleting that Git branch does **not** erase the separate Cloudflare `dev.` alias or its existing browser storage. Do **not** clear the old origin's browser data or uninstall its PWA until the new hostname is proven.
 
 ## Hugging Face cleanup
 
