@@ -2,18 +2,16 @@ import { uploadFiles } from '@huggingface/hub';
 import type { LibraryBook, ImportedBook } from '../types';
 
 /**
- * Shared library lives in a PRIVATE Hugging Face Dataset. A private Static Space
- * cannot be opened directly by a public .hf.space URL, so OAuth redirects are
- * unreliable here. Connect using a DATASET-SCOPED token supplied by the owner.
- * Credentials live ONLY in React memory, never in repo files, sessionStorage,
- * localStorage, a build variable, or query parameters. Refreshing disconnects.
+ * The private HF Dataset is accessed through our same-origin Cloudflare Pages
+ * OAuth gateway. The gateway holds HF access tokens in encrypted HttpOnly cookies.
+ * Manual fine-grained tokens are a fallback, retained in React memory only.
  */
 export interface CloudSession {
   accessToken: string;
   expiresAt: number;
   username: string;
-  /** Cloudflare Access session uses a server-held dataset token, never a browser bearer token. */
-  via?: 'cloudflare';
+  /** HF OAuth gateway session, authenticated with an HttpOnly same-origin cookie. */
+  via?: 'oauth';
 }
 
 export interface CloudEntry {
@@ -62,7 +60,7 @@ export function createCloudSession(repo: string, rawToken: string): CloudSession
 }
 
 /** Detect a Cloudflare Access-authenticated session without exposing an HF token. */
-export async function discoverCloudflareSession(): Promise<{ repo: string; session: CloudSession } | null> {
+export async function discoverHostedOAuthSession(): Promise<{ repo: string; session: CloudSession } | null> {
   if (!navigator.onLine) return null;
   try {
     const response = await fetch('/api/library?action=session', {
@@ -73,7 +71,7 @@ export async function discoverCloudflareSession(): Promise<{ repo: string; sessi
     const value = await response.json() as { connected?: boolean; repo?: string };
     if (!value.connected || !value.repo) return null;
     const repo = validateDatasetRepo(value.repo);
-    return { repo, session: { via: 'cloudflare', accessToken: '', expiresAt: Number.MAX_SAFE_INTEGER, username: 'Cloudflare Access' } };
+    return { repo, session: { via: 'oauth', accessToken: '', expiresAt: Number.MAX_SAFE_INTEGER, username: 'Hugging Face' } };
   } catch { return null; }
 }
 
@@ -81,13 +79,13 @@ function proxyFileUrl(path: string): string {
   return '/api/library?action=file&path=' + encodeURIComponent(path);
 }
 
-/** Upload only allowlisted dataset paths. Cloudflare sessions never send a token. */
+/** Upload only allowlisted dataset paths. OAuth sessions never send a token. */
 export async function uploadPrivateDatasetFiles(
   repo: string, session: CloudSession,
   files: Array<{ path: string; content: Blob }>, commitTitle: string,
 ): Promise<void> {
   const id = validateDatasetRepo(repo);
-  if (session.via !== 'cloudflare') {
+  if (session.via !== 'oauth') {
     await uploadFiles({
       repo: { type: 'dataset', name: id }, accessToken: session.accessToken,
       files, commitTitle,
@@ -104,7 +102,7 @@ export async function uploadPrivateDatasetFiles(
     method: 'POST', credentials: 'same-origin', body: data, cache: 'no-store',
     headers: { 'X-Taiyou-Request': 'dataset-upload' },
   });
-  if (!response.ok) throw new Error(`Private dataset upload failed (${response.status}). Re-authenticate with Cloudflare Access if needed.`);
+  if (!response.ok) throw new Error(`Private dataset upload failed (${response.status}). Sign in with Hugging Face again if needed.`);
 }
 
 function resolveUrl(repo: string, path: string): string {
@@ -117,7 +115,7 @@ function resolveUrl(repo: string, path: string): string {
 export async function assertPrivateDataset(repo: string, session: CloudSession): Promise<void> {
   const repoId = validateDatasetRepo(repo);
   if (session.expiresAt <= Date.now() + 30_000) throw new Error('Hugging Face authorisation expired. Sign in again.');
-  const result = session.via === 'cloudflare'
+  const result = session.via === 'oauth'
     ? await fetch('/api/library?action=info', { credentials: 'same-origin', cache: 'no-store' })
     : await fetch(`https://huggingface.co/api/datasets/${repoId}`, {
         headers: { Authorization: `Bearer ${session.accessToken}` }, cache: 'no-store',
@@ -129,7 +127,7 @@ export async function assertPrivateDataset(repo: string, session: CloudSession):
 
 async function privateGet(repo: string, path: string, session: CloudSession): Promise<Response> {
   if (session.expiresAt <= Date.now() + 30_000) throw new Error('Hugging Face authorisation expired. Sign in again.');
-  const response = session.via === 'cloudflare'
+  const response = session.via === 'oauth'
     ? await fetch(proxyFileUrl(path), { credentials: 'same-origin', cache: 'no-store' })
     : await fetch(resolveUrl(repo, path), {
         headers: { Authorization: `Bearer ${session.accessToken}` }, cache: 'no-store',
