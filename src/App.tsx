@@ -6,7 +6,7 @@ import { extractEpubMetadata, prepareImport } from './lib/importer';
 import { normalizeTags } from './lib/tags';
 import { deleteBook, getBookFile, getBooks, getCachedEpubIds, readSettings, saveBook, updateBook, writeSettings } from './lib/storage';
 import {
-  blendCloudAndLocal, clearCloudSession, createCloudSession, assertPrivateDataset,
+  blendCloudAndLocal, clearCloudSession, createCloudSession, discoverCloudflareSession, assertPrivateDataset,
   fetchCloudCatalog, fetchCloudEpub, fetchCloudArchive, fetchCloudPersonalReview, findCloudEntryForBook, readDatasetRepo, saveDatasetRepo,
   saveCloudPersonalReview, fetchCloudReadingProgress, saveCloudReadingProgress, applyCloudReadingProgress,
   uploadNovelToCloud, validateDatasetRepo,
@@ -61,6 +61,25 @@ export default function App() {
       if (active) setStorageError('This browser cannot open your local library. Enable IndexedDB or use a normal browsing window.');
     });
     return () => { active = false; };
+  }, []);
+
+  // On the protected Cloudflare hostname, Access already authenticates the
+  // reader. Discover the private server-side dataset bridge automatically.
+  // No Hugging Face token is ever copied to browser state or local storage.
+  useEffect(() => {
+    let active = true;
+    const connect = async () => {
+      const detected = await discoverCloudflareSession();
+      if (!active || !detected) return;
+      try { saveDatasetRepo(detected.repo); } catch { /* localStorage may be unavailable */ }
+      setCloudRepo(detected.repo);
+      setCloudSession(detected.session);
+      setCloudMessage('Private dataset connected through your Cloudflare Access login.');
+    };
+    void connect();
+    const onReconnect = () => { void connect(); };
+    window.addEventListener('online', onReconnect);
+    return () => { active = false; window.removeEventListener('online', onReconnect); };
   }, []);
 
   useEffect(() => {
