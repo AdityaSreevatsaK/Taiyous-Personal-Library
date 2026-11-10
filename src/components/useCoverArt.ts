@@ -8,6 +8,12 @@ const inFlight = new Map<string, Promise<string | null>>();
 
 export function useCoverArt(book: LibraryBook, repo: string, session: CloudSession | null, enabled = true): string | null {
   const [url, setUrl] = useState<string | null>(null);
+  const [connectionEpoch, setConnectionEpoch] = useState(0);
+  useEffect(() => {
+    const reconnect = () => setConnectionEpoch(value => value + 1);
+    window.addEventListener('online', reconnect);
+    return () => window.removeEventListener('online', reconnect);
+  }, []);
   useEffect(() => {
     let active = true;
     setUrl(null);
@@ -28,6 +34,6 @@ export function useCoverArt(book: LibraryBook, repo: string, session: CloudSessi
     inFlight.set(key, task);
     void task.then(value => { if (active) setUrl(value); });
     return () => { active = false; };
-  }, [book.id, book.coverPath, repo, session?.via, session?.accessToken, enabled]);
+  }, [book.id, book.coverPath, repo, session?.via, session?.accessToken, enabled, connectionEpoch]);
   return url;
 }
