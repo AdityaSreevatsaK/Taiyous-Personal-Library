@@ -59,7 +59,7 @@ describe('private Cloudflare Access gateway safeguards', () => {
     const key = { ...(await exportJWK(publicKey)), kid: 'test-key', alg: 'RS256', use: 'sig' };
     const requests: string[] = [];
     const handler = vi.fn(async (input: RequestInfo | URL) => {
-      const href = String(input);
+      const href = input instanceof Request ? input.url : String(input);
       requests.push(href);
       if (href.endsWith('/cdn-cgi/access/certs')) {
         return new Response(JSON.stringify({ keys: [key] }), { headers: { 'Content-Type': 'application/json' } });
