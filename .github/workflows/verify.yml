@@ -88,6 +88,41 @@ jobs:
             sleep 1
           done
           node scripts/browser_smoke.mjs
+      - name: Diagnose the public production OAuth metadata externally
+        shell: bash
+        run: |
+          node --input-type=module <<'JS'
+          const url = 'https://taiyous-personal-library.pages.dev/oauth-client.json';
+          try {
+            const response = await fetch(url, { redirect: 'manual', signal: AbortSignal.timeout(20000) });
+            const type = response.headers.get('content-type') || '';
+            const location = response.headers.get('location');
+            const body = await response.text();
+            console.log('Production response status:', response.status);
+            console.log('Production Content-Type:', type);
+            console.log('Production response size:', Buffer.byteLength(body), 'bytes');
+            if (location) {
+              const next = new URL(location, url);
+              console.log('Production redirect destination:', next.origin + next.pathname);
+            }
+            if (response.ok && type.toLowerCase().includes('application/json')) {
+              try {
+                const metadata = JSON.parse(body);
+                console.log('OAuth client ID matches:', metadata.client_id === url);
+                console.log('Provider 5-KiB size limit passes:', Buffer.byteLength(body) <= 5120);
+              } catch {
+                console.log('OAuth metadata response is not valid JSON');
+              }
+            } else {
+              console.log('Cloudflare Access marker:', /cloudflare access|cf-access|access\.cloudflare|zero trust/i.test(body));
+              console.log('SPA HTML marker:', /<div id="root"|<script type="module"|\/assets\/index-/i.test(body));
+              console.log('HTML response marker:', /<!doctype html|<html/i.test(body));
+              console.log('::warning::Production OAuth endpoint did not return small JSON; check Cloudflare Access or production routing');
+            }
+          } catch (error) {
+            console.log('::warning::Production metadata could not be fetched from GitHub Actions: ' + String(error));
+          }
+          JS
       - name: Inventory development dependency advisories
         shell: bash
         run: |
