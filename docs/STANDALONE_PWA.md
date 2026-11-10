@@ -31,13 +31,13 @@ The former application URL `https://dev.taiyous-personal-library.pages.dev` is a
 
 ## Privacy
 
-Only compiled HTML, JavaScript, CSS, icons and service-worker assets are deployed publicly. The Hugging Face novel Dataset remains private and requires the dataset-scoped credential entered directly in the browser. The credential is held in application memory only, not shipped with JavaScript or embedded in public static files.
+The public deployment contains the compiled app shell, public OAuth client metadata and private Cloudflare Pages Function code (executed on the server, not sent to readers). The novel Dataset remains private. Once configured, a Hugging Face OAuth login establishes an encrypted, Secure, HttpOnly session cookie; the OAuth access token is never exposed to frontend JavaScript. The earlier manually entered fine-grained dataset token remains an optional in-memory fallback. No credentials are embedded in public assets.
 
 Any person who can access an already-unlocked local browser profile may read its local cached novels, so protect the device. Browser caches may be evicted; keep independent EPUB/ZIP backups.
 
 ## Remaining limitations
 
-- First-time private Dataset connection and novel downloads require internet access and a valid token.
+- First-time private Dataset connection and novel downloads require internet access and Hugging Face sign-in, or the legacy manual dataset token.
 - Cloud sync of some personal metadata requires a connected session. Local-only tags, custom summaries and display preferences are not automatically synced across devices.
 - Concurrent edits on different devices use timestamp reconciliation, not transactional conflict resolution.
 - Bulk offline caching currently lacks cancellation and robust storage quota handling.
