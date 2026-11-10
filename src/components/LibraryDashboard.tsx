@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState, type DragEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type DragEvent } from 'react';
 import AdvancedSearch from './AdvancedSearch';
+import { useCoverArt } from './useCoverArt';
 import {
   ArrowRight, Book, BookOpen, CheckCircle2, ChevronDown, CloudOff, Download, WifiOff,
   Feather, Hash, Library, LockKeyhole, Menu, Moon, Pencil, Plus, Search, Settings2,
@@ -57,10 +58,32 @@ interface Props {
 
 const themes: ReaderTheme[] = ['light', 'dark', 'sepia'];
 
-export function Cover({ book, variant = 'normal' }: { book: LibraryBook; variant?: 'normal' | 'feature' }) {
+export function Cover({ book, variant = 'normal', cloudRepo = '', cloudSession = null }: {
+  book: LibraryBook;
+  variant?: 'normal' | 'feature';
+  cloudRepo?: string;
+  cloudSession?: CloudSession | null;
+}) {
+  const wrapper = useRef<HTMLDivElement>(null);
+  const [visible, setVisible] = useState(variant === 'feature');
+  useEffect(() => {
+    if (visible || !book.coverPath) return;
+    const element = wrapper.current;
+    if (!element || typeof IntersectionObserver === 'undefined') { setVisible(true); return; }
+    const watcher = new IntersectionObserver(entries => {
+      if (entries.some(entry => entry.isIntersecting)) {
+        setVisible(true);
+        watcher.disconnect();
+      }
+    }, { rootMargin: '360px' });
+    watcher.observe(element);
+    return () => watcher.disconnect();
+  }, [book.id, book.coverPath, visible]);
+  const imageUrl = useCoverArt(book, cloudRepo, cloudSession, visible);
   const coverNumber = parseInt(book.id.slice(0, 2), 16) % 6;
   return (
-    <div className={`cover cover-${coverNumber} ${variant === 'feature' ? 'cover-feature' : ''}`} aria-hidden="true">
+    <div ref={wrapper} className={`cover cover-${coverNumber} ${variant === 'feature' ? 'cover-feature' : ''} ${imageUrl ? 'cover-has-image' : ''}`} aria-hidden="true">
+      {imageUrl && <img className="cover-art" src={imageUrl} alt="" decoding="async" loading={variant === 'feature' ? 'eager' : 'lazy'} />}
       <div className="cover-ornament top-ornament">✦</div>
       <div className="cover-lilies"><span>❧</span></div>
       <div className="cover-heading">{book.title}</div>
@@ -266,7 +289,7 @@ export default function LibraryDashboard({
             {cloudMessage && (!cloudSession || /unavailable|failed|error/i.test(cloudMessage)) && <p className="cloud-status" role="status">{cloudMessage}</p>}
           </section>
           </div>
-          {showAdvanced ? <AdvancedSearch books={books} offlineIds={cachedEpubIds} initialName={globalSearch}
+          {showAdvanced ? <AdvancedSearch books={books} offlineIds={cachedEpubIds} initialName={globalSearch} cloudRepo={cloudRepo} cloudSession={cloudSession}
             onClose={() => { setShowAdvanced(false); onGlobalSearch(''); }} onOpen={onOpen}
             onBrowseTag={browseTag} /> : <>
 
@@ -300,7 +323,7 @@ export default function LibraryDashboard({
               </div>
             </div>}<div className="library-toolbar"><div className="filter-tabs">{(['all', 'reading', 'unread', 'finished', 'offline'] as Filter[]).map((name) => <button key={name} onClick={() => { setFilter(name); onGlobalSearch(''); }} className={filter === name ? 'selected' : ''}>{name === 'all' ? 'All' : name === 'reading' ? 'Reading' : name === 'unread' ? 'Unread' : name === 'offline' ? 'Offline' : 'Finished'}</button>)}</div><div className="toolbar-right"><label className="tag-filter"><Tag size={16} /><select aria-label="Filter novels by tag" value={selectedTag} onChange={(e) => browseTag(e.target.value)}><option value="">All tags</option>{availableTags.map(({tag, count}) => <option key={tag} value={tag}>{tag} ({count})</option>)}</select><ChevronDown size={14} /></label><label className="search-field"><Search size={17} /><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={selectedCollection ? `Search ${selectedCollection.name}…` : selectedTag ? `Search ${selectedTag} novels…` : "Search this shelf…"} aria-label="Search within current list" />{query && <button aria-label="Clear search" onClick={() => setQuery('')}><X size={14} /></button>}</label><label className="sort-field"><Settings2 size={16} /><select value={selectedTag || selectedCollection || globalMode ? 'title' : sort} disabled={!!selectedTag || !!selectedCollection || globalMode} onChange={(e) => setSort(e.target.value as Sort)} aria-label="Sort books"><option value="recent">Recent</option><option value="title">Title A–Z</option><option value="added">Date added</option></select><ChevronDown size={14} /></label></div></div>
 
-            {visible.length ? <div className="book-grid">{visible.map((book) => <article className="book-tile" key={book.id}><button className="cover-button" onClick={() => onOpen(book)} aria-label={`View details for ${book.title}`}><Cover book={book} /></button><div className="tile-meta"><div className="offline-book-status">
+            {visible.length ? <div className="book-grid">{visible.map((book) => <article className="book-tile" key={book.id}><button className="cover-button" onClick={() => onOpen(book)} aria-label={`View details for ${book.title}`}><Cover book={book} cloudRepo={cloudRepo} cloudSession={cloudSession} /></button><div className="tile-meta"><div className="offline-book-status">
                 {cachedEpubIds.includes(book.id)
                   ? <span className="offline-ready-badge"><CheckCircle2 size={13} /> Available offline</span>
                   : <button type="button" className="offline-cache-btn" aria-label={`Save ${book.title} for offline reading`}
