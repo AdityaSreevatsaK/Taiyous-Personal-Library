@@ -80,6 +80,41 @@ The live OAuth redirect cannot be fully simulated in GitHub CI because it requir
 - The manual HF-token connection remains available as fallback until OAuth is verified.
 - No browser XSS defence is perfect; limit extensions and imported EPUBs to trusted content.
 
+## Production Cloudflare Access conflict (diagnosed 10 November 2026)
+
+The production OAuth metadata request returned **HTTP 302** to
+`taiyous-personal-library-pages.cloudflareaccess.com/cdn-cgi/access/login/...`,
+even after the correct metadata file was deployed and verified locally.
+
+Hugging Face must fetch `https://taiyous-personal-library.pages.dev/oauth-client.json`
+**without a browser session, Cloudflare OTP or Cloudflare Access cookie**.
+A GitHub Actions deploy success does not bypass Cloudflare Zero Trust.
+
+**Cloudflare settings fix:** Open the Cloudflare dashboard -> **Zero Trust** ->
+**Access controls** -> **Applications**. Find the Access application whose
+public hostname covers `taiyous-personal-library.pages.dev`. Remove that
+specific production hostname from Access protection, or delete the relevant
+Access application if it exists only for that hostname. Do **not** remove
+protection from preview deployment hostnames unless desired. This is a
+Cloudflare account setting, not a GitHub code/configuration issue, and
+does not require regenerating `HF_OAUTH_SESSION_KEY` or redeploying code.
+
+The app's public static React shell will then be reachable without the old
+email OTP. The private HF Dataset, session-restricted server API and novel
+files must remain private and are still protected by the HF OAuth owner check.
+If an additional public-shell privacy layer is desired, plan it separately.
+
+**Verification (incognito/private browser):** Open the exact URL
+`https://taiyous-personal-library.pages.dev/oauth-client.json`.
+It must return a short JSON document with `client_id` matching that URL,
+not a Cloudflare Access login screen, redirect or app HTML page.
+Then try Sign in with Hugging Face again. The standalone deploy workflow now
+independently checks that public metadata is reachable after every publish.
+
+Cloudflare's documentation explains how an Access application can be extended
+to the production `pages.dev` hostname:
+https://developers.cloudflare.com/pages/platform/known-issues/#enable-access-on-your-pagesdev-domain
+
 ## If OAuth metadata registration fails
 
 HF support for public OAuth metadata documents is relatively recent. Its official docs support CIMD but this app's live registration must be tested after deployment. If the provider rejects the metadata URL as a client ID, a **manually registered public HF OAuth app (without a client secret)** is a fallback. That would involve registering the exact callback URL under Hugging Face account settings, **not** moving hosting or adding billing details. Do not guess a client ID or relax callback checks as a workaround.
