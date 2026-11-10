@@ -1,8 +1,8 @@
-# Capabilities and offline behaviour — `dev` (staging)
+# Capabilities and offline behaviour — `master` (Cloudflare standalone PWA)
 
-**Scope:** This file describes the current development code intended for the private staging Hugging Face Space. It is **not** a claim that the same features exist in `master` or in the production Space. Deployment is handled by `.github/workflows/deploy-staging.yml` after validation.
+**Scope:** This file describes the current `master` code deployed as a standalone PWA on Cloudflare Pages. The Hugging Face Spaces are legacy application deployments; the private Hugging Face Dataset remains the book/metadata backend. Use `.github/workflows/deploy-standalone.yml` for manual Cloudflare publication after checks.
 
-## Features in the dev code
+## Features in master
 
 | Area | Behaviour |
 | --- | --- |
@@ -16,10 +16,10 @@
 | EPUB and ZIP download | **Download EPUB** saves a real `.epub` file through the browser. Uses a cached EPUB, or obtains one from the authorised private dataset if missing. **Original ZIP** is offered only when a hosted archive exists and requires a network fetch |
 | Book imports | Local EPUB/ZIP imports and IndexedDB caching. When connected, may publish EPUB, ZIP (when provided) and catalogue to the separate private dataset |
 | Cloud session | Connect a private dataset using a fine-grained HF token in memory; the token is not persisted and must be re-entered after refresh |
-| Standalone PWA deployment | Prepared independent Cloudflare Pages preview workflow on `dev`, with manually gated publish. The Pages app shell is deliberately **public**, while novels, reading progress and personal notes remain protected by the **private Hugging Face dataset token**. **Not hosted until deployment credentials are configured.** |
+| Standalone PWA deployment | Prepared independent Cloudflare Pages preview workflow on `master`, with manually gated publish. The Pages app shell is deliberately **public**, while novels, reading progress and personal notes remain protected by the **private Hugging Face dataset token**. **Live, with manual master-branch deployments.** |
 | Bulk offline library | **Save all offline** downloads missing EPUBs sequentially with progress and per-book failure reporting |
 | Reading-position sync | Per-book private progress JSON, local pending queue and timestamp-based restore/retry when connected |
-| Build/deploy | TypeScript, Vitest, Vite build, production dependency audit, browser smoke tests and deployment to the **staging Space only** from `dev` |
+| Build/deploy | TypeScript, Vitest, Vite build, production dependency audit, browser smoke tests and deployment to the **staging Space only** from `master` |
 
 ### Storage map
 
@@ -30,9 +30,9 @@
 
 **Sync limitations:** Reading progress/last position, ratings/comments and collections use private cloud files when connected. Offline edits remain locally pending until a successful authorised retry. Personal tags, custom summaries and typography remain local to each browser. Avoid simultaneous edits from multiple devices: collections use timestamp-based merging rather than transactional multi-writer guarantees; cloud notes also lack conflict-proof concurrent editing. A passing CI run does not replace testing with the actual private dataset.
 
-## Offline-first PWA behaviour (staging)
+## Offline-first PWA behaviour (standalone hosting)
 
-The `dev` build now generates a versioned **same-origin service worker** (`dist/sw.js`) and **web app manifest**; the worker precaches exactly the compiled HTML/JS/CSS/icon assets and provides a cached page fallback for offline navigation. Book contents are **not** stored in Cache Storage or precached by the worker; EPUBs remain in IndexedDB, and HF credentials remain in memory only. **Private dataset network responses must never be cached by the service worker.**
+The `master` build now generates a versioned **same-origin service worker** (`dist/sw.js`) and **web app manifest**; the worker precaches exactly the compiled HTML/JS/CSS/icon assets and provides a cached page fallback for offline navigation. Book contents are **not** stored in Cache Storage or precached by the worker; EPUBs remain in IndexedDB, and HF credentials remain in memory only. **Private dataset network responses must never be cached by the service worker.**
 
 The bookshelf displays browser connectivity, the count of EPUBs downloaded locally, a per-novel **Available offline** indicator or **Save offline** button, and pending review/collection sync status. Clicking Save offline fetches and stores that novel's EPUB in IndexedDB; the browser is also asked to allow persistent storage, but can decline.
 
@@ -50,7 +50,7 @@ The bookshelf displays browser connectivity, the count of EPUBs downloaded local
 
 ### Prepare to read without internet
 
-1. While online, open the staging app and connect the private dataset.
+1. While online, open the Cloudflare app and connect the private dataset.
 2. Select **Save all offline** to download uncached novels one at a time, or use an individual **Save offline** button. Wait for **Available offline** on each novel.
 3. Confirm the app displays **Offline app assets cached**. If it does not, this browser/Space context may not support an offline app shell.
 4. Where supported, install/add the web app from the browser's PWA menu while online, and test a fresh offline launch **before** relying on it. Private HF wrapper limitations may prevent installing it; in that case export the EPUB and use an independent offline EPUB reader.
@@ -60,15 +60,15 @@ The bookshelf displays browser connectivity, the count of EPUBs downloaded local
 
 ### Standalone installation
 
-The independent standalone PWA deployment has been prepared but needs the user's **Cloudflare Pages deployment account ID, API token and GitHub environment configuration** before it can be published. A Cloudflare Zero Trust subscription or billing card is **not required** when the public app shell is acceptable. Follow [Standalone PWA setup](STANDALONE_PWA.md). Publishing is manually gated and never affects the Hugging Face production Space.
+The standalone Cloudflare PWA is live at https://dev.taiyous-personal-library.pages.dev. The user validated offline cold startup and reading on Android on 10 November 2026. Publishing is manually gated from GitHub `master`, and the `dev` hostname is currently retained to preserve existing local IndexedDB storage. See [Standalone operation and URL migration](STANDALONE_PWA.md).
 
 ### Outstanding offline work
 
-Test **actual** private Hugging Face staging embedding, installed-PWA behaviour and reconnection using authorised credentials; handle simultaneous multi-device edits with explicit conflict UI/transactional revision checks; add bulk-download cancellation/storage-quota management and an independent metadata backup/restore flow. Browser CI exercises a synthetic EPUB; it never contains private novel content or tokens.
+Test actual cross-device private Dataset sync and reconnection using authorised credentials; handle simultaneous multi-device edits with explicit conflict UI/transactional revision checks; add bulk-download cancellation/storage-quota management and an independent metadata backup/restore flow. Offline launch was manually validated on Android on 10 November 2026. Browser CI exercises a synthetic EPUB; it never contains private novel content or tokens.
 
 ## Release and production safety
 
-- `dev` pushes run `.github/workflows/deploy-staging.yml` and update the **private staging Space only** after successful checks.
-- `master` is a separate older baseline; no automatic production promotion occurs.
-- Test real private hosted EPUB reading, download, chapter navigation and cross-device collections/reviews before promoting any changes.
-- Never write production Space contents, real book files or the private dataset as part of CI smoke tests.
+- `master` is the only active source branch. Pushes run `.github/workflows/verify.yml`; the standalone Cloudflare workflow must be run manually with Publish enabled.
+- The historic Hugging Face Space staging deployment workflow is retired from `master`; the private Dataset is retained.
+- Validate cross-device collections/reviews and novel reading before major releases.
+- Never write real book files or the private dataset as part of CI smoke tests.
