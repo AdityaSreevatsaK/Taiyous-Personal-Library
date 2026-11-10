@@ -24,7 +24,7 @@ A responsive EPUB/ZIP reader and installable offline-capable Progressive Web App
 
 **Permanent URL:** Cloudflare Pages is now configured with production branch `master`. The former `dev.taiyous-personal-library.pages.dev` address is a historical preview alias. Moving to the permanent hostname creates fresh browser storage; locally cached EPUBs and unsynchronised personal settings do not transfer automatically. Reconnect the private Dataset and save offline copies again on the new address.
 
-The public Cloudflare app shell contains **no private novels or dataset credentials**. Connection to the user's private Hugging Face Dataset requires a repository-scoped token entered directly into the browser, held in memory only. Offline EPUBs remain in the browser's IndexedDB. Anyone who can access an unlocked browser profile can access its local books.
+The public Cloudflare app shell contains **no private novels or dataset credentials**. After OAuth is deployed, the user can sign in with Hugging Face; the Cloudflare backend uses a Secure, HttpOnly encrypted session cookie to access the private dataset. A fine-grained dataset token entered manually is retained as a fallback and held in memory only. Offline EPUBs remain in the browser's IndexedDB. Anyone who can access an unlocked browser profile can access its local books.
 
 ## Features
 
@@ -53,7 +53,7 @@ For browser smoke tests, see `scripts/browser_smoke.mjs` and the GitHub workflow
 ## Deployments and release safety
 
 1. Commit changes to `master`. The `Verify novel reader` workflow checks tests, build and audit.
-2. Run [Build and optionally deploy standalone PWA](.github/workflows/deploy-standalone.yml) from `master` with **Publish** enabled. The job validates the built app and deploys only the `dist/` files.
+2. Run [Build and optionally deploy standalone PWA](.github/workflows/deploy-standalone.yml) from `master` with **Publish** enabled. The job validates the built app, compiles the private Cloudflare Pages Functions and deploys both the `dist/` app shell and the `functions/` backend.
 3. Deploys use the existing `standalone-staging` GitHub environment secrets `CF_ACCOUNT_ID`, `CF_API_TOKEN` and variable `CF_PAGES_PROJECT`. The environment's historical name is retained to avoid changing working secrets.
 4. The job publishes Cloudflare's **production branch `master`** at `https://taiyous-personal-library.pages.dev`. See [Standalone operation](docs/STANDALONE_PWA.md).
 5. The previous Hugging Face **Space** build/deployment workflow has been retired from `master`. Both HF Spaces are historical deployments; the **private HF Dataset must not be deleted**.
@@ -72,7 +72,7 @@ See [Hugging Face OAuth setup](docs/ACCESS_GATEWAY.md).
 
 ## Data and sync limitations
 
-- Cloud actions and cross-device sync need connectivity and an active dataset token; after a refresh, reconnect with the token.
+- Cloud actions and cross-device sync need connectivity and a valid Hugging Face OAuth session (or manual token fallback). The OAuth session is restored automatically on reload until expiry; then sign in again.
 - Personal tags, custom summaries and typography settings are local rather than cloud-synced.
 - Concurrent edits across devices are timestamp-based, not transactionally conflict-free.
 - The new permanent hostname has separate browser storage from the former `dev.` alias. The user approved resetting locally cached data during the transition; download EPUBs again on the new hostname for offline access.
