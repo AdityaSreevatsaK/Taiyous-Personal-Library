@@ -59,12 +59,15 @@ For browser smoke tests, see `scripts/browser_smoke.mjs` and the GitHub workflow
 
 **Offline note:** Android offline cold launching and reading were validated on the previous Cloudflare `dev.` alias on 10 November 2026. Repeat the offline test after installing from the permanent hostname. Browser storage may still be cleared/evicted by the operating system, so keep independent EPUB backups.
 
-## Security and authentication status
+## Authentication and security
 
-- Current CI runs both production-only and full-dependency npm audits, and fails on high/critical findings; the initial full audit identified vulnerable old Vite/Vitest packages, which were upgraded.
-- The Hugging Face dataset token remains **in memory only** and must currently be re-entered after a fresh app launch. This is intentional and avoids silently persisting an unencrypted bearer credential in browser storage.
-- An email-only login does **not** independently grant access to a private Hugging Face dataset. A passwordless experience requires either properly registered Hugging Face OAuth with repository permissions or authenticated server-side Cloudflare proxy access. The latter can retain a fine-grained dataset token as a **server-side secret**, never exposed to the browser.
-- Automatic Cloudflare Access sign-in integration and private Hugging Face gateway are **implemented in master but not yet active on Cloudflare**. The user must add production Pages Function secrets/Access settings and perform a manually approved deployment. See [Secure single-OTP login setup](docs/ACCESS_GATEWAY.md). The legacy manual dataset token is retained as a fallback until proven.
+- **Hugging Face OAuth** is implemented on `master` as an encrypted server-side session via Cloudflare Pages Functions. The React app redirects to HF for PKCE sign-in, checks the private dataset owner and reconnects automatically on reload. The HF OAuth bearer token is never exposed in JavaScript.
+- **One required Cloudflare secret:** `HF_OAUTH_SESSION_KEY` (a fresh random 64-character hex key). The app publishes a public HF OAuth Client ID Metadata Document at `/.well-known/oauth-cimd`, so no Cloudflare Zero Trust account or additional hosting service is needed.
+- The HF OAuth integration is **not live until** this secret is configured on Cloudflare Pages and a user-approved `master` deployment is published and verified. The existing manual fine-grained HF token fallback remains available.
+- **Permission trade-off:** OAuth's `write-repos` scope includes personal repositories, not only the novel dataset; the backend itself is restricted to `AdityaSreevatsaK/Taiyous-Novels`. For narrower token permissions use the legacy manual fine-grained token.
+- CI runs the full and production npm security audits, blocks on high/critical advisories, compiles the Pages Functions and tests the OAuth flow with synthetic credentials (never real book or auth data).
+
+See [Hugging Face OAuth setup](docs/ACCESS_GATEWAY.md).
 
 ## Data and sync limitations
 
