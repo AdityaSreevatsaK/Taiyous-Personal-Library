@@ -22,7 +22,7 @@ jobs:
         run: npm run build
       - name: Compile private Cloudflare Pages Functions
         run: |
-          npx --yes wrangler@4 pages functions build functions --outfile /tmp/taiyou-functions.mjs
+          npx --yes wrangler@4 pages functions build functions --outfile /tmp/taiyou-functions.mjs --compatibility-date 2026-11-10 --compatibility-flags nodejs_compat
           test -s /tmp/taiyou-functions.mjs
       - name: Production dependency audit
         run: npm audit --omit=dev --audit-level=high
