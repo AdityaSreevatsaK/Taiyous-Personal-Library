@@ -265,7 +265,7 @@ try {
         if (!startup?.ok()) throw new Error('Offline cold launch returned HTTP ' + startup?.status());
         await freshPage.locator('.app-shell').waitFor({ state: 'visible', timeout: 10000 });
         await freshPage.getByRole('button', { name: 'View details for Sample Library Book' }).click();
-        await freshPage.getByRole('button', { name: 'Start reading' }).click();
+        await freshPage.getByRole('button', { name: /^(Start|Continue) reading$/ }).click();
         await freshPage.locator('.reader-page iframe').first().waitFor({ state: 'visible', timeout: 20000 });
       } finally {
         await freshPage.close();
