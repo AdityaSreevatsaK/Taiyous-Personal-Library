@@ -7,12 +7,7 @@ import {
 /** Only the authenticated HF owner may read or write the one fixed private dataset. */
 interface PagesContext { request: Request; env: Bindings }
 const NO_STORE = privateHeaders;
-const BOOK_ID = '[0-9a-f]{24}';
-const FILE_PATH = new RegExp(
-  '^(?:data/library\\.json|data/personal/collections\\.json|' +
-  'data/personal/(?:reviews|progress)/' + BOOK_ID + '\\.json|' +
-  'data/novels/' + BOOK_ID + '/(?:source\\.epub|original\\.zip|cover\\.jpg))
-);
+const FILE_PATH = /^data\/(?:library\.json|personal\/collections\.json|personal\/(?:reviews|progress)\/[0-9a-f]{24}\.json|novels\/[0-9a-f]{24}\/(?:source\.epub|original\.zip|cover\.jpg))$/;
 const MAX_UPLOAD_BYTES = 75 * 1024 * 1024;
 const MAX_SINGLE_BYTES = 70 * 1024 * 1024;
 
