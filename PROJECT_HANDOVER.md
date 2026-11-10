@@ -1,3 +1,5 @@
+> **Historical document (before 10 November 2026):** This file describes the former dev/master and Hugging Face Spaces setup. The active source is now GitHub `master`, the app is hosted on Cloudflare Pages, and the private Hugging Face Dataset remains in use. See [README](README.md) and [Standalone PWA operations](docs/STANDALONE_PWA.md) for current instructions.
+
 # Project handover: Taiyou's Personal Library
 Updated: 2026-11-08. Source of truth for current GitHub state: inspect remote repo, not this document alone.
 
