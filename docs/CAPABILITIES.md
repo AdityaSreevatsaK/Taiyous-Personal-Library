@@ -19,14 +19,14 @@
 | Standalone PWA deployment | Prepared independent Cloudflare Pages preview workflow on `master`, with manually gated publish. The Pages app shell is deliberately **public**, while novels, reading progress and personal notes remain protected by the **private Hugging Face dataset token**. **Live, with manual master-branch deployments.** |
 | Bulk offline library | **Save all offline** downloads missing EPUBs sequentially with progress and per-book failure reporting |
 | Reading-position sync | Per-book private progress JSON, local pending queue and timestamp-based restore/retry when connected |
-| Build/deploy | TypeScript, Vitest, Vite build, production dependency audit, browser smoke tests and deployment to the **staging Space only** from `master` |
+| Build/deploy | TypeScript, Vitest, Vite build, production dependency audit, browser smoke tests and manually approved deployment to **Cloudflare Pages** from `master` |
 
 ### Storage map
 
 - **Browser IndexedDB:** cached EPUB binaries, book metadata, reading position and progress, ratings/comments as locally available metadata.
 - **Browser localStorage:** display preferences, private dataset repository ID, named collections and other local UI state. The Hugging Face token is not persisted.
 - **Private Hugging Face Dataset:** `data/library.json` catalogue and `data/novels/<book-id>/source.epub`; optional `original.zip`; per-book notes at `data/personal/reviews/<book-id>.json`; per-book reading positions at `data/personal/progress/<book-id>.json`; collections at `data/personal/collections.json`.
-- **GitHub repository/Space:** source code and built UI only; **never** the private novel dataset or user tokens.
+- **GitHub repository/Cloudflare Pages:** source code and built UI only; **never** the private novel dataset or user tokens.
 
 **Sync limitations:** Reading progress/last position, ratings/comments and collections use private cloud files when connected. Offline edits remain locally pending until a successful authorised retry. Personal tags, custom summaries and typography remain local to each browser. Avoid simultaneous edits from multiple devices: collections use timestamp-based merging rather than transactional multi-writer guarantees; cloud notes also lack conflict-proof concurrent editing. A passing CI run does not replace testing with the actual private dataset.
 
@@ -52,7 +52,7 @@ The bookshelf displays browser connectivity, the count of EPUBs downloaded local
 
 1. While online, open the Cloudflare app and connect the private dataset.
 2. Select **Save all offline** to download uncached novels one at a time, or use an individual **Save offline** button. Wait for **Available offline** on each novel.
-3. Confirm the app displays **Offline app assets cached**. If it does not, this browser/Space context may not support an offline app shell.
+3. Confirm the app displays **Offline app assets cached**. If it does not, the application shell may not have completed caching on this device.
 4. Where supported, install/add the web app from the browser's PWA menu while online, and test a fresh offline launch **before** relying on it. Private HF wrapper limitations may prevent installing it; in that case export the EPUB and use an independent offline EPUB reader.
 5. For the most dependable independent backup, use **Download EPUB** to save actual files outside the browser's IndexedDB. Keep the original ZIP separately.
 
