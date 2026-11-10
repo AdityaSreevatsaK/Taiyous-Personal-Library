@@ -6,7 +6,7 @@ import { extractEpubMetadata, prepareImport } from './lib/importer';
 import { normalizeTags } from './lib/tags';
 import { deleteBook, getBookFile, getBooks, getCachedEpubIds, readSettings, saveBook, updateBook, writeSettings } from './lib/storage';
 import {
-  blendCloudAndLocal, clearCloudSession, createCloudSession, discoverCloudflareSession, assertPrivateDataset,
+  blendCloudAndLocal, clearCloudSession, createCloudSession, discoverHostedOAuthSession, assertPrivateDataset,
   fetchCloudCatalog, fetchCloudEpub, fetchCloudArchive, fetchCloudPersonalReview, findCloudEntryForBook, readDatasetRepo, saveDatasetRepo,
   saveCloudPersonalReview, fetchCloudReadingProgress, saveCloudReadingProgress, applyCloudReadingProgress,
   uploadNovelToCloud, validateDatasetRepo,
@@ -46,6 +46,22 @@ export default function App() {
   const busyRef = useRef(false);
   const syncRef = useRef(false);
 
+  useEffect(() => {
+    const parameters = new URLSearchParams(window.location.search);
+    const loginError = parameters.get('oauth_error');
+    if (!loginError) return;
+    const explanations: Record<string, string> = {
+      invalid_callback: 'Hugging Face login expired or was interrupted. Please try again.',
+      exchange_failed: 'Hugging Face could not complete login. Try signing in again.',
+      insufficient_scope: 'The Hugging Face authorisation must include read and write repository access.',
+      wrong_account: 'Please sign in with the Hugging Face account that owns Taiyous-Novels.',
+      dataset_access: 'The signed-in Hugging Face account cannot access the private novel dataset.',
+      login_failed: 'Hugging Face login failed. Please try again.',
+    };
+    setCloudMessage(explanations[loginError] || 'Unable to connect with Hugging Face.');
+    window.history.replaceState(null, '', window.location.pathname + window.location.hash);
+  }, []);
+
   useEffect(() => { booksRef.current = books; }, [books]);
   useEffect(() => { writeSettings(settings); }, [settings]);
   useEffect(() => {
@@ -74,7 +90,7 @@ export default function App() {
       try { saveDatasetRepo(detected.repo); } catch { /* localStorage may be unavailable */ }
       setCloudRepo(detected.repo);
       setCloudSession(detected.session);
-      setCloudMessage('Private dataset connected through your Cloudflare Access login.');
+      setCloudMessage('Private dataset connected through your Hugging Face login.');
     };
     void connect();
     const onReconnect = () => { void connect(); };
@@ -297,10 +313,21 @@ export default function App() {
     }).finally(() => setCloudBusy(false));
   }, [cloudRepo]);
   const signOutOfCloud = useCallback(() => {
+    if (cloudSession?.via === 'oauth') {
+      void fetch('/api/oauth/logout', {
+        method: 'POST', credentials: 'same-origin', cache: 'no-store',
+        headers: { 'X-Taiyou-Request': 'logout' },
+      }).then(response => {
+        if (!response.ok) throw new Error('Could not sign out');
+        setCloudSession(null);
+        setCloudMessage('Signed out of Hugging Face. Offline EPUBs are still available.');
+      }).catch(() => setCloudMessage('Unable to sign out. Please try again.'));
+      return;
+    }
     clearCloudSession();
     setCloudSession(null);
     setCloudMessage('Disconnected. Your cached EPUBs remain in this browser.');
-  }, []);
+  }, [cloudSession]);
 
   const importFiles = useCallback(async (files: FileList | File[]) => {
     if (busyRef.current) return;
