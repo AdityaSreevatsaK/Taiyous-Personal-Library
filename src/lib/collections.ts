@@ -74,7 +74,7 @@ export function writeLocalCollections(items: BookCollection[]): void {
 
 export async function fetchCloudCollections(repo: string, session: CloudSession): Promise<BookCollection[]> {
   const id = validateDatasetRepo(repo);
-  const response = session.via === 'cloudflare'
+  const response = session.via === 'oauth'
     ? await fetch('/api/library?action=file&path=' + encodeURIComponent(CLOUD_PATH),
         { credentials: 'same-origin', cache: 'no-store' })
     : await fetch(`https://huggingface.co/datasets/${id}/resolve/main/${CLOUD_PATH}?v=${Date.now()}`, {
