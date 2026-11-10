@@ -935,3 +935,41 @@ html, body, #root { max-width: 100%; overflow-x: clip; }
  .reading-resume-info>button { font-size: 14px; }
  .reading-resume-continue { padding: 9px; font-size: 11px; }
 }
+
+
+/* Private catalogue cover images: retain the book-shaped frame while replacing
+   generated title ornaments only when a real JPEG is available. */
+.cover-has-image {
+  padding: 0 !important;
+  background: var(--cover-bg);
+  border: 1px solid rgba(30, 37, 29, .16);
+  box-shadow: 2px 7px 15px rgba(28,30,29,.18), inset 5px 0 6px rgba(0,0,0,.12);
+}
+.cover-has-image .cover-art {
+  width: 100%;
+  height: 100%;
+  position: absolute;
+  inset: 0;
+  object-fit: cover;
+  object-position: center;
+  display: block;
+}
+.cover-has-image::before {
+  inset: 5px;
+  z-index: 2;
+  border: 1px solid rgba(255,255,255,.17);
+}
+.cover-has-image::after { display: none; }
+.cover-has-image .cover-ornament,
+.cover-has-image .cover-lilies,
+.cover-has-image .cover-heading,
+.cover-has-image .cover-author,
+.cover-has-image .cover-bottom { display: none; }
+.advanced-result-cover .cover-has-image.cover {
+  min-height: 120px;
+  aspect-ratio: 2 / 3;
+  padding: 0;
+}
+.details-cover-wrap .cover-has-image.cover-feature {
+  border-radius: 7px 13px 13px 7px;
+}
