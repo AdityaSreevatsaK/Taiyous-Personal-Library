@@ -16,7 +16,7 @@
 | EPUB and ZIP download | **Download EPUB** saves a real `.epub` file through the browser. Uses a cached EPUB, or obtains one from the authorised private dataset if missing. **Original ZIP** is offered only when a hosted archive exists and requires a network fetch |
 | Book imports | Local EPUB/ZIP imports and IndexedDB caching. When connected, may publish EPUB, ZIP (when provided) and catalogue to the separate private dataset |
 | Cloud session | Connect a private dataset using a fine-grained HF token in memory; the token is not persisted and must be re-entered after refresh |
-| Standalone PWA deployment | Prepared independent Cloudflare Pages preview workflow on `master`, with manually gated publish. The Pages app shell is deliberately **public**, while novels, reading progress and personal notes remain protected by the **private Hugging Face dataset token**. **Live, with manual master-branch deployments.** |
+| Standalone PWA deployment | Production Cloudflare Pages workflow on `master`, with manually gated publish. The Pages app shell is deliberately **public**, while novels, reading progress and personal notes remain protected by the **private Hugging Face dataset token**. **Live, with manual master-branch deployments.** |
 | Bulk offline library | **Save all offline** downloads missing EPUBs sequentially with progress and per-book failure reporting |
 | Reading-position sync | Per-book private progress JSON, local pending queue and timestamp-based restore/retry when connected |
 | Build/deploy | TypeScript, Vitest, Vite build, production dependency audit, browser smoke tests and manually approved deployment to **Cloudflare Pages** from `master` |
@@ -60,7 +60,7 @@ The bookshelf displays browser connectivity, the count of EPUBs downloaded local
 
 ### Standalone installation
 
-The standalone Cloudflare PWA is live at https://dev.taiyous-personal-library.pages.dev. The user validated offline cold startup and reading on Android on 10 November 2026. Publishing is manually gated from GitHub `master`, and the `dev` hostname is currently retained to preserve existing local IndexedDB storage. See [Standalone operation and URL migration](STANDALONE_PWA.md).
+The standalone production Cloudflare PWA is deployed at https://taiyous-personal-library.pages.dev (production branch `master`). The previous `dev`-prefixed address is a retired preview origin. The user validated Android offline cold startup and reading on that older origin on 10 November 2026; fresh offline validation is recommended after installing the permanent hostname. Publishing is manually gated from GitHub `master`. See [Standalone operations](STANDALONE_PWA.md).
 
 ### Outstanding offline work
 
