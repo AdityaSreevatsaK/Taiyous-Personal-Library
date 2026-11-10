@@ -253,8 +253,27 @@ try {
     }
     if (errors.length) throw new Error(`Browser errors: ${errors.join(' | ')}`);
     if (failedAssets.length) throw new Error(`Failed local assets: ${failedAssets.join(' | ')}`);
-    console.log(`Browser render passed at ${viewport.width}x${viewport.height}`);
+    // Reproduce an actual offline cold launch, not merely a reload of an open
+    // tab. The service worker must handle navigation to the site's root.
+    const context = page.context();
     await page.close();
+    await context.setOffline(true);
+    try {
+      const freshPage = await context.newPage();
+      try {
+        const startup = await freshPage.goto(baseUrl + '/', { waitUntil: 'domcontentloaded', timeout: 20000 });
+        if (!startup?.ok()) throw new Error('Offline cold launch returned HTTP ' + startup?.status());
+        await freshPage.locator('.app-shell').waitFor({ state: 'visible', timeout: 10000 });
+        await freshPage.getByRole('button', { name: 'View details for Sample Library Book' }).click();
+        await freshPage.getByRole('button', { name: 'Start reading' }).click();
+        await freshPage.locator('.reader-page iframe').first().waitFor({ state: 'visible', timeout: 20000 });
+      } finally {
+        await freshPage.close();
+      }
+    } finally {
+      await context.setOffline(false);
+    }
+    console.log(`Browser render and offline cold launch passed at ${viewport.width}x${viewport.height}`);
   }
 } finally {
   await browser.close();
