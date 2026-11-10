@@ -16,7 +16,7 @@
 | Novel cover artwork | Real JPEG covers are loaded from the private Hugging Face Dataset when catalogue entries contain `coverPath: data/novels/<existing-id>/cover.jpg`. Images appear on the bookshelf, advanced search results and novel details, are cached in a new IndexedDB `covers` store for offline reuse, and fall back to generated covers when missing or unavailable. Existing EPUBs, ZIPs and novel IDs are unchanged. |
 | EPUB and ZIP download | **Download EPUB** saves a real `.epub` file through the browser. Uses a cached EPUB, or obtains one from the authorised private dataset if missing. **Original ZIP** is offered only when a hosted archive exists and requires a network fetch |
 | Book imports | Local EPUB/ZIP imports and IndexedDB caching. When connected, may publish EPUB, ZIP (when provided) and catalogue to the separate private dataset |
-| Cloud session | Connect a private dataset using a fine-grained HF token in memory; the token is not persisted and must be re-entered after refresh |
+| Cloud session | Hugging Face OAuth with encrypted HttpOnly cookie and automatic reconnection (after the production secret is configured and the updated app deployed); the manual fine-grained HF token remains available in memory as a fallback |
 | Standalone PWA deployment | Production Cloudflare Pages workflow on `master`, with manually gated publish. The Pages app shell is deliberately **public**, while novels, reading progress and personal notes remain protected by the **private Hugging Face dataset token**. **Live, with manual master-branch deployments.** |
 | Bulk offline library | **Save all offline** downloads missing EPUBs sequentially with progress and per-book failure reporting |
 | Reading-position sync | Per-book private progress JSON, local pending queue and timestamp-based restore/retry when connected |
@@ -33,7 +33,7 @@
 
 ## Offline-first PWA behaviour (standalone hosting)
 
-The `master` build now generates a versioned **same-origin service worker** (`dist/sw.js`) and **web app manifest**; the worker precaches exactly the compiled HTML/JS/CSS/icon assets and provides a cached page fallback for offline navigation. Book contents are **not** stored in Cache Storage or precached by the worker; EPUBs remain in IndexedDB, and HF credentials remain in memory only. **Private dataset network responses must never be cached by the service worker.**
+The `master` build now generates a versioned **same-origin service worker** (`dist/sw.js`) and **web app manifest**; the worker precaches exactly the compiled HTML/JS/CSS/icon assets and provides a cached page fallback for offline navigation. Book contents are **not** stored in Cache Storage or precached by the worker; EPUBs remain in IndexedDB, and the OAuth session stays in a secure HttpOnly cookie (or in memory for manual-token fallback). **Private dataset network responses must never be cached by the service worker.**
 
 The bookshelf displays browser connectivity, the count of EPUBs downloaded locally, a per-novel **Available offline** indicator or **Save offline** button, and pending review/collection sync status. Clicking Save offline fetches and stores that novel's EPUB in IndexedDB; the browser is also asked to allow persistent storage, but can decline.
 
