@@ -24,7 +24,8 @@ const baseUrl = process.env.SMOKE_URL || 'http://127.0.0.1:4173';
 const browser = await chromium.launch({ headless: true });
 try {
   for (const viewport of [{ width: 1366, height: 768 }, { width: 390, height: 844 }]) {
-    const page = await browser.newPage({ viewport });
+    const context = await browser.newContext({ viewport });
+    const page = await context.newPage();
     const errors = [];
     const failedAssets = [];
     page.on('pageerror', error => errors.push(error.message));
@@ -255,7 +256,6 @@ try {
     if (failedAssets.length) throw new Error(`Failed local assets: ${failedAssets.join(' | ')}`);
     // Reproduce an actual offline cold launch, not merely a reload of an open
     // tab. The service worker must handle navigation to the site's root.
-    const context = page.context();
     await page.close();
     await context.setOffline(true);
     try {
@@ -272,6 +272,7 @@ try {
       }
     } finally {
       await context.setOffline(false);
+      await context.close();
     }
     console.log(`Browser render and offline cold launch passed at ${viewport.width}x${viewport.height}`);
   }
