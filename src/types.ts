@@ -34,6 +34,8 @@ export interface LibraryBook {
   pendingReviewSync?: boolean;
   status?: string;
   sourceUrl?: string;
+  /** Optional private dataset artwork, e.g. data/novels/<book-id>/cover.jpg. */
+  coverPath?: string;
   /** Old imports are enriched lazily when their detail pages are opened. */
   metadataScanned?: boolean;
   currentChapterNumber?: number;
