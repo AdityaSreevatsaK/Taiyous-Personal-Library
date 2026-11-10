@@ -146,6 +146,15 @@ export default function Reader({ book, settings, onSettings, onBack, onNovelDeta
               body { overflow-wrap: anywhere !important; word-wrap: break-word !important; }
               img, svg, video, table { max-width: 100% !important; }
               pre, code { white-space: pre-wrap !important; overflow-wrap: anywhere !important; }
+              /* Centre chapter headings without altering the story paragraphs. */
+              h1, .chapter-title, .chapterTitle, .chapter-heading {
+                text-align: center !important;
+                font-size: 1.5em !important;
+                line-height: 1.3 !important;
+                font-weight: 650 !important;
+                margin: 1.15em auto 1.25em !important;
+                max-width: 90% !important;
+              }
               iframe:not([src]):not([srcdoc]),
               iframe[src=""]:not([srcdoc]) {
                 display: none !important;
