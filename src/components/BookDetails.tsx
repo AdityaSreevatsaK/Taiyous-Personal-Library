@@ -4,6 +4,7 @@ import {
   Info, Pencil, Plus, Star, Tag, X,
 } from 'lucide-react';
 import { Cover } from './LibraryDashboard';
+import type { CloudSession } from '../lib/cloud';
 import ChapterBrowser from './ChapterBrowser';
 import { bookTags, includesTag, normalizeTags } from '../lib/tags';
 import type { LibraryBook, ReaderTheme } from '../types';
@@ -16,6 +17,8 @@ interface Props {
   onDownloadEpub: () => Promise<void>;
   onDownloadArchive?: () => Promise<void>;
   cloudConnected: boolean;
+  cloudRepo: string;
+  cloudSession: CloudSession | null;
   onReadChapter: (href: string) => void;
   onSaveTags: (tags: string[]) => Promise<void>;
   onSaveSummary: (summary: string) => Promise<void>;
@@ -24,7 +27,7 @@ interface Props {
   error: string | null;
 }
 
-export default function BookDetails({ book, theme, onBack, onRead, onDownloadEpub, onDownloadArchive, cloudConnected, onReadChapter, onSaveTags, onSaveSummary, onSaveReview, onBrowseTag, error }: Props) {
+export default function BookDetails({ book, theme, onBack, onRead, onDownloadEpub, onDownloadArchive, cloudConnected, cloudRepo, cloudSession, onReadChapter, onSaveTags, onSaveSummary, onSaveReview, onBrowseTag, error }: Props) {
   const [tagInput, setTagInput] = useState('');
   const [editingSummary, setEditingSummary] = useState(false);
   const [summaryDraft, setSummaryDraft] = useState(book.userDescription || book.description || '');
@@ -97,7 +100,7 @@ export default function BookDetails({ book, theme, onBack, onRead, onDownloadEpu
     </header>
     <main className="details-layout">
       <div className="details-hero">
-        <div className="details-cover-wrap"><Cover book={book} variant="feature" /></div>
+        <div className="details-cover-wrap"><Cover book={book} variant="feature" cloudRepo={cloudRepo} cloudSession={cloudSession} /></div>
         <div className="details-hero-content">
           <span className="details-eyebrow"><BookOpen size={15} /> NOVEL DETAILS</span>
           <h1>{book.title}</h1>
