@@ -19,6 +19,8 @@ export interface CloudEntry {
   metadata: LibraryBook;
   epubPath: string;
   archivePath?: string;
+  /** Cover uploaded by the cover-manifest pipeline, keyed by this existing novel ID. */
+  coverPath?: string;
 }
 
 export interface CloudCatalog { version: 1; books: CloudEntry[] }
@@ -143,7 +145,8 @@ function validEntry(entry: unknown): entry is CloudEntry {
     && value.metadata?.id === value.id
     && typeof value.metadata.title === 'string'
     && value.epubPath === `data/novels/${value.id}/source.epub`
-    && (!value.archivePath || value.archivePath === `data/novels/${value.id}/original.zip`);
+    && (!value.archivePath || value.archivePath === `data/novels/${value.id}/original.zip`)
+    && (value.coverPath === undefined || value.coverPath === `data/novels/${value.id}/cover.jpg`);
 }
 
 export async function fetchCloudCatalog(repo: string, session: CloudSession): Promise<CloudCatalog> {
@@ -156,6 +159,21 @@ export async function fetchCloudCatalog(repo: string, session: CloudSession): Pr
     throw new Error('The remote data/library.json catalogue is invalid or uses an unsupported format.');
   }
   return result;
+}
+
+/** Retrieve cover artwork from the same private dataset; never expose a bearer token as an image URL. */
+export async function fetchCloudCover(repo: string, book: Pick<LibraryBook, 'id' | 'coverPath'>, session: CloudSession): Promise<Blob | null> {
+  const path = book.coverPath;
+  if (!path || !ID_PATTERN.test(book.id) || path !== `data/novels/${book.id}/cover.jpg`) return null;
+  const response = await privateGet(repo, path, session);
+  if (response.status === 404) return null;
+  if (!response.ok) throw new Error(`Unable to retrieve private cover (${response.status}).`);
+  const blob = await response.blob();
+  // Only allow plausible JPEG artwork. Never parse or display active image formats.
+  if (blob.size < 4 || blob.size > 8 * 1024 * 1024) return null;
+  const header = new Uint8Array(await blob.slice(0, 3).arrayBuffer());
+  if (header[0] !== 0xff || header[1] !== 0xd8 || header[2] !== 0xff) return null;
+  return new Blob([blob], { type: 'image/jpeg' });
 }
 
 export async function fetchCloudEpub(repo: string, entry: CloudEntry, session: CloudSession): Promise<Blob> {
@@ -296,7 +314,7 @@ function cloudMetadata(book: LibraryBook): LibraryBook {
   return {
     id: book.id, title: book.title, author: book.author, language: book.language,
     chapterCount: book.chapterCount, description: book.description,
-    sourceTags: book.sourceTags, sourceUrl: book.sourceUrl,
+    sourceTags: book.sourceTags, sourceUrl: book.sourceUrl, coverPath: book.coverPath,
     status: book.status, metadataScanned: book.metadataScanned,
     originalFileName: book.originalFileName, importedAt: book.importedAt,
     size: book.size, personalTags: [], progress: 0, cloud: true,
@@ -364,6 +382,7 @@ export function blendCloudAndLocal(remote: CloudEntry[], local: LibraryBook[]): 
     const prior = existing.get(entry.id);
     // Local progress, favourites and summary always take precedence.
     existing.set(entry.id, { ...entry.metadata, cloud: true,
+      ...(entry.coverPath ? { coverPath: entry.coverPath } : prior?.coverPath ? { coverPath: prior.coverPath } : {}),
       ...(prior ? { personalTags: prior.personalTags, userDescription: prior.userDescription,
         personalRating: prior.personalRating, personalReview: prior.personalReview,
         personalReviewUpdatedAt: prior.personalReviewUpdatedAt,
