@@ -260,7 +260,16 @@ export default function LibraryDashboard({
             onBrowseTag={browseTag} /> : <>
 
           {reading.length > 0 && featured && (
-            <section className="feature-panel" aria-label="Featured book"><div className="feature-decoration" aria-hidden="true">✺</div><div className="feature-copy"><div className="feature-eyebrow"><span className="feature-dot" /> {featured.progress > 0 ? 'PICK UP WHERE YOU LEFT OFF' : 'A STORY IS WAITING FOR YOU'}</div><h2><button type="button" className="featured-title-link" onClick={() => onOpen(featured)}>{featured.title}</button></h2><p className="feature-author">by {featured.author}</p><div className="feature-stats"><span><BookOpen size={15} /> {featured.chapterCount ? `${featured.chapterCount} chapters` : 'EPUB edition'}</span><span className="feature-stat-sep">·</span><span>{featured.progress ? `${Math.round(featured.progress)}% read` : 'Ready to begin'}</span></div><button className="feature-button" onClick={() => onRead(featured)}>{featured.progress > 0 ? 'Continue reading' : 'Start reading'} <ArrowRight size={17} /></button></div><div className="featured-cover-wrap"><Cover book={featured} variant="feature" /></div></section>
+            <section className="reading-resume-strip" aria-label="Continue reading">
+              <div className="reading-resume-icon"><BookOpen size={20}/></div>
+              <div className="reading-resume-info"><span>CONTINUE READING</span>
+                <button type="button" onClick={() => onOpen(featured)}>{featured.title}</button>
+                <small>{Math.round(featured.progress)}% completed{featured.currentChapter ? ` · ${featured.currentChapter}` : ''}</small>
+              </div>
+              <button className="reading-resume-continue" type="button" onClick={() => onRead(featured)}>
+                Open book <ArrowRight size={16}/>
+              </button>
+            </section>
           )}
 
           <section className="library-section" aria-label="Book collection"><div className={`section-titlebar ${!globalMode && !selectedTag && !selectedCollection && (filter === 'all' || filter === 'offline') ? 'section-titlebar-quiet' : '' }`}><div><div className="section-overline">{globalMode ? 'ALL NOVELS' : selectedCollection ? 'YOUR COLLECTION' : selectedTag ? 'BROWSING TAG' : 'THE COLLECTION'}</div><h2>{globalMode ? 'Global search results' : selectedCollection ? selectedCollection.name : selectedTag ? selectedTag : filter === 'all' ? 'All your stories' : navEntries.find((i) => i.id === filter)?.name}<span className="title-count">{visible.length}</span></h2></div><span className="library-description">A little world on every shelf</span></div>
