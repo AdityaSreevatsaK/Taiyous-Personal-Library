@@ -117,6 +117,136 @@ export async function fetchCloudEpub(repo: string, entry: CloudEntry, session: C
   return blob;
 }
 
+/** Per-book reading state is private and independent of catalogue/EPUB data. */
+export interface CloudReadingProgress {
+  version: 1;
+  bookId: string;
+  progress: number;
+  currentChapter: string | null;
+  currentChapterIndex: number | null;
+  currentChapterNumber: number | null;
+  lastCfi: string | null;
+  lastOpenedAt: number | null;
+  updatedAt: number;
+}
+
+function readingProgressPath(id: string): string {
+  if (!ID_PATTERN.test(id)) throw new Error('Invalid book identifier for reading progress.');
+  return `data/personal/progress/${id}.json`;
+}
+
+export function validateReadingProgress(value: unknown, bookId: string): CloudReadingProgress {
+  if (!value || typeof value !== 'object') throw new Error('Invalid reading progress document.');
+  const raw = value as Partial<CloudReadingProgress>;
+  const optionalText = (v: unknown, limit: number) => v === null || (typeof v === 'string' && v.length <= limit);
+  const optionalInteger = (v: unknown) => v === null || (typeof v === 'number' && Number.isInteger(v) && v >= 0);
+  if (raw.version !== 1 || raw.bookId !== bookId ||
+      typeof raw.progress !== 'number' || !Number.isFinite(raw.progress) || raw.progress < 0 || raw.progress > 100 ||
+      !optionalText(raw.currentChapter, 600) || !optionalText(raw.lastCfi, 4000) ||
+      !optionalInteger(raw.currentChapterIndex) || !optionalInteger(raw.currentChapterNumber) ||
+      !optionalInteger(raw.lastOpenedAt) || !optionalInteger(raw.updatedAt) || raw.updatedAt === null) {
+    throw new Error('Invalid private reading progress fields.');
+  }
+  return raw as CloudReadingProgress;
+}
+
+export function applyCloudReadingProgress(book: LibraryBook, remote: CloudReadingProgress): LibraryBook {
+  if (book.id !== remote.bookId || remote.updatedAt < (book.progressUpdatedAt ?? 0)) return book;
+  return { ...book, progress: remote.progress,
+    currentChapter: remote.currentChapter ?? undefined,
+    currentChapterIndex: remote.currentChapterIndex ?? undefined,
+    currentChapterNumber: remote.currentChapterNumber ?? undefined,
+    lastCfi: remote.lastCfi ?? undefined,
+    lastOpenedAt: remote.lastOpenedAt ?? undefined,
+    progressUpdatedAt: remote.updatedAt, pendingProgressSync: false };
+}
+
+export async function fetchCloudReadingProgress(repo: string, bookId: string, session: CloudSession): Promise<CloudReadingProgress | null> {
+  const response = await privateGet(repo, readingProgressPath(bookId), session);
+  if (response.status === 404) return null;
+  if (!response.ok) throw new Error(`Unable to fetch private reading progress (${response.status}).`);
+  return validateReadingProgress(await response.json(), bookId);
+}
+
+export async function saveCloudReadingProgress(repo: string, bookId: string, session: CloudSession, book: LibraryBook): Promise<CloudReadingProgress> {
+  await assertPrivateDataset(repo, session);
+  const progress = validateReadingProgress({
+    version: 1, bookId, progress: book.progress,
+    currentChapter: book.currentChapter ?? null,
+    currentChapterIndex: book.currentChapterIndex ?? null,
+    currentChapterNumber: book.currentChapterNumber ?? null,
+    lastCfi: book.lastCfi ?? null,
+    lastOpenedAt: book.lastOpenedAt ?? null,
+    updatedAt: book.progressUpdatedAt ?? book.lastOpenedAt ?? Date.now(),
+  }, bookId);
+  await uploadFiles({
+    repo: { type: 'dataset', name: validateDatasetRepo(repo) },
+    accessToken: session.accessToken,
+    files: [{ path: readingProgressPath(bookId), content: new Blob([JSON.stringify(progress, null, 2)], { type: 'application/json' }) }],
+    commitTitle: 'Sync private reading progress',
+  });
+  return progress;
+}
+
+/** Private, device-independent annotations; never mixed into the shared novel catalogue. */
+export interface CloudPersonalReview {
+  version: 1;
+  bookId: string;
+  rating: number | null;
+  comments: string;
+  updatedAt: number;
+}
+
+function personalReviewPath(bookId: string): string {
+  if (!ID_PATTERN.test(bookId)) throw new Error('Invalid novel ID for personal notes.');
+  return `data/personal/reviews/${bookId}.json`;
+}
+
+export function parseCloudPersonalReview(value: unknown, bookId: string): CloudPersonalReview {
+  if (!value || typeof value !== 'object') throw new Error('Invalid personal review document.');
+  const note = value as Partial<CloudPersonalReview>;
+  if (note.version !== 1 || note.bookId !== bookId ||
+    !(note.rating === null || (Number.isInteger(note.rating) && typeof note.rating === 'number' && note.rating >= 1 && note.rating <= 10)) ||
+    typeof note.comments !== 'string' || note.comments.length > 10000 ||
+    typeof note.updatedAt !== 'number' || !Number.isFinite(note.updatedAt) || note.updatedAt < 0) {
+    throw new Error('Unsupported personal review document.');
+  }
+  return note as CloudPersonalReview;
+}
+
+export async function fetchCloudPersonalReview(repo: string, bookId: string, session: CloudSession): Promise<CloudPersonalReview | null> {
+  const response = await privateGet(repo, personalReviewPath(bookId), session);
+  if (response.status === 404) return null;
+  if (!response.ok) throw new Error(`Unable to load synced notes for this novel (${response.status}).`);
+  return parseCloudPersonalReview(await response.json(), bookId);
+}
+
+/** Write a single book's annotation, never a catalogue or EPUB. */
+export async function saveCloudPersonalReview(
+  repo: string, bookId: string, session: CloudSession, rating: number | undefined, comments: string, updatedAt: number,
+): Promise<CloudPersonalReview> {
+  await assertPrivateDataset(repo, session);
+  const value = parseCloudPersonalReview({
+    version: 1, bookId, rating: rating ?? null, comments: comments.trim().slice(0, 10000), updatedAt,
+  }, bookId);
+  await uploadFiles({
+    repo: { type: 'dataset', name: validateDatasetRepo(repo) },
+    accessToken: session.accessToken,
+    files: [{ path: personalReviewPath(bookId), content: new Blob([JSON.stringify(value, null, 2)], { type: 'application/json' }) }],
+    commitTitle: 'Update private reading notes',
+  });
+  return value;
+}
+
+export async function fetchCloudArchive(repo: string, entry: CloudEntry, session: CloudSession): Promise<Blob> {
+  if (!validEntry(entry) || !entry.archivePath) throw new Error('No original ZIP archive is available for this novel.');
+  const response = await privateGet(repo, entry.archivePath, session);
+  if (!response.ok) throw new Error(`Unable to download original ZIP (${response.status}).`);
+  const blob = await response.blob();
+  if (!blob.size) throw new Error('The original ZIP is empty.');
+  return blob;
+}
+
 function cloudMetadata(book: LibraryBook): LibraryBook {
   // Personal tags, reading position and per-device timestamps are NOT published.
   return {
@@ -175,6 +305,24 @@ export async function uploadNovelToCloud(
   return 'added';
 }
 
+/**
+ * Resolve a book against the PRIVATE cloud catalogue. Older browser imports may
+ * have a different content hash than the hosted copy of the same title.
+ * Only use a fallback when title AND author agree and the match is unique.
+ */
+export function findCloudEntryForBook(entries: CloudEntry[], book: Pick<LibraryBook, 'id' | 'title' | 'author'>): CloudEntry | undefined {
+  const direct = entries.find(entry => validEntry(entry) && entry.id === book.id);
+  if (direct) return direct;
+  const normalise = (value: string): string => value.trim().replace(/\\s+/g, ' ').toLocaleLowerCase();
+  const title = normalise(book.title);
+  const author = normalise(book.author);
+  if (!title || !author || author === 'unknown') return undefined;
+  const matches = entries.filter(entry => validEntry(entry) &&
+    normalise(entry.metadata.title) === title &&
+    normalise(entry.metadata.author) === author);
+  return matches.length === 1 ? matches[0] : undefined;
+}
+
 export function blendCloudAndLocal(remote: CloudEntry[], local: LibraryBook[]): LibraryBook[] {
   const existing = new Map(local.map(book => [book.id, book]));
   for (const entry of remote) {
@@ -183,6 +331,10 @@ export function blendCloudAndLocal(remote: CloudEntry[], local: LibraryBook[]): 
     // Local progress, favourites and summary always take precedence.
     existing.set(entry.id, { ...entry.metadata, cloud: true,
       ...(prior ? { personalTags: prior.personalTags, userDescription: prior.userDescription,
+        personalRating: prior.personalRating, personalReview: prior.personalReview,
+        personalReviewUpdatedAt: prior.personalReviewUpdatedAt,
+        pendingReviewSync: prior.pendingReviewSync,
+        progressUpdatedAt: prior.progressUpdatedAt, pendingProgressSync: prior.pendingProgressSync,
         progress: prior.progress, currentChapter: prior.currentChapter,
         currentChapterIndex: prior.currentChapterIndex, currentChapterNumber: prior.currentChapterNumber,
         lastCfi: prior.lastCfi, lastOpenedAt: prior.lastOpenedAt } : {}),

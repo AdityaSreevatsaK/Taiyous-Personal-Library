@@ -10,15 +10,23 @@ header: mini
 short_description: Private novel library with EPUB and ZIP storage
 ---
 
-# Taiyou's Personal Library v1.0.4
+# Taiyou's Personal Library (dev / staging)
 
 
-> **Production baseline:** This README documents the restored `master` v1.0.4 source, not the newer staged features. For the exact features, storage behaviour and limitations on this branch, read **[Master capabilities and offline behaviour](docs/CAPABILITIES.md)**. The `dev` branch has additional functionality that has not been promoted to production.
+> **Development / staging:** This branch has features beyond production `master`: ratings and comments, named collections, tag browsing, global/local search, offline app shell and book caching, real EPUB download, optional hosted ZIP download and bottom chapter navigation. For the current feature list, storage and **actual offline limitations**, read **[Dev capabilities and offline behaviour](docs/CAPABILITIES.md)**. These improvements should not be described as production features until separately promoted and deployed.
 
-**Offline summary:** A previously cached EPUB can be read while the app remains open, but opening/reloading the app offline is not reliably supported (no service worker/PWA). This baseline has no dedicated Download EPUB or original ZIP button; the automatic private EPUB fetch caches a browser reading copy. See the linked capability document.
+**Offline/PWA summary:** `dev` now builds a precached application shell and web manifest, shows a per-novel **Save offline** control and **Available offline** badge, and retries pending private notes/collection changes on reconnect. Cached EPUBs can be read and exported offline. A standalone offline reload can work where the service worker controls the app, **but a private Hugging Face Space wrapper may not load offline or permit PWA installation**. Cloud retrieval, original ZIP downloads and synchronisation still require connectivity and dataset authentication. See the linked capability document.
+
+**Deployments:** Pushes to `dev` continue to deploy the authenticated Hugging Face staging Space after CI. A **separate standalone installable PWA** is prepared for Cloudflare Pages with a **public app shell and private Hugging Face data**, requiring only restricted GitHub deployment credentials before its first publish. Cloudflare Zero Trust is optional and not required. See [Standalone PWA installation and hosting](docs/STANDALONE_PWA.md). Standalone publishing is manual and never deploys production.
+
+**Bulk offline and progress sync:** The current `dev` version adds **Save all offline** for EPUB caching, installable PNG icons, and per-book cloud reading-position synchronisation (plus existing reviews and collections sync) through private dataset metadata files. Never store HF tokens in GitHub or the Pages project.
 
 
-This version builds on the approved v0.7.0 reader and adds **hosted novel storage** without requiring a running backend or embedding a long-lived Hugging Face token in the web app.
+## Historical baseline notes
+
+The sections below were originally written for v1.0.4 and preserve setup and migration background. For what is **currently implemented on dev**, use the capabilities document linked above; some historic feature and verification descriptions below do not describe the current staging code.
+
+The original v1.0.4 version built on the approved v0.7.0 reader and added **hosted novel storage** without requiring a running backend or embedding a long-lived Hugging Face token in the web app.
 
 ## Release notes: private Space authentication compatibility
 

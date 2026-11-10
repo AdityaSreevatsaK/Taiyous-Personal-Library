@@ -13,6 +13,7 @@ interface Props {
   settings: ReaderSettings;
   onSettings: (settings: ReaderSettings) => void;
   onBack: () => void;
+  onNovelDetails: () => void;
   initialChapterHref?: string;
   onProgress: (patch: Partial<LibraryBook>) => void;
 }
@@ -49,6 +50,7 @@ function applyAppearance(rendition: any, settings: ReaderSettings) {
       'max-width': 'none !important',
       margin: '0 !important',
       'box-sizing': 'border-box !important',
+      'overflow-x': 'hidden !important',
     },
     body: {
       background: `${tone.background} !important`,
@@ -58,6 +60,8 @@ function applyAppearance(rendition: any, settings: ReaderSettings) {
       width: '100% !important',
       'max-width': 'none !important',
       'min-width': '0 !important',
+      'overflow-x': 'hidden !important',
+      'overflow-wrap': 'anywhere !important',
       margin: '0 !important',
       'box-sizing': 'border-box !important',
       'font-family': `${font} !important`,
@@ -80,7 +84,7 @@ function applyAppearance(rendition: any, settings: ReaderSettings) {
   rendition.themes.fontSize(`${settings.fontSize}%`);
 }
 
-export default function Reader({ book, settings, onSettings, onBack, onProgress, initialChapterHref }: Props) {
+export default function Reader({ book, settings, onSettings, onBack, onNovelDetails, onProgress, initialChapterHref }: Props) {
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const bookRef = useRef<any>(null);
   const renditionRef = useRef<any>(null);
@@ -138,6 +142,10 @@ export default function Reader({ book, settings, onSettings, onBack, onProgress,
             const cleanup = doc.createElement('style');
             cleanup.setAttribute('data-taiyou-hide-empty-embeds', '');
             cleanup.textContent = `
+              html, body { overflow-x: hidden !important; max-width: 100% !important; }
+              body { overflow-wrap: anywhere !important; word-wrap: break-word !important; }
+              img, svg, video, table { max-width: 100% !important; }
+              pre, code { white-space: pre-wrap !important; overflow-wrap: anywhere !important; }
               iframe:not([src]):not([srcdoc]),
               iframe[src=""]:not([srcdoc]) {
                 display: none !important;
@@ -286,26 +294,36 @@ export default function Reader({ book, settings, onSettings, onBack, onProgress,
     <div className={`reader-shell theme-${settings.theme}`} style={{ '--reading-width': settings.readingWidth === 0 ? 'none' : `${settings.readingWidth}px` } as CSSProperties}>
       <header className="reader-header">
         <div className="reader-head-left">
-          <button className="reader-back icon-button" onClick={onBack} title="Back to library" aria-label="Back to library"><ArrowLeft size={19} /></button>
+          <button className="reader-back icon-button" onClick={onNovelDetails} title="Back to novel details" aria-label="Back to novel details"><ArrowLeft size={19} /></button>
           <div className="reader-divider" />
-          <div className="reader-brand"><BookOpen size={18} /><span>Taiyou's Personal Library</span></div>
+          <button type="button" className="reader-brand reader-home-link" onClick={onBack} title="Go to library home" aria-label="Go to library home"><BookOpen size={18} /><span>Taiyou's Personal Library</span></button>
         </div>
         <div className="reader-head-center" aria-live="polite" aria-atomic="true">
-          <strong title={book.title}>{book.title}</strong>
+          <button type="button" className="reader-novel-link" onClick={onNovelDetails} title="Go to novel details" aria-label={`Go to ${book.title} details`}>{book.title}</button>
           <small>{currentChapterIndex >= 0 ? `Chapter ${displayedChapterIndex} of ${displayedChapterCount}` : chapter} <span className="reader-progress-percent"> · {Math.round(progress)}% read</span></small>
         </div>
         <nav className="reader-head-right" aria-label="Reader controls">
           <button className={`icon-button ${panel === 'toc' ? 'reader-active' : ''}`} onClick={() => setPanel(panel === 'toc' ? null : 'toc')} title="Table of contents" aria-label="Table of contents"><List size={20} /></button>
           <button className={`icon-button ${panel === 'settings' ? 'reader-active' : ''}`} onClick={() => setPanel(panel === 'settings' ? null : 'settings')} title="Reading preferences" aria-label="Reading preferences"><Settings2 size={19} /></button>
-          <span className="reader-nav-divider" aria-hidden="true" />
-          <button className="reader-nav-btn reader-nav-prev" type="button" disabled={loading || moving || !!error || currentChapterIndex <= 0} onClick={() => void turn('prev')} title="Previous chapter (Left arrow)" aria-label="Previous chapter"><ChevronLeft size={19} /><span>Previous</span></button>
-          <button className="reader-nav-btn reader-nav-next" type="button" disabled={loading || moving || !!error || currentChapterIndex >= chapters.length - 1} onClick={() => void turn('next')} title="Next chapter (Right arrow)" aria-label="Next chapter"><span>Next chapter</span><ChevronRight size={19} /></button>
         </nav>
         <div className="reader-header-progress" role="progressbar" aria-label="Book progress" aria-valuenow={Math.round(progress)} aria-valuemin={0} aria-valuemax={100}>
           <div style={{ width: `${Math.max(0, Math.min(progress, 100))}%` }} />
         </div>
       </header>
       <div className="reader-main"><div className="reader-content"><div className="reader-page" ref={viewportRef} />{loading && <div className="reader-loading"><div className="loader-icon"><BookOpen size={30} /></div><strong>Opening your story…</strong><p>Preparing the pages of {book.title}</p></div>}{error && <div className="reader-error" role="alert"><strong>Something went wrong</strong><p>{error}</p><button className="secondary-button" onClick={onBack}>Return to library</button></div>}</div></div>
+      <nav className="reader-chapter-footer" aria-label="Chapter navigation">
+        <button className="reader-chapter-button reader-chapter-previous" type="button"
+          disabled={loading || moving || !!error || currentChapterIndex <= 0}
+          onClick={() => void turn('prev')} title="Previous chapter (Left arrow)" aria-label="Previous chapter">
+          <ChevronLeft size={19} /><span>Previous chapter</span>
+        </button>
+        <span className="reader-footer-position" aria-live="off">{currentChapterIndex >= 0 ? `${displayedChapterIndex} / ${displayedChapterCount}` : 'Chapters'}</span>
+        <button className="reader-chapter-button reader-chapter-next" type="button"
+          disabled={loading || moving || !!error || (currentChapterIndex >= chapters.length - 1 && currentChapterIndex >= 0)}
+          onClick={() => void turn('next')} title="Next chapter (Right arrow)" aria-label="Next chapter">
+          <span>Next chapter</span><ChevronRight size={19} />
+        </button>
+      </nav>
 
 
       {panel && <><button className="reader-panel-shade" aria-label="Close panel" onClick={() => setPanel(null)} /><aside className="reader-panel" aria-label={panel === 'toc' ? 'Table of contents' : 'Reader preferences'}><div className="panel-header"><div><span className="section-overline">{panel === 'toc' ? 'NAVIGATION' : 'MAKE IT YOUR OWN'}</span><h2>{panel === 'toc' ? 'Contents' : 'Appearance'}</h2></div><button className="icon-button" onClick={() => setPanel(null)} aria-label="Close panel"><X size={20} /></button></div>{panel === 'toc' ? <><label className="toc-search"><Search size={17} /><input placeholder="Find a chapter…" value={tocSearch} onChange={(e) => setTocSearch(e.target.value)} /></label><div className="toc-list">{filteredToc.map((item, index) => { const active = normalizeChapterHref(item.href) === normalizeChapterHref(activeHref); return <button key={`${index}-${item.href}`} onClick={() => void jump(item.href)} className={`toc-item ${active ? 'active' : ''}`} style={{ paddingLeft: `${18 + Math.min(item.level, 3) * 13}px` }}><span className="toc-chapter-icon">{active ? <BookOpen size={15} /> : <span>·</span>}</span><span>{item.label}</span>{active && <Check size={15} />}</button>; })}{!filteredToc.length && <div className="toc-no-results">No matching chapters found.</div>}</div><div className="panel-footer">{toc.length} entries in this book</div></> : <div className="settings-content"><div className="setting-group"><label className="setting-label">READING THEME</label><div className="theme-options"><button className={`theme-choice choice-light ${settings.theme === 'light' ? 'selected' : ''}`} onClick={() => change({ theme: 'light' })}><Sun size={20} /><span>Light</span>{settings.theme === 'light' && <Check size={14} />}</button><button className={`theme-choice choice-sepia ${settings.theme === 'sepia' ? 'selected' : ''}`} onClick={() => change({ theme: 'sepia' })}><BookOpen size={20} /><span>Sepia</span>{settings.theme === 'sepia' && <Check size={14} />}</button><button className={`theme-choice choice-dark ${settings.theme === 'dark' ? 'selected' : ''}`} onClick={() => change({ theme: 'dark' })}><Moon size={20} /><span>Dark</span>{settings.theme === 'dark' && <Check size={14} />}</button></div></div><div className="setting-group"><label className="setting-label" htmlFor="font-family-select">FONT FAMILY</label><div className="styled-select"><Type size={18} /><select id="font-family-select" value={settings.font} onChange={(e) => change({ font: e.target.value as ReaderSettings['font'] })}><option value="literary">Literata · Recommended</option><option value="georgia">Georgia · Familiar serif</option><option value="classic">Palatino · Classic serif</option><option value="sans">Inter · Modern sans</option><option value="clear">Atkinson · High legibility</option></select><ChevronRight size={17} /></div></div><div className="setting-group"><label className="setting-label">FONT SIZE</label><div className="font-stepper"><button onClick={() => change({ fontSize: Math.max(75, settings.fontSize - 10) })} aria-label="Decrease font size"><Minus size={19} /></button><span><Type size={20} />{settings.fontSize}%</span><button onClick={() => change({ fontSize: Math.min(170, settings.fontSize + 10) })} aria-label="Increase font size"><Plus size={19} /></button></div></div><div className="setting-group"><div className="setting-row"><label className="setting-label" htmlFor="line-height">LINE SPACING</label><span>{settings.lineHeight.toFixed(2)}×</span></div><input id="line-height" type="range" min="1.3" max="2.2" step="0.05" value={settings.lineHeight} onChange={(e) => change({ lineHeight: Number(e.target.value) })} /></div><div className="setting-group"><div className="setting-row"><span className="setting-label">READING WIDTH</span><span>{settings.readingWidth === 0 ? 'Full screen' : `${settings.readingWidth}px`}</span></div><div className="width-options" role="group" aria-label="Reading width"><button type="button" className={`width-choice ${settings.readingWidth === 760 ? 'selected' : ''}`} onClick={() => change({ readingWidth: 760 })} aria-pressed={settings.readingWidth === 760}>Comfortable</button><button type="button" className={`width-choice ${settings.readingWidth === 1280 ? 'selected' : ''}`} onClick={() => change({ readingWidth: 1280 })} aria-pressed={settings.readingWidth === 1280}>Wide</button><button type="button" className={`width-choice ${settings.readingWidth === 0 ? 'selected' : ''}`} onClick={() => change({ readingWidth: 0 })} aria-pressed={settings.readingWidth === 0}>Full width</button></div><label htmlFor="page-width" className="width-custom-label">Or customise maximum width</label><input id="page-width" type="range" min="520" max="1600" step="20" value={settings.readingWidth === 0 ? 1600 : settings.readingWidth} onChange={(e) => change({ readingWidth: Number(e.target.value) })} aria-label="Custom reading width in pixels" /><p className="setting-help">Full width uses almost the entire screen while retaining small edge margins. Your preference is saved automatically.</p></div><div className="settings-note"><SlidersHorizontal size={17} />Your preferences are saved automatically on this device.</div><button className="reset-settings" onClick={() => onSettings({ ...DEFAULT_SETTINGS })}>Reset to defaults <PanelRightClose size={16} /></button></div>}</aside></>}

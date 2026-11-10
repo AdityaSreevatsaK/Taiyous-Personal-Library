@@ -523,3 +523,266 @@ button, input, select { -webkit-tap-highlight-color: transparent; }
 .cloud-token-form input { flex: 1 1 250px; min-width: 0; max-width: 420px; min-height: 43px; padding: 9px 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); color: var(--text); font: inherit; }
 .cloud-token-form .primary-button { min-height: 43px; }
 @media (max-width: 700px) { .cloud-token-form { align-items: stretch; flex-direction: column; } .cloud-token-form input, .cloud-token-form .primary-button { width: 100%; max-width: none; flex: auto; } }
+
+
+/* v1.1 staging: compact first-screen bookshelf, with cloud controls tucked aside. */
+.page-content > .cloud-connect {
+  position: relative;
+  width: fit-content;
+  max-width: 100%;
+  margin: 0 0 12px auto;
+  padding: 5px 9px;
+  border-radius: 10px;
+  background: var(--surface);
+  box-shadow: none;
+}
+.page-content > .cloud-connect .cloud-connect-head { gap: 8px; flex-wrap: nowrap; }
+.page-content > .cloud-connect .cloud-connect-head > span { gap: 7px; font-size: 12px; }
+.page-content > .cloud-connect .cloud-connect-head small { font-size: 10px; }
+.page-content > .cloud-connect .cloud-connect-head .secondary-button {
+  margin: 0;
+  padding: 7px 10px;
+  font-size: 11px;
+}
+.page-content > .cloud-connect .cloud-connect-body {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 8px);
+  width: min(610px, calc(100vw - 32px));
+  padding: 20px;
+  margin: 0;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  box-shadow: 0 18px 46px rgba(0,0,0,.18);
+  z-index: 30;
+  max-height: min(70vh, 650px);
+  overflow-y: auto;
+}
+.page-content > .cloud-connect .cloud-status {
+  max-width: 450px;
+  line-height: 1.45;
+  word-break: break-word;
+}
+.page-head { margin-bottom: 20px; }
+.page-head h1 { margin-top: 7px; font-size: clamp(32px, 3.4vw, 43px); }
+.library-section { margin-top: 20px; }
+.section-titlebar { margin-bottom: 13px; }
+.library-toolbar { margin-bottom: 16px; }
+.book-grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 23px 16px; }
+.tile-meta { padding-top: 10px; }
+.feature-panel { min-height: 170px; padding: 19px 30px; }
+.feature-panel .featured-cover-wrap { transform: scale(.7); transform-origin: center right; margin: -36px 0; }
+@media (max-width: 700px) {
+  .page-content > .cloud-connect { margin-bottom: 12px; }
+  .page-content > .cloud-connect .cloud-connect-head > span strong { display: none; }
+  .page-content > .cloud-connect .cloud-connect-body { width: calc(100vw - 36px); }
+  .page-head { margin-bottom: 16px; }
+  .page-head h1 { font-size: 34px; }
+  .library-section { margin-top: 16px; }
+  .book-grid { grid-template-columns: repeat(auto-fill, minmax(125px, 1fr)); gap: 20px 13px; }
+}
+
+
+/* v1.2 staging: unobtrusive connected status pill and local book reviews. */
+.page-content > .cloud-connect { border-radius: 999px; padding: 4px 7px 4px 12px; }
+.page-content > .cloud-connect .cloud-connect-head > span { flex-wrap: nowrap; white-space: nowrap; }
+.page-content > .cloud-connect .cloud-connect-head .secondary-button { border-radius: 999px; padding: 6px 12px; }
+.connection-badge { display: inline-flex; align-items: center; border-radius: 999px; padding: 4px 9px; background: var(--pale); color: var(--subtext); font-size: 11px; font-weight: 700; }
+.connection-badge.is-connected { background: #e0eddf; color: #2f6743; }
+.theme-dark .connection-badge.is-connected { background: #2f4939; color: #b8e0bd; }
+.page-content > .cloud-connect .cloud-connect-body { border-radius: 14px; white-space: normal; }
+.book-rating-pill { display: inline-flex; flex: 0 0 auto; align-items: center; gap: 4px; font-weight: 750; color: #906a2b; background: var(--pale); border-radius: 6px; padding: 3px 6px; font-size: 11px; }
+.tile-bottom { gap: 6px; flex-wrap: wrap; }
+.personal-review-form { display: flex; flex-direction: column; gap: 13px; }
+.personal-review-form label, .rating-fieldset legend { font-size: 12px; color: var(--text); font-weight: 700; }
+.rating-fieldset { padding: 0; margin: 0; border: 0; min-width: 0; }
+.rating-fieldset legend { margin-bottom: 10px; }
+.rating-choices { display: flex; gap: 5px; flex-wrap: wrap; align-items: center; }
+.rating-choice { min-width: 37px; height: 39px; border-radius: 8px; border: 1px solid var(--border); background: var(--pale); color: var(--text); font-size: 13px; font-weight: 700; }
+.rating-choice:hover { border-color: #688b72; }
+.rating-choice.selected { background: #355b43; color: white; border-color: #355b43; }
+.rating-clear { margin-left: 6px; border: 0; background: transparent; color: var(--subtext); font-size: 12px; text-decoration: underline; }
+.personal-review-form textarea { width: 100%; border: 1px solid var(--border); border-radius: 9px; background: var(--bg); color: var(--text); padding: 13px; font-size: 14px; line-height: 1.6; font-family: inherit; resize: vertical; }
+.personal-review-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; }
+.personal-review-actions span { font-size: 11px; color: var(--subtext); }
+@media (max-width: 700px) { .page-content > .cloud-connect { padding-left: 8px; } .connection-badge { padding: 4px 7px; } .page-content > .cloud-connect .cloud-connect-head .secondary-button { padding: 6px 8px; } }
+
+
+/* Staging: rating actions live in the title hero; supporting cards are left-aligned. */
+.details-columns { grid-template-columns: minmax(265px, 1fr) minmax(0, 1.65fr); }
+.details-aside { grid-column: 1; grid-row: 1; }
+.details-main-column { grid-column: 2; grid-row: 1; }
+.hero-rating { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end; margin-top: 22px; }
+.hero-rating-fieldset { min-width: 0; border: 0; padding: 0; margin: 0; }
+.hero-rating-fieldset legend { display: flex; align-items: center; gap: 7px; margin-bottom: 8px; color: #deeadc; font-size: 12px; font-weight: 700; }
+.hero-rating-choices { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; }
+.hero-rating-choice { display: inline-grid; place-items: center; min-width: 31px; height: 32px; padding: 0 4px; border: 1px solid #95b19d7d; border-radius: 7px; background: #ffffff17; color: #f2f7ed; font-size: 12px; font-weight: 700; }
+.hero-rating-choice:hover { background: #ffffff36; }
+.hero-rating-choice.selected { background: #f1f5ea; color: #254332; border-color: #f1f5ea; }
+.hero-rating-clear { border: 0; color: #deeadc; background: transparent; padding: 5px 8px; font-size: 11px; text-decoration: underline; }
+.hero-rating-save { min-height: 32px; padding: 6px 12px; border: 1px solid #d3e4d5; border-radius: 7px; background: #d3e4d5; color: #254332; font-size: 12px; font-weight: 750; }
+.hero-rating-save:hover { background: #ffffff; }
+.details-hero .details-start { margin-top: 20px; }
+@media (max-width: 900px) {
+  .details-columns { grid-template-columns: 1fr; }
+  .details-aside, .details-main-column { grid-column: 1; grid-row: auto; }
+  .details-aside { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); }
+}
+@media (max-width: 700px) {
+  .details-aside { display: flex; }
+  .hero-rating { margin-top: 17px; }
+  .hero-rating-choice { min-width: 28px; height: 30px; }
+}
+
+
+/* Tag navigation and separate global versus collection-scoped searches. */
+.global-search-field { display: flex; align-items: center; gap: 8px; padding: 0 11px; height: 37px; width: clamp(175px, 21vw, 300px); min-width: 0; border: 1px solid var(--border); border-radius: 9px; background: var(--bg); color: var(--subtext); }
+.global-search-field input { width: 100%; min-width: 0; border: none; outline: none; background: transparent; color: var(--text); font-size: 12px; }
+.global-search-field button { border: 0; background: none; color: var(--subtext); padding: 3px; display: flex; }
+.tag-collection-head { margin: 0 0 12px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; padding: 11px 15px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; font-size: 12px; color: var(--subtext); }
+.tag-collection-head strong { color: var(--text); }
+.tag-collection-head button { border: 0; color: var(--text); background: var(--pale); padding: 6px 9px; border-radius: 7px; font-size: 11px; display: inline-flex; align-items: center; gap: 5px; }
+.details-hero-tags button { font-size: 10px; padding: 6px 10px; color: #e0eee1; border-radius: 6px; border: 1px solid #7a948485; background: #ffffff12; cursor: pointer; }
+.details-hero-tags button:hover, .details-hero-tags button:focus-visible { border-color: #e0eee1; background: #ffffff2d; text-decoration: underline; }
+button.details-tag.imported-tag { font: inherit; font-size: 12px; cursor: pointer; }
+button.details-tag.imported-tag:hover { background: var(--surface-soft); text-decoration: underline; }
+.details-tag .tag-browse-button { color: var(--text); font: inherit; text-decoration: underline; text-decoration-color: transparent; }
+.details-tag .tag-browse-button:hover { text-decoration-color: currentColor; }
+.tile-tags button { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; border-radius: 5px; border: 0; background: var(--pale); color: var(--subtext); font-size: 9px; padding: 4px 7px; cursor: pointer; }
+.tile-tags button:hover { color: var(--text); text-decoration: underline; }
+@media (max-width: 700px) {
+  .global-search-field { width: clamp(120px, 41vw, 225px); }
+  .top-actions { gap: 5px; }
+  .breadcrumbs { font-size: 9px; gap: 5px; }
+  .breadcrumbs > span:first-child { display: none; }
+  .breadcrumbs > .crumb-slash { display: none; }
+  .tag-collection-head { align-items: flex-start; }
+}
+
+
+/* Downloads are independent from opening the reader; both controls stay visible. */
+.details-hero-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 22px; }
+.details-hero-actions .details-start { margin-top: 0; }
+.details-download { display: inline-flex; align-items: center; justify-content: center; gap: 8px; border: 1px solid #d5e6d8a8; border-radius: 9px; min-height: 45px; padding: 11px 16px; color: #f1f7ee; background: #ffffff16; font-size: 12px; font-weight: 700; }
+.details-download:hover { background: #ffffff2b; }
+.details-download:focus-visible { outline: 2px solid #f1f7ee; outline-offset: 2px; }
+@media (max-width: 700px) { .details-hero-actions { margin-top: 16px; gap: 8px; } .details-download { min-height: 39px; padding: 9px 11px; font-size: 11px; } }
+
+
+/* EPUB horizontal overflow fix: keep vertical reading scroll, never a bottom track. */
+html, body, #root { max-width: 100%; overflow-x: clip; }
+.reader-shell, .reader-main, .reader-content, .reader-page { max-width: 100%; min-width: 0; overflow-x: clip; }
+.reader-page .epub-container, .reader-page .epub-view, .reader-page iframe { max-width: 100% !important; overflow-x: hidden !important; }
+.reader-page .epub-container { overflow-y: auto; }
+.reader-page iframe { display: block; }
+.reader-home-link, .reader-novel-link { border: 0; background: transparent; cursor: pointer; }
+.reader-home-link { padding: 4px; border-radius: 7px; }
+.reader-home-link:hover, .reader-home-link:focus-visible { background: var(--surface-soft); }
+.reader-novel-link { display: block; width: 100%; max-width: 100%; text-align: center; font: inherit; font-size: 12px; font-weight: 700; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; padding: 4px 3px; border-radius: 5px; color: var(--text); }
+.reader-novel-link:hover, .reader-novel-link:focus-visible { text-decoration: underline; background: var(--surface-soft); }
+@media (max-width: 700px) { .reader-novel-link { font-size: 11px; } }
+
+
+/* Named collections are independent from genre tags. */
+.side-collection-title { display: flex; justify-content: space-between; align-items: end; gap: 7px; }
+.side-collection-title .side-caption { margin-bottom: 7px; }
+.side-collection-title > button { color: #b8cbbd; background: #344f40; border: 1px solid #688576; border-radius: 7px; height: 27px; width: 29px; display: grid; place-items: center; margin-right: 10px; }
+.side-collection-title > button:hover { background: #456750; }
+.collection-create-form { margin: 7px 12px 12px; display: flex; gap: 5px; align-items: center; }
+.collection-create-form input { flex: 1; min-width: 0; border: 1px solid #688576; border-radius: 7px; padding: 8px 7px; color: #e8eee7; background: #172b22; font-size: 12px; }
+.collection-create-form button { flex: 0 0 auto; display: grid; place-items: center; border: 0; border-radius: 7px; padding: 8px; background: #9cbca3; color: #20342d; }
+.collection-heading .collection-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; }
+.book-collection-tools { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; margin: 9px 0 4px; }
+.book-collection-tools select { min-width: 0; max-width: 100%; font-size: 10px; border: 1px solid var(--border); border-radius: 6px; color: var(--subtext); background: var(--surface); padding: 6px 5px; }
+.book-collection-tools button { border: 0; padding: 4px 6px; color: var(--subtext); background: var(--pale); border-radius: 6px; font-size: 10px; }
+.book-collection-tools button:hover { text-decoration: underline; }
+
+
+/* On narrow readers show the library-home book icon instead of two left controls. */
+@media (max-width: 700px) {
+  .reader-header .reader-back { display: none; }
+  .reader-header .reader-home-link { display: flex; width: 37px; height: 40px; min-width: 37px; justify-content: center; }
+  .reader-header .reader-home-link span { display: none; }
+  .reader-head-left { flex: 0 0 37px; }
+}
+
+
+/* Chapter navigation sits below the scrolling EPUB, away from hosting overlays. */
+.reader-chapter-footer {
+  flex: 0 0 auto;
+  min-height: 57px;
+  padding: 8px max(16px, env(safe-area-inset-right, 0px)) max(9px, env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px));
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  gap: 12px;
+  align-items: center;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  z-index: 3;
+}
+.reader-chapter-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 38px;
+  width: fit-content;
+  padding: 8px 15px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--surface-soft);
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.reader-chapter-button:hover:not(:disabled) { background: var(--pale); }
+.reader-chapter-button:focus-visible { outline: 2px solid #729877; outline-offset: 2px; }
+.reader-chapter-button:disabled { opacity: .45; }
+.reader-chapter-previous { justify-self: start; }
+.reader-chapter-next { justify-self: end; background: #355b43; color: #fff; border-color: #355b43; }
+.reader-chapter-next:hover:not(:disabled) { background: #294735; }
+.reader-footer-position { color: var(--subtext); font-size: 11px; font-variant-numeric: tabular-nums; }
+@media (max-width: 700px) {
+  .reader-chapter-footer { min-height: 55px; padding-left: max(9px, env(safe-area-inset-left, 0px)); padding-right: max(9px, env(safe-area-inset-right, 0px)); gap: 5px; }
+  .reader-chapter-button { min-height: 40px; padding: 8px 10px; font-size: 11px; gap: 3px; }
+  .reader-footer-position { font-size: 10px; }
+}
+@media (max-width: 360px) {
+  .reader-chapter-button { font-size: 10px; padding: 8px 7px; }
+}
+
+
+/* Offline/PWA readiness is informational; private EPUBs remain in IndexedDB. */
+.offline-health { display: flex; flex-wrap: wrap; align-items: center; gap: 9px 16px; margin: 0 0 14px; font-size: 11px; color: var(--subtext); }
+.offline-health > span { display: inline-flex; align-items: center; gap: 5px; }
+.offline-connection { font-weight: 750; }
+.offline-connection.online { color: #397c50; }
+.offline-connection.offline { color: #a45c2d; }
+.pending-sync-status { color: #946728; font-weight: 700; }
+.offline-book-status { margin: 2px 0 7px; min-height: 21px; display: flex; }
+.offline-ready-badge { display: inline-flex; gap: 4px; align-items: center; padding: 4px 8px; border-radius: 7px; color: #37684c; background: #dfeadf; font-size: 10px; font-weight: 750; }
+.offline-cache-btn { display: inline-flex; gap: 5px; align-items: center; padding: 4px 8px; border: 1px solid var(--border); border-radius: 7px; background: var(--surface); color: var(--subtext); font-size: 10px; cursor: pointer; }
+.offline-cache-btn:hover:not(:disabled) { color: var(--text); background: var(--pale); }
+.offline-cache-btn:disabled { opacity: .55; cursor: not-allowed; }
+@media (max-width: 700px) { .offline-health { gap: 5px 10px; font-size: 10px; } }
+
+
+/* Bulk device-local EPUB downloads, separate from browser's file export action. */
+.offline-cache-all-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  min-height: 29px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  background: var(--surface);
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.offline-cache-all-btn:hover:not(:disabled) { background: var(--pale); }
+.offline-cache-all-btn:disabled { opacity: .55; cursor: not-allowed; }

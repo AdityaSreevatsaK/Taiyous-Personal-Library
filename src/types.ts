@@ -24,6 +24,14 @@ export interface LibraryBook {
   description?: string;
   /** Optional user-supplied replacement summary. */
   userDescription?: string;
+  /** Personal rating from 1 to 10; synchronised with private dataset when connected. */
+  personalRating?: number;
+  /** Private comments, stored in a separate private notes file when connected. */
+  personalReview?: string;
+  /** Latest rating/comments edit timestamp to merge cloud notes safely. */
+  personalReviewUpdatedAt?: number;
+  /** Saved locally and awaiting publication to the private dataset. */
+  pendingReviewSync?: boolean;
   status?: string;
   sourceUrl?: string;
   /** Old imports are enriched lazily when their detail pages are opened. */
@@ -36,6 +44,10 @@ export interface LibraryBook {
   progress: number;
   currentChapter?: string;
   currentChapterIndex?: number;
+  /** Newest local progress edit; used to resolve cross-device updates. */
+  progressUpdatedAt?: number;
+  /** Progress waiting to be written to the private cloud after reconnect. */
+  pendingProgressSync?: boolean;
   size: number;
 }
 
