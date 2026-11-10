@@ -917,3 +917,21 @@ html, body, #root { max-width: 100%; overflow-x: clip; }
  .advanced-results-grid { grid-template-columns: minmax(0,1fr); }
  .advanced-search-heading .secondary-button { max-width: 120px; white-space: normal; }
 }
+
+
+/* Compact continue-reading invitation in place of the old full-height hero. */
+.reading-resume-strip { display: flex; align-items: center; gap: 14px; padding: 12px 16px; margin: 0 0 15px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); box-shadow: 0 4px 22px rgba(27,48,34,.035); }
+.reading-resume-icon { flex-shrink: 0; display: grid; place-items: center; width: 43px; height: 43px; border-radius: 10px; background: #325942; color: #f5f6ed; }
+.reading-resume-info { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; min-width: 0; flex: 1; }
+.reading-resume-info>span { font-size: 9px; font-weight: 850; letter-spacing: 1.45px; color: #63846d; }
+.reading-resume-info>button { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; border: none; background: none; padding: 0; color: var(--text); font: 600 16px Georgia,serif; }
+.reading-resume-info>button:hover { text-decoration: underline; }
+.reading-resume-info>small { max-width: 100%; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; color: var(--subtext); font-size: 11px; }
+.reading-resume-continue { display: inline-flex; align-items: center; justify-content: center; gap: 8px; border: none; border-radius: 9px; color: white; background: #305440; padding: 10px 13px; font-size: 12px; font-weight: 650; white-space: nowrap; }
+.reading-resume-continue:hover { background: #244633; }
+@media(max-width:550px) {
+ .reading-resume-strip { gap: 10px; padding: 10px; }
+ .reading-resume-icon { width: 36px; height: 36px; }
+ .reading-resume-info>button { font-size: 14px; }
+ .reading-resume-continue { padding: 9px; font-size: 11px; }
+}
