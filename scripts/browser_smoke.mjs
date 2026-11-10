@@ -25,6 +25,13 @@ const browser = await chromium.launch({ headless: true });
 try {
   for (const viewport of [{ width: 1366, height: 768 }, { width: 390, height: 844 }]) {
     const context = await browser.newContext({ viewport });
+    // Vite preview serves static assets only; the Pages Function is tested
+    // separately. Simulate an unconfigured gateway so the legacy offline and
+    // local-book fallback is exercised without spurious static-server 404s.
+    await context.route('**/api/library?**', route => route.fulfill({
+      status: 200, contentType: 'application/json',
+      body: JSON.stringify({ connected: false }),
+    }));
     const page = await context.newPage();
     const errors = [];
     const failedAssets = [];
