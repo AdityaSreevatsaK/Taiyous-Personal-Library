@@ -95,14 +95,14 @@ jobs:
         run: |
           set -euo pipefail
           endpoint="https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/pages/projects/$CF_PAGES_PROJECT"
-          current="$(curl --silent --show-error --fail-with-body "$endpoint" \\
+          current="$(curl --silent --show-error --fail-with-body "$endpoint" \
             -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" | jq -er '.result.production_branch')"
           echo "Current production branch: $current"
           if [[ "$current" != "master" ]]; then
-            curl --silent --show-error --fail-with-body --request PATCH "$endpoint" \\
-              -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \\
-              -H "Content-Type: application/json" \\
-              --data '{"production_branch":"master"}' \\
+            curl --silent --show-error --fail-with-body --request PATCH "$endpoint" \
+              -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+              -H "Content-Type: application/json" \
+              --data '{"production_branch":"master"}' \
               | jq -e '.success == true and .result.production_branch == "master"' >/dev/null
             echo "Changed Pages production branch to master"
           fi
