@@ -750,6 +750,7 @@ export default function App() {
         onDownloadArchive={cloudSession && findCloudEntryForBook([...cloudEntries.current.values()], detailBook)?.archivePath
           ? () => downloadArchive(detailBook) : undefined}
         cloudConnected={!!cloudSession && !!cloudRepo}
+        cloudRepo={cloudRepo} cloudSession={cloudSession}
         onSaveTags={tags => savePersonalTags(detailBook.id, tags)}
         onSaveSummary={summary => savePersonalSummary(detailBook.id, summary)}
         onSaveReview={(rating, review) => savePersonalReview(detailBook.id, rating, review)}
