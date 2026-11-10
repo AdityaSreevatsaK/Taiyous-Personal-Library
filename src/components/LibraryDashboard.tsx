@@ -202,6 +202,16 @@ export default function LibraryDashboard({
       <main className="main-panel">
         <header className="topbar"><button className="icon-button mobile-menu" onClick={() => setSidebarOpen(true)} aria-label="Open menu"><Menu size={22} /></button><div className="breadcrumbs"><span>MY LIBRARY</span><span className="crumb-slash">/</span><strong>{showAdvanced ? 'Advanced search' : globalMode ? 'Global search' : selectedCollection ? `Collection: ${selectedCollection.name}` : selectedTag ? `Tag: ${selectedTag}` : filter === 'all' ? 'All books' : navEntries.find((i) => i.id === filter)?.name}</strong></div><div className="top-actions"><label className="global-search-field"><Search size={16} /><input aria-label="Search all novels" placeholder="Search all novels…" value={globalSearch} onChange={event => onGlobalSearch(event.target.value)} />{globalSearch && <button type="button" aria-label="Clear global search" onClick={() => onGlobalSearch('')}><X size={15} /></button>}</label><button type="button" className="advanced-search-launch" onClick={() => { setShowAdvanced(true); setSidebarOpen(false); }}><Search size={16} /><span>Advanced search</span></button><button className="icon-button theme-switch" onClick={() => onThemeChange(themes[(themes.indexOf(theme) + 1) % themes.length])} title="Change theme" aria-label="Change theme">{theme === 'dark' ? <Moon size={19} /> : <Sun size={19} />}</button></div></header>
         <div className="page-content">
+          {notice && <div className="alert success-alert" role="status"><CheckCircle2 size={17} />{notice}</div>}
+          {(error || storageError) && <div className="alert error-alert" role="alert">{error || storageError}</div>}
+          {!showAdvanced && <div className="page-head page-head-compact">
+            <div><div className="eyebrow"><span className="eyebrow-line" /> TAIYOU'S COLLECTION</div>
+              <h1>{filter === 'offline' ? 'Offline library' : selectedCollection ? selectedCollection.name : selectedTag ? selectedTag : 'Your library'}<span className="serif-accent">.</span></h1>
+              <p>{filter === 'offline' ? `${cachedEpubIds.length} downloaded for reading without a connection` : `${books.length} stories to explore, all in one place`}</p>
+            </div>
+            <button className="primary-button desktop-import" onClick={onImportClick} disabled={importing}><Plus size={18}/>{importing ? 'Importing…' : 'Add a novel'}</button>
+          </div>}
+          <div className="library-utility-bar">
           {!showAdvanced && <div className="offline-health" role="status" aria-label="Offline availability">
             <span className={online ? 'offline-connection online' : 'offline-connection offline'}>
               {online ? <Cloud size={14} /> : <WifiOff size={14} />}
@@ -244,15 +254,7 @@ export default function LibraryDashboard({
             </div>}
             {cloudMessage && (!cloudSession || /unavailable|failed|error/i.test(cloudMessage)) && <p className="cloud-status" role="status">{cloudMessage}</p>}
           </section>
-          {notice && <div className="alert success-alert" role="status"><CheckCircle2 size={17} />{notice}</div>}
-          {(error || storageError) && <div className="alert error-alert" role="alert">{error || storageError}</div>}
-          {!showAdvanced && <div className="page-head page-head-compact">
-            <div><div className="eyebrow"><span className="eyebrow-line" /> TAIYOU'S COLLECTION</div>
-              <h1>{filter === 'offline' ? 'Offline library' : selectedCollection ? selectedCollection.name : selectedTag ? selectedTag : 'Your library'}<span className="serif-accent">.</span></h1>
-              <p>{filter === 'offline' ? `${cachedEpubIds.length} downloaded for reading without a connection` : `${books.length} stories to explore, all in one place`}</p>
-            </div>
-            <button className="primary-button desktop-import" onClick={onImportClick} disabled={importing}><Plus size={18}/>{importing ? 'Importing…' : 'Add a novel'}</button>
-          </div>}
+          </div>
           {showAdvanced ? <AdvancedSearch books={books} offlineIds={cachedEpubIds} initialName={globalSearch}
             onClose={() => { setShowAdvanced(false); onGlobalSearch(''); }} onOpen={onOpen}
             onBrowseTag={browseTag} /> : <>
