@@ -64,7 +64,7 @@ For browser smoke tests, see `scripts/browser_smoke.mjs` and the GitHub workflow
 - Current CI runs both production-only and full-dependency npm audits, and fails on high/critical findings; the initial full audit identified vulnerable old Vite/Vitest packages, which were upgraded.
 - The Hugging Face dataset token remains **in memory only** and must currently be re-entered after a fresh app launch. This is intentional and avoids silently persisting an unencrypted bearer credential in browser storage.
 - An email-only login does **not** independently grant access to a private Hugging Face dataset. A passwordless experience requires either properly registered Hugging Face OAuth with repository permissions or authenticated server-side Cloudflare proxy access. The latter can retain a fine-grained dataset token as a **server-side secret**, never exposed to the browser.
-- Authentication redesign is **not yet deployed**; it must be implemented and tested separately from bookshelf/layout enhancements.
+- Automatic Cloudflare Access sign-in integration and private Hugging Face gateway are **implemented in master but not yet active on Cloudflare**. The user must add production Pages Function secrets/Access settings and perform a manually approved deployment. See [Secure single-OTP login setup](docs/ACCESS_GATEWAY.md). The legacy manual dataset token is retained as a fallback until proven.
 
 ## Data and sync limitations
 
