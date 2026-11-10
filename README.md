@@ -28,8 +28,8 @@ The public Cloudflare app shell contains **no private novels or dataset credenti
 
 ## Features
 
-- Responsive desktop/mobile library, search, shelves, tags and independent named collections
-- EPUB.js vertical-scrolling reader with chapter navigation, chapter selection and resume
+- Responsive desktop/mobile library, compact book-first layout, dedicated offline shelf (auto-selected offline), advanced search across title/author, personal comments, ratings and tags with union/intersection logic, independent named collections
+- EPUB.js vertical-scrolling reader with centred chapter headings, chapter navigation, chapter selection and resume
 - Sepia, light and dark themes; typography and reading-width controls
 - Personal ratings and comments, original ZIP download where available, and EPUB export
 - Individual **Save offline** and **Save all offline** actions
@@ -58,6 +58,13 @@ For browser smoke tests, see `scripts/browser_smoke.mjs` and the GitHub workflow
 5. The previous Hugging Face **Space** build/deployment workflow has been retired from `master`. Both HF Spaces are historical deployments; the **private HF Dataset must not be deleted**.
 
 **Offline note:** Android offline cold launching and reading were validated on the previous Cloudflare `dev.` alias on 10 November 2026. Repeat the offline test after installing from the permanent hostname. Browser storage may still be cleared/evicted by the operating system, so keep independent EPUB backups.
+
+## Security and authentication status
+
+- Current CI runs both production-only and full-dependency npm audits, and fails on high/critical findings; the initial full audit identified vulnerable old Vite/Vitest packages, which were upgraded.
+- The Hugging Face dataset token remains **in memory only** and must currently be re-entered after a fresh app launch. This is intentional and avoids silently persisting an unencrypted bearer credential in browser storage.
+- An email-only login does **not** independently grant access to a private Hugging Face dataset. A passwordless experience requires either properly registered Hugging Face OAuth with repository permissions or authenticated server-side Cloudflare proxy access. The latter can retain a fine-grained dataset token as a **server-side secret**, never exposed to the browser.
+- Authentication redesign is **not yet deployed**; it must be implemented and tested separately from bookshelf/layout enhancements.
 
 ## Data and sync limitations
 
