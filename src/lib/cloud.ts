@@ -349,7 +349,7 @@ export async function uploadNovelToCloud(
 export function findCloudEntryForBook(entries: CloudEntry[], book: Pick<LibraryBook, 'id' | 'title' | 'author'>): CloudEntry | undefined {
   const direct = entries.find(entry => validEntry(entry) && entry.id === book.id);
   if (direct) return direct;
-  const normalise = (value: string): string => value.trim().replace(/\\s+/g, ' ').toLocaleLowerCase();
+  const normalise = (value: string): string => value.trim().replace(/\s+/g, ' ').toLocaleLowerCase();
   const title = normalise(book.title);
   const author = normalise(book.author);
   if (!title || !author || author === 'unknown') return undefined;
