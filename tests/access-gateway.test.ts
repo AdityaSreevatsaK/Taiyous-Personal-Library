@@ -1,99 +1,174 @@
-import { describe, expect, it, vi } from 'vitest';
-import { exportJWK, generateKeyPair, SignJWT } from 'jose';
-import { isAllowedDatasetPath, onRequest } from '../functions/api/library';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { isAllowedDatasetPath, onRequest as library } from '../functions/api/library';
+import { onRequest as oauth } from '../functions/api/oauth/[action]';
+import {
+  DATASET_REPO, CLIENT_ID, REDIRECT_URI, SESSION_COOKIE, FLOW_COOKIE,
+  sessionCookie, type OAuthSession,
+} from '../functions/_lib/oauth';
 
-const url = 'https://taiyous-personal-library.pages.dev/api/library?action=session';
-const baseEnv = {
-  HF_DATASET_TOKEN: 'hf_abcdefghijklmnop',
-  HF_DATASET_REPO: 'Example/Taiyous-Novels',
-  CF_ACCESS_TEAM_DOMAIN: 'https://example.cloudflareaccess.com',
-  CF_ACCESS_AUD: 'a'.repeat(64),
-  CF_ACCESS_ALLOWED_EMAIL: 'owner@example.com',
-};
+const origin = 'https://taiyous-personal-library.pages.dev';
+const env = { HF_OAUTH_SESSION_KEY: 'a'.repeat(64) };
+const guest = 'different-hf-user';
+const owner = DATASET_REPO.split('/')[0];
 
-describe('private Cloudflare Access gateway safeguards', () => {
-  it('only permits known book files, progress, collections and catalogue', () => {
-    for (const path of [
+afterEach(() => vi.unstubAllGlobals());
+function cookies(response: Response): string[] {
+  return response.headers.getSetCookie().map(x => x.split(';')[0]);
+}
+function cookieFrom(response: Response, name: string): string {
+  return cookies(response).find(x => x.startsWith(name + '=')) || '';
+}
+function fakeHf(token: string, username = owner) {
+  const calls: string[] = [];
+  const mock = vi.fn(async (input: RequestInfo | URL, opts?: RequestInit) => {
+    const url = input instanceof Request ? input.url : String(input);
+    calls.push(url);
+    if (url.endsWith('/oauth/token')) {
+      expect(opts?.method).toBe('POST');
+      const parameters = new URLSearchParams(opts?.body as string);
+      expect(parameters.get('client_id')).toBe(CLIENT_ID);
+      expect(parameters.get('code_verifier')).toBeTruthy();
+      return new Response(JSON.stringify({
+        access_token: token, expires_in: 3600, scope: 'profile read-repos write-repos',
+      }), { headers: { 'Content-Type': 'application/json' } });
+    }
+    if (url.endsWith('/api/whoami-v2')) {
+      return new Response(JSON.stringify({ name: username }));
+    }
+    if (url.endsWith('/api/datasets/' + DATASET_REPO)) {
+      return new Response(JSON.stringify({ private: true }));
+    }
+    if (url.includes('/resolve/main/data/library.json')) {
+      return new Response(JSON.stringify({ version: 1, books: [] }));
+    }
+    throw new Error('Unexpected fetch: ' + url);
+  });
+  vi.stubGlobal('fetch', mock);
+  return { mock, calls };
+}
+describe('HF OAuth private dataset gateway', () => {
+  it('only permits exact catalogue, EPUB, ZIP and personal data paths', () => {
+    const id = 'a'.repeat(24);
+    for (const item of [
       'data/library.json', 'data/personal/collections.json',
-      'data/personal/reviews/' + 'a'.repeat(24) + '.json',
-      'data/personal/progress/' + 'a'.repeat(24) + '.json',
-      'data/novels/' + 'b'.repeat(24) + '/source.epub',
-      'data/novels/' + 'b'.repeat(24) + '/original.zip',
-    ]) expect(isAllowedDatasetPath(path)).toBe(true);
-    for (const path of [
-      '../.env', 'data/../secrets.json', 'data/personal/other.json',
-      'data/novels/not-an-id/source.epub', 'data/library.json?token=x',
-      'data/novels/' + 'b'.repeat(24) + '/arbitrary.txt',
-    ]) expect(isAllowedDatasetPath(path)).toBe(false);
+      'data/personal/reviews/' + id + '.json',
+      'data/personal/progress/' + id + '.json',
+      'data/novels/' + id + '/source.epub',
+      'data/novels/' + id + '/original.zip',
+    ]) expect(isAllowedDatasetPath(item)).toBe(true);
+    for (const item of [
+      '../.env', 'data/../secrets.json', 'data/private.txt',
+      'data/personal/progress/../../library.json',
+      'data/novels/' + id + '/other.zip',
+    ]) expect(isAllowedDatasetPath(item)).toBe(false);
   });
-
-  it('blocks preview hostnames before looking at credentials', async () => {
-    const response = await onRequest({
-      request: new Request(url.replace('https://taiyous-', 'https://dev.taiyous-')),
-      env: baseEnv,
+  it('never serves the library API on a preview hostname', async () => {
+    const result = await library({
+      request: new Request('https://dev.taiyous-personal-library.pages.dev/api/library?action=session'),
+      env,
     });
-    expect(response.status).toBe(403);
+    expect(result.status).toBe(403);
   });
-
-  it('fails closed when critical bindings are missing', async () => {
-    const response = await onRequest({ request: new Request(url), env: {} });
-    expect(response.status).toBe(503);
+  it('fails closed without session encryption configuration', async () => {
+    const result = await library({ request: new Request(origin + '/api/library?action=session'), env: {} });
+    expect(result.status).toBe(503);
   });
-
-  it('denies unauthenticated requests even with a configured server secret', async () => {
-    const response = await onRequest({ request: new Request(url), env: baseEnv });
-    expect(response.status).toBe(403);
-    expect((await response.text())).not.toContain(baseEnv.HF_DATASET_TOKEN);
+  it('rejects missing, forged and expired sessions', async () => {
+    const url = origin + '/api/library?action=session';
+    expect((await library({ request: new Request(url), env })).status).toBe(401);
+    expect((await library({
+      request: new Request(url, { headers: { Cookie: SESSION_COOKIE + '=garbage' } }), env,
+    })).status).toBe(401);
+    const expired: OAuthSession = { access: 'hf_oauth_testtoken', username: owner, expires: Date.now() - 60_000 };
+    const cookie = await sessionCookie(expired, env);
+    expect((await library({
+      request: new Request(url, { headers: { Cookie: cookie.split(';')[0] } }), env,
+    })).status).toBe(401);
   });
-
-  it('does not trust unsigned client-controlled Access headers', async () => {
-    const response = await onRequest({
-      request: new Request(url, { headers: { 'Cf-Access-Jwt-Assertion': 'invalid.jwt.value' } }),
-      env: baseEnv,
+  it('initiates an external public OAuth PKCE login with an encrypted state cookie', async () => {
+    const response = await oauth({ request: new Request(origin + '/api/oauth/login'), env });
+    expect(response.status).toBe(303);
+    const location = new URL(response.headers.get('Location')!);
+    expect(location.origin).toBe('https://huggingface.co');
+    expect(location.pathname).toBe('/oauth/authorize');
+    expect(location.searchParams.get('client_id')).toBe(CLIENT_ID);
+    expect(location.searchParams.get('redirect_uri')).toBe(REDIRECT_URI);
+    expect(location.searchParams.get('code_challenge_method')).toBe('S256');
+    expect(location.searchParams.get('code_challenge')!.length).toBeGreaterThan(30);
+    const state = location.searchParams.get('state');
+    expect(state!.length).toBeGreaterThan(30);
+    const flowCookie = cookieFrom(response, FLOW_COOKIE);
+    expect(flowCookie).toContain('=');
+    expect(flowCookie).not.toContain(state!);
+    expect(response.headers.get('Set-Cookie')).toContain('HttpOnly');
+  });
+  it('rejects callbacks with mismatched state and never exchanges the code', async () => {
+    const login = await oauth({ request: new Request(origin + '/api/oauth/login'), env });
+    const cookie = cookieFrom(login, FLOW_COOKIE);
+    const { mock } = fakeHf('hf_oauth_sample123');
+    const res = await oauth({ request: new Request(origin + '/api/oauth/callback?code=abc&state=wrong', {
+      headers: { Cookie: cookie },
+    }), env });
+    expect(res.status).toBe(303);
+    expect(res.headers.get('Location')).toContain('invalid_callback');
+    expect(mock).not.toHaveBeenCalled();
+  });
+  it('only issues a session for the verified dataset owner', async () => {
+    const login = await oauth({ request: new Request(origin + '/api/oauth/login'), env });
+    const state = new URL(login.headers.get('Location')!).searchParams.get('state');
+    const flow = cookieFrom(login, FLOW_COOKIE);
+    fakeHf('hf_oauth_randomtoken123', guest);
+    const res = await oauth({
+      request: new Request(origin + '/api/oauth/callback?code=abc&state=' + state,
+        { headers: { Cookie: flow } }), env,
     });
-    expect(response.status).toBe(403);
+    expect(res.headers.get('Location')).toContain('wrong_account');
+    expect(cookieFrom(res, SESSION_COOKIE)).toBe('');
   });
-
-  it('accepts only an RS256 JWT for the correct Access audience and owner', async () => {
-    const { publicKey, privateKey } = await generateKeyPair('RS256');
-    const key = { ...(await exportJWK(publicKey)), kid: 'test-key', alg: 'RS256', use: 'sig' };
-    const requests: string[] = [];
-    const handler = vi.fn(async (input: RequestInfo | URL) => {
-      const href = input instanceof Request ? input.url : String(input);
-      requests.push(href);
-      if (href.endsWith('/cdn-cgi/access/certs')) {
-        return new Response(JSON.stringify({ keys: [key] }), { headers: { 'Content-Type': 'application/json' } });
-      }
-      if (href === 'https://huggingface.co/api/datasets/Example/Taiyous-Novels') {
-        return new Response(JSON.stringify({ private: true }), { headers: { 'Content-Type': 'application/json' } });
-      }
-      throw new Error('Unexpected external request: ' + href);
+  it('persists a private HF OAuth session across app reloads without exposing a bearer token', async () => {
+    const login = await oauth({ request: new Request(origin + '/api/oauth/login'), env });
+    const state = new URL(login.headers.get('Location')!).searchParams.get('state');
+    const flow = cookieFrom(login, FLOW_COOKIE);
+    const { calls } = fakeHf('hf_oauth_valid012345');
+    const signedIn = await oauth({
+      request: new Request(origin + '/api/oauth/callback?code=abc&state=' + state,
+        { headers: { Cookie: flow } }), env,
     });
-    vi.stubGlobal('fetch', handler);
-    try {
-      const makeJwt = (email: string, aud = baseEnv.CF_ACCESS_AUD) =>
-        new SignJWT({ email, type: 'app' })
-          .setProtectedHeader({ alg: 'RS256', kid: 'test-key' })
-          .setIssuer(baseEnv.CF_ACCESS_TEAM_DOMAIN)
-          .setAudience(aud).setIssuedAt().setExpirationTime('5m').sign(privateKey);
-      const valid = await makeJwt(baseEnv.CF_ACCESS_ALLOWED_EMAIL);
-      const success = await onRequest({
-        request: new Request(url, { headers: { 'Cf-Access-Jwt-Assertion': valid } }),
-        env: baseEnv,
-      });
-      expect(success.status).toBe(200);
-      expect(await success.json()).toEqual({ connected: true, repo: baseEnv.HF_DATASET_REPO });
-      const wrongEmail = await onRequest({
-        request: new Request(url, { headers: { 'Cf-Access-Jwt-Assertion': await makeJwt('stranger@example.com') } }),
-        env: baseEnv,
-      });
-      expect(wrongEmail.status).toBe(403);
-      const wrongAudience = await onRequest({
-        request: new Request(url, { headers: { 'Cf-Access-Jwt-Assertion': await makeJwt(baseEnv.CF_ACCESS_ALLOWED_EMAIL, 'b'.repeat(64)) } }),
-        env: baseEnv,
-      });
-      expect(wrongAudience.status).toBe(403);
-      expect(requests.some(value => value.includes('hf_abcdefghijklmnop'))).toBe(false);
-    } finally { vi.unstubAllGlobals(); }
+    expect(signedIn.status).toBe(303);
+    expect(signedIn.headers.get('Location')).toBe(origin + '/');
+    const cookie = cookieFrom(signedIn, SESSION_COOKIE);
+    expect(cookie).toContain('=');
+    expect(cookie).not.toContain('hf_oauth_valid012345');
+    expect(signedIn.headers.get('Set-Cookie')).toContain('HttpOnly');
+    const reloaded = await library({ request: new Request(origin + '/api/library?action=session', {
+      headers: { Cookie: cookie },
+    }), env });
+    expect(reloaded.status).toBe(200);
+    expect(await reloaded.json()).toEqual({ connected: true, repo: DATASET_REPO, username: owner });
+    const book = await library({ request: new Request(
+      origin + '/api/library?action=file&path=' + encodeURIComponent('data/library.json'),
+      { headers: { Cookie: cookie } },
+    ), env });
+    expect(book.status).toBe(200);
+    expect(await book.json()).toEqual({ version: 1, books: [] });
+    expect(calls.some(item => item.includes('hf_oauth_valid012345'))).toBe(false);
+  });
+  it('requires same-origin and an explicit header for writes and logout', async () => {
+    const session: OAuthSession = { access: 'hf_oauth_validtoken123', username: owner, expires: Date.now() + 3600_000 };
+    const cookie = (await sessionCookie(session, env)).split(';')[0];
+    const url = origin + '/api/library?action=upload';
+    const req = new Request(url, { method: 'POST', headers: {
+      Cookie: cookie, Origin: 'https://evil.example', 'X-Taiyou-Request': 'dataset-upload',
+    }, body: new FormData() });
+    const upload = await library({ request: req, env });
+    expect(upload.status).toBe(403);
+    expect((await oauth({
+      request: new Request(origin + '/api/oauth/logout', { method: 'POST', headers: { Cookie: cookie } }), env,
+    })).status).toBe(403);
+    expect((await oauth({
+      request: new Request(origin + '/api/oauth/logout', { method: 'POST', headers: {
+        Cookie: cookie, Origin: origin, 'X-Taiyou-Request': 'logout',
+      } }), env,
+    })).status).toBe(303);
   });
 });
