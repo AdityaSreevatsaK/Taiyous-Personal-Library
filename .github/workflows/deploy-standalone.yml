@@ -1,10 +1,5 @@
 name: Build and optionally deploy standalone PWA
 on:
-  # One-time automatic launch of the production-host migration when this workflow changes.
-  # Remove this push trigger after migration succeeds; later deployments stay manual.
-  push:
-    branches: [master]
-    paths: ['.github/workflows/deploy-standalone.yml']
   workflow_dispatch:
     inputs:
       publish:
@@ -72,7 +67,7 @@ jobs:
 
   deploy:
     needs: validate
-    if: github.repository == 'AdityaSreevatsaK/Taiyous-Personal-Library' && github.ref == 'refs/heads/master' && (github.event_name == 'push' || inputs.publish == true)
+    if: github.repository == 'AdityaSreevatsaK/Taiyous-Personal-Library' && github.ref == 'refs/heads/master' && inputs.publish == true
     runs-on: ubuntu-latest
     environment: standalone-staging
     timeout-minutes: 15
@@ -90,21 +85,5 @@ jobs:
           test -n "$CLOUDFLARE_ACCOUNT_ID" || { echo 'Missing CF_ACCOUNT_ID'; exit 1; }
           test -n "$CLOUDFLARE_API_TOKEN" || { echo 'Missing CF_API_TOKEN'; exit 1; }
           test -n "$CF_PAGES_PROJECT" || { echo 'Missing CF_PAGES_PROJECT'; exit 1; }
-      - name: Set Cloudflare Pages production branch to master
-        shell: bash
-        run: |
-          set -euo pipefail
-          endpoint="https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/pages/projects/$CF_PAGES_PROJECT"
-          current="$(curl --silent --show-error --fail-with-body "$endpoint" \
-            -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" | jq -er '.result.production_branch')"
-          echo "Current production branch: $current"
-          if [[ "$current" != "master" ]]; then
-            curl --silent --show-error --fail-with-body --request PATCH "$endpoint" \
-              -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
-              -H "Content-Type: application/json" \
-              --data '{"production_branch":"master"}' \
-              | jq -e '.success == true and .result.production_branch == "master"' >/dev/null
-            echo "Changed Pages production branch to master"
-          fi
       - name: Deploy master build to permanent Cloudflare Pages URL
         run: npx --yes wrangler@4 pages deploy dist --project-name "$CF_PAGES_PROJECT" --branch master --commit-hash "${{ github.sha }}"
