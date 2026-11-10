@@ -1,6 +1,5 @@
-import { uploadFiles } from '@huggingface/hub';
 import type { CloudSession } from './cloud';
-import { assertPrivateDataset, validateDatasetRepo } from './cloud';
+import { assertPrivateDataset, uploadPrivateDatasetFiles, validateDatasetRepo } from './cloud';
 
 export interface BookCollection {
   id: string;
@@ -75,9 +74,12 @@ export function writeLocalCollections(items: BookCollection[]): void {
 
 export async function fetchCloudCollections(repo: string, session: CloudSession): Promise<BookCollection[]> {
   const id = validateDatasetRepo(repo);
-  const response = await fetch(`https://huggingface.co/datasets/${id}/resolve/main/${CLOUD_PATH}?v=${Date.now()}`, {
-    headers: { Authorization: `Bearer ${session.accessToken}` }, cache: 'no-store',
-  });
+  const response = session.via === 'cloudflare'
+    ? await fetch('/api/library?action=file&path=' + encodeURIComponent(CLOUD_PATH),
+        { credentials: 'same-origin', cache: 'no-store' })
+    : await fetch(`https://huggingface.co/datasets/${id}/resolve/main/${CLOUD_PATH}?v=${Date.now()}`, {
+        headers: { Authorization: `Bearer ${session.accessToken}` }, cache: 'no-store',
+      });
   if (response.status === 404) return [];
   if (!response.ok) throw new Error(`Unable to fetch private collections (${response.status}).`);
   return validateCollections(await response.json());
@@ -90,11 +92,8 @@ export async function saveCloudCollections(
   await assertPrivateDataset(repo, session);
   const current = await fetchCloudCollections(repo, session);
   const merged = mergeCollections(current, updates);
-  await uploadFiles({
-    repo: { type: 'dataset', name: validateDatasetRepo(repo) },
-    accessToken: session.accessToken,
-    files: [{ path: CLOUD_PATH, content: new Blob([JSON.stringify({ version: 1, collections: merged }, null, 2)], { type: 'application/json' }) }],
-    commitTitle: 'Update private reading collections',
-  });
+  await uploadPrivateDatasetFiles(repo, session, [
+    { path: CLOUD_PATH, content: new Blob([JSON.stringify({ version: 1, collections: merged }, null, 2)], { type: 'application/json' }) },
+  ], 'Update private reading collections');
   return merged;
 }
