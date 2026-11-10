@@ -12,6 +12,8 @@ export interface CloudSession {
   accessToken: string;
   expiresAt: number;
   username: string;
+  /** Cloudflare Access session uses a server-held dataset token, never a browser bearer token. */
+  via?: 'cloudflare';
 }
 
 export interface CloudEntry {
@@ -59,6 +61,52 @@ export function createCloudSession(repo: string, rawToken: string): CloudSession
   return { accessToken, username: 'Private dataset', expiresAt: Number.MAX_SAFE_INTEGER };
 }
 
+/** Detect a Cloudflare Access-authenticated session without exposing an HF token. */
+export async function discoverCloudflareSession(): Promise<{ repo: string; session: CloudSession } | null> {
+  if (!navigator.onLine) return null;
+  try {
+    const response = await fetch('/api/library?action=session', {
+      credentials: 'same-origin', cache: 'no-store',
+      headers: { Accept: 'application/json' },
+    });
+    if (!response.ok || !(response.headers.get('content-type') || '').includes('application/json')) return null;
+    const value = await response.json() as { connected?: boolean; repo?: string };
+    if (!value.connected || !value.repo) return null;
+    const repo = validateDatasetRepo(value.repo);
+    return { repo, session: { via: 'cloudflare', accessToken: '', expiresAt: Number.MAX_SAFE_INTEGER, username: 'Cloudflare Access' } };
+  } catch { return null; }
+}
+
+function proxyFileUrl(path: string): string {
+  return '/api/library?action=file&path=' + encodeURIComponent(path);
+}
+
+/** Upload only allowlisted dataset paths. Cloudflare sessions never send a token. */
+export async function uploadPrivateDatasetFiles(
+  repo: string, session: CloudSession,
+  files: Array<{ path: string; content: Blob }>, commitTitle: string,
+): Promise<void> {
+  const id = validateDatasetRepo(repo);
+  if (session.via !== 'cloudflare') {
+    await uploadFiles({
+      repo: { type: 'dataset', name: id }, accessToken: session.accessToken,
+      files, commitTitle,
+    });
+    return;
+  }
+  const data = new FormData();
+  data.set('title', commitTitle.slice(0, 130));
+  for (const item of files) {
+    data.append('path', item.path);
+    data.append('file', item.content, item.path.split('/').at(-1) || 'file');
+  }
+  const response = await fetch('/api/library?action=upload', {
+    method: 'POST', credentials: 'same-origin', body: data, cache: 'no-store',
+    headers: { 'X-Taiyou-Request': 'dataset-upload' },
+  });
+  if (!response.ok) throw new Error(`Private dataset upload failed (${response.status}). Re-authenticate with Cloudflare Access if needed.`);
+}
+
 function resolveUrl(repo: string, path: string): string {
   const repoId = validateDatasetRepo(repo);
   if (!/^data\/[\w/-]+\.(epub|zip|json)$/.test(path) || path.includes('..')) throw new Error('Invalid library file path.');
@@ -69,9 +117,11 @@ function resolveUrl(repo: string, path: string): string {
 export async function assertPrivateDataset(repo: string, session: CloudSession): Promise<void> {
   const repoId = validateDatasetRepo(repo);
   if (session.expiresAt <= Date.now() + 30_000) throw new Error('Hugging Face authorisation expired. Sign in again.');
-  const result = await fetch(`https://huggingface.co/api/datasets/${repoId}`, {
-    headers: { Authorization: `Bearer ${session.accessToken}` }, cache: 'no-store',
-  });
+  const result = session.via === 'cloudflare'
+    ? await fetch('/api/library?action=info', { credentials: 'same-origin', cache: 'no-store' })
+    : await fetch(`https://huggingface.co/api/datasets/${repoId}`, {
+        headers: { Authorization: `Bearer ${session.accessToken}` }, cache: 'no-store',
+      });
   if (!result.ok) throw new Error(`Cannot access the private dataset ${repoId} (${result.status}). Create it and grant your account access.`);
   const info = await result.json() as { private?: boolean };
   if (info.private !== true) throw new Error(`Dataset ${repoId} is NOT PRIVATE. Change its visibility to Private before importing novels.`);
@@ -79,9 +129,11 @@ export async function assertPrivateDataset(repo: string, session: CloudSession):
 
 async function privateGet(repo: string, path: string, session: CloudSession): Promise<Response> {
   if (session.expiresAt <= Date.now() + 30_000) throw new Error('Hugging Face authorisation expired. Sign in again.');
-  const response = await fetch(resolveUrl(repo, path), {
-    headers: { Authorization: `Bearer ${session.accessToken}` }, cache: 'no-store',
-  });
+  const response = session.via === 'cloudflare'
+    ? await fetch(proxyFileUrl(path), { credentials: 'same-origin', cache: 'no-store' })
+    : await fetch(resolveUrl(repo, path), {
+        headers: { Authorization: `Bearer ${session.accessToken}` }, cache: 'no-store',
+      });
   if ([401, 403].includes(response.status)) throw new Error('Cannot access the private novel dataset. Check your Hugging Face account and repository permissions.');
   return response;
 }
@@ -179,12 +231,9 @@ export async function saveCloudReadingProgress(repo: string, bookId: string, ses
     lastOpenedAt: book.lastOpenedAt ?? null,
     updatedAt: book.progressUpdatedAt ?? book.lastOpenedAt ?? Date.now(),
   }, bookId);
-  await uploadFiles({
-    repo: { type: 'dataset', name: validateDatasetRepo(repo) },
-    accessToken: session.accessToken,
-    files: [{ path: readingProgressPath(bookId), content: new Blob([JSON.stringify(progress, null, 2)], { type: 'application/json' }) }],
-    commitTitle: 'Sync private reading progress',
-  });
+  await uploadPrivateDatasetFiles(repo, session, [
+    { path: readingProgressPath(bookId), content: new Blob([JSON.stringify(progress, null, 2)], { type: 'application/json' }) },
+  ], 'Sync private reading progress');
   return progress;
 }
 
@@ -229,12 +278,9 @@ export async function saveCloudPersonalReview(
   const value = parseCloudPersonalReview({
     version: 1, bookId, rating: rating ?? null, comments: comments.trim().slice(0, 10000), updatedAt,
   }, bookId);
-  await uploadFiles({
-    repo: { type: 'dataset', name: validateDatasetRepo(repo) },
-    accessToken: session.accessToken,
-    files: [{ path: personalReviewPath(bookId), content: new Blob([JSON.stringify(value, null, 2)], { type: 'application/json' }) }],
-    commitTitle: 'Update private reading notes',
-  });
+  await uploadPrivateDatasetFiles(repo, session, [
+    { path: personalReviewPath(bookId), content: new Blob([JSON.stringify(value, null, 2)], { type: 'application/json' }) },
+  ], 'Update private reading notes');
   return value;
 }
 
@@ -276,15 +322,10 @@ export async function uploadNovelToCloud(
       const amended: CloudCatalog = { version: 1,
         books: catalog.books.map(book => book.id === id ? { ...book, archivePath } : book),
       };
-      await uploadFiles({
-        repo: { type: 'dataset', name: validateDatasetRepo(repo) },
-        accessToken: session.accessToken,
-        files: [
-          { path: archivePath, content: original },
-          { path: 'data/library.json', content: new Blob([JSON.stringify(amended, null, 2) + '\n'], { type: 'application/json' }) },
-        ],
-        commitTitle: `Back up novel ZIP: ${imported.metadata.title.slice(0, 80)}`,
-      });
+      await uploadPrivateDatasetFiles(repo, session, [
+        { path: archivePath, content: original },
+        { path: 'data/library.json', content: new Blob([JSON.stringify(amended, null, 2) + '\n'], { type: 'application/json' }) },
+      ], `Back up novel ZIP: ${imported.metadata.title.slice(0, 80)}`);
       return 'added';
     }
     return 'duplicate';
@@ -296,12 +337,7 @@ export async function uploadNovelToCloud(
     { path: 'data/library.json', content: new Blob([JSON.stringify(next, null, 2) + '\n'], { type: 'application/json' }) },
   ];
   if (archivePath) files.push({ path: archivePath, content: original });
-  await uploadFiles({
-    repo: { type: 'dataset', name: validateDatasetRepo(repo) },
-    accessToken: session.accessToken,
-    files,
-    commitTitle: `Add novel: ${imported.metadata.title.slice(0, 80)}`,
-  });
+  await uploadPrivateDatasetFiles(repo, session, files, `Add novel: ${imported.metadata.title.slice(0, 80)}`);
   return 'added';
 }
 
