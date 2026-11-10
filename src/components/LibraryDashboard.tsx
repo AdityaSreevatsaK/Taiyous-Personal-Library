@@ -80,10 +80,13 @@ export function Cover({ book, variant = 'normal', cloudRepo = '', cloudSession =
     return () => watcher.disconnect();
   }, [book.id, book.coverPath, visible]);
   const imageUrl = useCoverArt(book, cloudRepo, cloudSession, visible);
+  const [failedImage, setFailedImage] = useState(false);
+  useEffect(() => setFailedImage(false), [book.id, book.coverPath]);
+  const visibleImage = failedImage ? null : imageUrl;
   const coverNumber = parseInt(book.id.slice(0, 2), 16) % 6;
   return (
-    <div ref={wrapper} className={`cover cover-${coverNumber} ${variant === 'feature' ? 'cover-feature' : ''} ${imageUrl ? 'cover-has-image' : ''}`} aria-hidden="true">
-      {imageUrl && <img className="cover-art" src={imageUrl} alt="" decoding="async" loading={variant === 'feature' ? 'eager' : 'lazy'} />}
+    <div ref={wrapper} className={`cover cover-${coverNumber} ${variant === 'feature' ? 'cover-feature' : ''} ${visibleImage ? 'cover-has-image' : ''}`} aria-hidden="true">
+      {visibleImage && <img className="cover-art" src={visibleImage} alt="" decoding="async" loading={variant === 'feature' ? 'eager' : 'lazy'} onError={() => setFailedImage(true)} />}
       <div className="cover-ornament top-ornament">✦</div>
       <div className="cover-lilies"><span>❧</span></div>
       <div className="cover-heading">{book.title}</div>
