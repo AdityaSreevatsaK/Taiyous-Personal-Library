@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+import { exportJWK, generateKeyPair, SignJWT } from 'jose';
 import { isAllowedDatasetPath, onRequest } from './library';
 
 const url = 'https://taiyous-personal-library.pages.dev/api/library?action=session';
@@ -51,5 +52,48 @@ describe('private Cloudflare Access gateway safeguards', () => {
       env: baseEnv,
     });
     expect(response.status).toBe(403);
+  });
+
+  it('accepts only an RS256 JWT for the correct Access audience and owner', async () => {
+    const { publicKey, privateKey } = await generateKeyPair('RS256');
+    const key = { ...(await exportJWK(publicKey)), kid: 'test-key', alg: 'RS256', use: 'sig' };
+    const requests: string[] = [];
+    const handler = vi.fn(async (input: RequestInfo | URL) => {
+      const href = String(input);
+      requests.push(href);
+      if (href.endsWith('/cdn-cgi/access/certs')) {
+        return new Response(JSON.stringify({ keys: [key] }), { headers: { 'Content-Type': 'application/json' } });
+      }
+      if (href === 'https://huggingface.co/api/datasets/Example/Taiyous-Novels') {
+        return new Response(JSON.stringify({ private: true }), { headers: { 'Content-Type': 'application/json' } });
+      }
+      throw new Error('Unexpected external request: ' + href);
+    });
+    vi.stubGlobal('fetch', handler);
+    try {
+      const makeJwt = (email: string, aud = baseEnv.CF_ACCESS_AUD) =>
+        new SignJWT({ email, type: 'app' })
+          .setProtectedHeader({ alg: 'RS256', kid: 'test-key' })
+          .setIssuer(baseEnv.CF_ACCESS_TEAM_DOMAIN)
+          .setAudience(aud).setIssuedAt().setExpirationTime('5m').sign(privateKey);
+      const valid = await makeJwt(baseEnv.CF_ACCESS_ALLOWED_EMAIL);
+      const success = await onRequest({
+        request: new Request(url, { headers: { 'Cf-Access-Jwt-Assertion': valid } }),
+        env: baseEnv,
+      });
+      expect(success.status).toBe(200);
+      expect(await success.json()).toEqual({ connected: true, repo: baseEnv.HF_DATASET_REPO });
+      const wrongEmail = await onRequest({
+        request: new Request(url, { headers: { 'Cf-Access-Jwt-Assertion': await makeJwt('stranger@example.com') } }),
+        env: baseEnv,
+      });
+      expect(wrongEmail.status).toBe(403);
+      const wrongAudience = await onRequest({
+        request: new Request(url, { headers: { 'Cf-Access-Jwt-Assertion': await makeJwt(baseEnv.CF_ACCESS_ALLOWED_EMAIL, 'b'.repeat(64)) } }),
+        env: baseEnv,
+      });
+      expect(wrongAudience.status).toBe(403);
+      expect(requests.some(value => value.includes('hf_abcdefghijklmnop'))).toBe(false);
+    } finally { vi.unstubAllGlobals(); }
   });
 });
