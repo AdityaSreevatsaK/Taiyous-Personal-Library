@@ -20,6 +20,8 @@ jobs:
         run: npm test
       - name: Production build
         run: npm run build
+      - name: Validate production package privacy and OAuth metadata
+        run: python scripts/check_deployment_package.py
       - name: Check published OAuth client metadata
         run: |
           test -s dist/.well-known/oauth-cimd
