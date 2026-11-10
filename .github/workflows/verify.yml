@@ -20,11 +20,15 @@ jobs:
         run: npm test
       - name: Production build
         run: npm run build
+      - name: Check published OAuth client metadata
+        run: |
+          test -s dist/.well-known/oauth-cimd
+          node -e "const fs=require('fs'); const m=JSON.parse(fs.readFileSync('dist/.well-known/oauth-cimd')); if(m.client_id!=='https://taiyous-personal-library.pages.dev/.well-known/oauth-cimd'||m.token_endpoint_auth_method!=='none') process.exit(1)"
       - name: Compile private Cloudflare Pages Functions
         run: |
           npx --yes wrangler@4 pages functions build functions --outfile /tmp/taiyou-functions.mjs --compatibility-date 2026-11-10 --compatibility-flags nodejs_compat
           test -s /tmp/taiyou-functions.mjs
-      - name: Prove the private Pages route runs and fails closed
+      - name: Prove the OAuth API fails closed without a session
         shell: bash
         run: |
           npx --yes wrangler@4 pages dev dist --ip 127.0.0.1 --port 8788 --compatibility-date 2026-11-10 --compatibility-flags nodejs_compat > /tmp/taiyou-pages-dev.log 2>&1 &
@@ -33,7 +37,7 @@ jobs:
           code=""
           for i in $(seq 1 35); do
             code="$(curl --silent --output /tmp/taiyou-api.json --write-out '%{http_code}' 'http://127.0.0.1:8788/api/library?action=session' || true)"
-            if [ "$code" = "403" ]; then exit 0; fi
+            if [ "$code" = "503" ] || [ "$code" = "401" ]; then exit 0; fi
             sleep 1
           done
           echo "Private Pages Function unavailable or not deny-by-default. Status: $code"
