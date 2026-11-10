@@ -29,6 +29,7 @@ The public Cloudflare app shell contains **no private novels or dataset credenti
 ## Features
 
 - Responsive desktop/mobile library, compact book-first layout, dedicated offline shelf (auto-selected offline), advanced search across title/author, personal comments, ratings and tags with union/intersection logic, independent named collections
+- Real novel cover images from the **private Hugging Face Dataset**, with on-demand fetching, offline cover caching and existing decorative covers as fallback. Dataset `data/library.json` entries supply `coverPath: data/novels/<existing-id>/cover.jpg`; no changes to EPUBs, novel IDs or original ZIPs.
 - EPUB.js vertical-scrolling reader with centred chapter headings, chapter navigation, chapter selection and resume
 - Sepia, light and dark themes; typography and reading-width controls
 - Personal ratings and comments, original ZIP download where available, and EPUB export
