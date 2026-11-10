@@ -6,12 +6,12 @@ import type { LibraryBook } from '../types';
 const objectUrls = new Map<string, string>();
 const inFlight = new Map<string, Promise<string | null>>();
 
-export function useCoverArt(book: LibraryBook, repo: string, session: CloudSession | null): string | null {
+export function useCoverArt(book: LibraryBook, repo: string, session: CloudSession | null, enabled = true): string | null {
   const [url, setUrl] = useState<string | null>(null);
   useEffect(() => {
     let active = true;
     setUrl(null);
-    if (!book.coverPath) return () => { active = false; };
+    if (!book.coverPath || !enabled) return () => { active = false; };
     const key = book.id + ':' + book.coverPath;
     const task = inFlight.get(key) || (async () => {
       if (objectUrls.has(key)) return objectUrls.get(key)!;
@@ -28,6 +28,6 @@ export function useCoverArt(book: LibraryBook, repo: string, session: CloudSessi
     inFlight.set(key, task);
     void task.then(value => { if (active) setUrl(value); });
     return () => { active = false; };
-  }, [book.id, book.coverPath, repo, session?.via, session?.accessToken]);
+  }, [book.id, book.coverPath, repo, session?.via, session?.accessToken, enabled]);
   return url;
 }
