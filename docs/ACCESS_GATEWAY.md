@@ -1,55 +1,89 @@
-# Cloudflare Access automatic login — private Hugging Face gateway
+# Hugging Face OAuth — free sign-in on Cloudflare Pages
 
-Taiyou's Personal Library uses the existing **Cloudflare Access email OTP** application to authenticate the owner. The React client connects to a same-origin Cloudflare Pages Function at `/api/library`, which validates the signed Access JWT and checks the owner's allowed email on **every request**. The Function uses a **Cloudflare secret** for the private Hugging Face Dataset; the credential never goes to browser JavaScript.
+Taiyou's Personal Library uses **Cloudflare Pages** for its React PWA and private API, and the **existing private Hugging Face Dataset** for novels and synced reading metadata. It does **not** use Cloudflare Zero Trust, Supabase, another hosting provider, or an HF dataset token entered on every launch.
 
-## Deployment status
+## How it works
 
-The implementation is committed to GitHub `master`. **It does not become operational until the five production bindings below are configured in Cloudflare Pages and the manual Cloudflare deployment completes.** The existing manual HF dataset connection is deliberately retained as a fallback until the gateway is proven.
+1. Click **Sign in with Hugging Face** in the library.
+2. Cloudflare Pages redirects to Hugging Face's official OAuth authorisation page with an OAuth 2.0 **PKCE** challenge.
+3. Hugging Face redirects back to `https://taiyous-personal-library.pages.dev/api/oauth/callback`. The backend verifies the encrypted state cookie, exchanges the code, checks the signed-in HF user is **AdityaSreevatsaK**, and confirms access to the **private** `AdityaSreevatsaK/Taiyous-Novels` dataset.
+4. Cloudflare Pages encrypts the HF access token (and optional refresh token) into a **Secure, HttpOnly, SameSite=Lax** browser cookie. The cookie is not readable by frontend JavaScript.
+5. On subsequent launches, `GET /api/library?action=session` reads the cookie and reconnects automatically. No token is placed in localStorage or the public JavaScript bundle.
+6. A cookie is renewed on token refresh if the provider issues a refresh token. Otherwise the browser asks you to sign in with Hugging Face again when the access token expires. This avoids repeatedly pasting tokens, but is not a promise of permanent sessions.
 
-## Set up the current Cloudflare Pages project
+All novel fetches, writes, EPUBs, personal reviews, progress and collections stay scoped to the one private HF dataset in the **backend**. Offline reading still uses the existing locally cached EPUBs without login or internet.
 
-Do not paste credentials into GitHub source, ChatGPT, screenshots, build variables or a public site. Configure them **in your Cloudflare account**:
+## What you must configure once
 
-1. Open Cloudflare dashboard → **Workers & Pages** → `taiyous-personal-library` → **Settings → Variables and Secrets**.
-2. Select the **Production** environment.
-3. Add four **plain-text variables**:
+### 1. Cloudflare encryption secret (required)
 
-   | Variable | Value |
-   | --- | --- |
-   | `HF_DATASET_REPO` | `AdityaSreevatsaK/Taiyous-Novels` |
-   | `CF_ACCESS_TEAM_DOMAIN` | Your Cloudflare Zero Trust team URL, **including** `https://`, e.g. `https://your-team.cloudflareaccess.com` |
-   | `CF_ACCESS_AUD` | The **64-character Application Audience (AUD) tag** of the Access application protecting `taiyous-personal-library.pages.dev` |
-   | `CF_ACCESS_ALLOWED_EMAIL` | The single email address authorised to use this private library (the same one you use for email OTP) |
+Go to **Cloudflare → Workers & Pages → taiyous-personal-library → Settings → Variables and Secrets → Production**.
 
-4. Add one **encrypted secret**, not a plain-text variable:
-   `HF_DATASET_TOKEN` = a fine-grained Hugging Face token with **read and write access only** to the private `Taiyous-Novels` Dataset. It does not belong in GitHub Secrets or the browser. Consider generating a distinct token solely for this server-side gateway so you can revoke it independently.
-5. Under **Settings → Functions**, set production **Compatibility Date** to `2026-11-10` and enable **`nodejs_compat`** if not already enabled. This is required by the HF file-upload SDK in the Pages Function. Do not alter the preview environment unnecessarily.
-6. Confirm the existing **Cloudflare Access** application protects **`https://taiyous-personal-library.pages.dev`** (not only the obsolete `dev.` alias), with an **Allow** policy for just the intended identity. To find the AUD, go to Cloudflare Zero Trust → **Access controls → Applications** → Edit the existing application → **Additional settings → Application Audience (AUD) Tag**. To find the team domain, use your Zero Trust account's team name / login URL.
-7. After saving the settings and secret, use [Build and optionally deploy standalone PWA](../.github/workflows/deploy-standalone.yml) on branch **`master`**, with **Publish** checked. The deployment job checks out `functions/` and bundles it together with the built React assets using Wrangler.
+Create one **encrypted Secret**:
 
-Cloudflare Pages production and preview variable bindings are separate. Configure **Production** only for the real app. If a production secret is changed, create a **new deployment** so the Function sees it.
+| Name | Value | Type |
+| --- | --- | --- |
+| `HF_OAUTH_SESSION_KEY` | Fresh, random 64-character hexadecimal value (32 bytes) | **Secret**, not Text |
 
-## Expected operation
+Generate this value **privately on your Windows PC**, for example:
 
-1. Open `https://taiyous-personal-library.pages.dev` online. Cloudflare Access asks for the email OTP if your Access session has expired.
-2. The app requests `GET /api/library?action=session`, passing the existing Access cookie automatically. The Function validates the RSA-signed JWT against the trusted Cloudflare team JWKS, issuer, audience, expiry and the expected owner email.
-3. The Function checks that the HF token reaches an explicitly **private** Dataset, then returns only the dataset repository ID and a connected flag. It never returns the HF token, email, JWT or private raw authorisation data.
-4. The app automatically loads the catalogue, EPUBs, reading progress, ratings and collections through the same-origin gateway. Private file uploads use a validated multipart API; no HF token is visible to the client.
-5. When offline, the app still opens its cached shell and downloaded EPUBs. Cloud sync resumes when online and authorised.
+```powershell
+python -c "import secrets; print(secrets.token_hex(32))"
+```
 
-The gateway responds **403** if the identity is not verified, **503** when configuration is missing or the token cannot access a private dataset, and **400** for unsupported file paths. It refuses to operate on preview hostnames or unrelated datasets. Uploads have a per-request cap of **75 MiB** to protect Worker memory; large legacy archives can still be managed through your separate storage controller.
+Copy the result directly into Cloudflare. **Never share the value in ChatGPT, commit it to GitHub, or store it in the public app.** This key encrypts your session cookie. Rotating it intentionally signs out all previously connected browser sessions.
 
-## Security and deployment checks
+### 2. Hugging Face OAuth application metadata (already in GitHub)
 
-- Never expose `HF_DATASET_TOKEN` as a `VITE_` variable or as client-side JavaScript.
-- A Cloudflare email OTP screen alone is not proof of API authorisation. Every API call validates the signed Access token and restricts the email.
-- The API is restricted to the permanent production Pages hostname. Non-production aliases fail closed.
-- File paths are allowlisted: catalogue, per-book EPUB/ZIP, private reviews/progress and collections only.
-- Writes require a same-origin `Origin` and a custom request header; no cross-origin CORS policy is enabled.
-- No-store responses prevent proxy caching of user data.
-- The manual dataset token prompt is **not removed** until the new gateway has been tested online, after a browser restart, and on mobile. If the gateway is not configured, the old connection mechanism still functions.
-- If the Access session expires while you are offline, offline EPUB reading continues to work; cloud operations require signing in again.
+HF now supports **Client ID Metadata Documents (CIMD)** for OAuth registration without a client secret. This avoids creating another hosting service or buying a Cloudflare Zero Trust plan.
 
-## Tests
+The project includes a public metadata document:
 
-CI runs React unit tests and offline browser smoke tests, plus server-function security tests for file-path restrictions and signed-JWT enforcement. Wrangler compiles the Cloudflare Function with Node compatibility. The live private dataset is **never accessed from CI**, and no real owner token is used in tests.
+- **Client ID:** `https://taiyous-personal-library.pages.dev/.well-known/oauth-cimd`
+- **Redirect URI:** `https://taiyous-personal-library.pages.dev/api/oauth/callback`
+- **Permissions:** `profile read-repos write-repos`
+- **Client authentication:** `none` (public OAuth client using PKCE)
+
+The page is a public, non-sensitive OAuth descriptor. It must be available over HTTPS before you try signing in. Cloudflare's static `_headers` sets `Content-Type: application/json`.
+
+**Important permission trade-off:** Hugging Face's `write-repos` OAuth scope covers your personal repositories broadly; OAuth cannot currently be limited to just the `Taiyous-Novels` dataset through these standard scopes. The **Cloudflare backend** restricts actual file actions to that one specific dataset and a strict file-path allowlist. If that OAuth permission breadth is unacceptable, continue using the fine-grained manual token fallback.
+
+### 3. Deploy after the secret is saved
+
+GitHub → [Build and optionally deploy standalone PWA](../.github/workflows/deploy-standalone.yml) → choose **`master`**, enable **Publish**, and run.
+
+The workflow tests the app, builds the frontend and private Pages Functions, and deploys to the existing **Cloudflare Pages** project. No novel files or secrets enter GitHub CI.
+
+No `CF_ACCESS_AUD`, `CF_ACCESS_TEAM_DOMAIN`, `CF_ACCESS_ALLOWED_EMAIL`, or `HF_DATASET_TOKEN` variables are needed for this OAuth implementation. Those belonged to the previous, un-deployed Cloudflare Access design. You can remove them after verifying OAuth, if you had already configured them.
+
+## Test checklist
+
+1. Open the permanent Pages URL while online. Confirm `/.well-known/oauth-cimd` serves JSON and `/api/library?action=session` is denied before sign-in.
+2. Click **Sign in with Hugging Face** and log in with the **Hugging Face account that owns the dataset**.
+3. Approve `read-repos` and `write-repos` permissions if comfortable with them. Do not grant access from an unexpected user account.
+4. After returning to the library, confirm Cloud library shows **Connected** and the private catalogue appears.
+5. Reload the page and reopen the installed PWA. Confirm the cloud reconnects without entering a token.
+6. Test reading a cloud-hosted novel, saving progress, rating/comment editing, collection edits and **Save offline**.
+7. Disconnect/sign out. Confirm cloud operations need fresh login but cached EPUBs still read offline.
+8. Test both desktop and phone. If the login redirect fails, keep the manual token fallback and report the OAuth error displayed in the library.
+
+The live OAuth redirect cannot be fully simulated in GitHub CI because it requires consent from your real HF account; the tests simulate HF callbacks without using your real credentials.
+
+## Security controls
+
+- AES-GCM encryption uses a fresh random 96-bit IV and a dedicated 256-bit secret from Cloudflare.
+- Cookies are Secure, HttpOnly, SameSite=Lax, site-wide and never readable by React.
+- Login uses an encrypted short-lived state/PKCE verifier cookie and validates state on callback.
+- The server authorises **only the dataset-owning HF username** and only the explicitly named dataset. It checks that the dataset is private.
+- The API rejects unrecognised paths and remote preview hostnames, prevents cross-origin writes, and disables caching of private responses.
+- The PWA's service worker bypasses `/api/` OAuth and dataset requests.
+- The manual HF-token connection remains available as fallback until OAuth is verified.
+- No browser XSS defence is perfect; limit extensions and imported EPUBs to trusted content.
+
+## If OAuth metadata registration fails
+
+HF support for public OAuth metadata documents is relatively recent. Its official docs support CIMD but this app's live registration must be tested after deployment. If the provider rejects the metadata URL as a client ID, a **manually registered public HF OAuth app (without a client secret)** is a fallback. That would involve registering the exact callback URL under Hugging Face account settings, **not** moving hosting or adding billing details. Do not guess a client ID or relax callback checks as a workaround.
+
+Official references:
+- https://huggingface.co/docs/hub/oauth
+- https://huggingface.co/settings/connected-applications
