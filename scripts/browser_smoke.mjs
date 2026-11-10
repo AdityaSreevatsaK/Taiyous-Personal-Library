@@ -95,12 +95,13 @@ try {
     }
     // Seed a synthetic, local-only book so CI tests details without accessing the real dataset.
     await page.evaluate(async (epubData) => {
-      const request = indexedDB.open('folio-personal-library-v1', 1);
+      const request = indexedDB.open('folio-personal-library-v1', 2);
       const db = await new Promise((resolve, reject) => {
         request.onupgradeneeded = () => {
           const database = request.result;
           if (!database.objectStoreNames.contains('books')) database.createObjectStore('books', { keyPath: 'id' });
           if (!database.objectStoreNames.contains('files')) database.createObjectStore('files', { keyPath: 'id' });
+          if (!database.objectStoreNames.contains('covers')) database.createObjectStore('covers', { keyPath: 'id' });
         };
         request.onsuccess = () => resolve(request.result);
         request.onerror = () => reject(request.error);
