@@ -86,8 +86,9 @@ export default function LibraryDashboard({
       setSelectedTag('');
       setSelectedCollectionId('');
       setQuery('');
+      onGlobalSearch('');
     }
-  }, [online]);
+  }, [online, onGlobalSearch]);
   const [sort, setSort] = useState<Sort>('recent');
   const [query, setQuery] = useState('');
   const [selectedTag, setSelectedTag] = useState(initialTag);
