@@ -60,6 +60,10 @@ self.addEventListener('fetch', event => {
   const url = new URL(request.url);
   // Never intercept a cross-origin request, including private dataset fetches.
   if (url.origin !== self.location.origin || !url.href.startsWith(self.registration.scope)) return;
+  // Never intercept OAuth callbacks, redirects or private API endpoints.
+  // Otherwise offline navigation fallback might display the library HTML in
+  // place of a login callback or an authorised API response.
+  if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/.well-known/')) return;
   // Navigation: network-first with exact cached app shell fallback.
   if (request.mode === 'navigate') {
     event.respondWith((async () => {
