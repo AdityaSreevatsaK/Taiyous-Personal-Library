@@ -282,7 +282,7 @@ export function validateReadingProgress(value: unknown, bookId: string): CloudRe
 }
 
 export function applyCloudReadingProgress(book: LibraryBook, remote: CloudReadingProgress): LibraryBook {
-  if (book.id !== remote.bookId || remote.updatedAt < (book.progressUpdatedAt ?? 0)) return book;
+  if (book.id !== remote.bookId || book.pendingProgressSync) return book;
   return { ...book, progress: remote.progress,
     currentChapter: remote.currentChapter ?? undefined,
     currentChapterIndex: remote.currentChapterIndex ?? undefined,
