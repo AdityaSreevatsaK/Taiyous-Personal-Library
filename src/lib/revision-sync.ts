@@ -23,6 +23,8 @@ export function decidePersonalSync<T>(
     if (remote === null) return meaningfulLocal ? 'upload' : 'adopt';
     return meaningfulLocal ? 'conflict' : 'adopt';
   }
+  // Remote deletion is not automatically authoritative over meaningful local data.
+  if (remote === null && lastSeenRevision !== null && meaningfulLocal) return 'conflict';
   return lastSeenRevision === remoteRevision ? 'unchanged' : 'adopt';
 }
 
