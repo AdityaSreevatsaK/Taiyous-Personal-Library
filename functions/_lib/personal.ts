@@ -28,7 +28,7 @@ function validDocument(path: string, value: unknown): boolean {
           typeof c.name !== 'string' || !c.name.trim() || c.name.length > 90 ||
           !Array.isArray(c.bookIds) || c.bookIds.length > 2000 ||
           c.bookIds.some(id => typeof id !== 'string' || !VALID_ID.test(id)) ||
-          typeof c.updatedAt !== 'number' || !Number.isFinite(c.updatedAt) || c.updatedAt < 0 || c.updatedAt < 0 ||
+          typeof c.updatedAt !== 'number' || !Number.isFinite(c.updatedAt) || c.updatedAt < 0 ||
           (c.deleted !== undefined && typeof c.deleted !== 'boolean')) return false;
       seen.add(c.id);
     }
