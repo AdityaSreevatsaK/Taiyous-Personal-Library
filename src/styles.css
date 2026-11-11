@@ -1113,3 +1113,107 @@ html, body, #root { max-width: 100%; overflow-x: clip; }
   /* The theme remains available from the sidebar on very narrow phones. */
   .topbar .theme-switch { display: none; }
 }
+
+
+/* Cloud sync details are available only inside Settings, not as an
+   always-visible tooltip that obscures the bookshelf. */
+.topbar .cloud-sync-message {
+  background: var(--pale); border: 1px solid var(--border); border-radius: 9px;
+  color: var(--text); padding: 11px 12px; font-size: 12px; line-height: 1.55;
+  overflow-wrap: anywhere; margin: 12px 0 0;
+}
+
+/* The Owner dialog is mounted outside the app-shell. Its theme is now
+   explicitly applied to its root, and the solid fallback prevents any
+   transparent/invisible panel even before theme variables load. */
+.owner-dialog-shade { isolation: isolate; background: rgba(14,23,19,.77); }
+.owner-dialog {
+  background-color: var(--surface, #faf2e5);
+  color: var(--text, #403529);
+  border-color: var(--border, #e5d7c1);
+  opacity: 1;
+}
+.owner-dialog .section-overline { color: var(--subtext, #847665); }
+
+/* A compact centred trigger; never use the browser-native select with a
+   thousands-of-chapters OS popup, which cannot be positioned reliably. */
+.reader-chapter-footer {
+  grid-template-columns: minmax(0,1fr) minmax(100px,290px) minmax(0,1fr);
+}
+.reader-chapter-footer .reader-footer-jump {
+  display: inline-flex; flex-direction: row; align-items: center; justify-content: center;
+  justify-self: center; gap: 8px; width: 100%; height: 38px; min-height: 38px;
+  padding: 8px 13px; margin: 0; border: 1px solid var(--border);
+  border-radius: 9px; background: var(--surface-soft); color: var(--text);
+  font-weight: 650; font-size: 11px; cursor: pointer; min-width: 0;
+}
+.reader-chapter-footer .reader-footer-jump:hover:not(:disabled) { background: var(--pale); }
+.reader-chapter-footer .reader-footer-jump span {
+  display: block; min-width: 0; overflow: hidden; text-overflow: ellipsis;
+  white-space: nowrap; text-align: center;
+}
+.reader-chapter-footer .reader-footer-jump svg {
+  position: static; flex: 0 0 auto; pointer-events: none; color: var(--subtext);
+}
+.reader-chapter-picker-shade {
+  position: fixed; inset: 0; z-index: 90; display: grid; place-items: center;
+  padding: max(14px, env(safe-area-inset-top, 0px));
+  background: rgba(11,23,18,.64);
+}
+.reader-chapter-picker {
+  width: min(550px,100%); max-height: min(730px, 90dvh); overflow: hidden;
+  display: flex; flex-direction: column; gap: 15px;
+  border-radius: 17px; border: 1px solid var(--border);
+  background: var(--surface, #faf2e5); color: var(--text, #403529);
+  padding: clamp(16px,3vw,24px);
+  box-shadow: 0 23px 70px rgba(0,0,0,.28);
+}
+.reader-chapter-picker-header {
+  display: flex; align-items: start; justify-content: space-between; gap: 13px;
+}
+.reader-chapter-picker-header h2 {
+  font: 500 26px/1.2 Georgia,serif; margin: 6px 0;
+}
+.reader-chapter-picker-header p { margin: 0; font-size: 12px; color: var(--subtext); }
+.reader-chapter-picker-header .icon-button { flex: 0 0 auto; }
+.reader-chapter-number { display: flex; flex-direction: column; gap: 7px; }
+.reader-chapter-number label { font-size: 11px; font-weight: 750; color: var(--subtext); }
+.reader-chapter-number div { display: flex; gap: 9px; align-items: stretch; }
+.reader-chapter-number input {
+  width: 125px; min-width: 0; border: 1px solid var(--border); background: var(--bg);
+  border-radius: 8px; padding: 10px; color: var(--text); font-size: 14px; font-variant-numeric: tabular-nums;
+}
+.reader-chapter-number .primary-button { padding: 10px 20px; }
+.reader-chapter-search {
+  display: flex; align-items: center; gap: 8px; background: var(--bg);
+  border: 1px solid var(--border); border-radius: 9px; padding: 9px 11px;
+}
+.reader-chapter-search svg { color: var(--subtext); flex: 0 0 auto; }
+.reader-chapter-search input {
+  min-width: 0; flex: 1; background: transparent; border: 0; outline: none;
+  color: var(--text); font-size: 13px;
+}
+.reader-chapter-search:focus-within { outline: 2px solid #86b19b; }
+.reader-chapter-picker-list {
+  display: flex; flex-direction: column; gap: 3px;
+  overflow-y: auto; overscroll-behavior: contain; min-height: 80px; max-height: 50dvh;
+  padding: 1px 2px;
+}
+.chapter-picker-result {
+  display: flex; align-items: center; gap: 12px; width: 100%;
+  padding: 10px 11px; border: 1px solid transparent; border-radius: 8px;
+  background: transparent; color: var(--text); font-size: 12px;
+  text-align: left; line-height: 1.45;
+}
+.chapter-picker-result:hover { background: var(--pale); }
+.chapter-picker-result.active { background: var(--surface-soft); border-color: var(--border); font-weight: 750; }
+.chapter-picker-result span:nth-child(2) { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.chapter-picker-number { width: 42px; flex: 0 0 42px; font-variant-numeric: tabular-nums; color: var(--subtext); }
+.chapter-picker-result.active .chapter-picker-number { color: var(--text); }
+.reader-chapter-picker-footnote { font-size: 10px; line-height: 1.45; color: var(--subtext); }
+@media (max-width: 700px) {
+  .reader-chapter-footer { grid-template-columns: minmax(0,1fr) minmax(90px,40vw) minmax(0,1fr); }
+  .reader-chapter-footer .reader-footer-jump { font-size: 10px; padding: 7px; gap: 3px; }
+  .reader-chapter-picker { max-height: 88dvh; }
+  .reader-chapter-picker-list { max-height: 47dvh; }
+}
