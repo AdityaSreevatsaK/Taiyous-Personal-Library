@@ -1,4 +1,3 @@
-import { uploadFiles } from '@huggingface/hub';
 import type { LibraryBook, ImportedBook } from '../types';
 import { retryTransientRead } from './network-pool';
 
@@ -89,17 +88,9 @@ export async function uploadPrivateDatasetFiles(
 ): Promise<void> {
   const id = validateDatasetRepo(repo);
   if (session.via !== 'oauth') {
-    // Legacy raw-token connections cannot participate in server-side
-    // compare-and-set. Refuse all private dataset mutations from this UI:
-    // even sidecar writes could otherwise bypass revision conflict detection.
-    if (files.some(file => file.path.startsWith('data/'))) {
-      throw new Error('Cloud updates require Hugging Face OAuth sign-in for revision-safe writes. Your local data is preserved.');
-    }
-    await uploadFiles({
-      repo: { type: 'dataset', name: id }, accessToken: session.accessToken,
-      files, commitTitle,
-    });
-    return;
+    // A raw HF token cannot use the server's compare-and-set protocol.
+    // Never make unguarded writes to any dataset path through this client.
+    throw new Error('Cloud updates require Hugging Face OAuth sign-in for revision-safe writes. Your local data is preserved.');
   }
   const data = new FormData();
   data.set('title', commitTitle.slice(0, 130));
