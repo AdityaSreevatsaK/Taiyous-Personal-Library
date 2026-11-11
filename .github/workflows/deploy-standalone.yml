@@ -55,6 +55,7 @@ jobs:
             sleep 1
           done
           node scripts/browser_smoke.mjs
+          node scripts/browser_sync_smoke.mjs
       - name: Stage security headers for standalone hosting only
         run: |
           cp scripts/standalone-headers.txt dist/_headers
