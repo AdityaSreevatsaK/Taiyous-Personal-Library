@@ -16,11 +16,19 @@ Scope: **only** `AdityaSreevatsaK/Taiyous-Personal-Library`. This follows the tw
 | Production-readiness PL-05 (unlocked JS dependencies) | Commit npm `package-lock.json`, use `npm ci` in verification and deployment. | GitHub Actions Verify novel reader |
 | Production-readiness XR-01 (mutable GitHub Actions tags) | Pin checkout, setup-node, setup-python and artifact actions to immutable SHAs observed in successful runs. | GitHub Actions Verify novel reader |
 
-## High-priority unresolved issue
+## PL-01 clock-skew remediation candidate — awaiting staging acceptance
 
-**Adversarial PL-01 — cross-device clock skew.** The current Version 1 personal progress, review and collection documents contain `updatedAt` values originating on devices. Source-level merge decisions are still timestamp-based and can therefore choose stale data when device clocks differ or when two offline clients edit simultaneously.
+**Draft PR #2: https://github.com/AdityaSreevatsaK/Taiyous-Personal-Library/pull/2**
 
-**Do not claim this issue fixed merely by limiting refresh concurrency or improving retry visibility.** A proper fix should use a backward-compatible server-revision/compare-and-set protocol, track each device's last seen per-record revision, preserve conflicting versions instead of discarding them, and present a deliberate choice when offline edits conflict. Add tests with two simulated devices skewed by at least five minutes and concurrent writes; validate recovery of existing version-1 notes before deployment.
+The implementation keeps existing **version-1 progress, reviews and collections documents** readable and unchanged on the private dataset. It introduces a server-side content revision (SHA-256 of the exact JSON bytes) for each personal document, read at the private Hugging Face dataset's immutable revision, followed by a `parentCommit`-checked compare-and-set write. This avoids ordering changes by device-generated `updatedAt` values; those remain for local display/compatibility.
+
+Browser IndexedDB retains the last observed revision per book and both copies when offline changes conflict. Collections retain an analogous revision/conflict in localStorage. Cloud Settings shows the competing notes, ratings, progress or collection memberships and requires an explicit choice of **latest cloud copy** or **this device's copy**, confirmed before any overwrite. An in-flight remote acknowledgement no longer clears unrelated edits made on this device.
+
+**Compatibility constraint:** Older raw-token connections may still read private personal data but cannot safely publish personal edits using the new CAS protocol; the supported write path is the authenticated Cloudflare OAuth gateway. The ordinary upload endpoint now rejects unguarded personal sidecar writes. This is a deliberate fail-closed change; the reader can still operate offline and retains locally pending edits until OAuth is available.
+
+**Verification:** `tests/personal-sync-gateway.test.ts`, `src/lib/revision-sync.test.ts` and `src/lib/personal-sync.test.ts` exercise 5-minute clock offsets, two competing devices, legacy version-1 migration, remote revision conflicts, intentionally choosing versions, and failed reads. The existing import/catalogue, PWA and browser smoke suites continue as release gates.
+
+**Status: not yet accepted for production.** Source-level tests and the PR CI do not substitute for testing the server/real Hugging Face integration against a **disposable private dataset** with two separate browsers (one online and one offline), verifying recovery of an existing v1 note, then exercising conflict resolution for progress, reviews, and collections. Confirm a data backup first. Do not touch the owner's real collection during destructive/failure-injection exercises. Do not deploy this PR or create a v1.0 release without explicit authorisation.
 
 ## Deployment and release gates
 
