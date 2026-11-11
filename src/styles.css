@@ -1050,3 +1050,64 @@ html, body, #root { max-width: 100%; overflow-x: clip; }
   .reader-chapter-button { min-width: 42px; }
   .reader-footer-jump { width: min(44vw, 175px); }
 }
+
+
+/* Protected owner operations: separate passphrase and title confirmation. */
+.owner-dialog-shade { position: fixed; inset: 0; z-index: 150; display: flex; align-items: center; justify-content: center; padding: 18px; background: rgba(10,22,17,.69); }
+.owner-dialog { position: relative; width: min(510px,100%); max-height: min(90dvh,760px); overflow: auto; padding: clamp(21px,3vw,32px); border: 1px solid var(--border); border-radius: 17px; background: var(--surface); color: var(--text); box-shadow: 0 20px 80px rgba(0,0,0,.25); }
+.owner-close { position: absolute; top: 12px; right: 12px; }
+.owner-dialog-icon { width: 43px; height: 43px; background: var(--pale); color: #568369; border-radius: 12px; display: grid; place-items: center; margin-bottom: 14px; }
+.owner-dialog h2 { font: 500 27px/1.2 Georgia,serif; margin: 6px 0 9px; }
+.owner-target { font-weight: 750; overflow-wrap: anywhere; margin: 8px 0; font-size: 15px; }
+.owner-description { color: var(--subtext); line-height: 1.6; font-size: 12px; }
+.owner-warning { display: flex; align-items: flex-start; gap: 9px; line-height: 1.65; padding: 13px; background: var(--pale); border: 1px solid var(--border); border-radius: 9px; font-size: 12px; overflow-wrap: anywhere; }
+.owner-warning svg { flex: none; margin-top: 2px; }
+.owner-unlock-form,.owner-confirm-form { display: flex; flex-direction: column; gap: 10px; margin-top: 19px; }
+.owner-unlock-form p,.owner-confirm-form p { font-size: 12px; line-height: 1.55; color: var(--subtext); margin: 0 0 4px; }
+.owner-confirm-form p { display: flex; gap: 6px; align-items: start; }
+.owner-unlock-form label,.owner-confirm-form label { font-size: 12px; font-weight: 750; }
+.owner-unlock-form input,.owner-confirm-form input { width: 100%; padding: 12px 11px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); color: var(--text); font-size: 13px; }
+.owner-unlock-form > button { width: fit-content; margin-top: 5px; }
+.owner-dialog-actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 10px; align-items: center; margin-top: 12px; }
+.owner-dialog-actions .secondary-button { margin: 0; }
+.owner-danger-button { border: 1px solid #9b4142; background: #943d3e; color: white; padding: 11px 15px; border-radius: 8px; font-weight: 750; font-size: 12px; }
+.owner-danger-button:disabled { opacity: .4; cursor: not-allowed; }
+.owner-error { font-size: 12px; color: #b7524b; line-height: 1.5; }
+.owner-cancel-text { border: none; margin-top: 16px; color: var(--subtext); background: none; padding: 4px; font-size: 12px; text-decoration: underline; }
+.details-management-actions { display: flex; flex-direction: column; align-items: start; gap: 10px; margin: 12px 0; }
+.details-management-actions .secondary-button { margin: 0; }
+.details-delete-novel { display: inline-flex; align-items: center; gap: 7px; background: transparent; border: 1px solid #bb7776; color: #aa4842; border-radius: 8px; padding: 10px 12px; font-size: 12px; font-weight: 750; }
+.details-delete-novel:hover { background: color-mix(in srgb,#c85b5b 10%,var(--surface)); }
+.offline-tile-actions { margin: 7px 0 0; }
+.offline-remove-button { display: inline-flex; align-items: center; gap: 5px; border: 1px solid var(--border); border-radius: 7px; padding: 6px 9px; background: var(--surface); color: var(--subtext); font-size: 10px; }
+.offline-remove-button:hover { color: #ab4139; border-color: #bd8a84; }
+.offline-local-only { font-size: 10px; color: var(--subtext); }
+
+/* Small cloud pill replaces the redundant breadcrumb in the global header.
+   Only the Offline tab displays download counters and bulk caching controls. */
+.topbar { position: relative; z-index: 35; gap: 12px; }
+.topbar > .cloud-connect { flex: 0 0 auto; width: fit-content; max-width: 100%; min-width: 0; position: relative; margin: 0; border-radius: 999px; padding: 3px 5px 3px 9px; box-shadow: none; }
+.topbar .cloud-connect-head { flex-wrap: nowrap; gap: 6px; }
+.topbar .cloud-connect-head > span { display: flex; align-items: center; gap: 6px; flex-wrap: nowrap; white-space: nowrap; font-size: 11px; }
+.topbar .cloud-connect-head .secondary-button { margin: 0; padding: 7px 9px; min-height: 29px; border-radius: 999px; font-size: 11px; }
+.topbar .cloud-connect-body { position: absolute; left: 0; top: calc(100% + 10px); z-index: 80; width: min(490px,calc(100vw - 32px)); max-height: 67dvh; padding: 18px; overflow: auto; margin: 0; background: var(--surface); border: 1px solid var(--border); border-radius: 13px; box-shadow: 0 18px 55px rgba(0,0,0,.18); white-space: normal; }
+.topbar .cloud-status { position: absolute; left: 0; top: calc(100% + 9px); z-index: 80; padding: 10px; max-width: 440px; background: var(--surface); border: 1px solid var(--border); border-radius: 9px; font-size: 11px; }
+.topbar .top-actions { margin-left: auto; }
+.offline-management-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 9px 17px; margin: 0 0 16px; padding: 11px 14px; border: 1px solid var(--border); border-radius: 11px; background: var(--surface); font-size: 11px; color: var(--subtext); }
+@media (max-width: 900px) {
+  .topbar .cloud-connect-head > span strong { display: none; }
+  .topbar .cloud-connect-head .connection-badge { font-size: 10px; padding: 3px 6px; }
+}
+@media (max-width: 700px) {
+  .topbar { gap: 4px; }
+  .topbar > .cloud-connect { padding: 2px; }
+  .topbar .cloud-connect-head { gap: 2px; }
+  .topbar .cloud-connect-head .secondary-button { font-size: 10px; padding: 6px 7px; }
+  .topbar .cloud-connect-head > span { gap: 2px; }
+  .topbar .cloud-connect-head > span svg { width: 14px; height: 14px; }
+  .topbar .global-search-field { max-width: clamp(85px,25vw,160px); }
+  .offline-management-bar { gap: 8px; }
+}
+@media (max-width: 390px) {
+  .topbar .cloud-connect-head .connection-badge { display: none; }
+}
