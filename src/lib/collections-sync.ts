@@ -57,12 +57,18 @@ export async function reconcileCollections(
 
 export async function resolveCollections(
   repo: string, session: CloudSession, local: BookCollection[],
-  choice: 'cloud' | 'device',
+  choice: 'cloud' | 'device', shownConflict: CollectionsSyncConflict,
 ): Promise<CollectionsOutcome> {
   const remote = await fetchVersionedCollections(repo, session);
   if (choice === 'cloud') return {
     collections: remote.value ?? [], baseRevision: remote.revision, pending: false, conflict: null,
   };
+  // Never overwrite a third-device update that arrived AFTER the user read
+  // the comparison in Cloud Settings. Show the changed version instead.
+  if (shownConflict.revision !== remote.revision) {
+    return { collections: local, baseRevision: shownConflict.revision,
+      pending: true, conflict: { remote: remote.value ?? [], revision: remote.revision } };
+  }
   try {
     const result = await writeVersionedCollections(repo, session, local, remote.revision);
     return { collections: local, baseRevision: result.revision, pending: false, conflict: null };
