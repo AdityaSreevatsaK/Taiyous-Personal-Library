@@ -25,7 +25,8 @@ describe('cloud catalogue reconciliation after a dataset is recreated', () => {
 
   it('keeps locally cached EPUBs available even after their cloud dataset is deleted', () => {
     const result = reconcileCloudLibrary([], [old], [old.id]);
-    expect(result.books).toEqual([old]);
+    expect(result.books).toEqual([{ ...old, cloud: false }]);
+    expect(old.cloud).toBe(true);
     expect(result.hiddenStaleEntries).toBe(0);
   });
 

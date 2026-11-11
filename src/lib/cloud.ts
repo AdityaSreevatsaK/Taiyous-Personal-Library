@@ -410,6 +410,11 @@ export function reconcileCloudLibrary(
   const merged = blendCloudAndLocal(remote, local);
   const hostedIds = new Set(remote.filter(validEntry).map(entry => entry.id));
   const cachedIds = new Set(cachedEpubIds);
-  const books = merged.filter(book => hostedIds.has(book.id) || cachedIds.has(book.id));
+  const books = merged
+    .filter(book => hostedIds.has(book.id) || cachedIds.has(book.id))
+    // A locally cached EPUB absent from the new dataset must be publishable
+    // again; its old 'cloud: true' flag is no longer accurate. Do not write
+    // this reclassification to IndexedDB until an actual upload succeeds.
+    .map(book => hostedIds.has(book.id) ? book : { ...book, cloud: false });
   return { books, hiddenStaleEntries: merged.length - books.length };
 }
