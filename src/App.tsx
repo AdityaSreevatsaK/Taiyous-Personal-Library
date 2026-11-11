@@ -667,7 +667,7 @@ export default function App() {
     if (rating !== undefined && (!Number.isInteger(rating) || rating < 1 || rating > 10)) {
       throw new Error('Rating must be between 1 and 10');
     }
-    const updatedAt = Date.now();
+    const updatedAt = nextLocalEditTimestamp(Date.now(), current.personalReviewUpdatedAt);
     const updated = { ...current, personalRating: rating, personalReview: review.trim().slice(0, 10000),
        shelfStatus: trialStatus === 'trying' ? 'trying' as const : trialStatus === 'regular' ? undefined : current.shelfStatus,
       personalReviewUpdatedAt: updatedAt, pendingReviewSync: !!current.cloud };
@@ -684,16 +684,18 @@ export default function App() {
       }
       if (!entry) throw new Error('Saved locally, but the hosted novel could not be matched. Cloud sync did not complete.');
       try {
-        await saveCloudPersonalReview(cloudRepo, entry.id, cloudSession, rating, updated.personalReview, updatedAt, updated.shelfStatus);
+        const synced = await syncReviewRecord(cloudRepo, cloudSession, entry.id, updated);
         const latest = booksRef.current.find(item => item.id === bookId);
         if (latest && latest.personalReviewUpdatedAt === updatedAt) {
-          const synced = { ...latest, pendingReviewSync: false };
           await updateBook(synced);
           booksRef.current = booksRef.current.map(item => item.id === bookId ? synced : item);
           setBooks(booksRef.current);
         }
+        if (synced.reviewSyncConflict) {
+          throw new Error('Another device has different notes. Both copies remain saved for review in Cloud Settings.');
+        }
       } catch (error) {
-        throw new Error(`Saved on this device, but cloud synchronisation failed: ${String(error)}`);
+        throw new Error(`Saved on this device, but cloud synchronisation needs attention: ${String(error)}`);
       }
     }
   }, [cloudRepo, cloudSession]);
@@ -744,24 +746,17 @@ export default function App() {
     setCollectionsSyncPending(true);
     if (cloudRepo && cloudSession) {
       try {
-        const synced = await saveCloudCollections(cloudRepo, cloudSession, next);
-        const combined = mergeCollections(synced, collectionsRef.current);
-        collectionsRef.current = combined;
-        writeLocalCollections(combined);
-        setCollections(combined);
-        // If another edit happened during this upload, retain its pending flag.
-        if (collectionsRef.current.every(c => {
-          const syncedEntry = synced.find(s => s.id === c.id);
-          return syncedEntry && syncedEntry.updatedAt >= c.updatedAt;
-        })) {
-          writeCollectionsPending(false);
-          setCollectionsSyncPending(false);
+        const outcome = await reconcileCollections(cloudRepo, cloudSession, next, true,
+          readCollectionsCloudRevision(), readCollectionsConflict());
+        applyCollectionsOutcome(outcome, next);
+        if (outcome.conflict) {
+          setLastSyncError('Collection edits differ between devices. Choose a copy in Cloud Settings.');
         }
       } catch (cause) {
         setError(`Collections saved on this device, but cloud sync failed: ${String(cause)}`);
       }
     }
-  }, [cloudRepo, cloudSession]);
+  }, [cloudRepo, cloudSession, applyCollectionsOutcome]);
 
   const createCollection = useCallback(async (name: string) => {
     const cleaned = name.trim().slice(0, 90);
@@ -819,7 +814,7 @@ export default function App() {
     const current = booksRef.current.find(item => item.id === readingId);
     if (!current) return;
     const updated = { ...current, ...patch,
-      ...(current.cloud ? { progressUpdatedAt: Date.now(), pendingProgressSync: true } : {}) };
+      ...(current.cloud ? { progressUpdatedAt: nextLocalEditTimestamp(Date.now(), current.progressUpdatedAt), pendingProgressSync: true } : {}) };
     booksRef.current = booksRef.current.map(book => book.id === readingId ? updated : book);
     setBooks(booksRef.current);
     void updateBook(updated).catch(() => setStorageError('Reading progress could not be saved. Check available browser storage.'));
