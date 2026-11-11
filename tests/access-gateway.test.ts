@@ -36,12 +36,12 @@ function fakeHf(token: string, username = owner) {
       return new Response(JSON.stringify({ name: username }));
     }
     if (url.endsWith('/api/datasets/' + DATASET_REPO)) {
-      return new Response(JSON.stringify({ private: true }));
+      return new Response(JSON.stringify({ private: true, sha: 'a'.repeat(40) }));
     }
     if (url.includes('/resolve/main/data/novels/') && url.endsWith('/cover.jpg')) {
       return new Response(new Uint8Array([255, 216, 255, 224, 0, 1, 2]), { headers: { 'Content-Type': 'image/jpeg' } });
     }
-    if (url.includes('/resolve/main/data/library.json')) {
+    if (url.includes('/resolve/') && url.endsWith('/data/library.json')) {
       return new Response(JSON.stringify({ version: 1, books: [] }));
     }
     throw new Error('Unexpected fetch: ' + url);
