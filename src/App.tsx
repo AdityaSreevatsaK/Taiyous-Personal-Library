@@ -935,7 +935,8 @@ export default function App() {
     try {
       if (kind === 'collections') {
         const snapshot = collectionsRef.current;
-        const outcome = await resolveCollections(cloudRepo, cloudSession, snapshot, choice);
+        if (!collectionsConflict) throw new Error('No collections conflict is waiting for review.');
+        const outcome = await resolveCollections(cloudRepo, cloudSession, snapshot, choice, collectionsConflict);
         applyCollectionsOutcome(outcome, snapshot);
         if (outcome.conflict) {
           setLastSyncError('The cloud collections changed again. Both versions remain available for another choice.');
@@ -980,7 +981,7 @@ export default function App() {
     } finally {
       setCloudBusy(false);
     }
-  }, [cloudRepo, cloudSession, cloudBusy, applyCollectionsOutcome]);
+  }, [cloudRepo, cloudSession, cloudBusy, collectionsConflict, applyCollectionsOutcome]);
 
   const syncConflicts: Array<{
     kind: 'progress' | 'review' | 'collections'; bookId?: string; title: string; detail: string;
