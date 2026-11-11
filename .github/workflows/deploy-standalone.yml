@@ -31,7 +31,7 @@ jobs:
         with:
           python-version: '3.11'
       - name: Install dependencies
-        run: npm install --no-fund --no-audit
+        run: npm ci --no-fund --no-audit
       - name: Type-check, unit tests and audit
         run: |
           npm run typecheck
@@ -87,7 +87,7 @@ jobs:
       # Wrangler compiles the repository's functions/ folder when deployed
       # from the project root. The built dist/ artifact alone is insufficient.
       - name: Install Pages Function dependencies
-        run: npm install --no-fund --no-audit
+        run: npm ci --no-fund --no-audit
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: standalone-pwa-${{ github.sha }}

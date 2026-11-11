@@ -15,18 +15,7 @@ jobs:
         with:
           node-version: '22'
       - name: Install dependencies
-        run: npm install --no-fund --no-audit
-      - name: Emit npm lockfile for controlled reproducible installation
-        run: |
-          npm install --package-lock-only --ignore-scripts --no-fund --no-audit
-          node - <<'JS'
-          const fs = require('node:fs');
-          console.log('TAIYOU_LOCK_BEGIN');
-          for (const line of fs.readFileSync('package-lock.json', 'utf8').split('\n')) {
-            console.log('TAIYOU_LOCK_LINE ' + line);
-          }
-          console.log('TAIYOU_LOCK_END');
-          JS
+        run: npm ci --no-fund --no-audit
       - name: Unit tests
         run: npm test
       - name: Production build
