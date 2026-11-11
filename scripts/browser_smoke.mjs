@@ -38,8 +38,8 @@ try {
     }));
     // Owner mode must never silently grant deletion in a static/offline preview.
     await context.route('**/api/owner?**', route => route.fulfill({
-      status: 401, contentType: 'application/json',
-      body: JSON.stringify({ error: 'Sign in with the HF owner account first' }),
+      status: 200, contentType: 'application/json',
+      body: JSON.stringify({ configured: false, unlocked: false, expiresAt: null }),
     }));
     const page = await context.newPage();
     const errors = [];
@@ -158,7 +158,7 @@ try {
     await page.getByRole('heading', { name: 'Sample Library Book' }).waitFor();
     await page.getByRole('button', { name: 'Remove local novel (Owner mode)' }).click();
     await page.getByRole('dialog', { name: 'Remove local novel' }).waitFor();
-    await page.getByText('Sign in with the HF owner account first').waitFor();
+    await page.getByText(/Owner mode is not configured/).waitFor();
     if (await page.getByRole('button', { name: 'Delete local novel' }).count()) {
       throw new Error('Destructive action bypasses the special owner sign-in');
     }
