@@ -28,7 +28,7 @@ function validDocument(path: string, value: unknown): boolean {
           typeof c.name !== 'string' || !c.name.trim() || c.name.length > 90 ||
           !Array.isArray(c.bookIds) || c.bookIds.length > 2000 ||
           c.bookIds.some(id => typeof id !== 'string' || !VALID_ID.test(id)) ||
-          typeof c.updatedAt !== 'number' || !Number.isFinite(c.updatedAt) || c.updatedAt < 0 ||
+          typeof c.updatedAt !== 'number' || !Number.isFinite(c.updatedAt) || c.updatedAt < 0 || c.updatedAt < 0 ||
           (c.deleted !== undefined && typeof c.deleted !== 'boolean')) return false;
       seen.add(c.id);
     }
@@ -105,8 +105,13 @@ export async function personalRequest(
       return json({ error: 'Personal sync request too large' }, 413);
     }
     let body: Record<string, unknown>;
-    try { body = JSON.parse(raw) as Record<string, unknown>; }
-    catch { return json({ error: 'Invalid personal sync request' }, 400); }
+    try {
+      const parsed: unknown = JSON.parse(raw);
+      if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+        return json({ error: 'Invalid personal sync request' }, 400);
+      }
+      body = parsed as Record<string, unknown>;
+    } catch { return json({ error: 'Invalid personal sync request' }, 400); }
     path = body.path;
     expected = body.baseRevision;
     value = body.value;
