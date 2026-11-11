@@ -45,7 +45,7 @@ For details and limits, read [Capabilities and offline behaviour](docs/CAPABILIT
 ## Local development
 
 ```sh
-npm install
+npm ci
 npm run typecheck
 npm test
 npm run build
@@ -67,9 +67,11 @@ For browser smoke tests, see `scripts/browser_smoke.mjs` and the GitHub workflow
 
 - **Hugging Face OAuth** is implemented on `master` as an encrypted server-side session via Cloudflare Pages Functions. The React app redirects to HF for PKCE sign-in, checks the private dataset owner and reconnects automatically on reload. The HF OAuth bearer token is never exposed in JavaScript.
 - **OAuth requires** the Cloudflare Secret `HF_OAUTH_SESSION_KEY` (a fresh random 64-character hex key). **Protected Owner mode additionally requires** a separate Cloudflare Secret `TAIYOU_OWNER_PASSPHRASE` (a unique strong passphrase, 16–128 characters). With that second secret absent, deletion is disabled by design. The app publishes a public HF OAuth Client ID Metadata Document at `/oauth-client.json`, so no Cloudflare Zero Trust account or additional hosting service is needed.
-- The public OAuth metadata must serve small JSON, not the SPA HTML fallback. Verify live Hugging Face sign-in with the owner's account after deploying. The existing manual fine-grained HF token fallback remains available.
+- The public OAuth metadata must serve small JSON, not the SPA HTML fallback. Verify live Hugging Face sign-in with the owner's account after deploying. The legacy manual-token fallback remains available for reading and personal notes, but cloud novel/catalogue uploads require OAuth so the server can protect the dataset.
 - **Permission trade-off:** OAuth's `write-repos` scope includes personal repositories, not only the novel dataset; the backend itself is restricted to `AdityaSreevatsaK/Taiyous-Novels`. For narrower token permissions use the legacy manual fine-grained token.
-- CI runs the full and production npm security audits, blocks on high/critical advisories, compiles the Pages Functions and tests the OAuth flow with synthetic credentials (never real book or auth data).
+- CI runs the full and production npm security audits, blocks on high/critical advisories, compiles the Pages Functions and tests the OAuth flow with synthetic credentials (never real book or auth data). Builds use the committed npm lockfile with `npm ci`, and GitHub Actions references are pinned to reviewed SHAs.
+- **Catalogue integrity:** Ordinary OAuth novel imports only add a new novel (or attach its first original ZIP), with a conditional Hugging Face commit at a verified dataset revision. The generic API refuses catalogue removals, existing-novel overwrites, duplicate paths and orphaned data. A missing `data/library.json` is treated as a truly new dataset only when `data/` is empty. Full novel deletion remains separate and Owner-protected.
+- **Cloudflare upload limit:** The web form accepts up to 70 MiB per file and approximately 75 MiB per request; larger archives should be uploaded through the local Taiyou-Novels-Storage-Controller. The original import still remains saved locally if cloud publishing fails.
 
 **Protected full deletion:** Ordinary reading and **removing an offline EPUB download** never require Owner mode; offline removal uses a normal confirmation and verifies the hosted EPUB exists first. Deleting any *entire novel*, whether local-only or hosted in the private HF Dataset, and deleting collections require a fresh HF owner session, a separate Owner passphrase (10-minute HttpOnly unlock) and typing the exact title. The normal bookshelf has no one-click delete icons. For hosted novels the private API performs a revision-guarded commit that removes the novel's data folder, catalogue listing, and its cloud notes/progress; export a backup first. No generic arbitrary-file delete endpoint exists. These controls prevent accidental application-level removal, not browser/Cloudflare account owners from deleting data outside the app.
 
@@ -79,7 +81,12 @@ See [Hugging Face OAuth and Owner-mode setup](docs/ACCESS_GATEWAY.md).
 
 - Cloud actions and cross-device sync need connectivity and a valid Hugging Face OAuth session (or manual token fallback). The OAuth session is restored automatically on reload until expiry; then sign in again.
 - Personal tags, custom summaries and typography settings are local rather than cloud-synced.
+- Notes and progress refreshes are rate-limited to five concurrent requests with bounded transient-read retries. Cloud Settings reports background sync failures; pending local edits are retained for retry.
+- **Open issue before v1.0:** Cross-device progress/review/collection conflict resolution still uses device-generated timestamps. Clock skew and competing offline edits can choose the wrong winner. This requires a server-revision-based sync protocol with explicit conflict handling, not a timestamp-only adjustment.
+- Offline EPUBs are browser-managed caches. The app reports whether persistent storage was granted, and recommends a separate EPUB or ZIP backup even when it was.
 - Concurrent edits across devices are timestamp-based, not transactionally conflict-free.
 - The new permanent hostname has separate browser storage from the former `dev.` alias. The user approved resetting locally cached data during the transition; download EPUBs again on the new hostname for offline access.
 
 **Release policy:** Development commits are not GitHub releases. Do **not** create a v1.0 tag or publish a GitHub Release until the library owner explicitly approves the release after manual testing.
+
+For the deep-research issue-by-issue disposition and remaining verification, see [Production readiness audit follow-up](docs/READINESS_AUDIT_2026-11.md).
