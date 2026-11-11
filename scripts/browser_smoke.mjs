@@ -179,7 +179,12 @@ try {
     }
     await page.reload({ waitUntil: 'networkidle' });
     await page.getByRole('heading', { name: 'Sample Library Book' }).waitFor();
-    await libraryTitle.click();
+    if (viewport.width <= 700) {
+      // The long brand link is hidden on narrow screens; use the visible home button.
+      await page.getByRole('button', { name: 'My library' }).click();
+    } else {
+      await libraryTitle.click();
+    }
     await page.getByRole('navigation', { name: 'Library sections' }).waitFor();
     if (new URL(page.url()).pathname !== '/') throw new Error('Home hyperlink did not navigate to /');
     await page.goBack({ waitUntil: 'domcontentloaded' });
@@ -239,7 +244,12 @@ try {
     // Trial shelf changes are explicit, and do not alter genre tags.
     await page.getByRole('button', { name: 'Add to Trying out' }).click();
     await page.getByRole('button', { name: 'Move to regular library' }).waitFor();
-    await libraryTitle.click();
+    if (viewport.width <= 700) {
+      // The long brand link is hidden on narrow screens; use the visible home button.
+      await page.getByRole('button', { name: 'My library' }).click();
+    } else {
+      await libraryTitle.click();
+    }
     if (viewport.width <= 900) await page.getByRole('button', { name: 'Open menu' }).click();
     await page.getByRole('navigation', { name: 'Library sections' }).getByRole('button', { name: /Trying out/ }).click();
     await page.getByRole('button', { name: 'View details for Sample Library Book' }).waitFor();
