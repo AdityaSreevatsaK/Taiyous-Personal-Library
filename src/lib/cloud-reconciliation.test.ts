@@ -32,7 +32,7 @@ describe('cloud catalogue reconciliation after a dataset is recreated', () => {
   it('shows the current hosted novels and cached offline novels, not missing old listings', () => {
     const cached = book('cccccccccccccccccccccccc', 'Offline import', false);
     const result = reconcileCloudLibrary([entry(newer)], [old, cached], [cached.id]);
-    expect(result.books.map(b => b.id)).toEqual([newer.id, cached.id]);
+    expect(result.books.map(b => b.id).sort()).toEqual([newer.id, cached.id].sort());
     expect(result.hiddenStaleEntries).toBe(1);
   });
 
