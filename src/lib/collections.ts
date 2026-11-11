@@ -1,5 +1,5 @@
 import type { CloudSession } from './cloud';
-import { assertPrivateDataset, uploadPrivateDatasetFiles, validateDatasetRepo, readRevisionedPersonal, writeRevisionedPersonal, type CloudRevisionSnapshot } from './cloud';
+import { assertPrivateDataset, uploadPrivateDatasetFiles, validateDatasetRepo, readRevisionedPersonal, writeRevisionedPersonal, CloudPersonalConflict, type CloudRevisionSnapshot } from './cloud';
 
 export interface BookCollection {
   id: string;
@@ -152,4 +152,14 @@ export const writeVersionedCollections = (
   writeRevisionedPersonal(repo, session, CLOUD_PATH, {
     version: 1 as const, collections: validateCollections({ version: 1, collections }),
   }, baseRevision, value => validateCollections(value))
-    .then(result => ({ value: result.value?.collections ?? null, revision: result.revision }));
+    .then(result => ({ value: result.value?.collections ?? null, revision: result.revision }))
+    .catch(error => {
+      if (error instanceof CloudPersonalConflict) {
+        const remote = error.snapshot.value as { version: 1; collections: BookCollection[] } | null;
+        throw new CloudPersonalConflict<BookCollection[]>({
+          value: remote ? validateCollections(remote) : null,
+          revision: error.snapshot.revision,
+        });
+      }
+      throw error;
+    });
