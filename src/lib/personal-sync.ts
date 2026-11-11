@@ -121,6 +121,13 @@ export async function resolveReadingConflict(
 ): Promise<LibraryBook> {
   const remote = await fetchVersionedReadingProgress(repo, id, session);
   if (choice === 'cloud') return takeRemoteReading(book, remote);
+  // The user approved the version displayed in Settings. If a third device
+  // changed it after that screen rendered, require a fresh comparison rather
+  // than silently publishing over an update the user has never seen.
+  if (!book.progressSyncConflict ||
+      book.progressSyncConflict.revision !== remote.revision) {
+    return { ...book, pendingProgressSync: true, progressSyncConflict: remote };
+  }
   try {
     const saved = await writeVersionedReadingProgress(repo, id, session, book, remote.revision);
     return { ...book, progressCloudRevision: saved.revision,
@@ -139,6 +146,10 @@ export async function resolveReviewConflict(
 ): Promise<LibraryBook> {
   const remote = await fetchVersionedPersonalReview(repo, id, session);
   if (choice === 'cloud') return takeRemoteReview(book, remote);
+  if (!book.reviewSyncConflict ||
+      book.reviewSyncConflict.revision !== remote.revision) {
+    return { ...book, pendingReviewSync: true, reviewSyncConflict: remote };
+  }
   try {
     const saved = await writeVersionedPersonalReview(repo, id, session, book, remote.revision);
     return { ...book, reviewCloudRevision: saved.revision,
