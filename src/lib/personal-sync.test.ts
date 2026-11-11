@@ -100,6 +100,35 @@ describe('personal sync client guards against clock-skew and competing offline w
     expect((calls[1].body as {value: {rating: number}}).value.rating).toBe(9);
   });
 
+  it('recovers hosted progress for a legacy local EPUB ID matched to the same novel', async () => {
+    mockedGateway(remoteProgress);
+    const local = book({ id: 'b'.repeat(24), progress: 0 });
+    const result = await syncReadingRecord('reader/library', session, id, local);
+    expect(result.id).toBe(local.id);
+    expect(result.progress).toBe(20);
+    expect(result.currentChapterNumber).toBe(20);
+    expect(result.progressCloudRevision).toBe(revisionB);
+  });
+
+  it('retains both revisions when another write races after reading the cloud snapshot', async () => {
+    vi.stubGlobal('fetch', vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) =>
+      new Response(JSON.stringify(init?.method === 'POST'
+        ? { error: 'Another device changed this record', conflict: true,
+            value: { ...remoteReview, rating: 7, comments: 'Racing update' }, revision: revisionC }
+        : { value: remoteReview, revision: revisionB }), {
+        status: init?.method === 'POST' ? 409 : 200,
+        headers: { 'Content-Type': 'application/json' },
+      })));
+    const local = book({ personalRating: 9, personalReview: 'Keep device notes',
+      personalReviewUpdatedAt: 700_000, pendingReviewSync: true,
+      reviewCloudRevision: revisionB });
+    const result = await syncReviewRecord('reader/library', session, id, local);
+    expect(result.personalReview).toBe('Keep device notes');
+    expect(result.pendingReviewSync).toBe(true);
+    expect(result.reviewSyncConflict?.value?.comments).toBe('Racing update');
+    expect(result.reviewSyncConflict?.revision).toBe(revisionC);
+  });
+
   it('does not publish an unattended conflicting legacy review even when its timestamp is later', async () => {
     const calls = mockedGateway(remoteReview);
     const result = await syncReviewRecord('reader/library', session, id,
