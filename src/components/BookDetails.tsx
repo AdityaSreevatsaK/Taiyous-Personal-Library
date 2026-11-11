@@ -6,7 +6,7 @@ import {
 import { Cover } from './LibraryDashboard';
 import type { CloudSession } from '../lib/cloud';
 import ChapterBrowser from './ChapterBrowser';
-import { bookTags, includesTag, normalizeTags } from '../lib/tags';
+import { bookTags, normalizeTags } from '../lib/tags';
 import type { LibraryBook, ReaderTheme } from '../types';
 
 interface Props {
@@ -34,6 +34,7 @@ interface Props {
 
 export default function BookDetails({ book, theme, onBack, onRead, onDownloadEpub, isCachedOffline, onSaveOffline, onRemoveOffline, onDeleteLocal, onDownloadArchive, cloudConnected, cloudRepo, cloudSession, onReadChapter, onSaveTags, onSaveSummary, onSaveReview, onSetTrial, onBrowseTag, error }: Props) {
   const [tagInput, setTagInput] = useState('');
+  const [tagDraft, setTagDraft] = useState<string[]>(() => book.personalTags || []);
   const [editingSummary, setEditingSummary] = useState(false);
   const [summaryDraft, setSummaryDraft] = useState(book.userDescription || book.description || '');
   const [ratingDraft, setRatingDraft] = useState<number | undefined>(book.personalRating);
@@ -42,41 +43,51 @@ export default function BookDetails({ book, theme, onBack, onRead, onDownloadEpu
   const [downloading, setDownloading] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
   const originalTags = book.sourceTags || [];
-  const customTags = book.personalTags || [];
+  const customTags = tagDraft;
+  const tagsChanged = JSON.stringify(tagDraft) !== JSON.stringify(book.personalTags || []);
   const allTags = bookTags(book);
   const summary = book.userDescription || book.description;
   const chapterText = book.currentChapter || (book.progress ? 'Position saved' : 'Not started');
 
   useEffect(() => { setSummaryDraft(book.userDescription || book.description || ''); }, [book.id, book.userDescription, book.description]);
+  useEffect(() => { setTagDraft(book.personalTags || []); setTagInput(''); }, [book.id, book.personalTags]);
   useEffect(() => { setRatingDraft(book.personalRating); setReviewDraft(book.personalReview || ''); }, [book.id, book.personalRating, book.personalReview]);
 
-  async function addTag(event: FormEvent<HTMLFormElement>) {
+  function addTag(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const tag = normalizeTags(tagInput)[0];
     if (!tag || saving) return;
-    if (includesTag(book, tag)) { setFeedback('That tag is already on this novel.'); setTagInput(''); return; }
-    setSaving(true); setFeedback(null);
-    try {
-      await onSaveTags([...customTags, tag]);
-      setTagInput('');
-      setFeedback(`Added “${tag}”.`);
-    } catch { setFeedback('Unable to save this tag. Check browser storage.'); }
-    finally { setSaving(false); }
+    if ([...originalTags, ...tagDraft].some(existing => existing.toLocaleLowerCase() === tag.toLocaleLowerCase())) {
+      setFeedback('That tag is already on this novel.'); setTagInput(''); return;
+    }
+    if (tagDraft.length >= 50) { setFeedback('Maximum 50 personal tags.'); return; }
+    setTagDraft(current => [...current, tag]);
+    setTagInput('');
+    setFeedback('Tag added to your draft. Save changes after you finish editing.');
   }
 
-  async function removeTag(tag: string) {
+  function removeTag(tag: string) {
     if (saving) return;
+    setTagDraft(current => current.filter(existing => existing.toLocaleLowerCase() !== tag.toLocaleLowerCase()));
+    setFeedback('Tag removed from your draft. Save changes after you finish editing.');
+  }
+
+  async function saveTags() {
+    if (saving || !tagsChanged) return;
+    if (!window.confirm('Are you sure you wish to save your tag changes for this novel? All additions and removals will be applied together.')) return;
     setSaving(true); setFeedback(null);
     try {
-      await onSaveTags(customTags.filter((existing) => existing.toLocaleLowerCase() !== tag.toLocaleLowerCase()));
-      setFeedback(`Removed “${tag}”.`);
-    } catch { setFeedback('Unable to remove the tag.'); }
-    finally { setSaving(false); }
+      await onSaveTags(tagDraft);
+      setFeedback('Tag changes saved.');
+    } catch (error) {
+      setFeedback(error instanceof Error ? error.message : 'Unable to save tag changes.');
+    } finally { setSaving(false); }
   }
 
   async function saveSummary(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (saving) return;
+    if (!window.confirm('Are you sure you wish to save this revised synopsis?')) return;
     setSaving(true); setFeedback(null);
     try { await onSaveSummary(summaryDraft); setEditingSummary(false); setFeedback('Summary saved on this device.'); }
     catch { setFeedback('Could not save your summary.'); }
@@ -190,7 +201,7 @@ export default function BookDetails({ book, theme, onBack, onRead, onDownloadEpu
         </aside>
         <div className="details-main-column">
           <section className="details-card details-description" aria-labelledby="detail-summary-heading">
-            <div className="details-section-header"><div><span className="details-label">ABOUT THE STORY</span><h2 id="detail-summary-heading">Synopsis</h2></div><button className="details-text-action" onClick={() => setEditingSummary(!editingSummary)} type="button"><Pencil size={15} /> {editingSummary ? 'Cancel' : 'Edit summary'}</button></div>
+            <div className="details-section-header"><div><span className="details-label">ABOUT THE STORY</span><h2 id="detail-summary-heading">Synopsis</h2></div><button className="details-text-action" onClick={() => { if (editingSummary) setSummaryDraft(book.userDescription || book.description || ''); setEditingSummary(!editingSummary); }} type="button"><Pencil size={15} /> {editingSummary ? 'Cancel' : 'Edit summary'}</button></div>
             {editingSummary ? <form onSubmit={(e) => void saveSummary(e)} className="summary-form"><label htmlFor="summary-editor" className="setting-help">Your version is stored only in this browser; the imported summary remains available.</label><textarea id="summary-editor" value={summaryDraft} onChange={(e) => setSummaryDraft(e.target.value)} maxLength={24000} rows={9} placeholder="Write a short summary of the story..." /><div className="summary-form-actions"><button type="button" className="secondary-button" onClick={() => setEditingSummary(false)}>Cancel</button><button type="submit" className="primary-button" disabled={saving}><Check size={16} /> Save summary</button></div></form>
               : summary ? <p className="details-synopsis">{summary}</p>
                 : <p className="details-muted">No synopsis is present in this EPUB. You can add your own with <strong>Edit summary</strong>.</p>}
@@ -206,6 +217,11 @@ export default function BookDetails({ book, theme, onBack, onRead, onDownloadEpu
             <h3 className="details-tags-label">My tags</h3>
             <div className="details-tag-row">{customTags.length ? customTags.map((tag) => <span className="details-tag personal-tag" key={tag}><button className="tag-browse-button" type="button" onClick={() => onBrowseTag(tag)} aria-label={`Browse novels tagged ${tag}`}>{tag}</button><button type="button" disabled={saving} onClick={() => void removeTag(tag)} title={`Remove ${tag}`} aria-label={`Remove tag ${tag}`}><X size={14} /></button></span>) : <span className="details-muted small">You haven't added any personal tags yet.</span>}</div>
             <form className="details-tag-form" onSubmit={(e) => void addTag(e)}><label htmlFor="new-novel-tag" className="sr-only">New personal tag</label><input id="new-novel-tag" value={tagInput} maxLength={45} onChange={(e) => setTagInput(e.target.value)} placeholder="e.g. Favourite, Cultivation, Slow burn..." /><button className="primary-button" type="submit" disabled={saving || !tagInput.trim() || customTags.length >= 50}><Plus size={18} /> Add tag</button></form>
+            <div className="tag-draft-actions">
+              <span>{tagsChanged ? 'Unsaved tag changes' : 'Your tags are saved'}</span>
+              {tagsChanged && <><button type="button" className="secondary-button" onClick={() => { setTagDraft(book.personalTags || []); setFeedback(null); }}>Discard changes</button>
+                <button type="button" className="primary-button" disabled={saving} onClick={() => void saveTags()}>Review & save tags</button></>}
+            </div>
           </section>
         </div>
       </div>
