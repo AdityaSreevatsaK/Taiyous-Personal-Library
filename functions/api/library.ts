@@ -1,6 +1,10 @@
 import { commit, uploadFiles, type CommitOperation } from '@huggingface/hub';
 import { hasOwnerGrant } from './owner';
 import {
+  CATALOGUE_LIMIT, parseDatasetCatalogue, planAdditiveCatalogueUpload,
+  type DatasetCatalogue,
+} from '../_lib/catalogue';
+import {
   DATASET_REPO, authorise, attachRenewal, configured, isPrivateDataset,
   privateHeaders, productionOnly, secureResponse, type Bindings,
 } from '../_lib/oauth';
@@ -24,6 +28,115 @@ function json(value: unknown, status = 200): Response {
 function reject(status: number, message: string): Response {
   return json({ error: message }, status);
 }
+class CatalogueSafetyError extends Error {
+  constructor(readonly code: number, message: string) { super(message); }
+}
+const HF_ORIGIN = 'https://huggingface.co';
+
+/** Query the exact immutable HF commit being validated, never /main. */
+async function treeHasFiles(repo: string, sha: string, path: string, token: string): Promise<boolean> {
+  const res = await fetch(HF_ORIGIN + '/api/datasets/' + repo + '/tree/' + sha + '/' + path +
+    '?recursive=true&limit=1', {
+    headers: { Authorization: 'Bearer ' + token }, cache: 'no-store',
+  });
+  if (res.status === 404) return false; // No such tree is genuinely empty.
+  if (!res.ok) throw new CatalogueSafetyError(502, 'Cannot verify the private dataset file tree');
+  let data: unknown;
+  try { data = await res.json(); } catch {
+    throw new CatalogueSafetyError(502, 'Unexpected dataset tree response');
+  }
+  if (!Array.isArray(data)) throw new CatalogueSafetyError(502, 'Unexpected dataset tree response');
+  return data.length > 0;
+}
+
+/** Missing library.json is empty ONLY when the entire data/ tree is empty. */
+async function readCatalogueSnapshot(repo: string, token: string):
+  Promise<{ sha: string; catalogue: DatasetCatalogue; isNew: boolean }> {
+  const headers = { Authorization: 'Bearer ' + token };
+  const meta = await fetch(HF_ORIGIN + '/api/datasets/' + repo, { headers, cache: 'no-store' });
+  if (!meta.ok) throw new CatalogueSafetyError(502, 'Could not inspect the private dataset');
+  const info = await meta.json() as { sha?: unknown; private?: unknown };
+  if (info.private !== true || typeof info.sha !== 'string' ||
+      !/^[0-9a-f]{40}$/.test(info.sha)) {
+    throw new CatalogueSafetyError(502, 'Dataset is not private or has no valid commit revision');
+  }
+  const sha = info.sha;
+  const response = await fetch(HF_ORIGIN + '/datasets/' + repo +
+    '/resolve/' + sha + '/data/library.json', { headers, cache: 'no-store' });
+  if (response.status === 404) {
+    if (await treeHasFiles(repo, sha, 'data', token)) {
+      throw new CatalogueSafetyError(409,
+        'Recovery required: dataset contains files but data/library.json is missing. No upload was made.');
+    }
+    return { sha, catalogue: { version: 1, books: [] }, isNew: true };
+  }
+  if (!response.ok) throw new CatalogueSafetyError(502, 'Could not inspect the dataset catalogue');
+  if (Number(response.headers.get('Content-Length') || 0) > CATALOGUE_LIMIT) {
+    throw new CatalogueSafetyError(502, 'Dataset catalogue exceeds the safety limit');
+  }
+  try {
+    const text = await response.text();
+    if (text.length > CATALOGUE_LIMIT) throw Error('Oversized catalogue');
+    return { sha, catalogue: parseDatasetCatalogue(JSON.parse(text)), isNew: false };
+  } catch {
+    throw new CatalogueSafetyError(502,
+      'Recovery required: dataset catalogue is malformed. No upload was made.');
+  }
+}
+
+/** Safe add-only uploads preserve existing novel metadata and are revision-bound. */
+async function uploadCatalogueAddition(repo: string, token: string,
+  files: Array<{path: string; content: File}>, title: string): Promise<Response> {
+  const incoming = files.find(file => file.path === 'data/library.json');
+  if (!incoming || incoming.content.size > CATALOGUE_LIMIT) {
+    return reject(400, 'Novel upload must include a reasonably sized catalogue');
+  }
+  let proposed: DatasetCatalogue;
+  try { proposed = parseDatasetCatalogue(JSON.parse(await incoming.content.text())); }
+  catch { return reject(400, 'Invalid uploaded catalogue'); }
+
+  const snapshot = await readCatalogueSnapshot(repo, token);
+  let plan: ReturnType<typeof planAdditiveCatalogueUpload>;
+  try {
+    plan = planAdditiveCatalogueUpload(snapshot.catalogue, proposed, files.map(file => file.path));
+  } catch (error) {
+    return reject(409, error instanceof Error ? error.message : 'Catalogue update rejected');
+  }
+  // A missing catalogue may be created only in a genuinely empty data/ tree.
+  // Never overwrite unlisted/orphaned data in the intended book folder.
+  if (plan.operation === 'add') {
+    if (await treeHasFiles(repo, snapshot.sha, 'data/novels/' + plan.novelId, token)) {
+      return reject(409, 'Novel files already exist outside the catalogue; recover before uploading');
+    }
+  } else {
+    const zip = 'data/novels/' + plan.novelId + '/original.zip';
+    const res = await fetch(HF_ORIGIN + '/datasets/' + repo + '/resolve/' + snapshot.sha + '/' + zip, {
+      method: 'HEAD', headers: { Authorization: 'Bearer ' + token }, cache: 'no-store',
+    });
+    if (res.status !== 404) {
+      return reject(res.ok ? 409 : 502,
+        'Cannot safely attach an original ZIP while the remote file exists or cannot be verified');
+    }
+  }
+  const operations: CommitOperation[] = [
+    ...files.filter(file => file.path !== 'data/library.json').map(file => ({
+      operation: 'addOrUpdate' as const, path: file.path, content: file.content,
+    })),
+    { operation: 'addOrUpdate', path: 'data/library.json',
+      content: new Blob([JSON.stringify(plan.next, null, 2) + '\n'],
+        { type: 'application/json' }) },
+  ];
+  try {
+    await commit({
+      repo: { type: 'dataset', name: repo }, accessToken: token,
+      parentCommit: snapshot.sha, title, operations,
+    });
+    return json({ saved: true, kind: plan.operation });
+  } catch {
+    return reject(409, 'The dataset changed during upload or the write failed. Refresh and retry; nothing was replaced.');
+  }
+}
+
 async function downloadFile(repo: string, path: string, token: string): Promise<Response> {
   const url = 'https://huggingface.co/datasets/' + repo + '/resolve/main/' +
     path.split('/').map(encodeURIComponent).join('/');
@@ -71,6 +184,15 @@ async function upload(request: Request, repo: string, token: string): Promise<Re
     files.push({ path, content: blob });
   }
   if (total > MAX_UPLOAD_BYTES) return reject(413, 'Upload exceeds limit');
+  if (new Set(files.map(file => file.path)).size !== files.length) {
+    return reject(400, 'Duplicate upload paths are not permitted');
+  }
+  const hasCatalogue = files.some(file => file.path === 'data/library.json');
+  const hasNovelData = files.some(file => file.path.startsWith('data/novels/'));
+  // Novel files and the authoritative catalogue must be changed together.
+  // Sidecar notes/collections are independent and never carry book files.
+  if (hasCatalogue) return uploadCatalogueAddition(repo, token, files, title);
+  if (hasNovelData) return reject(403, 'Direct novel-file replacement is not permitted');
   await uploadFiles({
     repo: { type: 'dataset', name: repo },
     accessToken: token,
@@ -207,6 +329,18 @@ export async function onRequest({ request, env }: PagesContext): Promise<Respons
   if (request.method === 'GET' && action === 'file') {
     const path = url.searchParams.get('path');
     if (!isAllowedDatasetPath(path)) return respond(reject(400, 'Unsupported library file path'));
+    if (path === 'data/library.json') {
+      try {
+        const snapshot = await readCatalogueSnapshot(DATASET_REPO, token);
+        return respond(snapshot.isNew
+          ? reject(404, 'New private dataset has no catalogue or novel files yet')
+          : json(snapshot.catalogue));
+      } catch (error) {
+        return respond(error instanceof CatalogueSafetyError
+          ? reject(error.code, error.message)
+          : reject(502, 'Could not verify the dataset catalogue'));
+      }
+    }
     return respond(await downloadFile(DATASET_REPO, path, token));
   }
   if (request.method === 'POST' && action === 'delete-novel') {
@@ -214,7 +348,11 @@ export async function onRequest({ request, env }: PagesContext): Promise<Respons
   }
   if (request.method === 'POST' && action === 'upload') {
     try { return respond(await upload(request, DATASET_REPO, token)); }
-    catch { return respond(reject(502, 'Could not write the private dataset')); }
+    catch (error) {
+      return respond(error instanceof CatalogueSafetyError
+        ? reject(error.code, error.message)
+        : reject(502, 'Could not write the private dataset'));
+    }
   }
   return respond(reject(404, 'Unknown library API action'));
 }
