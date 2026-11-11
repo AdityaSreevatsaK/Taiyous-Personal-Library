@@ -18,7 +18,7 @@ concurrency:
 jobs:
   validate:
     if: github.repository == 'AdityaSreevatsaK/Taiyous-Personal-Library' && github.ref == 'refs/heads/master'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
@@ -44,7 +44,9 @@ jobs:
       - name: Install Chromium
         run: |
           npm install --no-save --package-lock=false playwright
-          npx playwright install --with-deps chromium
+          # Avoid apt-get --with-deps: runner mirror DNS failures should not break browser checks.
+          # ubuntu-24.04 hosted runners already include shared browser runtime libraries.
+          npx playwright install chromium
       - name: Prove offline reload and reading with no network
         run: |
           npm run preview -- --host 127.0.0.1 --port 4173 --strictPort > /tmp/taiyou-preview.log 2>&1 &
@@ -68,7 +70,7 @@ jobs:
   deploy:
     needs: validate
     if: github.repository == 'AdityaSreevatsaK/Taiyous-Personal-Library' && github.ref == 'refs/heads/master' && inputs.publish == true
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     environment: standalone-staging
     timeout-minutes: 15
     env:
