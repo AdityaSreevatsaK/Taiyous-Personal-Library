@@ -340,7 +340,9 @@ export default function App() {
           }
         }
         if (!syncFailures && !booksRef.current.some(book => book.pendingProgressSync)) {
-          setLastSyncError(null);
+          // A successful progress retry must not clear unrelated notes or
+          // collections warnings; those need their own successful refresh.
+          setLastSyncError(previous => previous?.startsWith('Reading positions') ? null : previous);
         }
       } finally { busy = false; }
     };
