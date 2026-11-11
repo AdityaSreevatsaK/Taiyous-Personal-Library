@@ -404,7 +404,13 @@ export default function App() {
               const result = await uploadNovelToCloud(cloudRepo, cloudSession, file, imported);
               if (result === 'added') published++;
               const current = booksRef.current.find(book => book.id === metadata.id) || metadata;
-              await updateBook({ ...current, cloud: true });
+              const hasLocalNotes = !!(current.shelfStatus || current.personalRating ||
+                current.personalReview?.trim());
+              await updateBook({
+                ...current, cloud: true,
+                ...(hasLocalNotes ? { pendingReviewSync: true,
+                  personalReviewUpdatedAt: current.personalReviewUpdatedAt || Date.now() } : {}),
+              });
             } catch (reason) {
               failures.push(`${file.name}: saved on this device, but CLOUD UPLOAD FAILED: ${String(reason)}`);
             }
@@ -456,7 +462,13 @@ export default function App() {
             const epub = await getBookFile(book.id);
             const file = new File([epub], `${book.id}.epub`, { type: 'application/epub+zip' });
             await uploadNovelToCloud(cloudRepo, cloudSession, file, { metadata: book, epub });
-            await updateBook({ ...book, cloud: true });
+            const hasLocalNotes = !!(book.shelfStatus || book.personalRating ||
+              book.personalReview?.trim());
+            await updateBook({
+              ...book, cloud: true,
+              ...(hasLocalNotes ? { pendingReviewSync: true,
+                personalReviewUpdatedAt: book.personalReviewUpdatedAt || Date.now() } : {}),
+            });
             published++;
           } catch (reason) { failures.push(`${book.title}: ${String(reason)}`); }
         }
