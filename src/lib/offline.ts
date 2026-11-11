@@ -2,7 +2,7 @@
 export function registerOfflineApp(): void {
   if (!('serviceWorker' in navigator) || !window.isSecureContext) return;
   window.addEventListener('load', () => {
-    void navigator.serviceWorker.register(new URL('sw.js', document.baseURI).href)
+    void navigator.serviceWorker.register('/sw.js')
       .then(() => {
         window.dispatchEvent(new Event('taiyou-offline-shell-updated'));
       })
