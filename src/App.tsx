@@ -316,17 +316,13 @@ export default function App() {
           const entry = findCloudEntryForBook([...cloudEntries.current.values()], snapshot);
           if (!entry) continue;
           try {
-            const remote = await retryTransientRead(() =>
-              fetchCloudReadingProgress(cloudRepo, entry.id, cloudSession));
             const current = booksRef.current.find(book => book.id === snapshot.id);
             if (!current?.pendingProgressSync) continue;
             const localTimestamp = current.progressUpdatedAt ?? 0;
-            let updated: LibraryBook;
-            if (remote && remote.updatedAt >= localTimestamp) {
-              updated = applyCloudReadingProgress(current, remote);
-            } else {
-              await saveCloudReadingProgress(cloudRepo, entry.id, cloudSession, current);
-              updated = { ...current, pendingProgressSync: false };
+            const updated = await syncReadingRecord(cloudRepo, cloudSession, entry.id, current);
+            if (updated.progressSyncConflict) {
+              syncFailures++;
+              setLastSyncError('A reading position conflicts with another device. Review both copies in Cloud Settings.');
             }
             // A new scroll may have occurred during upload; never clear newer edits.
             const latest = booksRef.current.find(book => book.id === snapshot.id);
@@ -344,7 +340,7 @@ export default function App() {
               ' failed attempt(s) in the latest cycle): ' + message.slice(0, 140));
           }
         }
-        if (!syncFailures && !booksRef.current.some(book => book.pendingProgressSync)) {
+        if (!syncFailures && !booksRef.current.some(book => book.pendingProgressSync || book.progressSyncConflict)) {
           // A successful progress retry must not clear unrelated notes or
           // collections warnings; those need their own successful refresh.
           setLastSyncError(previous => previous?.startsWith('Reading positions') ? null : previous);
