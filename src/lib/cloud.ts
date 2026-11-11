@@ -86,7 +86,7 @@ export async function uploadPrivateDatasetFiles(
   repo: string, session: CloudSession,
   files: Array<{ path: string; content: Blob }>, commitTitle: string,
 ): Promise<void> {
-  const id = validateDatasetRepo(repo);
+  validateDatasetRepo(repo);
   if (session.via !== 'oauth') {
     // A raw HF token cannot use the server's compare-and-set protocol.
     // Never make unguarded writes to any dataset path through this client.
