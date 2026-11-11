@@ -236,12 +236,18 @@ export default function App() {
       // Opening a reader while refresh is in flight must not lose its latest
       // locally-persisted scroll position or a simultaneous review edit.
       const latestById = new Map(booksRef.current.map(book => [book.id, book]));
+      const initialById = new Map(merged.map(book => [book.id, book]));
       const preserved = withProgress.map(book => {
         const latest = latestById.get(book.id);
+        const initial = initialById.get(book.id);
         if (!latest) return book;
-        let updated = book;
+        // Only compare the pre-request and post-request state of THIS device.
+        // The remote's updatedAt may be hours ahead or behind, and cannot be
+        // used to decide whether the reader edited while the refresh ran.
+        let updated = { ...book, personalTags: latest.personalTags,
+          userDescription: latest.userDescription };
         if (latest.pendingProgressSync &&
-            (latest.progressUpdatedAt ?? 0) > (book.progressUpdatedAt ?? 0)) {
+            latest.progressUpdatedAt !== initial?.progressUpdatedAt) {
           updated = { ...updated, progress: latest.progress, currentChapter: latest.currentChapter,
             currentChapterIndex: latest.currentChapterIndex, currentChapterNumber: latest.currentChapterNumber,
             lastCfi: latest.lastCfi, lastOpenedAt: latest.lastOpenedAt,
@@ -249,7 +255,7 @@ export default function App() {
             progressCloudRevision: latest.progressCloudRevision, progressSyncConflict: latest.progressSyncConflict };
         }
         if (latest.pendingReviewSync &&
-            (latest.personalReviewUpdatedAt ?? 0) > (book.personalReviewUpdatedAt ?? 0)) {
+            latest.personalReviewUpdatedAt !== initial?.personalReviewUpdatedAt) {
           updated = { ...updated, personalReview: latest.personalReview,
             personalRating: latest.personalRating, shelfStatus: latest.shelfStatus,
             personalReviewUpdatedAt: latest.personalReviewUpdatedAt, pendingReviewSync: true,
