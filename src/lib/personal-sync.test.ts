@@ -160,6 +160,23 @@ describe('personal sync client guards against clock-skew and competing offline w
     expect(calls.map(call => call.method)).toEqual(['GET']);
   });
 
+
+  it('retries a transient 503 when fetching progress without duplicating any writes', async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({error: 'Rate limit'}), {
+        status: 503, headers: {'Content-Type': 'application/json'},
+      }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        value: remoteProgress, revision: revisionB,
+      }), {headers: {'Content-Type': 'application/json'}}));
+    vi.stubGlobal('fetch', fetchMock);
+    const result = await syncReadingRecord('reader/library', session, id, book());
+    expect(result.progress).toBe(20);
+    expect(result.progressCloudRevision).toBe(revisionB);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock.mock.calls.every(([, options]) => options?.method !== 'POST')).toBe(true);
+  });
+
   it('does not publish an unattended conflicting legacy review even when its timestamp is later', async () => {
     const calls = mockedGateway(remoteReview);
     const result = await syncReviewRecord('reader/library', session, id,
