@@ -41,7 +41,7 @@ const cloud = new Map([
   [collectionsPath, { value: {version: 1, collections: [remoteCollection]}, revision: rev('b') }],
 ]);
 const writes = [];
-let revisionIndex = 12;
+let revisionIndex = 13;
 const json = (value) => JSON.stringify(value);
 let connectedA = false;
 
