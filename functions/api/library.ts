@@ -109,16 +109,22 @@ async function deleteHostedNovel(request: Request, token: string, env: PagesCont
 
   const headers = { Authorization: 'Bearer ' + token };
   const base = 'https://huggingface.co';
-  const [repoInfo, catalogResponse] = await Promise.all([
-    fetch(base + '/api/datasets/' + DATASET_REPO, { headers, cache: 'no-store' }),
-    fetch(base + '/datasets/' + DATASET_REPO + '/resolve/main/data/library.json',
-      { headers, cache: 'no-store' }),
-  ]);
-  if (!repoInfo.ok || !catalogResponse.ok) return reject(502, 'Could not verify the private dataset and catalogue');
+  // Use the exact same immutable dataset revision for verification AND the
+  // conditional commit. Fetching /resolve/main in parallel with HEAD can read
+  // an older catalogue under a newer sha and accidentally lose another upload.
+  const repoInfo = await fetch(base + '/api/datasets/' + DATASET_REPO,
+    { headers, cache: 'no-store' });
+  if (!repoInfo.ok) return reject(502, 'Could not verify the private dataset');
   const info = await repoInfo.json() as { sha?: unknown };
   if (typeof info.sha !== 'string' || !/^[0-9a-f]{40}$/.test(info.sha)) {
     return reject(502, 'Cannot safely identify the current dataset revision');
   }
+  const revision = info.sha;
+  const catalogResponse = await fetch(
+    base + '/datasets/' + DATASET_REPO + '/resolve/' + revision + '/data/library.json',
+    { headers, cache: 'no-store' },
+  );
+  if (!catalogResponse.ok) return reject(502, 'Could not verify the private dataset catalogue');
   const catalog = await catalogResponse.json() as { version?: unknown; books?: unknown };
   if (catalog.version !== 1 || !Array.isArray(catalog.books) ||
       catalog.books.length > 30000 || catalog.books.some((value: unknown) =>
@@ -143,7 +149,7 @@ async function deleteHostedNovel(request: Request, token: string, env: PagesCont
     'data/personal/progress/' + id + '.json',
   ];
   const existence = await Promise.all(personalPaths.map(path => fetch(
-    base + '/datasets/' + DATASET_REPO + '/resolve/main/' + path, {
+    base + '/datasets/' + DATASET_REPO + '/resolve/' + revision + '/' + path, {
       method: 'HEAD', headers, cache: 'no-store',
     })));
   if (existence.some(response => response.status !== 404 && !response.ok)) {
