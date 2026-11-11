@@ -389,10 +389,22 @@ function cloudMetadata(book: LibraryBook): LibraryBook {
   };
 }
 
+/** Cloudflare Pages has a lower upload body budget than the local storage controller. */
+export function validateCloudNovelUploadSize(epubBytes: number, originalBytes: number, includesZip: boolean): void {
+  const MiB = 1024 * 1024;
+  const total = epubBytes + (includesZip ? originalBytes : 0);
+  if (epubBytes > 70 * MiB || (includesZip && originalBytes > 70 * MiB) || total > 74 * MiB) {
+    throw new Error('This novel exceeds the website upload limit (70 MiB per file, approximately 75 MiB per request). ' +
+      'The novel can remain saved on this device. To publish a larger ZIP or EPUB, use Taiyou-Novels-Storage-Controller on your PC.');
+  }
+}
+
 export async function uploadNovelToCloud(
   repo: string, session: CloudSession, original: File, imported: ImportedBook,
 ): Promise<'added' | 'duplicate'> {
   if (!ID_PATTERN.test(imported.metadata.id)) throw new Error('Invalid EPUB identifier.');
+  validateCloudNovelUploadSize(imported.epub.size, original.size,
+    original.name.toLowerCase().endsWith('.zip'));
   // Fetch immediately before commit so a recently uploaded novel is not lost.
   const catalog = await fetchCloudCatalog(repo, session);
   const id = imported.metadata.id;
