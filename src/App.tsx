@@ -978,6 +978,7 @@ export default function App() {
 
   const syncConflicts: Array<{
     kind: 'progress' | 'review' | 'collections'; bookId?: string; title: string; detail: string;
+    localText?: string; remoteText?: string;
   }> = [];
   for (const book of books) {
     if (book.progressSyncConflict) {
@@ -992,15 +993,22 @@ export default function App() {
       const remote = book.reviewSyncConflict.value;
       syncConflicts.push({ kind: 'review', bookId: book.id,
         title: 'Rating, comments or Trying shelf: ' + book.title,
-        detail: 'This device: ' + (book.personalRating ?? 'unrated') + '/10, ' +
-          (book.personalReview ?? '').slice(0, 80) + '; cloud: ' +
-          (remote ? (remote.rating ?? 'unrated') + '/10, ' + remote.comments.slice(0, 80) : 'no saved notes') });
+        detail: 'This device rating: ' + (book.personalRating ?? 'unrated') +
+          '/10; cloud rating: ' + (remote?.rating ?? 'unrated') + '/10. ' +
+          'This device shelf: ' + (book.shelfStatus === 'trying' ? 'Trying' : 'Regular') +
+          '; cloud shelf: ' + (remote?.shelfStatus === 'trying' ? 'Trying' : 'Regular') + '.',
+        localText: book.personalReview || '(no comments)',
+        remoteText: remote?.comments || '(no comments)' });
     }
   }
   if (collectionsConflict) {
     syncConflicts.push({ kind: 'collections', title: 'Reading collections',
       detail: 'This device: ' + collections.length + ' saved collections; cloud: ' +
-        collectionsConflict.remote.length + '. Novel memberships and names may differ.' });
+        collectionsConflict.remote.length + '. Compare the names and memberships below.',
+      localText: collections.map(item => (item.deleted ? '[Deleted] ' : '') + item.name + ': ' +
+        item.bookIds.map(id => books.find(book => book.id === id)?.title || id).join(', ')).join('\n') || '(none)',
+      remoteText: collectionsConflict.remote.map(item => (item.deleted ? '[Deleted] ' : '') + item.name +
+        ': ' + item.bookIds.map(id => books.find(book => book.id === id)?.title || id).join(', ')).join('\n') || '(none)' });
   }
 
   function pickerChanged(event: ChangeEvent<HTMLInputElement>) {
