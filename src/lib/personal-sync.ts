@@ -1,6 +1,6 @@
 import type { LibraryBook } from '../types';
 import {
-  applyCloudReadingProgress, CloudPersonalConflict,
+  CloudPersonalConflict,
   fetchVersionedPersonalReview, fetchVersionedReadingProgress,
   writeVersionedPersonalReview, writeVersionedReadingProgress,
   type CloudPersonalReview, type CloudReadingProgress, type CloudRevisionSnapshot, type CloudSession,
@@ -28,10 +28,19 @@ function sameReview(book: LibraryBook, remote: CloudPersonalReview): boolean {
 }
 
 function takeRemoteReading(book: LibraryBook, remote: CloudRevisionSnapshot<CloudReadingProgress>): LibraryBook {
-  const original = remote.value ? applyCloudReadingProgress({ ...book, pendingProgressSync: false }, remote.value)
-    : { ...book, progress: 0, currentChapter: undefined, currentChapterIndex: undefined,
-      currentChapterNumber: undefined, lastCfi: undefined };
-  return { ...original, progressCloudRevision: remote.revision,
+  // A legacy local import can match a hosted novel by unique title + author
+  // while retaining a different local EPUB ID. The server has already
+  // validated the hosted bookId against the requested path, so copy the
+  // position without replacing the browser's local IndexedDB identity.
+  const position = remote.value;
+  return { ...book, progress: position?.progress ?? 0,
+    currentChapter: position?.currentChapter ?? undefined,
+    currentChapterIndex: position?.currentChapterIndex ?? undefined,
+    currentChapterNumber: position?.currentChapterNumber ?? undefined,
+    lastCfi: position?.lastCfi ?? undefined,
+    lastOpenedAt: position?.lastOpenedAt ?? undefined,
+    progressUpdatedAt: position?.updatedAt,
+    progressCloudRevision: remote.revision,
     pendingProgressSync: false, progressSyncConflict: undefined };
 }
 function takeRemoteReview(book: LibraryBook, remote: CloudRevisionSnapshot<CloudPersonalReview>): LibraryBook {
