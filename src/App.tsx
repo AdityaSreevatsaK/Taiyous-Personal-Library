@@ -2,12 +2,14 @@ import { useCallback, useEffect, useRef, useState, type ChangeEvent } from 'reac
 import LibraryDashboard from './components/LibraryDashboard';
 import BookDetails from './components/BookDetails';
 import Reader from './components/Reader';
+import OwnerActionDialog, { type OwnerRemovalRequest } from './components/OwnerActionDialog';
+import { ownerPost } from './lib/owner';
 import { extractEpubMetadata, prepareImport } from './lib/importer';
 import { normalizeTags } from './lib/tags';
-import { deleteBook, getBookFile, getBooks, getCachedEpubIds, readSettings, saveBook, updateBook, writeSettings } from './lib/storage';
+import { deleteBook, removeCachedEpub, getBookFile, getBooks, getCachedEpubIds, readSettings, saveBook, updateBook, writeSettings } from './lib/storage';
 import {
   reconcileCloudLibrary, clearCloudSession, createCloudSession, discoverHostedOAuthSession, assertPrivateDataset,
-  fetchCloudCatalog, fetchCloudEpub, fetchCloudArchive, fetchCloudPersonalReview, findCloudEntryForBook, readDatasetRepo, saveDatasetRepo,
+  fetchCloudCatalog, fetchCloudEpub, hostedEpubExists, fetchCloudArchive, fetchCloudPersonalReview, findCloudEntryForBook, readDatasetRepo, saveDatasetRepo,
   saveCloudPersonalReview, fetchCloudReadingProgress, saveCloudReadingProgress, applyCloudReadingProgress,
   uploadNovelToCloud, validateDatasetRepo,
   type CloudEntry, type CloudSession,
@@ -33,6 +35,7 @@ export default function App() {
   const [cloudRepo, setCloudRepo] = useState(readDatasetRepo);
   const [cloudBusy, setCloudBusy] = useState(false);
   const [cloudMessage, setCloudMessage] = useState<string | null>(null);
+  const [ownerRequest, setOwnerRequest] = useState<OwnerRemovalRequest | null>(null);
   const [loadingBook, setLoadingBook] = useState<string | null>(null);
   const [cachedEpubIds, setCachedEpubIds] = useState<string[]>([]);
   const [online, setOnline] = useState(() => navigator.onLine);
@@ -725,23 +728,69 @@ export default function App() {
     void updateBook(updated).catch(() => setStorageError('Reading progress could not be saved. Check available browser storage.'));
   }, [readingId]);
 
-  const removeBook = useCallback(async (book: LibraryBook) => {
+  // UI actions only request an owner-authenticated confirmation. The owner
+  // dialog performs a fresh server-side privilege verification before execution.
+  const removeBook = useCallback((book: LibraryBook) => {
     if (book.cloud) {
-      setError('This novel is hosted in your private Hugging Face dataset. Delete it there if needed; the web app cannot delete hosted novels in this version.');
+      setError('Hosted novels cannot be deleted from this website. Use your storage controller to manage the private Hugging Face dataset.');
       return;
     }
-    if (!window.confirm(`Remove “${book.title}” from this browser? This also removes its saved reading position.`)) return;
-    try {
-      await deleteBook(book.id);
-      const current = booksRef.current.filter(item => item.id !== book.id);
-      booksRef.current = current;
-      setBooks(current);
-      setCachedEpubIds(ids => ids.filter(id => id !== book.id));
-      if (detailsId === book.id) setDetailsId(null);
-      setNotice('Local novel removed from this device.');
+    setOwnerRequest({ kind: 'local-novel', id: book.id, title: book.title });
+  }, []);
+
+  const requestRemoveOffline = useCallback((book: LibraryBook) => {
+    const entry = cloudEntries.current.get(book.id);
+    if (!book.cloud || !entry || !cloudSession || cloudSession.via !== 'oauth') {
+      setError('This EPUB has no verified cloud backup. Keep the local file or upload a backup before removing it.');
+      return;
+    }
+    setOwnerRequest({ kind: 'offline-copy', id: book.id, title: book.title });
+  }, [cloudSession]);
+
+  const requestDeleteCollection = useCallback((collectionId: string) => {
+    const collection = collectionsRef.current.find(item => item.id === collectionId && !item.deleted);
+    if (collection) setOwnerRequest({ kind: 'collection', id: collection.id, title: collection.name });
+  }, []);
+
+  const performOwnerAction = useCallback(async (request: OwnerRemovalRequest) => {
+    // Privilege is verified on the server at the exact moment of the operation.
+    // This is defence-in-depth against accidentally keeping a stale unlocked UI.
+    await ownerPost('verify');
+    if (request.kind === 'local-novel') {
+      const current = booksRef.current.find(book => book.id === request.id);
+      if (!current || current.cloud || current.title !== request.title) throw new Error('Local novel changed; deletion cancelled.');
+      await deleteBook(current.id);
+      const remaining = booksRef.current.filter(book => book.id !== current.id);
+      booksRef.current = remaining;
+      setBooks(remaining);
+      setCachedEpubIds(ids => ids.filter(id => id !== current.id));
+      setDetailsId(id => id === current.id ? null : id);
+      setNotice(`Local novel “${current.title}” removed from this device only.`);
       setError(null);
-    } catch (reason) { setError(`Unable to remove novel: ${String(reason)}`); }
-  }, [detailsId]);
+      return;
+    }
+    if (request.kind === 'offline-copy') {
+      const current = booksRef.current.find(book => book.id === request.id);
+      const entry = cloudEntries.current.get(request.id);
+      if (!current || !current.cloud || current.title !== request.title || !entry || !cloudRepo ||
+          cloudSession?.via !== 'oauth' || !navigator.onLine) {
+        throw new Error('Cannot verify a current cloud backup. The local EPUB has been kept.');
+      }
+      if (!(await hostedEpubExists(cloudRepo, entry, cloudSession))) {
+        throw new Error('The hosted EPUB is missing or unreachable. The local EPUB has been kept to prevent data loss.');
+      }
+      await removeCachedEpub(current.id);
+      setCachedEpubIds(ids => ids.filter(id => id !== current.id));
+      setNotice(`Offline EPUB for “${current.title}” removed. Its cloud copy, details and progress are unchanged.`);
+      setError(null);
+      return;
+    }
+    const collection = collectionsRef.current.find(item => item.id === request.id && !item.deleted);
+    if (!collection || collection.name !== request.title) throw new Error('Collection changed; deletion cancelled.');
+    await deleteCollection(collection.id);
+    setNotice(`Collection “${collection.name}” deleted. Its novels remain untouched.`);
+    setError(null);
+  }, [cloudRepo, cloudSession, deleteCollection]);
 
   function pickerChanged(event: ChangeEvent<HTMLInputElement>) {
     if (event.target.files?.length) void importFiles(event.target.files);
@@ -760,6 +809,10 @@ export default function App() {
         onBack={() => setDetailsId(null)} onRead={() => openBook(detailBook)}
         onReadChapter={href => openBook(detailBook, href)}
         onDownloadEpub={() => downloadEpub(detailBook)}
+        isCachedOffline={cachedEpubIds.includes(detailBook.id)}
+        onSaveOffline={() => makeAvailableOffline(detailBook)}
+        onRemoveOffline={() => requestRemoveOffline(detailBook)}
+        onDeleteLocal={() => removeBook(detailBook)}
         onDownloadArchive={cloudSession && findCloudEntryForBook([...cloudEntries.current.values()], detailBook)?.archivePath
           ? () => downloadArchive(detailBook) : undefined}
         cloudConnected={!!cloudSession && !!cloudRepo}
@@ -779,13 +832,13 @@ export default function App() {
         collections={collections.filter(c => !c.deleted)}
         onCreateCollection={createCollection}
         onRenameCollection={renameCollection}
-        onDeleteCollection={deleteCollection}
+        onDeleteCollection={requestDeleteCollection}
         onCollectionMembership={changeCollectionMembership}
         initialTag={browseTag} globalSearch={globalSearch} onGlobalSearch={setGlobalSearch}
         onThemeChange={theme => setSettings(settings => ({ ...settings, theme }))}
         onImportClick={() => filePicker.current?.click()}
         onFiles={files => void importFiles(files)} onOpen={showDetails}
-        onRead={openBook} onDelete={book => void removeBook(book)}
+        onRead={openBook} onRemoveOffline={requestRemoveOffline}
         importing={importing || !!loadingBook} notice={notice} error={error} storageError={storageError}
         cloudRepo={cloudRepo} cloudSession={cloudSession} cloudBusy={cloudBusy}
         cloudMessage={loadingBook ? `Opening ${loadingBook}…` : cloudMessage}
@@ -793,6 +846,8 @@ export default function App() {
         onCloudLogout={signOutOfCloud} onCloudRefresh={() => void refreshCloud()}
         onCloudPublishCached={publishCachedNovels} />
     )}
+    {ownerRequest && <OwnerActionDialog request={ownerRequest}
+      onCancel={() => setOwnerRequest(null)} onConfirm={performOwnerAction} />}
     <input ref={filePicker} type="file" accept=".epub,.zip,application/epub+zip" multiple hidden
       onChange={pickerChanged} aria-label="Import EPUB or Novel ZIP" />
   </>;
