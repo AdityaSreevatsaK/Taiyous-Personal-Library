@@ -88,6 +88,12 @@ export async function uploadPrivateDatasetFiles(
 ): Promise<void> {
   const id = validateDatasetRepo(repo);
   if (session.via !== 'oauth') {
+    // A raw HF token cannot use the server's revision-bound catalogue guard.
+    // Keep legacy reading and personal-note writes, but prevent this UI from
+    // silently overwriting hosted novels or the authoritative book listing.
+    if (files.some(file => file.path === 'data/library.json' || file.path.startsWith('data/novels/'))) {
+      throw new Error('Adding or changing cloud novels requires Hugging Face OAuth sign-in. The legacy token connection is limited to personal notes and reading progress.');
+    }
     await uploadFiles({
       repo: { type: 'dataset', name: id }, accessToken: session.accessToken,
       files, commitTitle,
