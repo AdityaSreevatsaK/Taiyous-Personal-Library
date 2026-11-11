@@ -170,6 +170,20 @@ try {
     if (await page.locator('.offline-health').count()) throw new Error('Offline status shown outside Offline tab');
     await page.getByRole('button', { name: 'View details for Sample Library Book' }).click();
     await page.getByRole('heading', { name: 'Sample Library Book' }).waitFor();
+    if (new URL(page.url()).pathname !== '/book/aaaaaaaaaaaaaaaaaaaaaaaa') {
+      throw new Error('Novel detail URL must be bookmarkable');
+    }
+    const libraryTitle = page.locator('a.details-top-title');
+    if (await libraryTitle.getAttribute('href') !== '/') {
+      throw new Error('Taiyou library title must be an actual hyperlink');
+    }
+    await page.reload({ waitUntil: 'networkidle' });
+    await page.getByRole('heading', { name: 'Sample Library Book' }).waitFor();
+    await libraryTitle.click();
+    await page.getByRole('navigation', { name: 'Library sections' }).waitFor();
+    if (new URL(page.url()).pathname !== '/') throw new Error('Home hyperlink did not navigate to /');
+    await page.goBack({ waitUntil: 'domcontentloaded' });
+    await page.getByRole('heading', { name: 'Sample Library Book' }).waitFor();
     await page.getByRole('button', { name: 'Remove local novel (Owner mode)' }).click();
     await page.getByRole('dialog', { name: 'Remove local novel' }).waitFor();
     await page.getByText(/Owner mode is not configured/).waitFor();
@@ -200,6 +214,38 @@ try {
     if (!download.suggestedFilename().endsWith('.epub')) throw new Error('Missing EPUB download filename');
     await page.getByLabel('My comments / reading notes').fill('Local test note');
     await page.getByRole('button', { name: 'Save comments' }).click();
+
+    // Synopsis edits must prompt before committing.
+    await page.getByRole('button', { name: 'Edit summary' }).click();
+    await page.locator('#summary-editor').fill('My confirmed synopsis');
+    page.once('dialog', dialog => void dialog.dismiss());
+    await page.getByRole('button', { name: 'Save summary' }).click();
+    await page.locator('#summary-editor').waitFor();
+    page.once('dialog', dialog => void dialog.accept());
+    await page.getByRole('button', { name: 'Save summary' }).click();
+    await page.getByText('My confirmed synopsis').waitFor();
+
+    // Tags must be staged; multiple changes are confirmed in one batch.
+    await page.getByRole('textbox', { name: 'New personal tag' }).fill('Worth a try');
+    await page.getByRole('button', { name: 'Add tag' }).click();
+    await page.getByText('Unsaved tag changes').waitFor();
+    page.once('dialog', dialog => void dialog.dismiss());
+    await page.getByRole('button', { name: 'Review & save tags' }).click();
+    await page.getByText('Unsaved tag changes').waitFor();
+    page.once('dialog', dialog => void dialog.accept());
+    await page.getByRole('button', { name: 'Review & save tags' }).click();
+    await page.getByText('Your tags are saved').waitFor();
+
+    // Trial shelf changes are explicit, and do not alter genre tags.
+    await page.getByRole('button', { name: 'Add to Trying out' }).click();
+    await page.getByRole('button', { name: 'Move to regular library' }).waitFor();
+    await libraryTitle.click();
+    if (viewport.width <= 900) await page.getByRole('button', { name: 'Open menu' }).click();
+    await page.getByRole('navigation', { name: 'Library sections' }).getByRole('button', { name: /Trying out/ }).click();
+    await page.getByRole('button', { name: 'View details for Sample Library Book' }).waitFor();
+    await page.getByRole('button', { name: 'View details for Sample Library Book' }).click();
+    await page.getByRole('button', { name: 'Move to regular library' }).click();
+    await page.getByRole('button', { name: 'Add to Trying out' }).waitFor();
     const aside = await page.locator('.details-aside').boundingBox();
     const mainColumn = await page.locator('.details-main-column').boundingBox();
     if (viewport.width > 900 && (!aside || !mainColumn || aside.x >= mainColumn.x)) {
@@ -238,6 +284,10 @@ try {
     // The current novel title returns to details; the library brand goes home.
     await page.getByRole('button', { name: 'View details for Sample Library Book' }).click();
     await page.getByRole('button', { name: 'Start reading' }).click();
+    if (new URL(page.url()).pathname !== '/book/aaaaaaaaaaaaaaaaaaaaaaaa/read') {
+      throw new Error('Reader URL must identify the book');
+    }
+    await page.reload({ waitUntil: 'networkidle' });
     // Reader navigation belongs in the bottom strip, outside the hosting overlay.
     const footer = page.getByRole('navigation', { name: 'Chapter navigation' });
     await footer.waitFor({ state: 'visible' });
