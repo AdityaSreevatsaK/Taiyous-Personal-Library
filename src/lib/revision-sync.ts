@@ -5,14 +5,14 @@
  */
 export type SyncDecision = 'upload' | 'adopt' | 'unchanged' | 'conflict';
 
-export function decidePersonalSync<T>(
-  local: T,
-  remote: T | null,
+export function decidePersonalSync<Local, Remote>(
+  local: Local,
+  remote: Remote | null,
   pending: boolean,
   lastSeenRevision: string | null | undefined,
   remoteRevision: string | null,
   meaningfulLocal: boolean,
-  equivalent: (a: T, b: T) => boolean,
+  equivalent: (a: Local, b: Remote) => boolean,
 ): SyncDecision {
   if (remote !== null && equivalent(local, remote)) return 'adopt';
   if (pending) {
