@@ -30,7 +30,7 @@ export async function reconcileCollections(
     return { collections: local, baseRevision: baseRevision ?? null, pending: true,
       conflict: { remote: hosted, revision: remote.revision } };
   }
-  const decision = decidePersonalSync(local, hosted, pending, baseRevision,
+  const decision = decidePersonalSync(local, remote.value, pending, baseRevision,
     remote.revision, local.length > 0, equivalentCollections);
   if (decision === 'conflict') return {
     collections: local, baseRevision: baseRevision ?? null, pending: true,
