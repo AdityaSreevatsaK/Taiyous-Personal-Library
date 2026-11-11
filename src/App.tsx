@@ -326,9 +326,20 @@ export default function App() {
             // A new scroll may have occurred during upload; never clear newer edits.
             const latest = booksRef.current.find(book => book.id === snapshot.id);
             if (latest && latest.progressUpdatedAt === localTimestamp) {
-              booksRef.current = booksRef.current.map(book => book.id === latest.id ? updated : book);
+              // Only change the synced progress slice. A rating, tag or summary
+              // edited while the network call ran must never be overwritten.
+              const merged = { ...latest, progress: updated.progress,
+                currentChapter: updated.currentChapter,
+                currentChapterIndex: updated.currentChapterIndex,
+                currentChapterNumber: updated.currentChapterNumber,
+                lastCfi: updated.lastCfi, lastOpenedAt: updated.lastOpenedAt,
+                progressUpdatedAt: updated.progressUpdatedAt,
+                pendingProgressSync: updated.pendingProgressSync,
+                progressCloudRevision: updated.progressCloudRevision,
+                progressSyncConflict: updated.progressSyncConflict };
+              booksRef.current = booksRef.current.map(book => book.id === latest.id ? merged : book);
               setBooks(booksRef.current);
-              await updateBook(updated);
+              await updateBook(merged);
             }
           } catch (reason) {
             // Leave the pending flag set for a later authorised retry and make
@@ -686,8 +697,14 @@ export default function App() {
         const synced = await syncReviewRecord(cloudRepo, cloudSession, entry.id, updated);
         const latest = booksRef.current.find(item => item.id === bookId);
         if (latest && latest.personalReviewUpdatedAt === updatedAt) {
-          await updateBook(synced);
-          booksRef.current = booksRef.current.map(item => item.id === bookId ? synced : item);
+          const merged = { ...latest, personalReview: synced.personalReview,
+            personalRating: synced.personalRating, shelfStatus: synced.shelfStatus,
+            personalReviewUpdatedAt: synced.personalReviewUpdatedAt,
+            reviewCloudRevision: synced.reviewCloudRevision,
+            pendingReviewSync: synced.pendingReviewSync,
+            reviewSyncConflict: synced.reviewSyncConflict };
+          await updateBook(merged);
+          booksRef.current = booksRef.current.map(item => item.id === bookId ? merged : item);
           setBooks(booksRef.current);
         }
         if (synced.reviewSyncConflict) {
@@ -931,8 +948,22 @@ export default function App() {
           setLastSyncError('A new local edit occurred during conflict resolution. It remains pending; refresh to compare again.');
           return;
         }
-        await updateBook(updated);
-        booksRef.current = booksRef.current.map(book => book.id === updated.id ? updated : book);
+        const merged = kind === 'progress'
+          ? { ...latest, progress: updated.progress,
+              currentChapter: updated.currentChapter, currentChapterIndex: updated.currentChapterIndex,
+              currentChapterNumber: updated.currentChapterNumber, lastCfi: updated.lastCfi,
+              lastOpenedAt: updated.lastOpenedAt, progressUpdatedAt: updated.progressUpdatedAt,
+              progressCloudRevision: updated.progressCloudRevision,
+              pendingProgressSync: updated.pendingProgressSync,
+              progressSyncConflict: updated.progressSyncConflict }
+          : { ...latest, personalReview: updated.personalReview,
+              personalRating: updated.personalRating, shelfStatus: updated.shelfStatus,
+              personalReviewUpdatedAt: updated.personalReviewUpdatedAt,
+              reviewCloudRevision: updated.reviewCloudRevision,
+              pendingReviewSync: updated.pendingReviewSync,
+              reviewSyncConflict: updated.reviewSyncConflict };
+        await updateBook(merged);
+        booksRef.current = booksRef.current.map(book => book.id === updated.id ? merged : book);
         setBooks(booksRef.current);
         if (updated.progressSyncConflict || updated.reviewSyncConflict) {
           setLastSyncError('The cloud record changed again. Both versions are preserved for another choice.');
