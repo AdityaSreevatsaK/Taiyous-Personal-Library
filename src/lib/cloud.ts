@@ -104,7 +104,15 @@ export async function uploadPrivateDatasetFiles(
     method: 'POST', credentials: 'same-origin', body: data, cache: 'no-store',
     headers: { 'X-Taiyou-Request': 'dataset-upload' },
   });
-  if (!response.ok) throw new Error(`Private dataset upload failed (${response.status}). Sign in with Hugging Face again if needed.`);
+  if (!response.ok) {
+    const details = await response.json().catch(() => ({})) as { error?: string };
+    const explanation = typeof details.error === 'string' ? details.error.slice(0, 300) : '';
+    if (response.status === 409) {
+      throw new Error('Cloud dataset conflict or recovery required: ' + (explanation || 'refresh your library before retrying.'));
+    }
+    throw new Error('Private dataset upload failed (' + response.status + '). ' +
+      (explanation || 'Sign in with Hugging Face again if needed.'));
+  }
 }
 
 function resolveUrl(repo: string, path: string): string {
@@ -152,8 +160,29 @@ function validEntry(entry: unknown): entry is CloudEntry {
 export async function fetchCloudCatalog(repo: string, session: CloudSession): Promise<CloudCatalog> {
   await assertPrivateDataset(repo, session);
   const response = await privateGet(repo, 'data/library.json', session);
-  if (response.status === 404) return emptyCatalog();
-  if (!response.ok) throw new Error(`Could not retrieve cloud catalogue (${response.status}). Create a PRIVATE dataset at ${repo}.`);
+  if (response.status === 404) {
+    // The hosted Pages Function verifies that no data/ files remain before it
+    // returns 404. Legacy manual-token mode has to make the equivalent check.
+    if (session.via !== 'oauth') {
+      const tree = await fetch('https://huggingface.co/api/datasets/' + validateDatasetRepo(repo) +
+        '/tree/main/data?recursive=true&limit=1', {
+          headers: { Authorization: 'Bearer ' + session.accessToken }, cache: 'no-store',
+        });
+      if (tree.status !== 404) {
+        if (!tree.ok) throw new Error('Could not inspect private dataset files; catalogue recovery check failed.');
+        const items = await tree.json() as unknown;
+        if (!Array.isArray(items)) throw new Error('Could not verify private dataset files.');
+        if (items.length) throw new Error('Recovery required: private dataset files exist but data/library.json is missing. No new catalogue will be created.');
+      }
+    }
+    return emptyCatalog();
+  }
+  if (!response.ok) {
+    const details = await response.json().catch(() => ({})) as { error?: string };
+    throw new Error(typeof details.error === 'string'
+      ? details.error.slice(0, 300)
+      : 'Could not retrieve cloud catalogue (' + response.status + '). Check your private dataset.');
+  }
   const result = await response.json() as CloudCatalog;
   if (result.version !== 1 || !Array.isArray(result.books) || result.books.some((e) => !validEntry(e))) {
     throw new Error('The remote data/library.json catalogue is invalid or uses an unsupported format.');
