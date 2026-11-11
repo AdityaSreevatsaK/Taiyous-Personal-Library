@@ -6,6 +6,7 @@ import OwnerActionDialog, { type OwnerRemovalRequest } from './components/OwnerA
 import { ownerPost } from './lib/owner';
 import { extractEpubMetadata, prepareImport } from './lib/importer';
 import { normalizeTags } from './lib/tags';
+import { novelUrl, parseLibraryRoute } from './lib/routes';
 import { deleteBook, removeCachedEpub, getBookFile, getBooks, getCachedEpubIds, readSettings, saveBook, updateBook, writeSettings } from './lib/storage';
 import {
   reconcileCloudLibrary, clearCloudSession, createCloudSession, discoverHostedOAuthSession, assertPrivateDataset,
@@ -20,9 +21,15 @@ import { fetchCloudCollections, mergeCollections, readLocalCollections, saveClou
 export default function App() {
   const [books, setBooks] = useState<LibraryBook[]>([]);
   const [settings, setSettings] = useState<ReaderSettings>(readSettings);
-  const [readingId, setReadingId] = useState<string | null>(null);
+  const [readingId, setReadingId] = useState<string | null>(() => {
+    const route = parseLibraryRoute(window.location.pathname);
+    return route.page === 'reader' ? route.id : null;
+  });
   const [startChapterHref, setStartChapterHref] = useState<string | null>(null);
-  const [detailsId, setDetailsId] = useState<string | null>(null);
+  const [detailsId, setDetailsId] = useState<string | null>(() => {
+    const route = parseLibraryRoute(window.location.pathname);
+    return route.page === 'library' ? null : route.id;
+  });
   const [browseTag, setBrowseTag] = useState('');
   const [globalSearch, setGlobalSearch] = useState('');
   const [collections, setCollections] = useState<BookCollection[]>(readLocalCollections);
@@ -51,6 +58,29 @@ export default function App() {
   // A successful cloud catalogue fetch enables safe hiding of stale listings.
   // Never delete local records or cached EPUBs as a side effect of syncing.
   const verifiedCloudCatalogue = useRef(false);
+  const deepLinkFetches = useRef(new Set<string>());
+
+  function navigate(path: string, replace = false) {
+    if (window.location.pathname !== path) {
+      window.history[replace ? 'replaceState' : 'pushState'](null, '', path);
+    }
+  }
+  const goLibrary = useCallback(() => {
+    navigate('/');
+    setReadingId(null);
+    setDetailsId(null);
+    setStartChapterHref(null);
+  }, []);
+  useEffect(() => {
+    const updateFromURL = () => {
+      const route = parseLibraryRoute(window.location.pathname);
+      setDetailsId(route.page === 'library' ? null : route.id);
+      setReadingId(route.page === 'reader' ? route.id : null);
+      setStartChapterHref(null);
+    };
+    window.addEventListener('popstate', updateFromURL);
+    return () => window.removeEventListener('popstate', updateFromURL);
+  }, []);
 
   useEffect(() => {
     const parameters = new URLSearchParams(window.location.search);
@@ -460,6 +490,26 @@ export default function App() {
     setCachedEpubIds(ids => ids.includes(book.id) ? ids : [...ids, book.id]);
   }, [cloudRepo, cloudSession]);
 
+  // Opening a saved reader URL in a new browser/tab must fetch the EPUB first.
+  // The router waits until a verified local EPUB is present before mounting epub.js.
+  useEffect(() => {
+    if (!readingId || !books.length || cachedEpubIds.includes(readingId) ||
+        deepLinkFetches.current.has(readingId)) return;
+    const target = books.find(book => book.id === readingId);
+    if (!target) return;
+    deepLinkFetches.current.add(readingId);
+    setLoadingBook(target.title);
+    void ensureCached(target).catch(reason => {
+      setError('Unable to open this bookmark: ' + String(reason));
+      setReadingId(null);
+      setDetailsId(target.id);
+      navigate(novelUrl(target.id), true);
+    }).finally(() => {
+      setLoadingBook(null);
+      deepLinkFetches.current.delete(readingId);
+    });
+  }, [readingId, books, cachedEpubIds, ensureCached]);
+
   const makeAvailableOffline = useCallback(async (book: LibraryBook) => {
     setCachingId(book.id);
     setError(null);
@@ -526,6 +576,7 @@ export default function App() {
         await ensureCached(book);
         setDetailsId(book.id);
         setReadingId(null);
+        navigate(novelUrl(book.id));
         if (!book.metadataScanned) {
           const file = await getBookFile(book.id);
           const parsed = await extractEpubMetadata(file);
@@ -712,6 +763,7 @@ export default function App() {
         await updateBook(updated);
         setDetailsId(book.id);
         setReadingId(book.id);
+        navigate(novelUrl(book.id, true));
         setError(null);
         setNotice(null);
       } catch (reason) { setError(`Unable to open novel: ${String(reason)}`); }
@@ -782,6 +834,7 @@ export default function App() {
       setBooks(remaining);
       setCachedEpubIds(ids => ids.filter(id => id !== current.id));
       setDetailsId(id => id === current.id ? null : id);
+      navigate('/', true);
       setNotice(`“${current.title}” removed from your private cloud library and this browser. Keep a backup for recovery.`);
       setError(null);
       return;
@@ -795,6 +848,7 @@ export default function App() {
       setBooks(remaining);
       setCachedEpubIds(ids => ids.filter(id => id !== current.id));
       setDetailsId(id => id === current.id ? null : id);
+      navigate('/', true);
       setNotice(`Local novel “${current.title}” removed from this device only.`);
       setError(null);
       return;
@@ -813,14 +867,19 @@ export default function App() {
   const activeBook = books.find(book => book.id === readingId);
   const detailBook = books.find(book => book.id === detailsId);
   return <>
-    {activeBook ? (
+    {activeBook && !cachedEpubIds.includes(activeBook.id) ? (
+      <div className={`reader-route-loading theme-${settings.theme}`} role="status">
+        {error || `Preparing “${activeBook.title}” for reading…`}
+        <button type="button" onClick={goLibrary}>Return to library</button>
+      </div>
+    ) : activeBook ? (
       <Reader key={activeBook.id} book={activeBook} settings={settings} onSettings={setSettings}
         initialChapterHref={startChapterHref || undefined}
-        onBack={() => { setReadingId(null); setDetailsId(null); setStartChapterHref(null); }}
-        onNovelDetails={() => { setReadingId(null); setDetailsId(activeBook.id); setStartChapterHref(null); }} onProgress={recordProgress} />
+        onBack={goLibrary}
+        onNovelDetails={() => { setReadingId(null); setDetailsId(activeBook.id); setStartChapterHref(null); navigate(novelUrl(activeBook.id)); }} onProgress={recordProgress} />
     ) : detailBook ? (
       <BookDetails book={detailBook} theme={settings.theme}
-        onBack={() => setDetailsId(null)} onRead={() => openBook(detailBook)}
+        onBack={goLibrary} onRead={() => openBook(detailBook)}
         onReadChapter={href => openBook(detailBook, href)}
         onDownloadEpub={() => downloadEpub(detailBook)}
         isCachedOffline={cachedEpubIds.includes(detailBook.id)}
@@ -835,7 +894,7 @@ export default function App() {
         onSaveSummary={summary => savePersonalSummary(detailBook.id, summary)}
         onSaveReview={(rating, review) => savePersonalReview(detailBook.id, rating, review)}
         onSetTrial={(trying) => savePersonalReview(detailBook.id, detailBook.personalRating, detailBook.personalReview || '', trying ? 'trying' : 'regular')}
-        onBrowseTag={tag => { setBrowseTag(tag); setGlobalSearch(''); setDetailsId(null); }} error={error} />
+        onBrowseTag={tag => { setBrowseTag(tag); setGlobalSearch(''); goLibrary(); }} error={error} />
     ) : (
       <LibraryDashboard books={books} theme={settings.theme}
         cachedEpubIds={cachedEpubIds} online={online} offlineShellReady={offlineShellReady}

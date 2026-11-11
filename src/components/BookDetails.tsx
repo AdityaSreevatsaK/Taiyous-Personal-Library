@@ -111,7 +111,7 @@ export default function BookDetails({ book, theme, onBack, onRead, onDownloadEpu
   return <div className={`details-shell theme-${theme}`}>
     <header className="details-topbar">
       <button className="details-back" type="button" onClick={onBack}><ArrowLeft size={18} /> <span>My library</span></button>
-      <span className="details-top-title">Taiyou's Personal Library</span>
+      <a className="details-top-title" href="/" onClick={event => { event.preventDefault(); onBack(); }} title="Return to Taiyou's Personal Library">Taiyou's Personal Library</a>
       <button className="details-top-read" type="button" onClick={onRead}>Read <ArrowRight size={17} /></button>
     </header>
     <main className="details-layout">
