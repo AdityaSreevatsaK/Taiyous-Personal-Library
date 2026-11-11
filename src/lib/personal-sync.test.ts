@@ -92,6 +92,7 @@ describe('personal sync client guards against clock-skew and competing offline w
       book({
         personalRating: 9, personalReview: 'Keep my notes',
         personalReviewUpdatedAt: 700_000, pendingReviewSync: true,
+        reviewSyncConflict: { value: remoteReview, revision: revisionB },
       }), 'device');
     expect(result.pendingReviewSync).toBe(false);
     expect(result.reviewCloudRevision).toBe(revisionC);
