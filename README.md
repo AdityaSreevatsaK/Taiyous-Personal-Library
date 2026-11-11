@@ -12,81 +12,70 @@ short_description: Personal offline-capable novel library with private cloud sto
 
 # Taiyou's Personal Library
 
-A responsive EPUB/ZIP reader and installable offline-capable Progressive Web App (PWA).
+A responsive, installable EPUB reader and personal novel library for desktop and mobile. The **application shell is public**, but the novels and selected synchronised personal data live in a **private Hugging Face Dataset**. EPUBs saved for offline reading stay in the browser's IndexedDB.
 
-**One development branch:** `master`. The former `dev` branch was merged on 10 November 2026 and is no longer an active release channel.
+**Application:** https://taiyous-personal-library.pages.dev  
+**Source:** [GitHub repository](https://github.com/AdityaSreevatsaK/Taiyous-Personal-Library)  
+**Private storage:** `AdityaSreevatsaK/Taiyous-Novels` (not included in this repository)
 
-## Live application
+## Development and release status
 
-- **Cloudflare Pages:** https://taiyous-personal-library.pages.dev
-- GitHub Actions: [Build and optionally deploy standalone PWA](.github/workflows/deploy-standalone.yml)
-- Private Hugging Face **Dataset:** `AdityaSreevatsaK/Taiyous-Novels` (novels, optional ZIP originals, catalogue and selected personal metadata)
-
-**Permanent URL:** Cloudflare Pages is now configured with production branch `master`. The former `dev.taiyous-personal-library.pages.dev` address is a historical preview alias. Moving to the permanent hostname creates fresh browser storage; locally cached EPUBs and unsynchronised personal settings do not transfer automatically. Reconnect the private Dataset and save offline copies again on the new address.
-
-The public Cloudflare app shell contains **no private novels or dataset credentials**. After OAuth is deployed, the user can sign in with Hugging Face; the Cloudflare backend uses a Secure, HttpOnly encrypted session cookie to access the private dataset. A fine-grained dataset token entered manually is retained as a fallback and held in memory only. Offline EPUBs remain in the browser's IndexedDB. Anyone who can access an unlocked browser profile can access its local books.
+- **`master`** is the production source branch. Deployment is **manual**, not automatic on push.
+- Short-lived feature/fix branches may open pull requests against `master`. The former long-lived `dev` branch was merged and deleted.
+- **[Draft PR #2](https://github.com/AdityaSreevatsaK/Taiyous-Personal-Library/pull/2)** contains revision-safe personal-data sync and explicit conflict handling. Its automated tests have passed, but **it has not been merged or deployed**.
+- There is **no published GitHub Release or version tag**. A package version is not a release announcement. **Do not create a `v1.0` tag or GitHub Release without the owner's explicit approval and acceptance testing.**
 
 ## Features
 
-- Responsive desktop/mobile library, compact book-first layout, dedicated offline shelf (auto-selected offline), advanced search across title/author, personal comments, ratings and tags with union/intersection logic, independent named collections
-- Real novel cover images from the **private Hugging Face Dataset**, with on-demand fetching, offline cover caching and existing decorative covers as fallback. Dataset `data/library.json` entries supply `coverPath: data/novels/<existing-id>/cover.jpg`; no changes to EPUBs, novel IDs or original ZIPs.
-- EPUB.js vertical-scrolling reader with centred chapter headings, chapter navigation, chapter selection and resume
-- Sepia, light and dark themes; typography and reading-width controls
-- Personal ratings and comments, original ZIP download where available, and EPUB export
-- **Trying out** shelf for novels you are evaluating, with move-to-regular-library action and private per-book sync
-- Confirm-before-save custom synopsis and batch tag editing; no accidental one-click metadata writes
-- Bookmarkable `/book/<id>` and `/book/<id>/read` routes, real home hyperlink and Back/Forward navigation
-- **Save all offline** in the Offline shelf and per-novel offline management in Novel Details; ordinary confirmation for removing a local download, after verifying a hosted replacement
-- Service-worker-cached PWA shell, installed/offline restart and offline reading
-- Private-dataset synchronization for reviews, collections and per-book reading progress
+- **Library:** responsive bookshelf, alphabetic browsing, global/advanced search, imported and personal tags, independent named collections, and a **Trying out** shelf.
+- **Novel details:** synopsis, chapter list and jump-to-chapter, progress, optional private-dataset covers, 1–10 ratings, comments and source metadata. Personal synopsis and tag edits require confirmation.
+- **Reading:** EPUB.js vertical chapter scrolling, previous/next chapter controls, resume, sepia/light/dark themes, typography and reading-width controls.
+- **Files:** import EPUB or supported novel ZIP files; download EPUBs and original ZIPs where available.
+- **Offline:** installable PWA, local bookshelf management and **Save all offline**. A downloaded EPUB can be removed with ordinary confirmation only after the hosted replacement is verified.
+- **Private cloud:** Hugging Face OAuth for novel imports, covers, reading progress, personal reviews and collections. Personal tags, custom summaries and reader settings remain device-local.
 
-For details and limits, read [Capabilities and offline behaviour](docs/CAPABILITIES.md).
+For complete behaviour, see [Capabilities and offline behaviour](docs/CAPABILITIES.md).
 
-## Local development
+## Storage, authentication and safety
+
+| Location | Data |
+| --- | --- |
+| Private Hugging Face Dataset | `data/library.json` catalogue, `data/novels/<id>/source.epub`, optional ZIPs/covers, and `data/personal/` progress, reviews and collections |
+| Browser IndexedDB | Cached EPUBs/covers, book metadata, progress and pending local edits |
+| Browser localStorage | Collections and device-local preferences |
+| GitHub / Cloudflare Pages | Source and public app shell; **no private novels or Hugging Face credentials** |
+
+**Sign-in:** Hugging Face OAuth establishes an encrypted, Secure, HttpOnly server-side session; the HF token is not exposed to React. A fine-grained token entered manually is an **in-memory legacy fallback**, not the recommended method for editing cloud data. The draft PR makes legacy token mode read-only for dataset writes; revision-safe editing requires OAuth.
+
+**Owner mode:** Deleting an *entire novel* or named collection requires a fresh owner session, separate Owner passphrase and exact-title confirmation. Removing just a locally downloaded EPUB **does not** require Owner mode. Full deletion remains disabled without the Owner secret.
+
+**Novel catalogue integrity:** The production code already guards imports with revision-checked commits and refuses unsafe catalogue overwrites. The web upload limit is about **70 MiB per file / 75 MiB per request**; use the separate Storage Controller for larger archives.
+
+**Personal sync:** The deployed `master` code still has timestamp-based cross-device reconciliation limitations. [Draft PR #2](https://github.com/AdityaSreevatsaK/Taiyous-Personal-Library/pull/2) introduces content revisions, preserves competing copies and requires explicit resolution for conflicting progress, reviews and collections. These improvements **are not live yet**. A controlled test against a disposable private Hugging Face Dataset remains a production release gate.
+
+**Backups:** Browser storage can be cleared or evicted. Keep EPUB/ZIP backups separately. Offline storage from the historical `dev.taiyous-personal-library.pages.dev` hostname does not transfer automatically to the permanent URL.
+
+## Development and automated tests
+
+GitHub Actions uses Node.js 22.
 
 ```sh
 npm ci
 npm run typecheck
 npm test
 npm run build
+npm run preview
 ```
 
-For browser smoke tests, see `scripts/browser_smoke.mjs` and the GitHub workflow. CI uses synthetic EPUBs; no user novels or paid LLM/API calls are required.
+The [Verify novel reader](.github/workflows/verify.yml) workflow runs TypeScript/build checks, cloud gateway tests, dependency audits and Chromium desktop/mobile/offline smoke tests. The browser suites are in `scripts/browser_smoke.mjs` and `scripts/browser_sync_smoke.mjs`. CI uses **synthetic EPUBs and simulated cloud data**, never the owner's real novel collection or private credentials. Passing CI does not replace real OAuth/Hugging Face integration testing.
 
-## Deployments and release safety
+## Production deployment
 
-1. Commit changes to `master`. The `Verify novel reader` workflow checks tests, build and audit.
-2. Run [Build and optionally deploy standalone PWA](.github/workflows/deploy-standalone.yml) from `master` with **Publish** enabled. The job validates the built app, compiles the private Cloudflare Pages Functions and deploys both the `dist/` app shell and the `functions/` backend.
-3. Deploys use the existing `standalone-staging` GitHub environment secrets `CF_ACCOUNT_ID`, `CF_API_TOKEN` and variable `CF_PAGES_PROJECT`. The environment's historical name is retained to avoid changing working secrets.
-4. The job publishes Cloudflare's **production branch `master`** at `https://taiyous-personal-library.pages.dev`. See [Standalone operation](docs/STANDALONE_PWA.md).
-5. The previous Hugging Face **Space** build/deployment workflow has been retired from `master`. Both HF Spaces are historical deployments; the **private HF Dataset must not be deleted**.
+1. Merge approved code into `master` after completing the required checks.
+2. Open GitHub Actions → [Deploy Application](.github/workflows/deploy-standalone.yml), select `master` and enable **Publish** only for an intentional production deployment.
+3. The workflow validates the app and deploys the static PWA **and** private Cloudflare Pages Functions to https://taiyous-personal-library.pages.dev.
+4. After deployment, verify OAuth sign-in, private dataset access, desktop/mobile reading and offline PWA startup.
 
-**Offline note:** Android offline cold launching and reading were validated on the previous Cloudflare `dev.` alias on 10 November 2026. Repeat the offline test after installing from the permanent hostname. Browser storage may still be cleared/evicted by the operating system, so keep independent EPUB backups.
+The workflow uses Cloudflare secrets `CF_ACCOUNT_ID` and `CF_API_TOKEN` plus variable `CF_PAGES_PROJECT` in the inherited GitHub environment `standalone-staging` (**despite that name, this workflow publishes production**). OAuth and Owner mode need `HF_OAUTH_SESSION_KEY` and `TAIYOU_OWNER_PASSPHRASE` as documented. The previous Hugging Face Spaces are historical app deployments; **do not delete the private Hugging Face Dataset**.
 
-## Authentication and security
-
-- **Hugging Face OAuth** is implemented on `master` as an encrypted server-side session via Cloudflare Pages Functions. The React app redirects to HF for PKCE sign-in, checks the private dataset owner and reconnects automatically on reload. The HF OAuth bearer token is never exposed in JavaScript.
-- **OAuth requires** the Cloudflare Secret `HF_OAUTH_SESSION_KEY` (a fresh random 64-character hex key). **Protected Owner mode additionally requires** a separate Cloudflare Secret `TAIYOU_OWNER_PASSPHRASE` (a unique strong passphrase, 16–128 characters). With that second secret absent, deletion is disabled by design. The app publishes a public HF OAuth Client ID Metadata Document at `/oauth-client.json`, so no Cloudflare Zero Trust account or additional hosting service is needed.
-- The public OAuth metadata must serve small JSON, not the SPA HTML fallback. Verify live Hugging Face sign-in with the owner's account after deploying. The legacy manual-token fallback remains available for reading and personal notes, but cloud novel/catalogue uploads require OAuth so the server can protect the dataset.
-- **Permission trade-off:** OAuth's `write-repos` scope includes personal repositories, not only the novel dataset; the backend itself is restricted to `AdityaSreevatsaK/Taiyous-Novels`. For narrower token permissions use the legacy manual fine-grained token.
-- CI runs the full and production npm security audits, blocks on high/critical advisories, compiles the Pages Functions and tests the OAuth flow with synthetic credentials (never real book or auth data). Builds use the committed npm lockfile with `npm ci`, and GitHub Actions references are pinned to reviewed SHAs.
-- **Catalogue integrity:** Ordinary OAuth novel imports only add a new novel (or attach its first original ZIP), with a conditional Hugging Face commit at a verified dataset revision. The generic API refuses catalogue removals, existing-novel overwrites, duplicate paths and orphaned data. A missing `data/library.json` is treated as a truly new dataset only when `data/` is empty. Full novel deletion remains separate and Owner-protected.
-- **Cloudflare upload limit:** The web form accepts up to 70 MiB per file and approximately 75 MiB per request; larger archives should be uploaded through the local Taiyou-Novels-Storage-Controller. The original import still remains saved locally if cloud publishing fails.
-
-**Protected full deletion:** Ordinary reading and **removing an offline EPUB download** never require Owner mode; offline removal uses a normal confirmation and verifies the hosted EPUB exists first. Deleting any *entire novel*, whether local-only or hosted in the private HF Dataset, and deleting collections require a fresh HF owner session, a separate Owner passphrase (10-minute HttpOnly unlock) and typing the exact title. The normal bookshelf has no one-click delete icons. For hosted novels the private API performs a revision-guarded commit that removes the novel's data folder, catalogue listing, and its cloud notes/progress; export a backup first. No generic arbitrary-file delete endpoint exists. These controls prevent accidental application-level removal, not browser/Cloudflare account owners from deleting data outside the app.
-
-See [Hugging Face OAuth and Owner-mode setup](docs/ACCESS_GATEWAY.md).
-
-## Data and sync limitations
-
-- Cloud actions and cross-device sync need connectivity and a valid Hugging Face OAuth session (or manual token fallback). The OAuth session is restored automatically on reload until expiry; then sign in again.
-- Personal tags, custom summaries and typography settings are local rather than cloud-synced.
-- Notes and progress refreshes are rate-limited to five concurrent requests with bounded transient-read retries. Cloud Settings reports background sync failures; pending local edits are retained for retry.
-- **Open issue before v1.0:** Cross-device progress/review/collection conflict resolution still uses device-generated timestamps. Clock skew and competing offline edits can choose the wrong winner. This requires a server-revision-based sync protocol with explicit conflict handling, not a timestamp-only adjustment.
-- Offline EPUBs are browser-managed caches. The app reports whether persistent storage was granted, and recommends a separate EPUB or ZIP backup even when it was.
-- Concurrent edits across devices are timestamp-based, not transactionally conflict-free.
-- The new permanent hostname has separate browser storage from the former `dev.` alias. The user approved resetting locally cached data during the transition; download EPUBs again on the new hostname for offline access.
-
-**Release policy:** Development commits are not GitHub releases. Do **not** create a v1.0 tag or publish a GitHub Release until the library owner explicitly approves the release after manual testing.
-
-For the deep-research issue-by-issue disposition and remaining verification, see [Production readiness audit follow-up](docs/READINESS_AUDIT_2026-11.md).
+Further reading: [Cloudflare operations](docs/STANDALONE_PWA.md) · [OAuth and Owner mode](docs/ACCESS_GATEWAY.md) · [Production-readiness audit](docs/READINESS_AUDIT_2026-11.md).
