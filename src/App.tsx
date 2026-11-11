@@ -7,6 +7,7 @@ import { ownerPost } from './lib/owner';
 import { extractEpubMetadata, prepareImport } from './lib/importer';
 import { normalizeTags } from './lib/tags';
 import { novelUrl, parseLibraryRoute } from './lib/routes';
+import { mapWithConcurrency, retryTransientRead } from './lib/network-pool';
 import { deleteBook, removeCachedEpub, getBookFile, getBooks, getCachedEpubIds, readSettings, saveBook, updateBook, writeSettings } from './lib/storage';
 import {
   reconcileCloudLibrary, clearCloudSession, createCloudSession, discoverHostedOAuthSession, assertPrivateDataset,
@@ -42,6 +43,7 @@ export default function App() {
   const [cloudRepo, setCloudRepo] = useState(readDatasetRepo);
   const [cloudBusy, setCloudBusy] = useState(false);
   const [cloudMessage, setCloudMessage] = useState<string | null>(null);
+  const [lastSyncError, setLastSyncError] = useState<string | null>(null);
   const [ownerRequest, setOwnerRequest] = useState<OwnerRemovalRequest | null>(null);
   const [loadingBook, setLoadingBook] = useState<string | null>(null);
   const [cachedEpubIds, setCachedEpubIds] = useState<string[]>([]);
@@ -196,11 +198,11 @@ export default function App() {
       // normal for unreviewed novels. Never use the shared novel catalogue for
       // personal comments, and never erase local notes on a transient error.
       let notesWarning = false;
-      const synced = await Promise.all(merged.map(async book => {
+      const synced = await mapWithConcurrency(merged, 5, async book => {
         const entry = findCloudEntryForBook(catalog.books, book);
         if (!entry) return book;
         try {
-          const note = await fetchCloudPersonalReview(repo, entry.id, session);
+          const note = await retryTransientRead(() => fetchCloudPersonalReview(repo, entry.id, session));
           const localTimestamp = book.personalReviewUpdatedAt ?? 0;
           // Offline edits are replayed only after reconnecting to an authorised
           // dataset. A newer remote edit wins rather than being overwritten.
@@ -217,13 +219,13 @@ export default function App() {
           notesWarning = true;
           return book;
         }
-      }));
+      });
       let progressWarning = false;
-      const withProgress = await Promise.all(synced.map(async book => {
+      const withProgress = await mapWithConcurrency(synced, 5, async book => {
         const entry = findCloudEntryForBook(catalog.books, book);
         if (!entry) return book;
         try {
-          const remote = await fetchCloudReadingProgress(repo, entry.id, session);
+          const remote = await retryTransientRead(() => fetchCloudReadingProgress(repo, entry.id, session));
           const localTimestamp = book.progressUpdatedAt ?? book.lastOpenedAt ?? 0;
           if (remote && remote.updatedAt >= localTimestamp) {
             return applyCloudReadingProgress(book, remote);
@@ -237,7 +239,7 @@ export default function App() {
           progressWarning = true;
         }
         return book;
-      }));
+      });
       booksRef.current = withProgress;
       setBooks(withProgress);
       await Promise.all(withProgress.filter(book => book.cloud).map(book => updateBook(book)));
@@ -266,8 +268,16 @@ export default function App() {
         setCollectionsSyncPending(true);
       }
       setCloudMessage(`${catalog.books.length} hosted ${catalog.books.length === 1 ? 'novel' : 'novels'} in the current dataset.${hiddenStaleEntries ? ` Hidden ${hiddenStaleEntries} stale book entries without a current cloud listing or saved EPUB. Their browser metadata and progress were preserved.` : ''}${notesWarning ? ' Some personal notes could not be synced.' : ''}${progressWarning ? ' Some reading progress could not be synced.' : ''}${collectionsWarning ? ' Collections sync needs a retry.' : ''}`);
+      setLastSyncError(notesWarning || progressWarning || collectionsWarning
+        ? 'Some private changes could not be synchronised. Your local data is preserved; use Refresh cloud to retry.'
+        : null);
     } catch (reason) {
-      setCloudMessage(`Cloud library unavailable: ${reason instanceof Error ? reason.message : String(reason)}`);
+      const message = reason instanceof Error ? reason.message : String(reason);
+      setCloudMessage('Cloud library unavailable: ' + message);
+      setLastSyncError('Cloud refresh failed: ' + message);
+      if (/Recovery required|malformed|catalogue is missing/i.test(message)) {
+        setError('Private library requires recovery: ' + message);
+      }
     } finally {
       setCloudBusy(false);
       syncRef.current = false;
@@ -293,12 +303,14 @@ export default function App() {
     const sync = async () => {
       if (busy || syncRef.current || !navigator.onLine) return;
       busy = true;
+      let syncFailures = 0;
       try {
         for (const snapshot of booksRef.current.filter(book => book.cloud && book.pendingProgressSync)) {
           const entry = findCloudEntryForBook([...cloudEntries.current.values()], snapshot);
           if (!entry) continue;
           try {
-            const remote = await fetchCloudReadingProgress(cloudRepo, entry.id, cloudSession);
+            const remote = await retryTransientRead(() =>
+              fetchCloudReadingProgress(cloudRepo, entry.id, cloudSession));
             const current = booksRef.current.find(book => book.id === snapshot.id);
             if (!current?.pendingProgressSync) continue;
             const localTimestamp = current.progressUpdatedAt ?? 0;
@@ -316,9 +328,17 @@ export default function App() {
               setBooks(booksRef.current);
               await updateBook(updated);
             }
-          } catch {
-            // Leave the pending flag set for a later authorised retry.
+          } catch (reason) {
+            // Leave the pending flag set for a later authorised retry and make
+            // the repeated failure visible under Cloud library > Settings.
+            syncFailures++;
+            const message = reason instanceof Error ? reason.message : String(reason);
+            setLastSyncError('Reading positions are waiting to sync (' + syncFailures +
+              ' failed attempt(s) in the latest cycle): ' + message.slice(0, 140));
           }
+        }
+        if (!syncFailures && !booksRef.current.some(book => book.pendingProgressSync)) {
+          setLastSyncError(null);
         }
       } finally { busy = false; }
     };
@@ -927,6 +947,7 @@ export default function App() {
         importing={importing || !!loadingBook} notice={notice} error={error} storageError={storageError}
         cloudRepo={cloudRepo} cloudSession={cloudSession} cloudBusy={cloudBusy}
         cloudMessage={loadingBook ? `Opening ${loadingBook}…` : cloudMessage}
+        syncProblem={lastSyncError}
         onCloudRepo={saveCloudRepository} onCloudLogin={signInToCloud}
         onCloudLogout={signOutOfCloud} onCloudRefresh={() => void refreshCloud()}
         onCloudPublishCached={publishCachedNovels} />
