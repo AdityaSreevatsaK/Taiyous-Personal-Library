@@ -1105,9 +1105,11 @@ html, body, #root { max-width: 100%; overflow-x: clip; }
   .topbar .cloud-connect-head .secondary-button { font-size: 10px; padding: 6px 7px; }
   .topbar .cloud-connect-head > span { gap: 2px; }
   .topbar .cloud-connect-head > span svg { width: 14px; height: 14px; }
-  .topbar .global-search-field { max-width: clamp(85px,25vw,160px); }
+  .topbar .cloud-connect-head .connection-badge { width: 10px; height: 10px; min-width: 10px; padding: 0; font-size: 0; border: 1px solid currentColor; }
+  .topbar .global-search-field { max-width: clamp(70px,23vw,150px); }
   .offline-management-bar { gap: 8px; }
 }
 @media (max-width: 390px) {
-  .topbar .cloud-connect-head .connection-badge { display: none; }
+  /* The theme remains available from the sidebar on very narrow phones. */
+  .topbar .theme-switch { display: none; }
 }
