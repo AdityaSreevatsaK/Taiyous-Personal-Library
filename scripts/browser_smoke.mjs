@@ -44,7 +44,11 @@ try {
     const page = await context.newPage();
     const errors = [];
     const failedAssets = [];
-    page.on('pageerror', error => errors.push(error.message));
+    page.on('pageerror', error => {
+      const diagnostic = error.stack || error.message;
+      errors.push(diagnostic);
+      console.error('Captured browser exception at ' + page.url() + ': ' + diagnostic);
+    });
     page.on('console', message => {
       // Chromium logs this benign Permissions-Policy message when epub.js replaces an iframe.
       if (/Permissions policy violation: unload is not allowed in this document/i.test(message.text())) return;
