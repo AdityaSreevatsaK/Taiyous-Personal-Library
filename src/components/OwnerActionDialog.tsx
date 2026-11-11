@@ -4,7 +4,7 @@ import { getOwnerStatus, ownerPost, type OwnerStatus } from '../lib/owner';
 import type { ReaderTheme } from '../types';
 
 export interface OwnerRemovalRequest {
-  kind: 'local-novel' | 'collection';
+  kind: 'local-novel' | 'hosted-novel' | 'collection';
   id: string;
   title: string;
 }
@@ -21,6 +21,11 @@ const messages: Record<OwnerRemovalRequest['kind'], { title: string; description
     title: 'Remove local novel',
     description: 'Permanently removes this novel, its EPUB, cover and saved local reading position from this device. This operation cannot be undone here.',
     button: 'Delete local novel',
+  },
+  'hosted-novel': {
+    title: 'Delete cloud-hosted novel',
+    description: 'Deletes this novel from the private Hugging Face dataset catalogue, its EPUB, original archive, cover and synced reading notes/progress. Also removes its local files. This action affects all your devices. Download a backup first; restoring requires Git history or a separate backup.',
+    button: 'Delete novel from cloud',
   },
   'collection': {
     title: 'Delete collection',

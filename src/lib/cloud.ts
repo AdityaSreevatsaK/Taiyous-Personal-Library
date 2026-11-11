@@ -179,6 +179,22 @@ export async function fetchCloudCover(repo: string, book: Pick<LibraryBook, 'id'
 /** Verify a hosted EPUB actually exists without downloading its contents.
  * This is required before deleting a device's offline EPUB.
  */
+/** Permanently remove a cloud-hosted novel after separate Owner-mode approval.
+ * This endpoint never accepts arbitrary paths and never exposes the OAuth token.
+ */
+export async function deleteCloudNovel(book: Pick<LibraryBook, 'id' | 'title'>): Promise<void> {
+  if (!/^[a-f0-9]{24}$/.test(book.id)) throw new Error('Invalid novel identifier');
+  const response = await fetch('/api/library?action=delete-novel', {
+    method: 'POST', credentials: 'same-origin', cache: 'no-store',
+    headers: { 'Content-Type': 'application/json', 'X-Taiyou-Request': 'owner-delete-novel' },
+    body: JSON.stringify({ id: book.id, title: book.title }),
+  });
+  if (!response.ok) {
+    const result = await response.json().catch(() => ({})) as { error?: string };
+    throw new Error(result.error || 'Unable to remove hosted novel');
+  }
+}
+
 export async function hostedEpubExists(_repo: string, entry: CloudEntry, session: CloudSession): Promise<boolean> {
   if (!validEntry(entry) || session.via !== 'oauth') return false;
   const response = await fetch('/api/library?action=exists&path=' + encodeURIComponent(entry.epubPath), {

@@ -9,7 +9,7 @@ import { normalizeTags } from './lib/tags';
 import { deleteBook, removeCachedEpub, getBookFile, getBooks, getCachedEpubIds, readSettings, saveBook, updateBook, writeSettings } from './lib/storage';
 import {
   reconcileCloudLibrary, clearCloudSession, createCloudSession, discoverHostedOAuthSession, assertPrivateDataset,
-  fetchCloudCatalog, fetchCloudEpub, hostedEpubExists, fetchCloudArchive, fetchCloudPersonalReview, findCloudEntryForBook, readDatasetRepo, saveDatasetRepo,
+  fetchCloudCatalog, fetchCloudEpub, deleteCloudNovel, hostedEpubExists, fetchCloudArchive, fetchCloudPersonalReview, findCloudEntryForBook, readDatasetRepo, saveDatasetRepo,
   saveCloudPersonalReview, fetchCloudReadingProgress, saveCloudReadingProgress, applyCloudReadingProgress,
   uploadNovelToCloud, validateDatasetRepo,
   type CloudEntry, type CloudSession,
@@ -733,11 +733,7 @@ export default function App() {
   // UI actions only request an owner-authenticated confirmation. The owner
   // dialog performs a fresh server-side privilege verification before execution.
   const removeBook = useCallback((book: LibraryBook) => {
-    if (book.cloud) {
-      setError('Hosted novels cannot be deleted from this website. Use your storage controller to manage the private Hugging Face dataset.');
-      return;
-    }
-    setOwnerRequest({ kind: 'local-novel', id: book.id, title: book.title });
+    setOwnerRequest({ kind: book.cloud ? 'hosted-novel' : 'local-novel', id: book.id, title: book.title });
   }, []);
 
   // Offline storage is device-only housekeeping, not deletion of a novel.
@@ -770,6 +766,26 @@ export default function App() {
     // Privilege is verified on the server at the exact moment of the operation.
     // This is defence-in-depth against accidentally keeping a stale unlocked UI.
     await ownerPost('verify');
+    if (request.kind === 'hosted-novel') {
+      const current = booksRef.current.find(book => book.id === request.id);
+      if (!current || !current.cloud || current.title !== request.title ||
+          cloudSession?.via !== 'oauth' || !cloudRepo || !navigator.onLine) {
+        throw new Error('A current hosted novel and signed-in HF Owner session are required');
+      }
+      // Server verifies the separate Owner cookie, current catalogue revision,
+      // exact title and allowed storage paths before committing any deletion.
+      await deleteCloudNovel(current);
+      await deleteBook(current.id);
+      cloudEntries.current.delete(current.id);
+      const remaining = booksRef.current.filter(book => book.id !== current.id);
+      booksRef.current = remaining;
+      setBooks(remaining);
+      setCachedEpubIds(ids => ids.filter(id => id !== current.id));
+      setDetailsId(id => id === current.id ? null : id);
+      setNotice(`“${current.title}” removed from your private cloud library and this browser. Keep a backup for recovery.`);
+      setError(null);
+      return;
+    }
     if (request.kind === 'local-novel') {
       const current = booksRef.current.find(book => book.id === request.id);
       if (!current || current.cloud || current.title !== request.title) throw new Error('Local novel changed; deletion cancelled.');

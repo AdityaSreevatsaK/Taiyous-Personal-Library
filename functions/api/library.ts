@@ -1,11 +1,12 @@
-import { uploadFiles } from '@huggingface/hub';
+import { commit, uploadFiles, type CommitOperation } from '@huggingface/hub';
+import { hasOwnerGrant } from './owner';
 import {
   DATASET_REPO, authorise, attachRenewal, configured, isPrivateDataset,
   privateHeaders, productionOnly, secureResponse, type Bindings,
 } from '../_lib/oauth';
 
 /** Only the authenticated HF owner may read or write the one fixed private dataset. */
-interface PagesContext { request: Request; env: Bindings }
+interface PagesContext { request: Request; env: Bindings & { TAIYOU_OWNER_PASSPHRASE?: string } }
 const NO_STORE = privateHeaders;
 const FILE_PATH = /^data\/(?:library\.json|personal\/collections\.json|personal\/(?:reviews|progress)\/[0-9a-f]{24}\.json|novels\/[0-9a-f]{24}\/(?:source\.epub|original\.zip|cover\.jpg))$/;
 const MAX_UPLOAD_BYTES = 75 * 1024 * 1024;
@@ -79,6 +80,93 @@ async function upload(request: Request, repo: string, token: string): Promise<Re
   return json({ saved: true });
 }
 
+/** Destructive deletion is server-side, never a reusable general-purpose delete API.
+ * One HF commit removes exactly one verified novel's folder, its private notes,
+ * and its catalogue entry. parentCommit avoids overwriting concurrent catalogue updates.
+ * The dataset's Git history can assist recovery, but users should keep a ZIP backup.
+ */
+async function deleteHostedNovel(request: Request, token: string, env: PagesContext['env'],
+    session: import('../_lib/oauth').OAuthSession): Promise<Response> {
+  const url = new URL(request.url);
+  if (request.headers.get('Origin') !== url.origin ||
+      request.headers.get('X-Taiyou-Request') !== 'owner-delete-novel' ||
+      !(await hasOwnerGrant(request, env, session))) {
+    return reject(403, 'Owner mode and a valid Hugging Face owner session are required');
+  }
+  if (!request.headers.get('Content-Type')?.startsWith('application/json') ||
+      Number(request.headers.get('Content-Length') || 0) > 1500) {
+    return reject(400, 'Expected a small JSON delete request');
+  }
+  let id = '', title = '';
+  try {
+    const body = await request.json() as { id?: unknown; title?: unknown };
+    if (typeof body.id !== 'string' || !/^[a-f0-9]{24}$/.test(body.id) ||
+        typeof body.title !== 'string' || !body.title.trim() || body.title.length > 255) {
+      return reject(400, 'Invalid novel ID or title');
+    }
+    id = body.id; title = body.title;
+  } catch { return reject(400, 'Invalid JSON'); }
+
+  const headers = { Authorization: 'Bearer ' + token };
+  const base = 'https://huggingface.co';
+  const [repoInfo, catalogResponse] = await Promise.all([
+    fetch(base + '/api/datasets/' + DATASET_REPO, { headers, cache: 'no-store' }),
+    fetch(base + '/datasets/' + DATASET_REPO + '/resolve/main/data/library.json',
+      { headers, cache: 'no-store' }),
+  ]);
+  if (!repoInfo.ok || !catalogResponse.ok) return reject(502, 'Could not verify the private dataset and catalogue');
+  const info = await repoInfo.json() as { sha?: unknown };
+  if (typeof info.sha !== 'string' || !/^[0-9a-f]{40}$/.test(info.sha)) {
+    return reject(502, 'Cannot safely identify the current dataset revision');
+  }
+  const catalog = await catalogResponse.json() as { version?: unknown; books?: unknown };
+  if (catalog.version !== 1 || !Array.isArray(catalog.books) ||
+      catalog.books.length > 30000 || catalog.books.some((value: unknown) =>
+        !value || typeof value !== 'object' ||
+        typeof (value as {id?: unknown}).id !== 'string' ||
+        typeof (value as {metadata?: {title?: unknown}}).metadata?.title !== 'string')) {
+    return reject(502, 'The remote catalogue cannot be safely modified');
+  }
+  const books = catalog.books as Array<{id: string; metadata: {title: string}; epubPath: string; archivePath?: string; coverPath?: string}>;
+  const target = books.find(entry => entry.id === id);
+  if (!target || target.metadata.title !== title) {
+    return reject(409, 'Novel ID or title changed. Refresh and try again');
+  }
+  const folder = 'data/novels/' + id + '/';
+  if (target.epubPath !== folder + 'source.epub' ||
+      (target.archivePath && target.archivePath !== folder + 'original.zip') ||
+      (target.coverPath && target.coverPath !== folder + 'cover.jpg')) {
+    return reject(409, 'Unexpected novel storage paths. Deletion cancelled');
+  }
+  const personalPaths = [
+    'data/personal/reviews/' + id + '.json',
+    'data/personal/progress/' + id + '.json',
+  ];
+  const existence = await Promise.all(personalPaths.map(path => fetch(
+    base + '/datasets/' + DATASET_REPO + '/resolve/main/' + path, {
+      method: 'HEAD', headers, cache: 'no-store',
+    })));
+  if (existence.some(response => response.status !== 404 && !response.ok)) {
+    return reject(502, 'Unable to verify private notes; nothing deleted');
+  }
+  const operations: CommitOperation[] = [
+    { operation: 'addOrUpdate', path: 'data/library.json', content: new Blob([
+      JSON.stringify({ ...catalog, books: books.filter(entry => entry.id !== id) }, null, 2) + '\n',
+    ], { type: 'application/json' }) },
+    { operation: 'delete', path: folder },
+    ...personalPaths.filter((_, i) => existence[i].ok).map(path => ({ operation: 'delete' as const, path })),
+  ];
+  try {
+    await commit({
+      repo: { type: 'dataset', name: DATASET_REPO }, accessToken: token,
+      parentCommit: info.sha, title: 'Owner removed novel: ' + title.slice(0, 85), operations,
+    });
+    return secureResponse({ deleted: true, id });
+  } catch {
+    return reject(409, 'Dataset changed or removal failed; refresh and verify before retrying');
+  }
+}
+
 export async function onRequest({ request, env }: PagesContext): Promise<Response> {
   if (!productionOnly(request)) return reject(403, 'Private API restricted to production');
   if (!configured(env)) return reject(503, 'OAuth session encryption is not configured');
@@ -114,6 +202,9 @@ export async function onRequest({ request, env }: PagesContext): Promise<Respons
     const path = url.searchParams.get('path');
     if (!isAllowedDatasetPath(path)) return respond(reject(400, 'Unsupported library file path'));
     return respond(await downloadFile(DATASET_REPO, path, token));
+  }
+  if (request.method === 'POST' && action === 'delete-novel') {
+    return respond(await deleteHostedNovel(request, token, env, auth.session));
   }
   if (request.method === 'POST' && action === 'upload') {
     try { return respond(await upload(request, DATASET_REPO, token)); }

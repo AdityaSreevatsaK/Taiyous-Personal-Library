@@ -184,9 +184,11 @@ export default function BookDetails({ book, theme, onBack, onRead, onDownloadEpu
                   ? <button type="button" className="secondary-button" onClick={onRemoveOffline}><Download size={15} /> Remove offline EPUB</button>
                   : <span className="details-muted small">Local-only EPUB. Export a backup before removing this novel.</span>
                 : <button type="button" className="secondary-button" onClick={onSaveOffline}><Download size={15} /> Save for offline reading</button>}
-              {!book.cloud && <button type="button" className="details-delete-novel" onClick={onDeleteLocal}><Trash2 size={15} /> Remove local novel (Owner mode)</button>}
+              <button type="button" className="details-delete-novel" onClick={onDeleteLocal}><Trash2 size={15} />
+                 {book.cloud ? 'Delete novel from library (Owner mode)' : 'Remove local novel (Owner mode)'}
+               </button>
             </div>
-            {book.cloud && <p className="details-help">Cloud-hosted novel deletion is disabled in this app; manage that separately through your storage controller.</p>}
+            {book.cloud && <p className="details-help">Protected deletion removes this novel's private cloud files, catalogue entry, reading position and notes. Download a backup first. Other novels are unaffected.</p>}
           </section>
           <section className="details-card details-review-card" aria-labelledby="detail-review-heading">
             <div className="details-section-header"><div><span className="details-label">YOUR PERSONAL IMPRESSIONS</span><h2 id="detail-review-heading">Comments & reading notes</h2></div><Star size={20} className="details-section-icon" /></div>

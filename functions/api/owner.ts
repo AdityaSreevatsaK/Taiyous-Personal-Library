@@ -41,6 +41,12 @@ async function fingerprint(session: OAuthSession): Promise<string> {
   return Array.from(digest, byte => byte.toString(16).padStart(2, '0')).join('');
 }
 
+/** The same independent Owner grant protects every destructive API endpoint. */
+export async function hasOwnerGrant(request: Request, env: OwnerEnv, session: OAuthSession): Promise<boolean> {
+  if (!ownerConfigured(env)) return false;
+  return Boolean(await authenticatedOwner(request, env, session));
+}
+
 async function authenticatedOwner(request: Request, env: OwnerEnv, session: OAuthSession): Promise<OwnerGrant | null> {
   const grant = await unseal<OwnerGrant>(readCookie(request, OWNER_COOKIE), env, OWNER_AAD);
   if (!grant || grant.version !== 1 || grant.username !== session.username ||
