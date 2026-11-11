@@ -1,3 +1,5 @@
+import type { CloudPersonalReview, CloudReadingProgress, CloudRevisionSnapshot } from './lib/cloud';
+
 export type ReaderTheme = 'light' | 'dark' | 'sepia';
 export type FontChoice = 'literary' | 'classic' | 'georgia' | 'sans' | 'clear';
 
@@ -34,6 +36,10 @@ export interface LibraryBook {
   personalReviewUpdatedAt?: number;
   /** Saved locally and awaiting publication to the private dataset. */
   pendingReviewSync?: boolean;
+  /** Last cloud content revision observed by this device; undefined = legacy unmigrated. */
+  reviewCloudRevision?: string | null;
+  /** Remote value retained for deliberate resolution; never automatically discard local edits. */
+  reviewSyncConflict?: CloudRevisionSnapshot<CloudPersonalReview>;
   status?: string;
   sourceUrl?: string;
   /** Optional private dataset artwork, e.g. data/novels/<book-id>/cover.jpg. */
@@ -52,6 +58,8 @@ export interface LibraryBook {
   progressUpdatedAt?: number;
   /** Progress waiting to be written to the private cloud after reconnect. */
   pendingProgressSync?: boolean;
+  progressCloudRevision?: string | null;
+  progressSyncConflict?: CloudRevisionSnapshot<CloudReadingProgress>;
   size: number;
 }
 
