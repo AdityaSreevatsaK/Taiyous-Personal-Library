@@ -84,6 +84,13 @@ try {
     await page.locator('.app-shell').waitFor({ state: 'visible' });
     await page.getByRole('navigation', { name: 'Library sections' }).waitFor({ state: 'attached' });
     await page.locator('.topbar > .cloud-connect').waitFor({ state: 'visible' });
+    const cloudBox = await page.locator('.topbar > .cloud-connect').boundingBox();
+    const topbarBox = await page.locator('.topbar').boundingBox();
+    if (!cloudBox || !topbarBox || cloudBox.x < -1 ||
+        cloudBox.x + cloudBox.width > viewport.width + 1 ||
+        topbarBox.x + topbarBox.width > viewport.width + 1) {
+      throw new Error('Cloud connection pill overflows the responsive header');
+    }
     if (await page.locator('.breadcrumbs').count()) throw new Error('Redundant My Library / All Books breadcrumb still visible');
     if (await page.locator('.offline-health').count()) throw new Error('Offline status must be restricted to Offline tab');
     if (await page.locator('.book-grid .tile-delete').count()) throw new Error('One-click novel deletion must not appear on shelf');
