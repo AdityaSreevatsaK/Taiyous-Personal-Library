@@ -896,7 +896,7 @@ html, body, #root { max-width: 100%; overflow-x: clip; }
  .library-utility-bar .cloud-connect { margin-left: auto; }
  .library-utility-bar .cloud-connect-body { top: calc(100% + 7px); width: min(420px,calc(100vw - 30px)); }
  .library-section .library-toolbar { gap: 8px; padding: 5px 7px; }
- .library-toolbar .filter-tabs { width: 100%; display: grid; grid-template-columns: repeat(5,1fr); }
+ .library-toolbar .filter-tabs { width: 100%; display: grid; grid-template-columns: repeat(6,minmax(0,1fr)); }
  .library-toolbar .filter-tabs button { font-size: 11px; padding: 9px 4px; }
  .library-toolbar .toolbar-right { flex: 1; justify-content: stretch; }
  .library-toolbar .toolbar-right .search-field { flex: 1 1 150px; }
@@ -1216,4 +1216,46 @@ html, body, #root { max-width: 100%; overflow-x: clip; }
   .reader-chapter-footer .reader-footer-jump { font-size: 10px; padding: 7px; gap: 3px; }
   .reader-chapter-picker { max-height: 88dvh; }
   .reader-chapter-picker-list { max-height: 47dvh; }
+}
+
+
+/* Trying out is a distinct reading shelf, not a tag or a permanent collection. */
+.trying-book-label {
+  display: inline-block; margin: 5px 0 3px; padding: 4px 7px;
+  border-radius: 6px; background: var(--pale); color: var(--subtext);
+  font-size: 10px; font-weight: 750;
+}
+.details-trial-toggle {
+  border: 1px solid var(--border); border-radius: 9px;
+  color: var(--text); background: var(--surface-soft);
+  font-size: 12px; font-weight: 700; padding: 12px 15px;
+}
+.details-trial-toggle:hover { background: var(--pale); }
+.details-trial-toggle:disabled { opacity: .55; }
+.tag-draft-actions {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between;
+  gap: 8px; border-top: 1px solid var(--border); padding-top: 11px; margin-top: 12px;
+  color: var(--subtext); font-size: 11px;
+}
+.tag-draft-actions > span { flex: 1; }
+.tag-draft-actions .primary-button, .tag-draft-actions .secondary-button { margin: 0; }
+a.details-top-title {
+  color: var(--text); text-decoration: none; cursor: pointer;
+  border-radius: 5px; text-underline-offset: 4px;
+}
+a.details-top-title:hover { text-decoration: underline; }
+a.details-top-title:focus-visible { outline: 2px solid #80ac8b; outline-offset: 5px; }
+.reader-route-loading {
+  display: flex; align-items: center; flex-direction: column; justify-content: center;
+  gap: 16px; min-height: 100dvh; padding: 24px;
+  background: var(--bg); color: var(--text); font-size: 15px; text-align: center;
+}
+.reader-route-loading button {
+  border: 1px solid var(--border); border-radius: 8px;
+  padding: 10px 14px; color: var(--text); background: var(--surface);
+}
+@media (max-width: 700px) {
+  .library-toolbar .filter-tabs { gap: 1px; }
+  .library-toolbar .filter-tabs button { padding: 9px 2px; font-size: 10px; }
+  .tag-draft-actions { flex-direction: column; align-items: stretch; }
 }
