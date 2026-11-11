@@ -29,7 +29,7 @@ interface Props {
   collections: BookCollection[];
   onCreateCollection: (name: string) => Promise<void>;
   onRenameCollection: (id: string, name: string) => Promise<void>;
-  onDeleteCollection: (id: string) => Promise<void>;
+  onDeleteCollection: (id: string) => void;
   onCollectionMembership: (collectionId: string, bookId: string, include: boolean) => Promise<void>;
   initialTag: string;
   globalSearch: string;
@@ -40,7 +40,7 @@ interface Props {
   onFiles: (files: FileList | File[]) => void;
   onOpen: (book: LibraryBook) => void;
   onRead: (book: LibraryBook) => void;
-  onDelete: (book: LibraryBook) => void;
+  onRemoveOffline: (book: LibraryBook) => void;
   importing: boolean;
   notice: string | null;
   error: string | null;
@@ -99,7 +99,7 @@ export function Cover({ book, variant = 'normal', cloudRepo = '', cloudSession =
 export default function LibraryDashboard({
   books, cachedEpubIds, online, offlineShellReady, cachingId, onCacheForOffline, bulkOfflineProgress, onCacheAllOffline, pendingReviewCount, pendingProgressCount, collectionsSyncPending,
   collections, onCreateCollection, onRenameCollection, onDeleteCollection, onCollectionMembership,
-  initialTag, globalSearch, onGlobalSearch, theme, onThemeChange, onImportClick, onFiles, onOpen, onRead, onDelete,
+  initialTag, globalSearch, onGlobalSearch, theme, onThemeChange, onImportClick, onFiles, onOpen, onRead, onRemoveOffline,
   importing, notice, error, storageError, cloudRepo, cloudSession,
   cloudBusy, cloudMessage, onCloudRepo, onCloudLogin, onCloudLogout, onCloudRefresh, onCloudPublishCached,
 }: Props) {
@@ -119,6 +119,9 @@ export default function LibraryDashboard({
   const [query, setQuery] = useState('');
   const [selectedTag, setSelectedTag] = useState(initialTag);
   const [selectedCollectionId, setSelectedCollectionId] = useState('');
+  useEffect(() => {
+    if (selectedCollectionId && !collections.some(item => item.id === selectedCollectionId)) setSelectedCollectionId('');
+  }, [collections, selectedCollectionId]);
   const [creatingCollection, setCreatingCollection] = useState(false);
   const [newCollectionName, setNewCollectionName] = useState('');
   const availableTags = useMemo(() => tagCounts(books), [books]);
@@ -227,35 +230,7 @@ export default function LibraryDashboard({
       </aside>
 
       <main className="main-panel">
-        <header className="topbar"><button className="icon-button mobile-menu" onClick={() => setSidebarOpen(true)} aria-label="Open menu"><Menu size={22} /></button><div className="breadcrumbs"><span>MY LIBRARY</span><span className="crumb-slash">/</span><strong>{showAdvanced ? 'Advanced search' : globalMode ? 'Global search' : selectedCollection ? `Collection: ${selectedCollection.name}` : selectedTag ? `Tag: ${selectedTag}` : filter === 'all' ? 'All books' : navEntries.find((i) => i.id === filter)?.name}</strong></div><div className="top-actions"><label className="global-search-field"><Search size={16} /><input aria-label="Search all novels" placeholder="Search all novels…" value={globalSearch} onChange={event => onGlobalSearch(event.target.value)} />{globalSearch && <button type="button" aria-label="Clear global search" onClick={() => onGlobalSearch('')}><X size={15} /></button>}</label><button type="button" className="advanced-search-launch" onClick={() => { setShowAdvanced(true); setSidebarOpen(false); }}><Search size={16} /><span>Advanced search</span></button><button className="icon-button theme-switch" onClick={() => onThemeChange(themes[(themes.indexOf(theme) + 1) % themes.length])} title="Change theme" aria-label="Change theme">{theme === 'dark' ? <Moon size={19} /> : <Sun size={19} />}</button></div></header>
-        <div className="page-content">
-          {notice && <div className="alert success-alert" role="status"><CheckCircle2 size={17} />{notice}</div>}
-          {(error || storageError) && <div className="alert error-alert" role="alert">{error || storageError}</div>}
-          {!showAdvanced && <div className="page-head page-head-compact">
-            <div><div className="eyebrow"><span className="eyebrow-line" /> TAIYOU'S COLLECTION</div>
-              <h1>{filter === 'offline' ? 'Offline library' : selectedCollection ? selectedCollection.name : selectedTag ? selectedTag : 'Your library'}<span className="serif-accent">.</span></h1>
-              <p>{filter === 'offline' ? `${cachedEpubIds.length} downloaded for reading without a connection` : `${books.length} stories to explore, all in one place`}</p>
-            </div>
-            <button className="primary-button desktop-import" onClick={onImportClick} disabled={importing}><Plus size={18}/>{importing ? 'Importing…' : 'Add a novel'}</button>
-          </div>}
-          <div className="library-utility-bar">
-          {!showAdvanced && <div className="offline-health" role="status" aria-label="Offline availability">
-            <span className={online ? 'offline-connection online' : 'offline-connection offline'}>
-              {online ? <Cloud size={14} /> : <WifiOff size={14} />}
-              {online ? 'Online' : 'Offline'}
-            </span>
-            <span><Download size={14} /> {cachedEpubIds.length} of {books.length} EPUBs saved on this device</span>
-            {cachedEpubIds.length < books.length && books.length > 0 && <button type="button" className="offline-cache-all-btn"
-              onClick={onCacheAllOffline} disabled={!online || !!bulkOfflineProgress}
-              aria-label="Save all novels for offline reading"><Download size={13} />
-              {bulkOfflineProgress ? `Saving ${bulkOfflineProgress.done} of ${bulkOfflineProgress.total}…` : 'Save all offline'}
-            </button>}
-            <span>{offlineShellReady ? 'Offline app assets cached' : 'Offline app assets not yet cached'}</span>
-            {pendingReviewCount > 0 && <span className="pending-sync-status">{pendingReviewCount} note{pendingReviewCount === 1 ? '' : 's'} waiting to sync</span>}
-            {pendingProgressCount > 0 && <span className="pending-sync-status">{pendingProgressCount} reading position{pendingProgressCount === 1 ? '' : 's'} waiting to sync</span>}
-            {collectionsSyncPending && <span className="pending-sync-status">Collections waiting to sync</span>}
-          </div>}
-          <section className="cloud-connect" aria-label="Cloud library storage">
+        <header className="topbar"><button className="icon-button mobile-menu" onClick={() => setSidebarOpen(true)} aria-label="Open menu"><Menu size={22} /></button><section className="cloud-connect" aria-label="Cloud library storage">
             <div className="cloud-connect-head"><span><Cloud size={16} /><strong>Cloud library</strong><small className={cloudRepo && cloudSession ? 'connection-badge is-connected' : 'connection-badge'}>{cloudRepo && cloudSession ? 'Connected' : cloudRepo ? 'Disconnected' : 'Not set up'}</small></span>{!cloudSession && online && <button type="button" className="secondary-button oauth-header-login" onClick={() => window.location.assign('/api/oauth/login')}><LogIn size={14}/> Sign in with HF</button>}<button type="button" className="secondary-button" aria-expanded={showCloud} onClick={() => setShowCloud(v => !v)}>{showCloud ? 'Close' : 'Settings'}</button></div>
             {showCloud && <div className="cloud-connect-body">
               <p>Use one private Hugging Face dataset as the shared <code>data/</code> folder on PC and mobile. When connected, importing a ZIP saves its original archive, EPUB and catalogue to that repository.</p>
@@ -290,9 +265,33 @@ export default function LibraryDashboard({
               {cloudSession?.via !== 'oauth' && <p className="cloud-caution" id="cloud-token-note">Legacy manual connection: use only a fine-grained dataset token. It is held in memory only and not retained after restarting the app. The Hugging Face OAuth sign-in is preferred, so you need not re-enter a token on every visit.</p>}
             </div>}
             {cloudMessage && (!cloudSession || /unavailable|failed|error|hidden/i.test(cloudMessage)) && <p className="cloud-status" role="status">{cloudMessage}</p>}
-          </section>
-          </div>
-          {showAdvanced ? <AdvancedSearch books={books} offlineIds={cachedEpubIds} initialName={globalSearch} cloudRepo={cloudRepo} cloudSession={cloudSession}
+          </section><div className="top-actions"><label className="global-search-field"><Search size={16} /><input aria-label="Search all novels" placeholder="Search all novels…" value={globalSearch} onChange={event => onGlobalSearch(event.target.value)} />{globalSearch && <button type="button" aria-label="Clear global search" onClick={() => onGlobalSearch('')}><X size={15} /></button>}</label><button type="button" className="advanced-search-launch" onClick={() => { setShowAdvanced(true); setSidebarOpen(false); }}><Search size={16} /><span>Advanced search</span></button><button className="icon-button theme-switch" onClick={() => onThemeChange(themes[(themes.indexOf(theme) + 1) % themes.length])} title="Change theme" aria-label="Change theme">{theme === 'dark' ? <Moon size={19} /> : <Sun size={19} />}</button></div></header>
+        <div className="page-content">
+          {notice && <div className="alert success-alert" role="status"><CheckCircle2 size={17} />{notice}</div>}
+          {(error || storageError) && <div className="alert error-alert" role="alert">{error || storageError}</div>}
+          {!showAdvanced && <div className="page-head page-head-compact">
+            <div><div className="eyebrow"><span className="eyebrow-line" /> TAIYOU'S COLLECTION</div>
+              <h1>{filter === 'offline' ? 'Offline library' : selectedCollection ? selectedCollection.name : selectedTag ? selectedTag : 'Your library'}<span className="serif-accent">.</span></h1>
+              <p>{filter === 'offline' ? `${cachedEpubIds.length} downloaded for reading without a connection` : `${books.length} stories to explore, all in one place`}</p>
+            </div>
+            <button className="primary-button desktop-import" onClick={onImportClick} disabled={importing}><Plus size={18}/>{importing ? 'Importing…' : 'Add a novel'}</button>
+          </div>}
+          {!showAdvanced && filter === 'offline' && <section className="offline-health offline-management-bar" aria-label="Offline downloads">
+             <span className={online ? 'offline-connection online' : 'offline-connection offline'}>
+               {online ? <Cloud size={14} /> : <WifiOff size={14} />}{online ? 'Online' : 'Offline'}
+             </span>
+             <span><Download size={14} /> {cachedEpubIds.filter(id => books.some(book => book.id === id)).length} downloaded EPUBs on this device</span>
+             {cachedEpubIds.length < books.length && books.length > 0 && <button type="button" className="offline-cache-all-btn"
+               onClick={onCacheAllOffline} disabled={!online || !!bulkOfflineProgress}
+               aria-label="Save all novels for offline reading"><Download size={13} />
+               {bulkOfflineProgress ? `Saving ${bulkOfflineProgress.done} of ${bulkOfflineProgress.total}…` : 'Save all offline'}
+             </button>}
+             <span>{offlineShellReady ? 'App ready for offline reading' : 'Offline app assets not yet ready'}</span>
+             {pendingReviewCount > 0 && <span className="pending-sync-status">{pendingReviewCount} notes waiting to sync</span>}
+             {pendingProgressCount > 0 && <span className="pending-sync-status">{pendingProgressCount} reading positions waiting to sync</span>}
+             {collectionsSyncPending && <span className="pending-sync-status">Collections waiting to sync</span>}
+           </section>}
+                    {showAdvanced ? <AdvancedSearch books={books} offlineIds={cachedEpubIds} initialName={globalSearch} cloudRepo={cloudRepo} cloudSession={cloudSession}
             onClose={() => { setShowAdvanced(false); onGlobalSearch(''); }} onOpen={onOpen}
             onBrowseTag={browseTag} /> : <>
 
@@ -318,24 +317,20 @@ export default function LibraryDashboard({
                   if (value?.trim()) void onRenameCollection(selectedCollection.id, value);
                 }}><Pencil size={13} /> Rename</button>
                 <button type="button" onClick={() => {
-                  if (window.confirm(`Delete the collection "${selectedCollection.name}"? The novels themselves will remain untouched.`)) {
-                    void onDeleteCollection(selectedCollection.id).then(() => clearCollection());
-                  }
+                  onDeleteCollection(selectedCollection.id);
                 }}><Trash2 size={13} /> Delete</button>
                 <button type="button" onClick={clearCollection}>All novels <X size={13} /></button>
               </div>
             </div>}<div className="library-toolbar"><div className="filter-tabs">{(['all', 'reading', 'unread', 'finished', 'offline'] as Filter[]).map((name) => <button key={name} onClick={() => { setFilter(name); onGlobalSearch(''); }} className={filter === name ? 'selected' : ''}>{name === 'all' ? 'All' : name === 'reading' ? 'Reading' : name === 'unread' ? 'Unread' : name === 'offline' ? 'Offline' : 'Finished'}</button>)}</div><div className="toolbar-right"><label className="tag-filter"><Tag size={16} /><select aria-label="Filter novels by tag" value={selectedTag} onChange={(e) => browseTag(e.target.value)}><option value="">All tags</option>{availableTags.map(({tag, count}) => <option key={tag} value={tag}>{tag} ({count})</option>)}</select><ChevronDown size={14} /></label><label className="search-field"><Search size={17} /><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={selectedCollection ? `Search ${selectedCollection.name}…` : selectedTag ? `Search ${selectedTag} novels…` : "Search this shelf…"} aria-label="Search within current list" />{query && <button aria-label="Clear search" onClick={() => setQuery('')}><X size={14} /></button>}</label><label className="sort-field"><Settings2 size={16} /><select value={selectedTag || selectedCollection || globalMode ? 'title' : sort} disabled={!!selectedTag || !!selectedCollection || globalMode} onChange={(e) => setSort(e.target.value as Sort)} aria-label="Sort books"><option value="title">Title A–Z</option><option value="recent">Recent</option><option value="added">Date added</option></select><ChevronDown size={14} /></label></div></div>
 
-            {visible.length ? <div className="book-grid">{visible.map((book) => <article className="book-tile" key={book.id}><button className="cover-button" onClick={() => onOpen(book)} aria-label={`View details for ${book.title}`}><Cover book={book} cloudRepo={cloudRepo} cloudSession={cloudSession} /></button><div className="tile-meta"><div className="offline-book-status">
-                {cachedEpubIds.includes(book.id)
-                  ? <span className="offline-ready-badge"><CheckCircle2 size={13} /> Available offline</span>
-                  : <button type="button" className="offline-cache-btn" aria-label={`Save ${book.title} for offline reading`}
-                      disabled={!online || cachingId === book.id}
-                      title={!online ? 'Reconnect to fetch this EPUB' : 'Keep a local EPUB copy in this browser'}
-                      onClick={() => onCacheForOffline(book)}>
-                      <Download size={13} /> {cachingId === book.id ? 'Saving…' : 'Save offline'}
-                    </button>}
-              </div><div className="tile-title-row"><button className="tile-title" onClick={() => onOpen(book)} title={book.title}>{book.title}</button><button className="tile-delete" aria-label={`Remove ${book.title}`} title={book.cloud ? "Hosted in your private cloud dataset" : "Remove from this device"} onClick={() => onDelete(book)}><Trash2 size={14} /></button></div><p>{book.author}</p>{bookTags(book).length > 0 && <div className="tile-tags">{bookTags(book).slice(0, 3).map((tag) => <button type="button" key={tag} onClick={() => browseTag(tag)} aria-label={`Browse novels tagged ${tag}`}>{tag}</button>)}{bookTags(book).length > 3 && <span>+{bookTags(book).length - 3}</span>}</div>}{collections.length > 0 && <div className="book-collection-tools">
+            {visible.length ? <div className="book-grid">{visible.map((book) => <article className="book-tile" key={book.id}><button className="cover-button" onClick={() => onOpen(book)} aria-label={`View details for ${book.title}`}><Cover book={book} cloudRepo={cloudRepo} cloudSession={cloudSession} /></button><div className="tile-meta"><div className="tile-title-row"><button className="tile-title" onClick={() => onOpen(book)} title={book.title}>{book.title}</button></div><p>{book.author}</p>{filter === 'offline' && cachedEpubIds.includes(book.id) && <div className="offline-tile-actions">
+                {book.cloud
+                  ? <button type="button" className="offline-remove-button" onClick={() => onRemoveOffline(book)} aria-label={`Remove offline EPUB for ${book.title}`}>
+                      <Trash2 size={14} /> Remove download
+                    </button>
+                  : <span className="offline-local-only">Local-only EPUB · keep a backup</span>}
+              </div>}
+              {bookTags(book).length > 0 && <div className="tile-tags">{bookTags(book).slice(0, 3).map((tag) => <button type="button" key={tag} onClick={() => browseTag(tag)} aria-label={`Browse novels tagged ${tag}`}>{tag}</button>)}{bookTags(book).length > 3 && <span>+{bookTags(book).length - 3}</span>}</div>}{collections.length > 0 && <div className="book-collection-tools">
               <label className="sr-only" htmlFor={`collection-add-${book.id}`}>Add {book.title} to collection</label>
               <select id={`collection-add-${book.id}`} aria-label={`Add ${book.title} to collection`} value="" onChange={event => {
                 if (event.target.value) void onCollectionMembership(event.target.value, book.id, true);
