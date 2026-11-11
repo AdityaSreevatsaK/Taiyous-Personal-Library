@@ -8,6 +8,7 @@ import { extractEpubMetadata, prepareImport } from './lib/importer';
 import { normalizeTags } from './lib/tags';
 import { novelUrl, parseLibraryRoute } from './lib/routes';
 import { mapWithConcurrency, retryTransientRead } from './lib/network-pool';
+import { requestOfflineRetention } from './lib/offline';
 import { deleteBook, removeCachedEpub, getBookFile, getBooks, getCachedEpubIds, readSettings, saveBook, updateBook, writeSettings } from './lib/storage';
 import {
   reconcileCloudLibrary, clearCloudSession, createCloudSession, discoverHostedOAuthSession, assertPrivateDataset,
@@ -44,6 +45,7 @@ export default function App() {
   const [cloudBusy, setCloudBusy] = useState(false);
   const [cloudMessage, setCloudMessage] = useState<string | null>(null);
   const [lastSyncError, setLastSyncError] = useState<string | null>(null);
+  const [offlineRetention, setOfflineRetention] = useState<'persistent' | 'best-effort' | 'unknown'>('unknown');
   const [ownerRequest, setOwnerRequest] = useState<OwnerRemovalRequest | null>(null);
   const [loadingBook, setLoadingBook] = useState<string | null>(null);
   const [cachedEpubIds, setCachedEpubIds] = useState<string[]>([]);
@@ -550,8 +552,11 @@ export default function App() {
       await ensureCached(book);
       setCachedEpubIds(ids => ids.includes(book.id) ? ids : [...ids, book.id]);
       // Request more durable browser storage when the user explicitly downloads.
-      if (navigator.storage?.persist) void navigator.storage.persist().catch(() => undefined);
-      setNotice(`"${book.title}" is available offline on this device. You may also export its EPUB from Novel Details.`);
+      const retention = await requestOfflineRetention();
+      setOfflineRetention(retention);
+      setNotice(`"${book.title}" is saved for offline use on this device. ${retention === 'persistent'
+        ? 'Persistent browser storage was granted, though exporting a backup is still recommended.'
+        : 'Browser storage may be cleared automatically. Export an EPUB backup.'}`);
     } catch (reason) {
       setError(`Unable to prepare offline EPUB: ${String(reason)}`);
     } finally { setCachingId(null); }
@@ -590,9 +595,12 @@ export default function App() {
         done++;
         setBulkOfflineProgress({ done, total: needed.length });
       }
-      if (navigator.storage?.persist) void navigator.storage.persist().catch(() => undefined);
+      const retention = await requestOfflineRetention();
+      setOfflineRetention(retention);
       const successful = done - failures.filter(x => x.includes(': ')).length;
-      setNotice(`${successful} of ${needed.length} novels saved for offline reading.`);
+      setNotice(`${successful} of ${needed.length} novels cached for offline reading. ${retention === 'persistent'
+        ? 'Persistent browser storage granted.'
+        : 'Browser storage may be cleared automatically; keep a separate ZIP/EPUB backup.'}`);
       if (failures.length) setError(`Some downloads could not finish: ${failures.slice(0, 3).join(' | ')}`);
     } finally {
       setBulkOfflineProgress(null);
@@ -931,6 +939,7 @@ export default function App() {
       <LibraryDashboard books={books} theme={settings.theme}
         cachedEpubIds={cachedEpubIds} online={online} offlineShellReady={offlineShellReady}
         bulkOfflineProgress={bulkOfflineProgress} onCacheAllOffline={() => void saveAllOffline()}
+        offlineRetention={offlineRetention}
         pendingReviewCount={books.filter(book => book.pendingReviewSync).length}
         pendingProgressCount={books.filter(book => book.pendingProgressSync).length}
         collectionsSyncPending={collectionsSyncPending}
