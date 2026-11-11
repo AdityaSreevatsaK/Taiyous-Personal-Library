@@ -33,7 +33,10 @@ The public Cloudflare app shell contains **no private novels or dataset credenti
 - EPUB.js vertical-scrolling reader with centred chapter headings, chapter navigation, chapter selection and resume
 - Sepia, light and dark themes; typography and reading-width controls
 - Personal ratings and comments, original ZIP download where available, and EPUB export
-- **Save all offline** in the Offline shelf and per-novel offline management in Novel Details; protected removal of downloaded EPUBs
+- **Trying out** shelf for novels you are evaluating, with move-to-regular-library action and private per-book sync
+- Confirm-before-save custom synopsis and batch tag editing; no accidental one-click metadata writes
+- Bookmarkable `/book/<id>` and `/book/<id>/read` routes, real home hyperlink and Back/Forward navigation
+- **Save all offline** in the Offline shelf and per-novel offline management in Novel Details; ordinary confirmation for removing a local download, after verifying a hosted replacement
 - Service-worker-cached PWA shell, installed/offline restart and offline reading
 - Private-dataset synchronization for reviews, collections and per-book reading progress
 
@@ -68,7 +71,7 @@ For browser smoke tests, see `scripts/browser_smoke.mjs` and the GitHub workflow
 - **Permission trade-off:** OAuth's `write-repos` scope includes personal repositories, not only the novel dataset; the backend itself is restricted to `AdityaSreevatsaK/Taiyous-Novels`. For narrower token permissions use the legacy manual fine-grained token.
 - CI runs the full and production npm security audits, blocks on high/critical advisories, compiles the Pages Functions and tests the OAuth flow with synthetic credentials (never real book or auth data).
 
-**Protected removal:** Ordinary reading never needs Owner mode. Removing local-only novels, clearing hosted offline EPUB copies, and deleting collections require a fresh HF owner session, a separate Owner-mode passphrase (10-minute HttpOnly unlock) and typing the exact novel/collection title. The normal bookshelf has no one-click trash icons. Hosted novel deletion remains disabled in this application. Cached EPUBs are only removed after confirming that a real hosted replacement is reachable. These protections prevent accidental app-level deletion; they cannot stop a user from clearing their own browser storage directly.
+**Protected full deletion:** Ordinary reading and **removing an offline EPUB download** never require Owner mode; offline removal uses a normal confirmation and verifies the hosted EPUB exists first. Deleting any *entire novel*, whether local-only or hosted in the private HF Dataset, and deleting collections require a fresh HF owner session, a separate Owner passphrase (10-minute HttpOnly unlock) and typing the exact title. The normal bookshelf has no one-click delete icons. For hosted novels the private API performs a revision-guarded commit that removes the novel's data folder, catalogue listing, and its cloud notes/progress; export a backup first. No generic arbitrary-file delete endpoint exists. These controls prevent accidental application-level removal, not browser/Cloudflare account owners from deleting data outside the app.
 
 See [Hugging Face OAuth and Owner-mode setup](docs/ACCESS_GATEWAY.md).
 
@@ -78,3 +81,5 @@ See [Hugging Face OAuth and Owner-mode setup](docs/ACCESS_GATEWAY.md).
 - Personal tags, custom summaries and typography settings are local rather than cloud-synced.
 - Concurrent edits across devices are timestamp-based, not transactionally conflict-free.
 - The new permanent hostname has separate browser storage from the former `dev.` alias. The user approved resetting locally cached data during the transition; download EPUBs again on the new hostname for offline access.
+
+**Release policy:** Development commits are not GitHub releases. Do **not** create a v1.0 tag or publish a GitHub Release until the library owner explicitly approves the release after manual testing.

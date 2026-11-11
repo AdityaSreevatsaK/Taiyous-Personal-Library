@@ -59,8 +59,8 @@ No `CF_ACCESS_AUD`, `CF_ACCESS_TEAM_DOMAIN`, `CF_ACCESS_ALLOWED_EMAIL`, or `HF_D
 ## Protected Owner mode (separate sign-in for destructive actions)
 
 Reader access and Owner mode are deliberately separate. **Reading, importing, searching,
-ratings and normal downloads do not require the Owner passphrase.** Removing a
-local-only novel, clearing a cached hosted EPUB, or deleting a collection does.
+ratings, local download removal and normal downloads do not require the Owner passphrase.** Removing an
+entire local or hosted novel, or deleting a collection does.
 
 Under **Cloudflare → Workers & Pages → taiyous-personal-library → Settings →
 Variables and Secrets → Production**, add a second encrypted **Secret**:
@@ -75,8 +75,7 @@ never send it to ChatGPT or commit it to GitHub. No new Cloudflare plan, card
 details, paid infrastructure or external identity provider are necessary.
 
 **Operation flow:** Sign in normally with your Hugging Face owner account.
-Open Novel Details → **Manage this novel** or select a hosted download under
-the **Offline** tab. Request the protected action; the app asks for your Owner
+Open Novel Details → **Manage this novel**, then choose *Delete novel from library (Owner mode)* (or the local-only equivalent). Request the protected action; the app asks for your Owner
 passphrase, grants a **10-minute** encrypted, Secure/HttpOnly, SameSite=Strict
 Owner cookie tied to that HF OAuth session, then requires typing the exact title
 before removal. Deletion requests check the owner grant again. The passphrase
@@ -91,18 +90,21 @@ token is still usable for reading/importing but cannot unlock Owner mode.
 
 **Scope and safeguards:**
 
-- **Remove offline EPUB:** removes only the browser EPUB; keeps the novel, tags,
-  rating, comments, and reading progress. Only available when the backend
-  verifies a real hosted replacement via a private HEAD request. A recreated,
-  incomplete or unavailable cloud dataset is never treated as a valid backup.
-- **Remove local novel:** only for books not hosted in the private dataset;
-  removes their local EPUB, cover, metadata and reading position. Export a ZIP
-  or EPUB backup beforehand. Requires Owner mode plus exact title.
-- **Delete collection:** removes the collection (including its synced listing),
-  **not** the novels in it. Requires Owner mode plus exact title.
-- **Delete hosted novel from HF:** **not supported** by the reader app. Use the
-  separate storage controller and take a backup; the reader API has no deletion
-  endpoint.
+- **Remove offline EPUB:** no Owner passphrase needed. Uses an ordinary
+  confirmation; removes only the downloaded browser EPUB after the backend
+  verifies a real hosted replacement via a private HEAD request. Keeps the
+  library entry, tags, notes and reading position.
+- **Delete an entire local novel:** removes its device EPUB, cover, metadata
+  and reading position. Requires Owner mode and exact title.
+- **Delete a hosted novel:** requires Owner mode, exact title and internet
+  connection. The private Pages Function validates the current HF dataset
+  revision and exact novel path before a single HF commit removes its
+  catalogue entry, entire novel data folder (EPUB/ZIP/cover), plus synced
+  notes and reading progress. This affects other devices. Export the novel
+  first; the prior dataset Git history may help recovery but is not a backup.
+  The API cannot delete arbitrary dataset files or other novels.
+- **Delete collection:** removes only the collection and its synced record;
+  novels remain untouched. Requires Owner mode plus exact title.
 
 This is an anti-accidental-deletion and privileged-UI boundary. Someone with
 full control of the browser profile, local developer tools or the Cloudflare/HF
