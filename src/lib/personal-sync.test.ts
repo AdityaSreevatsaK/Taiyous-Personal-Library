@@ -129,6 +129,36 @@ describe('personal sync client guards against clock-skew and competing offline w
     expect(result.reviewSyncConflict?.revision).toBe(revisionC);
   });
 
+
+  it('does not overwrite an unseen third-device reading edit during conflict resolution', async () => {
+    const calls = mockedGateway(remoteProgress, revisionC);
+    const local = book({
+      progress: 81, progressUpdatedAt: 700_000,
+      pendingProgressSync: true, progressCloudRevision: revisionA,
+      progressSyncConflict: { value: { ...remoteProgress, progress: 20 }, revision: revisionB },
+    });
+    const result = await resolveReadingConflict('reader/library', session, id, local, 'device');
+    expect(result.progress).toBe(81);
+    expect(result.pendingProgressSync).toBe(true);
+    expect(result.progressSyncConflict?.revision).toBe(revisionC);
+    expect(calls.map(call => call.method)).toEqual(['GET']);
+  });
+
+  it('does not overwrite unseen third-device notes, ratings or shelf edits', async () => {
+    const calls = mockedGateway(remoteReview, revisionC);
+    const local = book({
+      personalRating: 10, personalReview: 'Different local note',
+      personalReviewUpdatedAt: 700_000, pendingReviewSync: true,
+      reviewCloudRevision: revisionA,
+      reviewSyncConflict: { value: { ...remoteReview, rating: 6 }, revision: revisionB },
+    });
+    const result = await resolveReviewConflict('reader/library', session, id, local, 'device');
+    expect(result.personalRating).toBe(10);
+    expect(result.pendingReviewSync).toBe(true);
+    expect(result.reviewSyncConflict?.revision).toBe(revisionC);
+    expect(calls.map(call => call.method)).toEqual(['GET']);
+  });
+
   it('does not publish an unattended conflicting legacy review even when its timestamp is later', async () => {
     const calls = mockedGateway(remoteReview);
     const result = await syncReviewRecord('reader/library', session, id,
