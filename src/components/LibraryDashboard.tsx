@@ -125,6 +125,22 @@ export default function LibraryDashboard({
   const availableTags = useMemo(() => tagCounts(books), [books]);
   const [repoDraft, setRepoDraft] = useState(cloudRepo);
   const [showCloud, setShowCloud] = useState(false);
+  const cloudRoot = useRef<HTMLElement | null>(null);
+  useEffect(() => {
+    if (!showCloud) return;
+    const closeOutside = (event: PointerEvent) => {
+      if (!cloudRoot.current?.contains(event.target as Node)) setShowCloud(false);
+    };
+    const closeEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setShowCloud(false);
+    };
+    document.addEventListener('pointerdown', closeOutside);
+    document.addEventListener('keydown', closeEscape);
+    return () => {
+      document.removeEventListener('pointerdown', closeOutside);
+      document.removeEventListener('keydown', closeEscape);
+    };
+  }, [showCloud]);
   const [datasetToken, setDatasetToken] = useState('');
   const [dragging, setDragging] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -228,7 +244,7 @@ export default function LibraryDashboard({
       </aside>
 
       <main className="main-panel">
-        <header className="topbar"><button className="icon-button mobile-menu" onClick={() => setSidebarOpen(true)} aria-label="Open menu"><Menu size={22} /></button><section className="cloud-connect" aria-label="Cloud library storage">
+        <header className="topbar"><button className="icon-button mobile-menu" onClick={() => setSidebarOpen(true)} aria-label="Open menu"><Menu size={22} /></button><section className="cloud-connect" aria-label="Cloud library storage" ref={cloudRoot}>
             <div className="cloud-connect-head"><span><Cloud size={16} /><strong>Cloud library</strong><small className={cloudRepo && cloudSession ? 'connection-badge is-connected' : 'connection-badge'}>{cloudRepo && cloudSession ? 'Connected' : cloudRepo ? 'Disconnected' : 'Not set up'}</small></span>{!cloudSession && online && <button type="button" className="secondary-button oauth-header-login" onClick={() => window.location.assign('/api/oauth/login')}><LogIn size={14}/> Sign in with HF</button>}<button type="button" className="secondary-button" aria-expanded={showCloud} onClick={() => setShowCloud(v => !v)}>{showCloud ? 'Close' : 'Settings'}</button></div>
             {showCloud && <div className="cloud-connect-body">
               <p>Use one private Hugging Face dataset as the shared <code>data/</code> folder on PC and mobile. When connected, importing a ZIP saves its original archive, EPUB and catalogue to that repository.</p>
@@ -260,9 +276,9 @@ export default function LibraryDashboard({
                   </details>
                 </div>}
               </div>
+              {cloudMessage && <p className="cloud-sync-message" role="status">{cloudMessage}</p>}
               {cloudSession?.via !== 'oauth' && <p className="cloud-caution" id="cloud-token-note">Legacy manual connection: use only a fine-grained dataset token. It is held in memory only and not retained after restarting the app. The Hugging Face OAuth sign-in is preferred, so you need not re-enter a token on every visit.</p>}
             </div>}
-            {cloudMessage && (!cloudSession || /unavailable|failed|error|hidden/i.test(cloudMessage)) && <p className="cloud-status" role="status">{cloudMessage}</p>}
           </section><div className="top-actions"><label className="global-search-field"><Search size={16} /><input aria-label="Search all novels" placeholder="Search all novels…" value={globalSearch} onChange={event => onGlobalSearch(event.target.value)} />{globalSearch && <button type="button" aria-label="Clear global search" onClick={() => onGlobalSearch('')}><X size={15} /></button>}</label><button type="button" className="advanced-search-launch" onClick={() => { setShowAdvanced(true); setSidebarOpen(false); }}><Search size={16} /><span>Advanced search</span></button><button className="icon-button theme-switch" onClick={() => onThemeChange(themes[(themes.indexOf(theme) + 1) % themes.length])} title="Change theme" aria-label="Change theme">{theme === 'dark' ? <Moon size={19} /> : <Sun size={19} />}</button></div></header>
         <div className="page-content">
           {notice && <div className="alert success-alert" role="status"><CheckCircle2 size={17} />{notice}</div>}

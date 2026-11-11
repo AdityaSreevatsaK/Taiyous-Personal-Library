@@ -845,7 +845,7 @@ export default function App() {
         onCloudLogout={signOutOfCloud} onCloudRefresh={() => void refreshCloud()}
         onCloudPublishCached={publishCachedNovels} />
     )}
-    {ownerRequest && <OwnerActionDialog request={ownerRequest}
+    {ownerRequest && <OwnerActionDialog theme={settings.theme} request={ownerRequest}
       onCancel={() => setOwnerRequest(null)} onConfirm={performOwnerAction} />}
     <input ref={filePicker} type="file" accept=".epub,.zip,application/epub+zip" multiple hidden
       onChange={pickerChanged} aria-label="Import EPUB or Novel ZIP" />

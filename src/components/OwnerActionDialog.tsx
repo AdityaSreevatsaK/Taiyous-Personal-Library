@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { LockKeyhole, ShieldCheck, ShieldAlert, X } from 'lucide-react';
 import { getOwnerStatus, ownerPost, type OwnerStatus } from '../lib/owner';
+import type { ReaderTheme } from '../types';
 
 export interface OwnerRemovalRequest {
   kind: 'local-novel' | 'offline-copy' | 'collection';
@@ -9,6 +10,7 @@ export interface OwnerRemovalRequest {
 }
 
 interface Props {
+  theme: ReaderTheme;
   request: OwnerRemovalRequest;
   onCancel: () => void;
   onConfirm: (request: OwnerRemovalRequest) => Promise<void>;
@@ -32,7 +34,7 @@ const messages: Record<OwnerRemovalRequest['kind'], { title: string; description
   },
 };
 
-export default function OwnerActionDialog({ request, onCancel, onConfirm }: Props) {
+export default function OwnerActionDialog({ theme, request, onCancel, onConfirm }: Props) {
   const [status, setStatus] = useState<OwnerStatus | null>(null);
   const [error, setError] = useState('');
   const [passphrase, setPassphrase] = useState('');
@@ -81,7 +83,7 @@ export default function OwnerActionDialog({ request, onCancel, onConfirm }: Prop
   }
 
   const content = messages[request.kind];
-  return <div className="owner-dialog-shade">
+  return <div className={`owner-dialog-shade theme-${theme}`}>
     <section className="owner-dialog" role="dialog" aria-modal="true" aria-labelledby="owner-dialog-title">
       <button type="button" className="owner-close icon-button" aria-label="Cancel owner action" disabled={busy} onClick={onCancel}><X size={19} /></button>
       <div className="owner-dialog-icon"><LockKeyhole size={22} /></div>
