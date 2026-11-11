@@ -27,11 +27,12 @@ interface Props {
   onSaveTags: (tags: string[]) => Promise<void>;
   onSaveSummary: (summary: string) => Promise<void>;
   onSaveReview: (rating: number | undefined, review: string) => Promise<void>;
+  onSetTrial: (trying: boolean) => Promise<void>;
   onBrowseTag: (tag: string) => void;
   error: string | null;
 }
 
-export default function BookDetails({ book, theme, onBack, onRead, onDownloadEpub, isCachedOffline, onSaveOffline, onRemoveOffline, onDeleteLocal, onDownloadArchive, cloudConnected, cloudRepo, cloudSession, onReadChapter, onSaveTags, onSaveSummary, onSaveReview, onBrowseTag, error }: Props) {
+export default function BookDetails({ book, theme, onBack, onRead, onDownloadEpub, isCachedOffline, onSaveOffline, onRemoveOffline, onDeleteLocal, onDownloadArchive, cloudConnected, cloudRepo, cloudSession, onReadChapter, onSaveTags, onSaveSummary, onSaveReview, onSetTrial, onBrowseTag, error }: Props) {
   const [tagInput, setTagInput] = useState('');
   const [editingSummary, setEditingSummary] = useState(false);
   const [summaryDraft, setSummaryDraft] = useState(book.userDescription || book.description || '');
@@ -128,6 +129,13 @@ export default function BookDetails({ book, theme, onBack, onRead, onDownloadEpu
             <button type="submit" className="hero-rating-save" disabled={saving}>Save rating</button>
           </form>
           <div className="details-hero-actions">
+            <button type="button" className="details-trial-toggle" disabled={saving} onClick={() => {
+              setSaving(true); setFeedback(null);
+              void onSetTrial(book.shelfStatus !== 'trying')
+                .then(() => setFeedback(book.shelfStatus === 'trying' ? 'Moved to your regular library.' : 'Added to Trying out.'))
+                .catch(reason => setFeedback(String(reason instanceof Error ? reason.message : reason)))
+                .finally(() => setSaving(false));
+            }}>{book.shelfStatus === 'trying' ? 'Move to regular library' : 'Add to Trying out'}</button>
             <button type="button" className="details-start" onClick={onRead}>{book.progress > 0 ? 'Continue reading' : 'Start reading'} <ArrowRight size={20} /></button>
             <button type="button" className="details-download" disabled={downloading} onClick={() => {
               setDownloading(true); setFeedback(null);

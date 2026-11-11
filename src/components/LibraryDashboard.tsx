@@ -11,7 +11,7 @@ import { bookTags, includesTag, tagCounts } from '../lib/tags';
 import type { CloudSession } from '../lib/cloud';
 import type { BookCollection } from '../lib/collections';
 
-type Filter = 'all' | 'reading' | 'unread' | 'finished' | 'offline';
+type Filter = 'all' | 'trying' | 'reading' | 'unread' | 'finished' | 'offline';
 type Sort = 'recent' | 'title' | 'added';
 
 interface Props {
@@ -144,8 +144,8 @@ export default function LibraryDashboard({
   const [datasetToken, setDatasetToken] = useState('');
   const [dragging, setDragging] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const reading = books.filter((book) => book.progress > 0 && book.progress < 99.5);
-  const finished = books.filter((book) => book.progress >= 99.5);
+  const reading = books.filter((book) => book.shelfStatus !== 'trying' && book.progress > 0 && book.progress < 99.5);
+  const finished = books.filter((book) => book.shelfStatus !== 'trying' && book.progress >= 99.5);
   const featured = [...reading].sort((a, b) => (b.lastOpenedAt || 0) - (a.lastOpenedAt || 0))[0] || books[0];
 
   const globalMode = globalSearch.trim().length > 0;
@@ -156,6 +156,8 @@ export default function LibraryDashboard({
       // Global search always spans the entire library; local search stays scoped.
       if (!globalMode) {
         if (filter === 'offline' && !cachedEpubIds.includes(book.id)) return false;
+         if (filter === 'trying' && book.shelfStatus !== 'trying') return false;
+         if (filter !== 'all' && filter !== 'offline' && filter !== 'trying' && book.shelfStatus === 'trying') return false;
         if (filter === 'reading' && !(book.progress > 0 && book.progress < 99.5)) return false;
         if (filter === 'finished' && book.progress < 99.5) return false;
         if (filter === 'unread' && book.progress > 0) return false;
@@ -198,8 +200,9 @@ export default function LibraryDashboard({
 
   const navEntries = [
     { id: 'all' as Filter, name: 'All books', count: books.length, icon: Library },
-    { id: 'reading' as Filter, name: 'Currently reading', count: reading.length, icon: BookOpen },
-    { id: 'unread' as Filter, name: 'To be read', count: books.filter((b) => b.progress === 0).length, icon: Book },
+    { id: 'trying' as Filter, name: 'Trying out', count: books.filter(b => b.shelfStatus === 'trying').length, icon: Sparkles },
+     { id: 'reading' as Filter, name: 'Currently reading', count: reading.length, icon: BookOpen },
+    { id: 'unread' as Filter, name: 'To be read', count: books.filter((b) => b.shelfStatus !== 'trying' && b.progress === 0).length, icon: Book },
     { id: 'finished' as Filter, name: 'Finished', count: finished.length, icon: CheckCircle2 },
     { id: 'offline' as Filter, name: 'Available offline', count: cachedEpubIds.length, icon: Download },
   ];
@@ -285,8 +288,8 @@ export default function LibraryDashboard({
           {(error || storageError) && <div className="alert error-alert" role="alert">{error || storageError}</div>}
           {!showAdvanced && <div className="page-head page-head-compact">
             <div><div className="eyebrow"><span className="eyebrow-line" /> TAIYOU'S COLLECTION</div>
-              <h1>{filter === 'offline' ? 'Offline library' : selectedCollection ? selectedCollection.name : selectedTag ? selectedTag : 'Your library'}<span className="serif-accent">.</span></h1>
-              <p>{filter === 'offline' ? `${cachedEpubIds.length} downloaded for reading without a connection` : `${books.length} stories to explore, all in one place`}</p>
+              <h1>{filter === 'offline' ? 'Offline library' : filter === 'trying' ? 'Trying out' : selectedCollection ? selectedCollection.name : selectedTag ? selectedTag : 'Your library'}<span className="serif-accent">.</span></h1>
+              <p>{filter === 'offline' ? `${cachedEpubIds.length} downloaded for reading without a connection` : filter === 'trying' ? `${books.filter(b => b.shelfStatus === 'trying').length} novels to sample before deciding` : `${books.length} stories to explore, all in one place`}</p>
             </div>
             <button className="primary-button desktop-import" onClick={onImportClick} disabled={importing}><Plus size={18}/>{importing ? 'Importing…' : 'Add a novel'}</button>
           </div>}
@@ -335,7 +338,7 @@ export default function LibraryDashboard({
                 }}><Trash2 size={13} /> Delete</button>
                 <button type="button" onClick={clearCollection}>All novels <X size={13} /></button>
               </div>
-            </div>}<div className="library-toolbar"><div className="filter-tabs">{(['all', 'reading', 'unread', 'finished', 'offline'] as Filter[]).map((name) => <button key={name} onClick={() => { setFilter(name); onGlobalSearch(''); }} className={filter === name ? 'selected' : ''}>{name === 'all' ? 'All' : name === 'reading' ? 'Reading' : name === 'unread' ? 'Unread' : name === 'offline' ? 'Offline' : 'Finished'}</button>)}</div><div className="toolbar-right"><label className="tag-filter"><Tag size={16} /><select aria-label="Filter novels by tag" value={selectedTag} onChange={(e) => browseTag(e.target.value)}><option value="">All tags</option>{availableTags.map(({tag, count}) => <option key={tag} value={tag}>{tag} ({count})</option>)}</select><ChevronDown size={14} /></label><label className="search-field"><Search size={17} /><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={selectedCollection ? `Search ${selectedCollection.name}…` : selectedTag ? `Search ${selectedTag} novels…` : "Search this shelf…"} aria-label="Search within current list" />{query && <button aria-label="Clear search" onClick={() => setQuery('')}><X size={14} /></button>}</label><label className="sort-field"><Settings2 size={16} /><select value={selectedTag || selectedCollection || globalMode ? 'title' : sort} disabled={!!selectedTag || !!selectedCollection || globalMode} onChange={(e) => setSort(e.target.value as Sort)} aria-label="Sort books"><option value="title">Title A–Z</option><option value="recent">Recent</option><option value="added">Date added</option></select><ChevronDown size={14} /></label></div></div>
+            </div>}<div className="library-toolbar"><div className="filter-tabs">{(['all', 'trying', 'reading', 'unread', 'finished', 'offline'] as Filter[]).map((name) => <button key={name} onClick={() => { setFilter(name); onGlobalSearch(''); }} className={filter === name ? 'selected' : ''}>{name === 'all' ? 'All' : name === 'trying' ? 'Trying' : name === 'reading' ? 'Reading' : name === 'unread' ? 'Unread' : name === 'offline' ? 'Offline' : 'Finished'}</button>)}</div><div className="toolbar-right"><label className="tag-filter"><Tag size={16} /><select aria-label="Filter novels by tag" value={selectedTag} onChange={(e) => browseTag(e.target.value)}><option value="">All tags</option>{availableTags.map(({tag, count}) => <option key={tag} value={tag}>{tag} ({count})</option>)}</select><ChevronDown size={14} /></label><label className="search-field"><Search size={17} /><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={selectedCollection ? `Search ${selectedCollection.name}…` : selectedTag ? `Search ${selectedTag} novels…` : "Search this shelf…"} aria-label="Search within current list" />{query && <button aria-label="Clear search" onClick={() => setQuery('')}><X size={14} /></button>}</label><label className="sort-field"><Settings2 size={16} /><select value={selectedTag || selectedCollection || globalMode ? 'title' : sort} disabled={!!selectedTag || !!selectedCollection || globalMode} onChange={(e) => setSort(e.target.value as Sort)} aria-label="Sort books"><option value="title">Title A–Z</option><option value="recent">Recent</option><option value="added">Date added</option></select><ChevronDown size={14} /></label></div></div>
 
             {visible.length ? <div className="book-grid">{visible.map((book) => <article className="book-tile" key={book.id}><button className="cover-button" onClick={() => onOpen(book)} aria-label={`View details for ${book.title}`}><Cover book={book} cloudRepo={cloudRepo} cloudSession={cloudSession} /></button><div className="tile-meta"><div className="tile-title-row"><button className="tile-title" onClick={() => onOpen(book)} title={book.title}>{book.title}</button></div><p>{book.author}</p>{filter === 'offline' && cachedEpubIds.includes(book.id) && <div className="offline-tile-actions">
                 {book.cloud
@@ -344,7 +347,8 @@ export default function LibraryDashboard({
                     </button>
                   : <span className="offline-local-only">Local-only EPUB · keep a backup</span>}
               </div>}
-              {bookTags(book).length > 0 && <div className="tile-tags">{bookTags(book).slice(0, 3).map((tag) => <button type="button" key={tag} onClick={() => browseTag(tag)} aria-label={`Browse novels tagged ${tag}`}>{tag}</button>)}{bookTags(book).length > 3 && <span>+{bookTags(book).length - 3}</span>}</div>}{collections.length > 0 && <div className="book-collection-tools">
+              {book.shelfStatus === 'trying' && <span className="trying-book-label">Trying out</span>}
+               {bookTags(book).length > 0 && <div className="tile-tags">{bookTags(book).slice(0, 3).map((tag) => <button type="button" key={tag} onClick={() => browseTag(tag)} aria-label={`Browse novels tagged ${tag}`}>{tag}</button>)}{bookTags(book).length > 3 && <span>+{bookTags(book).length - 3}</span>}</div>}{collections.length > 0 && <div className="book-collection-tools">
               <label className="sr-only" htmlFor={`collection-add-${book.id}`}>Add {book.title} to collection</label>
               <select id={`collection-add-${book.id}`} aria-label={`Add ${book.title} to collection`} value="" onChange={event => {
                 if (event.target.value) void onCollectionMembership(event.target.value, book.id, true);

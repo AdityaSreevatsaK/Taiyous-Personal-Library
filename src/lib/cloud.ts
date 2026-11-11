@@ -271,6 +271,8 @@ export interface CloudPersonalReview {
   bookId: string;
   rating: number | null;
   comments: string;
+  /** Saved with private notes so the Trying out shelf follows the owner across devices. */
+  shelfStatus?: 'trying' | null;
   updatedAt: number;
 }
 
@@ -285,6 +287,7 @@ export function parseCloudPersonalReview(value: unknown, bookId: string): CloudP
   if (note.version !== 1 || note.bookId !== bookId ||
     !(note.rating === null || (Number.isInteger(note.rating) && typeof note.rating === 'number' && note.rating >= 1 && note.rating <= 10)) ||
     typeof note.comments !== 'string' || note.comments.length > 10000 ||
+    !(note.shelfStatus === undefined || note.shelfStatus === null || note.shelfStatus === 'trying') ||
     typeof note.updatedAt !== 'number' || !Number.isFinite(note.updatedAt) || note.updatedAt < 0) {
     throw new Error('Unsupported personal review document.');
   }
@@ -301,10 +304,12 @@ export async function fetchCloudPersonalReview(repo: string, bookId: string, ses
 /** Write a single book's annotation, never a catalogue or EPUB. */
 export async function saveCloudPersonalReview(
   repo: string, bookId: string, session: CloudSession, rating: number | undefined, comments: string, updatedAt: number,
+  shelfStatus?: 'trying',
 ): Promise<CloudPersonalReview> {
   await assertPrivateDataset(repo, session);
   const value = parseCloudPersonalReview({
     version: 1, bookId, rating: rating ?? null, comments: comments.trim().slice(0, 10000), updatedAt,
+    shelfStatus: shelfStatus ?? null,
   }, bookId);
   await uploadPrivateDatasetFiles(repo, session, [
     { path: personalReviewPath(bookId), content: new Blob([JSON.stringify(value, null, 2)], { type: 'application/json' }) },

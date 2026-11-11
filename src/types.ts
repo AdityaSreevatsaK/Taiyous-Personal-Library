@@ -26,6 +26,8 @@ export interface LibraryBook {
   userDescription?: string;
   /** Personal rating from 1 to 10; synchronised with private dataset when connected. */
   personalRating?: number;
+  /** Temporary reading trial; separate from tags, collections, and reading progress. */
+  shelfStatus?: 'trying';
   /** Private comments, stored in a separate private notes file when connected. */
   personalReview?: string;
   /** Latest rating/comments edit timestamp to merge cloud notes safely. */

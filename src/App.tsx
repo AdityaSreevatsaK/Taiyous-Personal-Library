@@ -175,13 +175,14 @@ export default function App() {
           // Offline edits are replayed only after reconnecting to an authorised
           // dataset. A newer remote edit wins rather than being overwritten.
           if (book.pendingReviewSync && localTimestamp > (note?.updatedAt ?? -1)) {
-            await saveCloudPersonalReview(repo, entry.id, session, book.personalRating, book.personalReview || '', localTimestamp);
+            await saveCloudPersonalReview(repo, entry.id, session, book.personalRating, book.personalReview || '', localTimestamp, book.shelfStatus);
             return { ...book, pendingReviewSync: false };
           }
           if (!note) return book;
           if (note.updatedAt < localTimestamp) return book;
           return { ...book, personalRating: note.rating ?? undefined,
-            personalReview: note.comments, personalReviewUpdatedAt: note.updatedAt, pendingReviewSync: false };
+            personalReview: note.comments, shelfStatus: note.shelfStatus === 'trying' ? 'trying' as const : undefined,
+             personalReviewUpdatedAt: note.updatedAt, pendingReviewSync: false };
         } catch {
           notesWarning = true;
           return book;
@@ -566,7 +567,7 @@ export default function App() {
     setBooks(booksRef.current);
   }, []);
 
-  const savePersonalReview = useCallback(async (bookId: string, rating: number | undefined, review: string) => {
+  const savePersonalReview = useCallback(async (bookId: string, rating: number | undefined, review: string, trialStatus?: 'trying' | 'regular') => {
     const current = booksRef.current.find(book => book.id === bookId);
     if (!current) throw new Error('Novel not found in local library');
     if (rating !== undefined && (!Number.isInteger(rating) || rating < 1 || rating > 10)) {
@@ -574,6 +575,7 @@ export default function App() {
     }
     const updatedAt = Date.now();
     const updated = { ...current, personalRating: rating, personalReview: review.trim().slice(0, 10000),
+       shelfStatus: trialStatus === 'trying' ? 'trying' as const : trialStatus === 'regular' ? undefined : current.shelfStatus,
       personalReviewUpdatedAt: updatedAt, pendingReviewSync: !!current.cloud };
     await updateBook(updated);
     booksRef.current = booksRef.current.map(book => book.id === bookId ? updated : book);
@@ -588,7 +590,7 @@ export default function App() {
       }
       if (!entry) throw new Error('Saved locally, but the hosted novel could not be matched. Cloud sync did not complete.');
       try {
-        await saveCloudPersonalReview(cloudRepo, entry.id, cloudSession, rating, updated.personalReview, updatedAt);
+        await saveCloudPersonalReview(cloudRepo, entry.id, cloudSession, rating, updated.personalReview, updatedAt, updated.shelfStatus);
         const latest = booksRef.current.find(item => item.id === bookId);
         if (latest && latest.personalReviewUpdatedAt === updatedAt) {
           const synced = { ...latest, pendingReviewSync: false };
@@ -820,6 +822,7 @@ export default function App() {
         onSaveTags={tags => savePersonalTags(detailBook.id, tags)}
         onSaveSummary={summary => savePersonalSummary(detailBook.id, summary)}
         onSaveReview={(rating, review) => savePersonalReview(detailBook.id, rating, review)}
+        onSetTrial={(trying) => savePersonalReview(detailBook.id, detailBook.personalRating, detailBook.personalReview || '', trying ? 'trying' : 'regular')}
         onBrowseTag={tag => { setBrowseTag(tag); setGlobalSearch(''); setDetailsId(null); }} error={error} />
     ) : (
       <LibraryDashboard books={books} theme={settings.theme}
