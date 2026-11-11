@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import {
   ArrowLeft, ArrowRight, BookOpen, Bookmark, Check, Download, ExternalLink, Hash,
-  Info, Pencil, Plus, Star, Tag, X,
+  Info, LockKeyhole, Pencil, Plus, Star, Tag, Trash2, X,
 } from 'lucide-react';
 import { Cover } from './LibraryDashboard';
 import type { CloudSession } from '../lib/cloud';
@@ -15,6 +15,10 @@ interface Props {
   onBack: () => void;
   onRead: () => void;
   onDownloadEpub: () => Promise<void>;
+  isCachedOffline: boolean;
+  onSaveOffline: () => void;
+  onRemoveOffline: () => void;
+  onDeleteLocal: () => void;
   onDownloadArchive?: () => Promise<void>;
   cloudConnected: boolean;
   cloudRepo: string;
@@ -27,7 +31,7 @@ interface Props {
   error: string | null;
 }
 
-export default function BookDetails({ book, theme, onBack, onRead, onDownloadEpub, onDownloadArchive, cloudConnected, cloudRepo, cloudSession, onReadChapter, onSaveTags, onSaveSummary, onSaveReview, onBrowseTag, error }: Props) {
+export default function BookDetails({ book, theme, onBack, onRead, onDownloadEpub, isCachedOffline, onSaveOffline, onRemoveOffline, onDeleteLocal, onDownloadArchive, cloudConnected, cloudRepo, cloudSession, onReadChapter, onSaveTags, onSaveSummary, onSaveReview, onBrowseTag, error }: Props) {
   const [tagInput, setTagInput] = useState('');
   const [editingSummary, setEditingSummary] = useState(false);
   const [summaryDraft, setSummaryDraft] = useState(book.userDescription || book.description || '');
@@ -113,7 +117,7 @@ export default function BookDetails({ book, theme, onBack, onRead, onDownloadEpu
           {allTags.length > 0 && <div className="details-hero-tags" aria-label="Novel tags">{allTags.slice(0, 9).map((tag) => <button type="button" key={tag} onClick={() => onBrowseTag(tag)} aria-label={`Browse novels tagged ${tag}`}>{tag}</button>)}</div>}
           <form className="hero-rating" aria-label="Personal novel rating" onSubmit={(event) => void saveReview(event)}>
             <fieldset className="hero-rating-fieldset">
-              <legend><Star size={15} /> My rating {book.personalRating ? `· ${book.personalRating}/10` : '· Not rated'}</legend>
+              <legend><Star size={15} /> My rating {book.personalRating ? `· ${book.personalRating}/10` : ''}</legend>
               <div className="hero-rating-choices">
                 {Array.from({ length: 10 }, (_, index) => index + 1).map(value =>
                   <button key={value} type="button" className={ratingDraft === value ? 'hero-rating-choice selected' : 'hero-rating-choice'} onClick={() => setRatingDraft(value)} aria-label={`Rate ${value} out of 10`} aria-pressed={ratingDraft === value}>{value}</button>
@@ -151,6 +155,19 @@ export default function BookDetails({ book, theme, onBack, onRead, onDownloadEpu
           </section>
           <section className="details-card details-info-card"><div className="details-section-header"><div><span className="details-label">BOOK INFORMATION</span><h2>Details</h2></div><Info size={20} className="details-section-icon" /></div>
             <dl><div><dt>Author</dt><dd>{book.author}</dd></div><div><dt>Chapters</dt><dd>{book.chapterCount ? book.chapterCount.toLocaleString() : 'Unknown'}</dd></div><div><dt>Language</dt><dd>{book.language?.toUpperCase() || 'Not supplied'}</dd></div>{book.status && <div><dt>Status</dt><dd>{book.status}</dd></div>}<div><dt>Personal tags</dt><dd>{customTags.length}</dd></div>{book.sourceUrl && <div><dt>Original source</dt><dd><a href={book.sourceUrl} target="_blank" rel="noopener noreferrer">Open original <ExternalLink size={13} /></a></dd></div>}</dl>
+          </section>
+          <section className="details-card details-management-card" aria-label="Manage this novel">
+            <div className="details-section-header"><div><span className="details-label">BOOK STORAGE</span><h2>Manage this novel</h2></div><LockKeyhole size={19} className="details-section-icon" /></div>
+            <p className="details-help">Offline downloads are stored only in this browser. Your private cloud data and reading progress are separate.</p>
+            <div className="details-management-actions">
+              {isCachedOffline
+                ? book.cloud
+                  ? <button type="button" className="secondary-button" onClick={onRemoveOffline}><Download size={15} /> Remove offline EPUB</button>
+                  : <span className="details-muted small">Local-only EPUB. Export a backup before removing this novel.</span>
+                : <button type="button" className="secondary-button" onClick={onSaveOffline}><Download size={15} /> Save for offline reading</button>}
+              {!book.cloud && <button type="button" className="details-delete-novel" onClick={onDeleteLocal}><Trash2 size={15} /> Remove local novel (Owner mode)</button>}
+            </div>
+            {book.cloud && <p className="details-help">Cloud-hosted novel deletion is disabled in this app; manage that separately through your storage controller.</p>}
           </section>
           <section className="details-card details-review-card" aria-labelledby="detail-review-heading">
             <div className="details-section-header"><div><span className="details-label">YOUR PERSONAL IMPRESSIONS</span><h2 id="detail-review-heading">Comments & reading notes</h2></div><Star size={20} className="details-section-icon" /></div>
