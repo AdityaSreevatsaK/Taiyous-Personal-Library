@@ -25,7 +25,7 @@ interface Props {
   pendingReviewCount: number;
   pendingProgressCount: number;
   collectionsSyncPending: boolean;
-  syncConflicts: Array<{kind: 'progress' | 'review' | 'collections'; bookId?: string; title: string; detail: string}>;
+  syncConflicts: Array<{kind: 'progress' | 'review' | 'collections'; bookId?: string; title: string; detail: string; localText?: string; remoteText?: string}>;
   onResolveSyncConflict: (kind: 'progress' | 'review' | 'collections', bookId: string | undefined, choice: 'cloud' | 'device') => void;
   collections: BookCollection[];
   onCreateCollection: (name: string) => Promise<void>;
@@ -288,6 +288,14 @@ export default function LibraryDashboard({
                 <p>Both copies are retained. Compare them before choosing. A choice affects only the specified private record, not EPUBs or the shared novel catalogue.</p>
                 {syncConflicts.map(item => <div className="sync-conflict-item" key={item.kind + ':' + (item.bookId || 'all')}>
                   <strong>{item.title}</strong><p>{item.detail}</p>
+                  {item.localText !== undefined && item.remoteText !== undefined &&
+                    <details className="sync-conflict-comparison">
+                      <summary>Compare the complete saved versions</summary>
+                      <p><strong>This device</strong></p>
+                      <pre>{item.localText}</pre>
+                      <p><strong>Private cloud</strong></p>
+                      <pre>{item.remoteText}</pre>
+                    </details>}
                   <div className="cloud-actions">
                     <button type="button" className="secondary-button" disabled={cloudBusy || !online || cloudSession?.via !== 'oauth'}
                       onClick={() => onResolveSyncConflict(item.kind, item.bookId, 'cloud')}>Use latest cloud copy</button>
