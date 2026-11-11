@@ -18,11 +18,11 @@ const remoteProgress = {
   version: 1, bookId: id, progress: 20, currentChapter: 'Chapter 20',
   currentChapterIndex: 19, currentChapterNumber: 20,
   lastCfi: null, lastOpenedAt: 1_300_000, updatedAt: 1_300_000,
-};
+} as const;
 const remoteReview = {
   version: 1, bookId: id, rating: 8,
   comments: 'Old cloud notes', shelfStatus: 'trying', updatedAt: 1_300_000,
-};
+} as const;
 
 function mockedGateway<T>(value: T, revision = revisionB) {
   const calls: Array<{method: string; body: unknown}> = [];
