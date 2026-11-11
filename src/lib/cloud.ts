@@ -1,5 +1,6 @@
 import { uploadFiles } from '@huggingface/hub';
 import type { LibraryBook, ImportedBook } from '../types';
+import { retryTransientRead } from './network-pool';
 
 /**
  * The private HF Dataset is accessed through our same-origin Cloudflare Pages
@@ -530,11 +531,15 @@ export async function readRevisionedPersonal<T>(
     // Do not manufacture an authoritative revision without the CAS gateway.
     return { value: validate(await response.json()), revision: null };
   }
-  const response = await fetch('/api/library?action=personal&path=' + encodeURIComponent(path), {
-    credentials: 'same-origin', cache: 'no-store',
+  // Only idempotent GETs receive backoff; POSTs must not be retried blindly
+  // because a timeout may occur after Hugging Face has committed the write.
+  const result = await retryTransientRead(async () => {
+    const response = await fetch('/api/library?action=personal&path=' + encodeURIComponent(path), {
+      credentials: 'same-origin', cache: 'no-store',
+    });
+    if (!response.ok) throw new Error('Cannot read revisioned private data (' + response.status + ')');
+    return response.json() as Promise<CloudRevisionSnapshot<unknown>>;
   });
-  if (!response.ok) throw new Error('Cannot read revisioned private data (' + response.status + ')');
-  const result = await response.json() as CloudRevisionSnapshot<unknown>;
   if (!(result.revision === null || (typeof result.revision === 'string' &&
     REVISION_PATTERN.test(result.revision)))) throw new Error('Invalid private record revision');
   return { value: result.value === null ? null : validate(result.value), revision: result.revision };
