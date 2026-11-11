@@ -13,12 +13,17 @@ import { deleteBook, removeCachedEpub, getBookFile, getBooks, getCachedEpubIds, 
 import {
   reconcileCloudLibrary, clearCloudSession, createCloudSession, discoverHostedOAuthSession, assertPrivateDataset,
   fetchCloudCatalog, fetchCloudEpub, deleteCloudNovel, hostedEpubExists, fetchCloudArchive, fetchCloudPersonalReview, findCloudEntryForBook, readDatasetRepo, saveDatasetRepo,
-  saveCloudPersonalReview, fetchCloudReadingProgress, saveCloudReadingProgress, applyCloudReadingProgress,
+
   uploadNovelToCloud, validateDatasetRepo,
   type CloudEntry, type CloudSession,
 } from './lib/cloud';
 import type { LibraryBook, ReaderSettings } from './types';
-import { fetchCloudCollections, mergeCollections, readLocalCollections, saveCloudCollections, writeLocalCollections, readCollectionsPending, writeCollectionsPending, type BookCollection } from './lib/collections';
+import { readLocalCollections, writeLocalCollections, readCollectionsPending, writeCollectionsPending,
+  readCollectionsCloudRevision, writeCollectionsCloudRevision, readCollectionsConflict, writeCollectionsConflict,
+  type BookCollection } from './lib/collections';
+import { reconcileCollections, resolveCollections, type CollectionsOutcome } from './lib/collections-sync';
+import { syncReadingRecord, syncReviewRecord, resolveReadingConflict, resolveReviewConflict } from './lib/personal-sync';
+import { nextLocalEditTimestamp } from './lib/revision-sync';
 
 export default function App() {
   const [books, setBooks] = useState<LibraryBook[]>([]);
@@ -36,6 +41,7 @@ export default function App() {
   const [globalSearch, setGlobalSearch] = useState('');
   const [collections, setCollections] = useState<BookCollection[]>(readLocalCollections);
   const [collectionsSyncPending, setCollectionsSyncPending] = useState(readCollectionsPending);
+  const [collectionsConflict, setCollectionsConflict] = useState(readCollectionsConflict);
   const [importing, setImporting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -63,6 +69,23 @@ export default function App() {
   // Never delete local records or cached EPUBs as a side effect of syncing.
   const verifiedCloudCatalogue = useRef(false);
   const deepLinkFetches = useRef(new Set<string>());
+
+  /** A late upload acknowledgement cannot clear edits created during the upload. */
+  const applyCollectionsOutcome = useCallback((outcome: CollectionsOutcome, snapshot: BookCollection[]) => {
+    writeCollectionsCloudRevision(outcome.baseRevision);
+    writeCollectionsConflict(outcome.conflict);
+    setCollectionsConflict(outcome.conflict);
+    if (JSON.stringify(collectionsRef.current) !== JSON.stringify(snapshot)) {
+      writeCollectionsPending(true);
+      setCollectionsSyncPending(true);
+      return;
+    }
+    collectionsRef.current = outcome.collections;
+    writeLocalCollections(outcome.collections);
+    setCollections(outcome.collections);
+    writeCollectionsPending(outcome.pending);
+    setCollectionsSyncPending(outcome.pending);
+  }, []);
 
   function navigate(path: string, replace = false) {
     if (window.location.pathname !== path) {
