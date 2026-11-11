@@ -113,6 +113,13 @@ try {
     if (await page.locator('.cloud-connect-body').count()) {
       throw new Error('Cloud settings did not collapse');
     }
+    await page.getByRole('button', { name: 'Settings', exact: true }).click();
+    await page.locator('.cloud-connect-body').waitFor({ state: 'visible' });
+    await page.getByRole('textbox', { name: 'Search all novels' }).click();
+    await page.locator('.cloud-connect-body').waitFor({ state: 'detached' });
+    if (await page.locator('.cloud-status').count()) {
+      throw new Error('Persistent cloud status obscures the bookshelf');
+    }
     if (await page.locator('.empty-feature').count()) {
       throw new Error('Oversized empty-state hero must not obscure the bookshelf');
     }
@@ -166,6 +173,17 @@ try {
     await page.getByRole('button', { name: 'Remove local novel (Owner mode)' }).click();
     await page.getByRole('dialog', { name: 'Remove local novel' }).waitFor();
     await page.getByText(/Owner mode is not configured/).waitFor();
+    const ownerColour = await page.locator('.owner-dialog').evaluate(element => ({
+      background: getComputedStyle(element).backgroundColor,
+      text: getComputedStyle(element).color,
+      theme: getComputedStyle(element).getPropertyValue('--surface'),
+    }));
+    if (!ownerColour.theme.trim() ||
+        ownerColour.background === 'transparent' ||
+        ownerColour.background === 'rgba(0, 0, 0, 0)' ||
+        !ownerColour.text || ownerColour.text === 'transparent') {
+      throw new Error('Owner dialog has no opaque theme-aware background: ' + JSON.stringify(ownerColour));
+    }
     if (await page.getByRole('button', { name: 'Delete local novel' }).count()) {
       throw new Error('Destructive action bypasses the special owner sign-in');
     }
@@ -247,11 +265,26 @@ try {
     if (await page.locator('.reader-home-link').getByText("Taiyou's Personal Library").count()) {
       throw new Error('Reader home control should use the symbol alone');
     }
-    const chapterJump = footer.getByRole('combobox', { name: 'Jump to chapter' });
+    const chapterJump = footer.getByRole('button', { name: 'Jump to chapter' });
     await chapterJump.waitFor({ state: 'visible' });
-    if (await chapterJump.locator('option').count() !== 3) {
-      throw new Error('Bottom chapter selector must contain the complete chapter list');
+    const jumpBox = await chapterJump.boundingBox();
+    if (!jumpBox || Math.abs(jumpBox.x + jumpBox.width / 2 - viewport.width / 2) > 3) {
+      throw new Error('Bottom chapter control is not geometrically centred');
     }
+    if (await footer.locator('select').count()) {
+      throw new Error('Native chapter select should not produce oversized OS menus');
+    }
+    await chapterJump.click();
+    const chapterDialog = page.getByRole('dialog', { name: 'Choose chapter' });
+    await chapterDialog.waitFor({ state: 'visible' });
+    const popupBox = await chapterDialog.boundingBox();
+    if (!popupBox || Math.abs(popupBox.x + popupBox.width / 2 - viewport.width / 2) > 3) {
+      throw new Error('Chapter chooser is not centred in the viewport');
+    }
+    await chapterDialog.getByRole('searchbox', { name: 'Search chapter titles' }).fill('Next Step');
+    await chapterDialog.getByRole('button', { name: /Chapter 2: The Next Step/ }).waitFor();
+    await chapterDialog.getByRole('searchbox', { name: 'Search chapter titles' }).fill('');
+    await chapterDialog.getByRole('spinbutton', { name: 'Chapter number' }).fill('2');
     await page.locator('.reader-page iframe').first().waitFor({ state: 'visible', timeout: 20000 });
     await page.waitForFunction(() => {
       const frame = document.querySelector('.reader-page iframe');
@@ -262,7 +295,8 @@ try {
       return heading ? frame.contentWindow?.getComputedStyle(heading).textAlign : '';
     });
     if (headingAligned !== 'center') throw new Error('EPUB h2 chapter heading not centred');
-    await chapterJump.selectOption('chapter-two.xhtml');
+    await chapterDialog.getByRole('button', { name: 'Go', exact: true }).click();
+    await chapterDialog.waitFor({ state: 'detached' });
     await page.getByText('Chapter 2 of 2').waitFor();
     const paragraphAligned = await page.locator('.reader-page iframe').first().evaluate(frame => {
       const paragraph = Array.from(frame.contentDocument?.querySelectorAll('p') || [])
@@ -270,7 +304,9 @@ try {
       return paragraph ? frame.contentWindow?.getComputedStyle(paragraph).textAlign : '';
     });
     if (paragraphAligned !== 'center') throw new Error('EPUB paragraph chapter heading not centred');
-    await chapterJump.selectOption('chapter.xhtml');
+    await chapterJump.click();
+    await page.getByRole('dialog', { name: 'Choose chapter' }).getByRole('spinbutton', { name: 'Chapter number' }).fill('1');
+    await page.getByRole('dialog', { name: 'Choose chapter' }).getByRole('button', { name: 'Go', exact: true }).click();
     await page.getByText('Chapter 1 of 2').waitFor();
     const hasContentOverflow = await page.locator('.reader-page iframe').first().evaluate((frame) => {
       const doc = frame.contentDocument;
