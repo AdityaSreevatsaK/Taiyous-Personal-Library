@@ -96,6 +96,9 @@ export default function Reader({ book, settings, onSettings, onBack, onNovelDeta
   const [progress, setProgress] = useState(book.progress);
   const [panel, setPanel] = useState<'toc' | 'settings' | null>(null);
   const [tocSearch, setTocSearch] = useState('');
+  const [chapterPickerOpen, setChapterPickerOpen] = useState(false);
+  const [chapterSearch, setChapterSearch] = useState('');
+  const [chapterNumber, setChapterNumber] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [moving, setMoving] = useState(false);
@@ -276,14 +279,14 @@ export default function Reader({ book, settings, onSettings, onBack, onNovelDeta
     function handleKey(event: KeyboardEvent) {
       const node = event.target as HTMLElement | null;
       if (node && (node.tagName === 'INPUT' || node.tagName === 'SELECT' || node.tagName === 'BUTTON' || node.isContentEditable)) return;
-      if (panel) return;
+      if (panel || chapterPickerOpen) return;
       if (event.key === 'ArrowRight') { event.preventDefault(); void turn('next'); }
       if (event.key === 'ArrowLeft') { event.preventDefault(); void turn('prev'); }
       if (event.key === 'Escape') setPanel(null);
     }
     document.addEventListener('keydown', handleKey);
     return () => document.removeEventListener('keydown', handleKey);
-  }, [panel, turn]);
+  }, [panel, chapterPickerOpen, turn]);
 
   useEffect(() => {
     // EPUB.js owns its iframe dimensions. Resizing the CSS container alone is
@@ -314,12 +317,29 @@ export default function Reader({ book, settings, onSettings, onBack, onNovelDeta
   async function jump(href: string) {
     if (!href || !renditionRef.current || moving || loading) return;
     setMoving(true);
-    try { await renditionRef.current.display(href); setPanel(null); }
+    try { await renditionRef.current.display(href); setPanel(null); setChapterPickerOpen(false); }
     catch (reason) { setError(`Could not open chapter: ${String(reason)}`); }
     finally { setMoving(false); }
   }
 
   const displayedChapterIndex = currentChapterIndex + 1;
+  const chapterSearchQuery = chapterSearch.trim().toLocaleLowerCase();
+  // EPUBs can have 4,000+ entries. Keep the DOM list bounded and provide
+  // both text search and direct numeric chapter navigation.
+  const chapterMatches = chapterSearchQuery
+    ? chapters.map((item, index) => ({ item, index }))
+      .filter(({ item, index }) => item.label.toLocaleLowerCase().includes(chapterSearchQuery) || String(index + 1) === chapterSearchQuery)
+      .slice(0, 80)
+    : chapters.slice(Math.max(0, currentChapterIndex - 15), Math.min(chapters.length, Math.max(0, currentChapterIndex - 15) + 60))
+      .map((item, index) => ({ item, index: index + Math.max(0, currentChapterIndex - 15) }));
+  const chapterNumberIndex = Number(chapterNumber) - 1;
+  const validChapterNumber = Number.isInteger(chapterNumberIndex) && chapterNumberIndex >= 0 && chapterNumberIndex < chapters.length;
+  const openChapterPicker = () => {
+    setPanel(null);
+    setChapterSearch('');
+    setChapterNumber(String(Math.max(1, currentChapterIndex + 1)));
+    setChapterPickerOpen(true);
+  };
   const displayedChapterCount = chapters.length || book.chapterCount || toc.length;
   const filteredToc = toc.filter((item) => item.label.toLowerCase().includes(tocSearch.trim().toLowerCase()));
   const change = (next: Partial<ReaderSettings>) => onSettings({ ...settings, ...next });
@@ -351,17 +371,14 @@ export default function Reader({ book, settings, onSettings, onBack, onNovelDeta
           onClick={() => void turn('prev')} title="Previous chapter (Left arrow)" aria-label="Previous chapter">
           <ChevronLeft size={19} /><span>Previous chapter</span>
         </button>
-        <label className="reader-footer-jump">
-          <span className="sr-only">Jump to chapter</span>
-          <select aria-label="Jump to chapter" title="Choose a chapter" value={currentChapterIndex >= 0 ? chapters[currentChapterIndex].href : ''}
-            onChange={event => void jump(event.target.value)} disabled={loading || moving || !!error || !chapters.length}>
-            <option value="" disabled>Choose chapter</option>
-            {chapters.map((item, index) => <option key={`${index}-${item.href}`} value={item.href}>
-              {index + 1} / {chapters.length} · {item.label}
-            </option>)}
-          </select>
+        <button type="button" className="reader-footer-jump" aria-label="Jump to chapter"
+          aria-haspopup="dialog" aria-expanded={chapterPickerOpen}
+          disabled={loading || moving || !!error || !chapters.length} onClick={openChapterPicker}>
+          <span>{currentChapterIndex >= 0
+            ? `${displayedChapterIndex} / ${displayedChapterCount} · ${chapters[currentChapterIndex].label}`
+            : 'Choose chapter'}</span>
           <ChevronDown size={15} aria-hidden="true" />
-        </label>
+        </button>
         <button className="reader-chapter-button reader-chapter-next" type="button"
           disabled={loading || moving || !!error || (currentChapterIndex >= chapters.length - 1 && currentChapterIndex >= 0)}
           onClick={() => void turn('next')} title="Next chapter (Right arrow)" aria-label="Next chapter">
@@ -369,6 +386,48 @@ export default function Reader({ book, settings, onSettings, onBack, onNovelDeta
         </button>
       </nav>
 
+
+      {chapterPickerOpen && <div className="reader-chapter-picker-shade" onMouseDown={event => {
+        if (event.target === event.currentTarget) setChapterPickerOpen(false);
+      }}>
+        <section className="reader-chapter-picker" role="dialog" aria-modal="true" aria-label="Choose chapter"
+          onKeyDown={event => { if (event.key === 'Escape') { event.stopPropagation(); setChapterPickerOpen(false); } }}>
+          <header className="reader-chapter-picker-header">
+            <div><span className="section-overline">CHAPTER NAVIGATION</span><h2>Jump to a chapter</h2>
+              <p>{chapters.length.toLocaleString()} chapters · Current: {currentChapterIndex >= 0 ? displayedChapterIndex : 'Not started'}</p>
+            </div>
+            <button type="button" className="icon-button" aria-label="Close chapter picker" onClick={() => setChapterPickerOpen(false)}><X size={20} /></button>
+          </header>
+          <form className="reader-chapter-number" onSubmit={event => {
+            event.preventDefault();
+            if (validChapterNumber) void jump(chapters[chapterNumberIndex].href);
+          }}>
+            <label htmlFor="reader-chapter-number-input">Go to chapter number</label>
+            <div><input id="reader-chapter-number-input" type="number" min={1} max={chapters.length} step={1}
+              aria-label="Chapter number" value={chapterNumber} onChange={event => setChapterNumber(event.target.value)} />
+              <button type="submit" className="primary-button" disabled={!validChapterNumber || moving}>Go</button></div>
+          </form>
+          <label className="reader-chapter-search"><Search size={17} />
+            <input type="search" aria-label="Search chapter titles" placeholder="Search chapters by title or number…"
+              value={chapterSearch} onChange={event => setChapterSearch(event.target.value)} />
+          </label>
+          <div className="reader-chapter-picker-list">
+            {chapterMatches.map(({ item, index }) => <button type="button" key={`${index}-${item.href}`}
+              className={index === currentChapterIndex ? 'chapter-picker-result active' : 'chapter-picker-result'}
+              aria-current={index === currentChapterIndex ? 'true' : undefined}
+              disabled={moving} onClick={() => void jump(item.href)}>
+              <span className="chapter-picker-number">{index + 1}</span><span>{item.label}</span>
+              {index === currentChapterIndex && <Check size={15} />}
+            </button>)}
+            {!chapterMatches.length && <p className="toc-no-results">No matching chapters.</p>}
+          </div>
+          <footer className="reader-chapter-picker-footnote">
+            {chapterSearchQuery
+              ? `Showing up to 80 matches. Use chapter number for direct navigation.`
+              : `Showing chapters near your current position. Search or enter a number to jump anywhere.`}
+          </footer>
+        </section>
+      </div>}
 
       {panel && <><button className="reader-panel-shade" aria-label="Close panel" onClick={() => setPanel(null)} /><aside className="reader-panel" aria-label={panel === 'toc' ? 'Table of contents' : 'Reader preferences'}><div className="panel-header"><div><span className="section-overline">{panel === 'toc' ? 'NAVIGATION' : 'MAKE IT YOUR OWN'}</span><h2>{panel === 'toc' ? 'Contents' : 'Appearance'}</h2></div><button className="icon-button" onClick={() => setPanel(null)} aria-label="Close panel"><X size={20} /></button></div>{panel === 'toc' ? <><label className="toc-search"><Search size={17} /><input placeholder="Find a chapter…" value={tocSearch} onChange={(e) => setTocSearch(e.target.value)} /></label><div className="toc-list">{filteredToc.map((item, index) => { const active = normalizeChapterHref(item.href) === normalizeChapterHref(activeHref); return <button key={`${index}-${item.href}`} onClick={() => void jump(item.href)} className={`toc-item ${active ? 'active' : ''}`} style={{ paddingLeft: `${18 + Math.min(item.level, 3) * 13}px` }}><span className="toc-chapter-icon">{active ? <BookOpen size={15} /> : <span>·</span>}</span><span>{item.label}</span>{active && <Check size={15} />}</button>; })}{!filteredToc.length && <div className="toc-no-results">No matching chapters found.</div>}</div><div className="panel-footer">{toc.length} entries in this book</div></> : <div className="settings-content"><div className="setting-group"><label className="setting-label">READING THEME</label><div className="theme-options"><button className={`theme-choice choice-light ${settings.theme === 'light' ? 'selected' : ''}`} onClick={() => change({ theme: 'light' })}><Sun size={20} /><span>Light</span>{settings.theme === 'light' && <Check size={14} />}</button><button className={`theme-choice choice-sepia ${settings.theme === 'sepia' ? 'selected' : ''}`} onClick={() => change({ theme: 'sepia' })}><BookOpen size={20} /><span>Sepia</span>{settings.theme === 'sepia' && <Check size={14} />}</button><button className={`theme-choice choice-dark ${settings.theme === 'dark' ? 'selected' : ''}`} onClick={() => change({ theme: 'dark' })}><Moon size={20} /><span>Dark</span>{settings.theme === 'dark' && <Check size={14} />}</button></div></div><div className="setting-group"><label className="setting-label" htmlFor="font-family-select">FONT FAMILY</label><div className="styled-select"><Type size={18} /><select id="font-family-select" value={settings.font} onChange={(e) => change({ font: e.target.value as ReaderSettings['font'] })}><option value="literary">Literata · Recommended</option><option value="georgia">Georgia · Familiar serif</option><option value="classic">Palatino · Classic serif</option><option value="sans">Inter · Modern sans</option><option value="clear">Atkinson · High legibility</option></select><ChevronRight size={17} /></div></div><div className="setting-group"><label className="setting-label">FONT SIZE</label><div className="font-stepper"><button onClick={() => change({ fontSize: Math.max(75, settings.fontSize - 10) })} aria-label="Decrease font size"><Minus size={19} /></button><span><Type size={20} />{settings.fontSize}%</span><button onClick={() => change({ fontSize: Math.min(170, settings.fontSize + 10) })} aria-label="Increase font size"><Plus size={19} /></button></div></div><div className="setting-group"><div className="setting-row"><label className="setting-label" htmlFor="line-height">LINE SPACING</label><span>{settings.lineHeight.toFixed(2)}×</span></div><input id="line-height" type="range" min="1.3" max="2.2" step="0.05" value={settings.lineHeight} onChange={(e) => change({ lineHeight: Number(e.target.value) })} /></div><div className="setting-group"><div className="setting-row"><span className="setting-label">READING WIDTH</span><span>{settings.readingWidth === 0 ? 'Full screen' : `${settings.readingWidth}px`}</span></div><div className="width-options" role="group" aria-label="Reading width"><button type="button" className={`width-choice ${settings.readingWidth === 760 ? 'selected' : ''}`} onClick={() => change({ readingWidth: 760 })} aria-pressed={settings.readingWidth === 760}>Comfortable</button><button type="button" className={`width-choice ${settings.readingWidth === 1280 ? 'selected' : ''}`} onClick={() => change({ readingWidth: 1280 })} aria-pressed={settings.readingWidth === 1280}>Wide</button><button type="button" className={`width-choice ${settings.readingWidth === 0 ? 'selected' : ''}`} onClick={() => change({ readingWidth: 0 })} aria-pressed={settings.readingWidth === 0}>Full width</button></div><label htmlFor="page-width" className="width-custom-label">Or customise maximum width</label><input id="page-width" type="range" min="520" max="1600" step="20" value={settings.readingWidth === 0 ? 1600 : settings.readingWidth} onChange={(e) => change({ readingWidth: Number(e.target.value) })} aria-label="Custom reading width in pixels" /><p className="setting-help">Full width uses almost the entire screen while retaining small edge margins. Your preference is saved automatically.</p></div><div className="settings-note"><SlidersHorizontal size={17} />Your preferences are saved automatically on this device.</div><button className="reset-settings" onClick={() => onSettings({ ...DEFAULT_SETTINGS })}>Reset to defaults <PanelRightClose size={16} /></button></div>}</aside></>}
     </div>
