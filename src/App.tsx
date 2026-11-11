@@ -740,14 +740,26 @@ export default function App() {
     setOwnerRequest({ kind: 'local-novel', id: book.id, title: book.title });
   }, []);
 
-  const requestRemoveOffline = useCallback((book: LibraryBook) => {
+  // Offline storage is device-only housekeeping, not deletion of a novel.
+  // Ask for a normal confirmation, then protect the reader's last good copy by
+  // verifying that the corresponding EPUB actually exists in the private cloud.
+  const requestRemoveOffline = useCallback(async (book: LibraryBook) => {
+    setError(null);
     const entry = cloudEntries.current.get(book.id);
-    if (!book.cloud || !entry || !cloudSession || cloudSession.via !== 'oauth') {
-      setError('This EPUB has no verified cloud backup. Keep the local file or upload a backup before removing it.');
+    if (!book.cloud || !entry || !cloudRepo || cloudSession?.via !== 'oauth' || !navigator.onLine) {
+      setError('Cannot verify a hosted backup right now. The local EPUB has been kept.');
       return;
     }
-    setOwnerRequest({ kind: 'offline-copy', id: book.id, title: book.title });
-  }, [cloudSession]);
+    if (!window.confirm(`Remove the offline download for “${book.title}” from this device? Your cloud novel, notes and reading progress will remain.`)) return;
+    try {
+      if (!(await hostedEpubExists(cloudRepo, entry, cloudSession))) {
+        throw new Error('Hosted EPUB is missing or inaccessible. The local copy was kept.');
+      }
+      await removeCachedEpub(book.id);
+      setCachedEpubIds(ids => ids.filter(id => id !== book.id));
+      setNotice(`Offline download for “${book.title}” removed from this device.`);
+    } catch (reason) { setError(`Could not remove offline download: ${String(reason)}`); }
+  }, [cloudRepo, cloudSession]);
 
   const requestDeleteCollection = useCallback((collectionId: string) => {
     const collection = collectionsRef.current.find(item => item.id === collectionId && !item.deleted);
@@ -768,22 +780,6 @@ export default function App() {
       setCachedEpubIds(ids => ids.filter(id => id !== current.id));
       setDetailsId(id => id === current.id ? null : id);
       setNotice(`Local novel “${current.title}” removed from this device only.`);
-      setError(null);
-      return;
-    }
-    if (request.kind === 'offline-copy') {
-      const current = booksRef.current.find(book => book.id === request.id);
-      const entry = cloudEntries.current.get(request.id);
-      if (!current || !current.cloud || current.title !== request.title || !entry || !cloudRepo ||
-          cloudSession?.via !== 'oauth' || !navigator.onLine) {
-        throw new Error('Cannot verify a current cloud backup. The local EPUB has been kept.');
-      }
-      if (!(await hostedEpubExists(cloudRepo, entry, cloudSession))) {
-        throw new Error('The hosted EPUB is missing or unreachable. The local EPUB has been kept to prevent data loss.');
-      }
-      await removeCachedEpub(current.id);
-      setCachedEpubIds(ids => ids.filter(id => id !== current.id));
-      setNotice(`Offline EPUB for “${current.title}” removed. Its cloud copy, details and progress are unchanged.`);
       setError(null);
       return;
     }

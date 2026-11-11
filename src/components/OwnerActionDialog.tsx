@@ -4,7 +4,7 @@ import { getOwnerStatus, ownerPost, type OwnerStatus } from '../lib/owner';
 import type { ReaderTheme } from '../types';
 
 export interface OwnerRemovalRequest {
-  kind: 'local-novel' | 'offline-copy' | 'collection';
+  kind: 'local-novel' | 'collection';
   id: string;
   title: string;
 }
@@ -21,11 +21,6 @@ const messages: Record<OwnerRemovalRequest['kind'], { title: string; description
     title: 'Remove local novel',
     description: 'Permanently removes this novel, its EPUB, cover and saved local reading position from this device. This operation cannot be undone here.',
     button: 'Delete local novel',
-  },
-  'offline-copy': {
-    title: 'Remove offline download',
-    description: 'Deletes only the locally cached EPUB. The novel listing, reading progress and private cloud copy remain. Re-downloading needs internet access.',
-    button: 'Remove offline EPUB',
   },
   'collection': {
     title: 'Delete collection',
