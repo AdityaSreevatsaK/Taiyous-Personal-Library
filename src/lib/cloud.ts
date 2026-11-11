@@ -176,6 +176,18 @@ export async function fetchCloudCover(repo: string, book: Pick<LibraryBook, 'id'
   return new Blob([blob], { type: 'image/jpeg' });
 }
 
+/** Verify a hosted EPUB actually exists without downloading its contents.
+ * This is required before deleting a device's offline EPUB.
+ */
+export async function hostedEpubExists(repo: string, entry: CloudEntry, session: CloudSession): Promise<boolean> {
+  if (!validEntry(entry) || session.via !== 'oauth') return false;
+  const response = await fetch('/api/library?action=exists&path=' + encodeURIComponent(entry.epubPath), {
+    credentials: 'same-origin', cache: 'no-store',
+  });
+  if (!response.ok) return false;
+  return (await response.json() as { exists?: boolean }).exists === true;
+}
+
 export async function fetchCloudEpub(repo: string, entry: CloudEntry, session: CloudSession): Promise<Blob> {
   if (!validEntry(entry)) throw new Error('Invalid cloud novel entry.');
   const response = await privateGet(repo, entry.epubPath, session);

@@ -67,6 +67,13 @@ export async function updateBook(book: LibraryBook): Promise<void> {
   await (await db()).put('books', book);
 }
 
+/** Remove only the browser's EPUB copy. Metadata and cover remain unchanged.
+ * The caller must first verify a working hosted backup and Owner mode.
+ */
+export async function removeCachedEpub(id: string): Promise<void> {
+  await (await db()).delete('files', id);
+}
+
 export async function deleteBook(id: string): Promise<void> {
   const tx = (await db()).transaction(['books', 'files', 'covers'], 'readwrite');
   await Promise.all([tx.objectStore('books').delete(id), tx.objectStore('files').delete(id), tx.objectStore('covers').delete(id)]);

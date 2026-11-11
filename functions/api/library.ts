@@ -97,6 +97,19 @@ export async function onRequest({ request, env }: PagesContext): Promise<Respons
     if (!(await isPrivateDataset(token))) return respond(reject(502, 'The private novel dataset is inaccessible'));
     return respond(secureResponse({ private: true }));
   }
+  // HEAD only: confirm a real cloud EPUB exists before allowing its last
+  // local downloaded copy to be removed. Catalogue metadata alone is not proof.
+  if (request.method === 'GET' && action === 'exists') {
+    const path = url.searchParams.get('path');
+    if (!path || !/^data\/novels\/[0-9a-f]{24}\/source\.epub$/.test(path)) {
+      return respond(reject(400, 'Invalid hosted EPUB path'));
+    }
+    const upstream = await fetch('https://huggingface.co/datasets/' + DATASET_REPO +
+      '/resolve/main/' + path, {
+      method: 'HEAD', headers: { Authorization: 'Bearer ' + token }, cache: 'no-store',
+    });
+    return respond(secureResponse({ exists: upstream.ok }));
+  }
   if (request.method === 'GET' && action === 'file') {
     const path = url.searchParams.get('path');
     if (!isAllowedDatasetPath(path)) return respond(reject(400, 'Unsupported library file path'));
