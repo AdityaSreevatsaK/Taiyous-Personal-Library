@@ -18,6 +18,8 @@
 | Book imports | Local EPUB/ZIP imports and IndexedDB caching. When connected, may publish EPUB, ZIP (when provided) and catalogue to the separate private dataset |
 | Cloud session | Hugging Face OAuth with encrypted HttpOnly cookie and automatic reconnection (after the production secret is configured and the updated app deployed); the manual fine-grained HF token remains available in memory as a fallback |
 | Standalone PWA deployment | Production Cloudflare Pages workflow on `master`, with manually gated publish. The Pages app shell is deliberately **public**, while novels, reading progress and personal notes remain protected by the **private Hugging Face dataset token**. **Live, with manual master-branch deployments.** |
+| Offline library management | Offline tab holds the download count, PWA readiness and **Save all offline**. The Novel Details storage card manages individual downloads. A cached EPUB can be removed only after Owner-mode unlock, exact-title confirmation and a private server HEAD check proving its hosted replacement exists. Local-only EPUBs cannot be cleared this way. |
+| Protected Owner mode | Additional Cloudflare passphrase Secret, independent of HF OAuth; 10-minute encrypted HttpOnly owner cookie, exact-title confirmation for local-novel deletion, cached hosted EPUB removal and collection deletion. Cloud-hosted novel deletion is disabled in the reader. |
 | Bulk offline library | **Save all offline** downloads missing EPUBs sequentially with progress and per-book failure reporting |
 | Reading-position sync | Per-book private progress JSON, local pending queue and timestamp-based restore/retry when connected |
 | Build/deploy | TypeScript, Vitest, Vite build, production dependency audit, browser smoke tests and manually approved deployment to **Cloudflare Pages** from `master` |
@@ -35,7 +37,7 @@
 
 The `master` build now generates a versioned **same-origin service worker** (`dist/sw.js`) and **web app manifest**; the worker precaches exactly the compiled HTML/JS/CSS/icon assets and provides a cached page fallback for offline navigation. Book contents are **not** stored in Cache Storage or precached by the worker; EPUBs remain in IndexedDB, and the OAuth session stays in a secure HttpOnly cookie (or in memory for manual-token fallback). **Private dataset network responses must never be cached by the service worker.**
 
-The bookshelf displays browser connectivity, the count of EPUBs downloaded locally, a per-novel **Available offline** indicator or **Save offline** button, and pending review/collection sync status. Clicking Save offline fetches and stores that novel's EPUB in IndexedDB; the browser is also asked to allow persistent storage, but can decline.
+The dedicated **Offline tab** displays connectivity, downloaded EPUB count, PWA readiness, bulk download actions and per-book removal controls. The general bookshelf omits repetitive offline labels. Novel Details provides per-book storage management, including saving EPUBs locally. A protected Owner-mode sign-in is required to remove an offline EPUB; the app first verifies that the hosted EPUB actually exists, and keeps the local copy if verification fails. Browser persistent storage may be requested when saving, but the browser can decline.
 
 | Situation | Expected behaviour |
 | --- | --- |
@@ -52,8 +54,8 @@ The bookshelf displays browser connectivity, the count of EPUBs downloaded local
 ### Prepare to read without internet
 
 1. While online, open the Cloudflare app and connect the private dataset.
-2. Select **Save all offline** to download uncached novels one at a time, or use an individual **Save offline** button. Wait for **Available offline** on each novel.
-3. Confirm the app displays **Offline app assets cached**. If it does not, the application shell may not have completed caching on this device.
+2. Open the **Offline** tab and select **Save all offline** to download uncached novels one at a time. For one novel, open **Novel Details → Manage this novel**. Check the downloaded list in the Offline tab.
+3. Confirm the Offline tab displays **App ready for offline reading**. If it does not, the application shell may not have completed caching on this device.
 4. Where supported, install/add the web app from the browser's PWA menu while online, and test a fresh offline launch **before** relying on it. Private HF wrapper limitations may prevent installing it; in that case export the EPUB and use an independent offline EPUB reader.
 5. For the most dependable independent backup, use **Download EPUB** to save actual files outside the browser's IndexedDB. Keep the original ZIP separately.
 

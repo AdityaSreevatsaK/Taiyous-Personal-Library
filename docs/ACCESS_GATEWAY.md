@@ -56,6 +56,58 @@ The workflow tests the app, builds the frontend and private Pages Functions, and
 
 No `CF_ACCESS_AUD`, `CF_ACCESS_TEAM_DOMAIN`, `CF_ACCESS_ALLOWED_EMAIL`, or `HF_DATASET_TOKEN` variables are needed for this OAuth implementation. Those belonged to the previous, un-deployed Cloudflare Access design. You can remove them after verifying OAuth, if you had already configured them.
 
+## Protected Owner mode (separate sign-in for destructive actions)
+
+Reader access and Owner mode are deliberately separate. **Reading, importing, searching,
+ratings and normal downloads do not require the Owner passphrase.** Removing a
+local-only novel, clearing a cached hosted EPUB, or deleting a collection does.
+
+Under **Cloudflare → Workers & Pages → taiyous-personal-library → Settings →
+Variables and Secrets → Production**, add a second encrypted **Secret**:
+
+| Name | Value | Type |
+| --- | --- | --- |
+| `TAIYOU_OWNER_PASSPHRASE` | A **unique passphrase of at least 16 characters** that only you know (up to 128) | **Secret** |
+
+Use a passphrase distinct from your HF password, Cloudflare password, API tokens
+and `HF_OAUTH_SESSION_KEY`. Generate and store it privately in a password manager;
+never send it to ChatGPT or commit it to GitHub. No new Cloudflare plan, card
+details, paid infrastructure or external identity provider are necessary.
+
+**Operation flow:** Sign in normally with your Hugging Face owner account.
+Open Novel Details → **Manage this novel** or select a hosted download under
+the **Offline** tab. Request the protected action; the app asks for your Owner
+passphrase, grants a **10-minute** encrypted, Secure/HttpOnly, SameSite=Strict
+Owner cookie tied to that HF OAuth session, then requires typing the exact title
+before removal. Deletion requests check the owner grant again. The passphrase
+is sent only to the same-origin Pages Function and is **never saved in
+IndexedDB, localStorage or the code repository**. The Owner cookie expires
+automatically and is invalid after switching HF OAuth sessions.
+
+The separate secret is **required for removal** but not for ordinary reading;
+until configured, the removal dialog fails closed. Owner unlock requires
+internet access and a valid HF OAuth session. The legacy manual fine-grained
+token is still usable for reading/importing but cannot unlock Owner mode.
+
+**Scope and safeguards:**
+
+- **Remove offline EPUB:** removes only the browser EPUB; keeps the novel, tags,
+  rating, comments, and reading progress. Only available when the backend
+  verifies a real hosted replacement via a private HEAD request. A recreated,
+  incomplete or unavailable cloud dataset is never treated as a valid backup.
+- **Remove local novel:** only for books not hosted in the private dataset;
+  removes their local EPUB, cover, metadata and reading position. Export a ZIP
+  or EPUB backup beforehand. Requires Owner mode plus exact title.
+- **Delete collection:** removes the collection (including its synced listing),
+  **not** the novels in it. Requires Owner mode plus exact title.
+- **Delete hosted novel from HF:** **not supported** by the reader app. Use the
+  separate storage controller and take a backup; the reader API has no deletion
+  endpoint.
+
+This is an anti-accidental-deletion and privileged-UI boundary. Someone with
+full control of the browser profile, local developer tools or the Cloudflare/HF
+accounts can still clear browser files or modify private data outside this UI.
+
 ## Test checklist
 
 1. Open the permanent Pages URL while online. Confirm `/oauth-client.json` serves JSON and `/api/library?action=session` is denied before sign-in.

@@ -33,7 +33,7 @@ The public Cloudflare app shell contains **no private novels or dataset credenti
 - EPUB.js vertical-scrolling reader with centred chapter headings, chapter navigation, chapter selection and resume
 - Sepia, light and dark themes; typography and reading-width controls
 - Personal ratings and comments, original ZIP download where available, and EPUB export
-- Individual **Save offline** and **Save all offline** actions
+- **Save all offline** in the Offline shelf and per-novel offline management in Novel Details; protected removal of downloaded EPUBs
 - Service-worker-cached PWA shell, installed/offline restart and offline reading
 - Private-dataset synchronization for reviews, collections and per-book reading progress
 
@@ -63,12 +63,14 @@ For browser smoke tests, see `scripts/browser_smoke.mjs` and the GitHub workflow
 ## Authentication and security
 
 - **Hugging Face OAuth** is implemented on `master` as an encrypted server-side session via Cloudflare Pages Functions. The React app redirects to HF for PKCE sign-in, checks the private dataset owner and reconnects automatically on reload. The HF OAuth bearer token is never exposed in JavaScript.
-- **One required Cloudflare secret:** `HF_OAUTH_SESSION_KEY` (a fresh random 64-character hex key). The app publishes a public HF OAuth Client ID Metadata Document at `/oauth-client.json`, so no Cloudflare Zero Trust account or additional hosting service is needed.
+- **OAuth requires** the Cloudflare Secret `HF_OAUTH_SESSION_KEY` (a fresh random 64-character hex key). **Protected Owner mode additionally requires** a separate Cloudflare Secret `TAIYOU_OWNER_PASSPHRASE` (a unique strong passphrase, 16–128 characters). With that second secret absent, deletion is disabled by design. The app publishes a public HF OAuth Client ID Metadata Document at `/oauth-client.json`, so no Cloudflare Zero Trust account or additional hosting service is needed.
 - The public OAuth metadata must serve small JSON, not the SPA HTML fallback. Verify live Hugging Face sign-in with the owner's account after deploying. The existing manual fine-grained HF token fallback remains available.
 - **Permission trade-off:** OAuth's `write-repos` scope includes personal repositories, not only the novel dataset; the backend itself is restricted to `AdityaSreevatsaK/Taiyous-Novels`. For narrower token permissions use the legacy manual fine-grained token.
 - CI runs the full and production npm security audits, blocks on high/critical advisories, compiles the Pages Functions and tests the OAuth flow with synthetic credentials (never real book or auth data).
 
-See [Hugging Face OAuth setup](docs/ACCESS_GATEWAY.md).
+**Protected removal:** Ordinary reading never needs Owner mode. Removing local-only novels, clearing hosted offline EPUB copies, and deleting collections require a fresh HF owner session, a separate Owner-mode passphrase (10-minute HttpOnly unlock) and typing the exact novel/collection title. The normal bookshelf has no one-click trash icons. Hosted novel deletion remains disabled in this application. Cached EPUBs are only removed after confirming that a real hosted replacement is reachable. These protections prevent accidental app-level deletion; they cannot stop a user from clearing their own browser storage directly.
+
+See [Hugging Face OAuth and Owner-mode setup](docs/ACCESS_GATEWAY.md).
 
 ## Data and sync limitations
 
