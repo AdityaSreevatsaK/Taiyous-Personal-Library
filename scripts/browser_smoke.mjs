@@ -36,6 +36,11 @@ try {
       status: 200, contentType: 'application/json',
       body: JSON.stringify({ connected: false }),
     }));
+    // Owner mode must never silently grant deletion in a static/offline preview.
+    await context.route('**/api/owner?**', route => route.fulfill({
+      status: 401, contentType: 'application/json',
+      body: JSON.stringify({ error: 'Sign in with the HF owner account first' }),
+    }));
     const page = await context.newPage();
     const errors = [];
     const failedAssets = [];
@@ -78,6 +83,10 @@ try {
     // Assert the real library dashboard rendered, rather than a long error message.
     await page.locator('.app-shell').waitFor({ state: 'visible' });
     await page.getByRole('navigation', { name: 'Library sections' }).waitFor({ state: 'attached' });
+    await page.locator('.topbar > .cloud-connect').waitFor({ state: 'visible' });
+    if (await page.locator('.breadcrumbs').count()) throw new Error('Redundant My Library / All Books breadcrumb still visible');
+    if (await page.locator('.offline-health').count()) throw new Error('Offline status must be restricted to Offline tab');
+    if (await page.locator('.book-grid .tile-delete').count()) throw new Error('One-click novel deletion must not appear on shelf');
     if (await page.locator('.sort-field select').inputValue() !== 'title') {
       throw new Error('Library should default to alphabetical Title A–Z sorting');
     }
@@ -132,15 +141,29 @@ try {
     await page.getByRole('region', { name: 'Advanced novel search' }).waitFor();
     await page.getByRole('textbox', { name: 'Search by novel name or author' }).fill('Sample Library');
     await page.getByRole('button', { name: 'View details for Sample Library Book' }).waitFor();
+    if (await page.getByText('Unrated', { exact: true }).count()) throw new Error('Unrated should not be repeated across search results');
     await page.getByRole('textbox', { name: 'Search by novel name or author' }).fill('No such book');
     await page.getByRole('heading', { name: 'No matching books' }).waitFor();
     await page.getByRole('button', { name: 'Back to shelf' }).click();
     // Local EPUBs must be listed on the Offline tab without requiring a cloud token.
     await page.locator('.filter-tabs').getByRole('button', { name: 'Offline' }).click();
+    await page.locator('.offline-management-bar').waitFor({ state: 'visible' });
     await page.getByRole('button', { name: 'View details for Sample Library Book' }).waitFor();
+    if (await page.getByRole('button', { name: 'Remove offline EPUB for Sample Library Book' }).count()) {
+      throw new Error('Must not allow removing the only local-only EPUB with no verified cloud copy');
+    }
     await page.locator('.filter-tabs').getByRole('button', { name: 'All', exact: true }).click();
+    if (await page.locator('.offline-health').count()) throw new Error('Offline status shown outside Offline tab');
     await page.getByRole('button', { name: 'View details for Sample Library Book' }).click();
     await page.getByRole('heading', { name: 'Sample Library Book' }).waitFor();
+    await page.getByRole('button', { name: 'Remove local novel (Owner mode)' }).click();
+    await page.getByRole('dialog', { name: 'Remove local novel' }).waitFor();
+    await page.getByText('Sign in with the HF owner account first').waitFor();
+    if (await page.getByRole('button', { name: 'Delete local novel' }).count()) {
+      throw new Error('Destructive action bypasses the special owner sign-in');
+    }
+    await page.getByRole('button', { name: 'Cancel owner action' }).click();
+    await page.getByRole('dialog', { name: 'Remove local novel' }).waitFor({ state: 'detached' });
     await page.getByRole('button', { name: 'Rate 8 out of 10' }).click();
     await page.getByRole('button', { name: 'Save rating' }).click();
     await page.getByText('Saved on this device. Connect your private cloud library to synchronise across devices.').waitFor();
