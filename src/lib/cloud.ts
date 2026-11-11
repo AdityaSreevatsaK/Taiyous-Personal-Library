@@ -395,3 +395,21 @@ export function blendCloudAndLocal(remote: CloudEntry[], local: LibraryBook[]): 
   }
   return [...existing.values()].sort((a, b) => (b.lastOpenedAt ?? b.importedAt) - (a.lastOpenedAt ?? a.importedAt));
 }
+
+/**
+ * The hosted catalogue is authoritative for downloadable cloud novels.
+ * Keep EPUBs actually stored on this device available offline, even when
+ * their old dataset was deleted or recreated.
+ *
+ * Stale metadata-only records remain untouched in IndexedDB for recovery;
+ * they are hidden from the active library only after a successful cloud fetch.
+ */
+export function reconcileCloudLibrary(
+  remote: CloudEntry[], local: LibraryBook[], cachedEpubIds: readonly string[],
+): { books: LibraryBook[]; hiddenStaleEntries: number } {
+  const merged = blendCloudAndLocal(remote, local);
+  const hostedIds = new Set(remote.filter(validEntry).map(entry => entry.id));
+  const cachedIds = new Set(cachedEpubIds);
+  const books = merged.filter(book => hostedIds.has(book.id) || cachedIds.has(book.id));
+  return { books, hiddenStaleEntries: merged.length - books.length };
+}

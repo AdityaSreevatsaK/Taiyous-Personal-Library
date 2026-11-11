@@ -6,7 +6,7 @@ import { extractEpubMetadata, prepareImport } from './lib/importer';
 import { normalizeTags } from './lib/tags';
 import { deleteBook, getBookFile, getBooks, getCachedEpubIds, readSettings, saveBook, updateBook, writeSettings } from './lib/storage';
 import {
-  blendCloudAndLocal, clearCloudSession, createCloudSession, discoverHostedOAuthSession, assertPrivateDataset,
+  reconcileCloudLibrary, clearCloudSession, createCloudSession, discoverHostedOAuthSession, assertPrivateDataset,
   fetchCloudCatalog, fetchCloudEpub, fetchCloudArchive, fetchCloudPersonalReview, findCloudEntryForBook, readDatasetRepo, saveDatasetRepo,
   saveCloudPersonalReview, fetchCloudReadingProgress, saveCloudReadingProgress, applyCloudReadingProgress,
   uploadNovelToCloud, validateDatasetRepo,
@@ -45,6 +45,9 @@ export default function App() {
   const cloudEntries = useRef<Map<string, CloudEntry>>(new Map());
   const busyRef = useRef(false);
   const syncRef = useRef(false);
+  // A successful cloud catalogue fetch enables safe hiding of stale listings.
+  // Never delete local records or cached EPUBs as a side effect of syncing.
+  const verifiedCloudCatalogue = useRef(false);
 
   useEffect(() => {
     const parameters = new URLSearchParams(window.location.search);
@@ -68,11 +71,13 @@ export default function App() {
     // Remove a short-lived OAuth session previously stored by older builds.
     clearCloudSession();
     let active = true;
-    getBooks().then(saved => {
+    Promise.all([getBooks(), getCachedEpubIds()]).then(([saved, cachedIds]) => {
       if (!active) return;
-      booksRef.current = saved;
-      setBooks(saved);
-      void getCachedEpubIds().then(setCachedEpubIds).catch(() => undefined);
+      const shown = verifiedCloudCatalogue.current
+        ? reconcileCloudLibrary([...cloudEntries.current.values()], saved, cachedIds).books : saved;
+      booksRef.current = shown;
+      setBooks(shown);
+      setCachedEpubIds(cachedIds);
     }).catch(() => {
       if (active) setStorageError('This browser cannot open your local library. Enable IndexedDB or use a normal browsing window.');
     });
@@ -146,9 +151,14 @@ export default function App() {
     try {
       const catalog = await fetchCloudCatalog(validateDatasetRepo(repo), session);
       cloudEntries.current = new Map(catalog.books.map(entry => [entry.id, entry]));
-      // Reload saved metadata first so progress from this browser is preserved.
-      const local = await getBooks();
-      const merged = blendCloudAndLocal(catalog.books, local);
+      // The cloud catalogue is authoritative for hosted novels. Preserve actual
+      // offline EPUBs, but hide old cloud metadata with no hosted file or cache.
+      // This does not remove records, ratings, progress or EPUBs from IndexedDB.
+      const [local, cachedIds] = await Promise.all([getBooks(), getCachedEpubIds()]);
+      const { books: merged, hiddenStaleEntries } =
+        reconcileCloudLibrary(catalog.books, local, cachedIds);
+      verifiedCloudCatalogue.current = true;
+      setCachedEpubIds(cachedIds);
       // Read personal annotations separately. A missing per-book file (404) is
       // normal for unreviewed novels. Never use the shared novel catalogue for
       // personal comments, and never erase local notes on a transient error.
@@ -221,7 +231,7 @@ export default function App() {
         writeCollectionsPending(true);
         setCollectionsSyncPending(true);
       }
-      setCloudMessage(`${catalog.books.length} hosted ${catalog.books.length === 1 ? 'novel' : 'novels'} available on this device.${notesWarning ? ' Some personal notes could not be synced.' : ''}${progressWarning ? ' Some reading progress could not be synced.' : ''}${collectionsWarning ? ' Collections sync needs a retry.' : ''}`);
+      setCloudMessage(`${catalog.books.length} hosted ${catalog.books.length === 1 ? 'novel' : 'novels'} in the current dataset.${hiddenStaleEntries ? ` Hidden ${hiddenStaleEntries} stale book entries without a current cloud listing or saved EPUB. Their browser metadata and progress were preserved.` : ''}${notesWarning ? ' Some personal notes could not be synced.' : ''}${progressWarning ? ' Some reading progress could not be synced.' : ''}${collectionsWarning ? ' Collections sync needs a retry.' : ''}`);
     } catch (reason) {
       setCloudMessage(`Cloud library unavailable: ${reason instanceof Error ? reason.message : String(reason)}`);
     } finally {
@@ -369,10 +379,13 @@ export default function App() {
           failures.push(`${file.name}: ${reason instanceof Error ? reason.message : String(reason)}`);
         }
       }
-      const latest = await getBooks();
-      booksRef.current = latest;
-      setBooks(latest);
-      void getCachedEpubIds().then(setCachedEpubIds).catch(() => undefined);
+      const [latest, cachedIds] = await Promise.all([getBooks(), getCachedEpubIds()]);
+      const visible = verifiedCloudCatalogue.current
+        ? reconcileCloudLibrary([...cloudEntries.current.values()], latest, cachedIds).books
+        : latest;
+      booksRef.current = visible;
+      setBooks(visible);
+      setCachedEpubIds(cachedIds);
       if (added || duplicate || published) {
         const localText = `${added} newly imported, ${duplicate} already on this device.`;
         const remoteText = cloudRepo && cloudSession

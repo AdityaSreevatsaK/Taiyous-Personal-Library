@@ -289,7 +289,7 @@ export default function LibraryDashboard({
               </div>
               {cloudSession?.via !== 'oauth' && <p className="cloud-caution" id="cloud-token-note">Legacy manual connection: use only a fine-grained dataset token. It is held in memory only and not retained after restarting the app. The Hugging Face OAuth sign-in is preferred, so you need not re-enter a token on every visit.</p>}
             </div>}
-            {cloudMessage && (!cloudSession || /unavailable|failed|error/i.test(cloudMessage)) && <p className="cloud-status" role="status">{cloudMessage}</p>}
+            {cloudMessage && (!cloudSession || /unavailable|failed|error|hidden/i.test(cloudMessage)) && <p className="cloud-status" role="status">{cloudMessage}</p>}
           </section>
           </div>
           {showAdvanced ? <AdvancedSearch books={books} offlineIds={cachedEpubIds} initialName={globalSearch} cloudRepo={cloudRepo} cloudSession={cloudSession}
