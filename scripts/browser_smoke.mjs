@@ -9,13 +9,17 @@ async function makeTestEpub() {
   zip.file('META-INF/container.xml', `<?xml version="1.0" encoding="UTF-8"?>
 <container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container"><rootfiles><rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/></rootfiles></container>`);
   zip.file('OEBPS/content.opf', `<?xml version="1.0" encoding="UTF-8"?>
-<package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="uid"><metadata xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:identifier id="uid">urn:taiyou:test:smoke</dc:identifier><dc:title>Sample Library Book</dc:title><dc:language>en</dc:language></metadata><manifest><item id="chapter" href="chapter.xhtml" media-type="application/xhtml+xml"/><item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/></manifest><spine><itemref idref="chapter"/></spine></package>`);
+<package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="uid"><metadata xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:identifier id="uid">urn:taiyou:test:smoke</dc:identifier><dc:title>Sample Library Book</dc:title><dc:language>en</dc:language></metadata><manifest><item id="chapter" href="chapter.xhtml" media-type="application/xhtml+xml"/><item id="chapter-two" href="chapter-two.xhtml" media-type="application/xhtml+xml"/><item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/></manifest><spine><itemref idref="chapter"/><itemref idref="chapter-two"/></spine></package>`);
   zip.file('OEBPS/nav.xhtml', `<?xml version="1.0" encoding="UTF-8"?>
-<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops"><head><title>Contents</title></head><body><nav epub:type="toc"><ol><li><a href="chapter.xhtml">Chapter 1</a></li></ol></nav></body></html>`);
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops"><head><title>Contents</title></head><body><nav epub:type="toc"><ol><li><a href="chapter.xhtml">Chapter 1</a></li><li><a href="chapter-two.xhtml">Chapter 2</a></li></ol></nav></body></html>`);
   const paragraphs = Array.from({ length: 90 }, (_, i) =>
     `<p>Paragraph ${i + 1}: This original sample text tests natural vertical chapter scrolling without a horizontal scrollbar.</p>`).join('');
   zip.file('OEBPS/chapter.xhtml', `<?xml version="1.0" encoding="UTF-8"?>
-<html xmlns="http://www.w3.org/1999/xhtml"><head><title>Chapter 1</title></head><body><h1>Chapter 1</h1>${paragraphs}</body></html>`);
+<html xmlns="http://www.w3.org/1999/xhtml"><head><title>Chapter 1</title></head><body><h2 style="text-align:left">Chapter 1</h2>${paragraphs}</body></html>`);
+  zip.file('OEBPS/chapter-two.xhtml', `<?xml version="1.0" encoding="UTF-8"?>
+<html xmlns="http://www.w3.org/1999/xhtml"><head><title>Chapter 2</title></head><body>
+<p style="text-align:left">Chapter 2: The Next Step</p>
+<p>A new chapter for the reader navigation smoke test.</p></body></html>`);
   return Array.from(await zip.generateAsync({ type: 'uint8array', compression: 'DEFLATE' }));
 }
 const epubBytes = await makeTestEpub();
@@ -74,6 +78,9 @@ try {
     // Assert the real library dashboard rendered, rather than a long error message.
     await page.locator('.app-shell').waitFor({ state: 'visible' });
     await page.getByRole('navigation', { name: 'Library sections' }).waitFor({ state: 'attached' });
+    if (await page.locator('.sort-field select').inputValue() !== 'title') {
+      throw new Error('Library should default to alphabetical Title A–Z sorting');
+    }
     if (!rootText.includes('Personal Library') || !rootText.includes('YOUR SHELVES')) {
       throw new Error('Expected library dashboard content is missing');
     }
@@ -202,7 +209,39 @@ try {
       throw new Error('Chapter controls must be visible at bottom left and bottom right');
     }
     await page.getByRole('button', { name: 'Go to Sample Library Book details' }).waitFor();
+    const headerBox = await page.locator('.reader-header').boundingBox();
+    const titleBox = await page.locator('.reader-head-center').boundingBox();
+    if (!headerBox || !titleBox || Math.abs(titleBox.x + titleBox.width / 2 - (headerBox.x + headerBox.width / 2)) > 2) {
+      throw new Error('Novel title is not geometrically centred in the reader header');
+    }
+    if (await page.locator('.reader-home-link').getByText("Taiyou's Personal Library").count()) {
+      throw new Error('Reader home control should use the symbol alone');
+    }
+    const chapterJump = footer.getByRole('combobox', { name: 'Jump to chapter' });
+    await chapterJump.waitFor({ state: 'visible' });
+    if (await chapterJump.locator('option').count() !== 3) {
+      throw new Error('Bottom chapter selector must contain the complete chapter list');
+    }
     await page.locator('.reader-page iframe').first().waitFor({ state: 'visible', timeout: 20000 });
+    await page.waitForFunction(() => {
+      const frame = document.querySelector('.reader-page iframe');
+      return frame?.contentDocument?.querySelector('h2') != null;
+    });
+    const headingAligned = await page.locator('.reader-page iframe').first().evaluate(frame => {
+      const heading = frame.contentDocument?.querySelector('h2');
+      return heading ? frame.contentWindow?.getComputedStyle(heading).textAlign : '';
+    });
+    if (headingAligned !== 'center') throw new Error('EPUB h2 chapter heading not centred');
+    await chapterJump.selectOption('chapter-two.xhtml');
+    await page.getByText('Chapter 2 of 2').waitFor();
+    const paragraphAligned = await page.locator('.reader-page iframe').first().evaluate(frame => {
+      const paragraph = Array.from(frame.contentDocument?.querySelectorAll('p') || [])
+        .find(el => el.textContent?.includes('Chapter 2: The Next Step'));
+      return paragraph ? frame.contentWindow?.getComputedStyle(paragraph).textAlign : '';
+    });
+    if (paragraphAligned !== 'center') throw new Error('EPUB paragraph chapter heading not centred');
+    await chapterJump.selectOption('chapter.xhtml');
+    await page.getByText('Chapter 1 of 2').waitFor();
     const hasContentOverflow = await page.locator('.reader-page iframe').first().evaluate((frame) => {
       const doc = frame.contentDocument;
       return doc ? doc.documentElement.scrollWidth > doc.documentElement.clientWidth + 3 : false;

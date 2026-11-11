@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
 import ePub from 'epubjs';
 import {
-  ArrowLeft, BookOpen, Check, ChevronLeft, ChevronRight, List, Minus,
+  ArrowLeft, BookOpen, Check, ChevronDown, ChevronLeft, ChevronRight, List, Minus,
   Moon, PanelRightClose, Plus, Search, Settings2, SlidersHorizontal, Sun, Type, X,
 } from 'lucide-react';
 import { DEFAULT_SETTINGS, type ChapterItem, type LibraryBook, type ReaderSettings, type ReaderTheme } from '../types';
@@ -146,14 +146,21 @@ export default function Reader({ book, settings, onSettings, onBack, onNovelDeta
               body { overflow-wrap: anywhere !important; word-wrap: break-word !important; }
               img, svg, video, table { max-width: 100% !important; }
               pre, code { white-space: pre-wrap !important; overflow-wrap: anywhere !important; }
-              /* Centre chapter headings without altering the story paragraphs. */
-              h1, .chapter-title, .chapterTitle, .chapter-heading {
+              /* EPUBs use h1-h4, classed paragraphs, or plain "Chapter N" lines.
+                 Apply only to headings, never ordinary story paragraphs. */
+              h1, h2, h3, h4,
+              .chapter-title, .chapterTitle, .chapter-heading, .chapterHeading,
+              .chapter_name, .chapterName, .chap-title, .taiyou-chapter-heading {
+                display: block !important;
                 text-align: center !important;
                 font-size: 1.5em !important;
                 line-height: 1.3 !important;
                 font-weight: 650 !important;
                 margin: 1.15em auto 1.25em !important;
                 max-width: 90% !important;
+              }
+              .taiyou-chapter-heading *, h1 *, h2 *, h3 *, h4 * {
+                text-align: center !important;
               }
               iframe:not([src]):not([srcdoc]),
               iframe[src=""]:not([srcdoc]) {
@@ -167,6 +174,21 @@ export default function Reader({ book, settings, onSettings, onBack, onNovelDeta
               }
             `;
             doc.head.appendChild(cleanup);
+          }
+
+          // Some EPUBs render the chapter heading as a plain left-aligned
+          // paragraph or div. Mark only an early, short, recognisable heading.
+          // Do not change its text or remove nodes (existing CFI stays valid).
+          const openingBlocks = Array.from(
+            doc.body?.querySelectorAll('h1, h2, h3, h4, p, div') || [],
+          ).slice(0, 24);
+          for (const node of openingBlocks) {
+            const title = (node.textContent || '').replace(/\s+/g, ' ').trim();
+            if (title.length > 140 || title.length < 3) continue;
+            if (/^(?:chap(?:ter)?\.?|ch\.)\s*(?:\d+|[IVXLCDM]+)\b|^第.{1,20}[章节回]|^(?:prologue|epilogue)\b/i.test(title)) {
+              node.classList.add('taiyou-chapter-heading');
+              break;
+            }
           }
 
           // Browser/system font fallbacks keep the reader functional offline.
@@ -290,12 +312,15 @@ export default function Reader({ book, settings, onSettings, onBack, onNovelDeta
   }, []);
 
   async function jump(href: string) {
-    try { await renditionRef.current?.display(href); setPanel(null); }
+    if (!href || !renditionRef.current || moving || loading) return;
+    setMoving(true);
+    try { await renditionRef.current.display(href); setPanel(null); }
     catch (reason) { setError(`Could not open chapter: ${String(reason)}`); }
+    finally { setMoving(false); }
   }
 
   const displayedChapterIndex = currentChapterIndex + 1;
-  const displayedChapterCount = book.chapterCount || toc.length;
+  const displayedChapterCount = chapters.length || book.chapterCount || toc.length;
   const filteredToc = toc.filter((item) => item.label.toLowerCase().includes(tocSearch.trim().toLowerCase()));
   const change = (next: Partial<ReaderSettings>) => onSettings({ ...settings, ...next });
 
@@ -305,7 +330,7 @@ export default function Reader({ book, settings, onSettings, onBack, onNovelDeta
         <div className="reader-head-left">
           <button className="reader-back icon-button" onClick={onNovelDetails} title="Back to novel details" aria-label="Back to novel details"><ArrowLeft size={19} /></button>
           <div className="reader-divider" />
-          <button type="button" className="reader-brand reader-home-link" onClick={onBack} title="Go to library home" aria-label="Go to library home"><BookOpen size={18} /><span>Taiyou's Personal Library</span></button>
+          <button type="button" className="reader-brand reader-home-link" onClick={onBack} title="Go to library home" aria-label="Go to library home"><BookOpen size={20} /></button>
         </div>
         <div className="reader-head-center" aria-live="polite" aria-atomic="true">
           <button type="button" className="reader-novel-link" onClick={onNovelDetails} title="Go to novel details" aria-label={`Go to ${book.title} details`}>{book.title}</button>
@@ -326,7 +351,17 @@ export default function Reader({ book, settings, onSettings, onBack, onNovelDeta
           onClick={() => void turn('prev')} title="Previous chapter (Left arrow)" aria-label="Previous chapter">
           <ChevronLeft size={19} /><span>Previous chapter</span>
         </button>
-        <span className="reader-footer-position" aria-live="off">{currentChapterIndex >= 0 ? `${displayedChapterIndex} / ${displayedChapterCount}` : 'Chapters'}</span>
+        <label className="reader-footer-jump">
+          <span className="sr-only">Jump to chapter</span>
+          <select aria-label="Jump to chapter" title="Choose a chapter" value={currentChapterIndex >= 0 ? chapters[currentChapterIndex].href : ''}
+            onChange={event => void jump(event.target.value)} disabled={loading || moving || !!error || !chapters.length}>
+            <option value="" disabled>Choose chapter</option>
+            {chapters.map((item, index) => <option key={`${index}-${item.href}`} value={item.href}>
+              {index + 1} / {chapters.length} · {item.label}
+            </option>)}
+          </select>
+          <ChevronDown size={15} aria-hidden="true" />
+        </label>
         <button className="reader-chapter-button reader-chapter-next" type="button"
           disabled={loading || moving || !!error || (currentChapterIndex >= chapters.length - 1 && currentChapterIndex >= 0)}
           onClick={() => void turn('next')} title="Next chapter (Right arrow)" aria-label="Next chapter">
