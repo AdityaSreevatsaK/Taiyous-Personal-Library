@@ -141,9 +141,8 @@ export default function AdvancedSearch({ books, offlineIds, initialName = '', cl
             <div className="advanced-result-details">
               <button type="button" className="advanced-result-title" onClick={() => onOpen(book)}>{book.title}</button>
               <p>{book.author || 'Unknown author'}</p>
-              <div className="advanced-result-meta">{book.personalRating
-                ? <span><Star size={13} fill="currentColor"/>{book.personalRating}/10</span>
-                : <span>Unrated</span>}
+              <div className="advanced-result-meta">
+                {book.personalRating !== undefined && <span><Star size={13} fill="currentColor"/>{book.personalRating}/10</span>}
                 {cached.has(book.id) && <span><BookOpen size={13}/> Offline</span>}
               </div>
               {bookTags(book).length > 0 && <div className="advanced-result-tags">

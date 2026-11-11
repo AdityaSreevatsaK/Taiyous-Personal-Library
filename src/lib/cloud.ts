@@ -179,7 +179,7 @@ export async function fetchCloudCover(repo: string, book: Pick<LibraryBook, 'id'
 /** Verify a hosted EPUB actually exists without downloading its contents.
  * This is required before deleting a device's offline EPUB.
  */
-export async function hostedEpubExists(repo: string, entry: CloudEntry, session: CloudSession): Promise<boolean> {
+export async function hostedEpubExists(_repo: string, entry: CloudEntry, session: CloudSession): Promise<boolean> {
   if (!validEntry(entry) || session.via !== 'oauth') return false;
   const response = await fetch('/api/library?action=exists&path=' + encodeURIComponent(entry.epubPath), {
     credentials: 'same-origin', cache: 'no-store',

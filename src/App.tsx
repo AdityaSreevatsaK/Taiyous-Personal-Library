@@ -40,7 +40,7 @@ export default function App() {
   const [cachedEpubIds, setCachedEpubIds] = useState<string[]>([]);
   const [online, setOnline] = useState(() => navigator.onLine);
   const [offlineShellReady, setOfflineShellReady] = useState(false);
-  const [cachingId, setCachingId] = useState<string | null>(null);
+  const [, setCachingId] = useState<string | null>(null);
   const [bulkOfflineProgress, setBulkOfflineProgress] = useState<{ done: number; total: number } | null>(null);
   const filePicker = useRef<HTMLInputElement | null>(null);
   const booksRef = useRef<LibraryBook[]>([]);
@@ -824,7 +824,6 @@ export default function App() {
     ) : (
       <LibraryDashboard books={books} theme={settings.theme}
         cachedEpubIds={cachedEpubIds} online={online} offlineShellReady={offlineShellReady}
-        cachingId={cachingId} onCacheForOffline={book => void makeAvailableOffline(book)}
         bulkOfflineProgress={bulkOfflineProgress} onCacheAllOffline={() => void saveAllOffline()}
         pendingReviewCount={books.filter(book => book.pendingReviewSync).length}
         pendingProgressCount={books.filter(book => book.pendingProgressSync).length}

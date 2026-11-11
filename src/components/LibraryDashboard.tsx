@@ -19,8 +19,6 @@ interface Props {
   cachedEpubIds: string[];
   online: boolean;
   offlineShellReady: boolean;
-  cachingId: string | null;
-  onCacheForOffline: (book: LibraryBook) => void;
   bulkOfflineProgress: { done: number; total: number } | null;
   onCacheAllOffline: () => void;
   pendingReviewCount: number;
@@ -97,7 +95,7 @@ export function Cover({ book, variant = 'normal', cloudRepo = '', cloudSession =
 }
 
 export default function LibraryDashboard({
-  books, cachedEpubIds, online, offlineShellReady, cachingId, onCacheForOffline, bulkOfflineProgress, onCacheAllOffline, pendingReviewCount, pendingProgressCount, collectionsSyncPending,
+  books, cachedEpubIds, online, offlineShellReady, bulkOfflineProgress, onCacheAllOffline, pendingReviewCount, pendingProgressCount, collectionsSyncPending,
   collections, onCreateCollection, onRenameCollection, onDeleteCollection, onCollectionMembership,
   initialTag, globalSearch, onGlobalSearch, theme, onThemeChange, onImportClick, onFiles, onOpen, onRead, onRemoveOffline,
   importing, notice, error, storageError, cloudRepo, cloudSession,
