@@ -20,6 +20,7 @@ interface Props {
   online: boolean;
   offlineShellReady: boolean;
   bulkOfflineProgress: { done: number; total: number } | null;
+  offlineRetention: 'persistent' | 'best-effort' | 'unknown';
   onCacheAllOffline: () => void;
   pendingReviewCount: number;
   pendingProgressCount: number;
@@ -96,7 +97,7 @@ export function Cover({ book, variant = 'normal', cloudRepo = '', cloudSession =
 }
 
 export default function LibraryDashboard({
-  books, cachedEpubIds, online, offlineShellReady, bulkOfflineProgress, onCacheAllOffline, pendingReviewCount, pendingProgressCount, collectionsSyncPending,
+  books, cachedEpubIds, online, offlineShellReady, bulkOfflineProgress, onCacheAllOffline, offlineRetention, pendingReviewCount, pendingProgressCount, collectionsSyncPending,
   collections, onCreateCollection, onRenameCollection, onDeleteCollection, onCollectionMembership,
   initialTag, globalSearch, onGlobalSearch, theme, onThemeChange, onImportClick, onFiles, onOpen, onRead, onRemoveOffline,
   importing, notice, error, storageError, cloudRepo, cloudSession,
@@ -306,6 +307,11 @@ export default function LibraryDashboard({
                {bulkOfflineProgress ? `Saving ${bulkOfflineProgress.done} of ${bulkOfflineProgress.total}…` : 'Save all offline'}
              </button>}
              <span>{offlineShellReady ? 'App ready for offline reading' : 'Offline app assets not yet ready'}</span>
+             {cachedEpubIds.length > 0 && <span title="Browser storage can be cleared manually or by the device">
+               {offlineRetention === 'persistent' ? 'Persistent browser storage granted'
+                 : offlineRetention === 'best-effort' ? 'Best-effort cache; keep a backup'
+                   : 'Offline copies are browser-managed; keep a backup'}
+             </span>
              {pendingReviewCount > 0 && <span className="pending-sync-status">{pendingReviewCount} notes waiting to sync</span>}
              {pendingProgressCount > 0 && <span className="pending-sync-status">{pendingProgressCount} reading positions waiting to sync</span>}
              {collectionsSyncPending && <span className="pending-sync-status">Collections waiting to sync</span>}
