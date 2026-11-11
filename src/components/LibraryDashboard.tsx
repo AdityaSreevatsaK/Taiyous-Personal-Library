@@ -311,7 +311,7 @@ export default function LibraryDashboard({
                {offlineRetention === 'persistent' ? 'Persistent browser storage granted'
                  : offlineRetention === 'best-effort' ? 'Best-effort cache; keep a backup'
                    : 'Offline copies are browser-managed; keep a backup'}
-             </span>
+             </span>}
              {pendingReviewCount > 0 && <span className="pending-sync-status">{pendingReviewCount} notes waiting to sync</span>}
              {pendingProgressCount > 0 && <span className="pending-sync-status">{pendingProgressCount} reading positions waiting to sync</span>}
              {collectionsSyncPending && <span className="pending-sync-status">Collections waiting to sync</span>}
