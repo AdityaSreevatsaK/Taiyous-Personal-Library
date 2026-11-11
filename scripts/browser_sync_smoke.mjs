@@ -162,9 +162,6 @@ try {
   await seedDeviceA(pageA);
   connectedA = true;
   await pageA.reload({waitUntil: 'domcontentloaded'});
-  await pageA.waitForFunction(() =>
-    document.querySelectorAll('.sync-conflict-item').length > 0, null, {timeout: 25000})
-    .catch(() => undefined);
   await pageA.getByRole('button', {name: 'Settings', exact: true}).click();
   await pageA.waitForFunction(() =>
     document.querySelectorAll('.sync-conflict-item').length === 3, null, {timeout: 25000});
