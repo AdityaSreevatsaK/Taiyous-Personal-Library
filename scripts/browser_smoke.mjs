@@ -284,6 +284,8 @@ try {
     // The current novel title returns to details; the library brand goes home.
     await page.getByRole('button', { name: 'View details for Sample Library Book' }).click();
     await page.getByRole('button', { name: 'Start reading' }).click();
+    // EPUB loading is asynchronous: verify the URL after the read action commits.
+    await page.waitForURL('**/book/aaaaaaaaaaaaaaaaaaaaaaaa/read');
     if (new URL(page.url()).pathname !== '/book/aaaaaaaaaaaaaaaaaaaaaaaa/read') {
       throw new Error('Reader URL must identify the book');
     }

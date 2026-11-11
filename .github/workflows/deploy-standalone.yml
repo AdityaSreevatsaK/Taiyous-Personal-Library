@@ -1,9 +1,9 @@
-name: Build and optionally deploy standalone PWA
+name: Deploy Application
 on:
   workflow_dispatch:
     inputs:
       publish:
-        description: 'Publish the public app shell (never private novels or credentials)'
+        description: 'Deploy to production Cloudflare Pages (no version tag or release)'
         required: true
         type: boolean
         default: false
