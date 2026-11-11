@@ -149,9 +149,9 @@ export const fetchVersionedCollections = (repo: string, session: CloudSession):
 export const writeVersionedCollections = (
   repo: string, session: CloudSession, collections: BookCollection[], baseRevision: string | null,
 ): Promise<CloudRevisionSnapshot<BookCollection[]>> =>
-  writeRevisionedPersonal(repo, session, CLOUD_PATH, {
+  writeRevisionedPersonal<CollectionDocument>(repo, session, CLOUD_PATH, {
     version: 1 as const, collections: validateCollections({ version: 1, collections }),
-  }, baseRevision, value => validateCollections(value))
+  }, baseRevision, value => ({ version: 1, collections: validateCollections(value) }))
     .then(result => ({ value: result.value?.collections ?? null, revision: result.revision }))
     .catch(error => {
       if (error instanceof CloudPersonalConflict) {
