@@ -5,6 +5,11 @@ on:
     branches: [master]
     paths: [.github/workflows/deploy-design-preview.yml]
   workflow_dispatch:
+  # A verified PR update refreshes the same isolated visual preview.
+  workflow_run:
+    workflows: [Verify novel reader]
+    types: [completed]
+    branches: [design/library-explorations-20261112]
 
 permissions:
   contents: read
@@ -15,7 +20,14 @@ concurrency:
 
 jobs:
   build-and-verify:
-    if: github.repository == 'AdityaSreevatsaK/Taiyous-Personal-Library' && github.ref == 'refs/heads/master'
+    if: >-
+      github.repository == 'AdityaSreevatsaK/Taiyous-Personal-Library' &&
+      github.ref == 'refs/heads/master' &&
+      (github.event_name != 'workflow_run' ||
+       (github.event.workflow_run.conclusion == 'success' &&
+        github.event.workflow_run.event == 'pull_request' &&
+        github.event.workflow_run.head_branch == 'design/library-explorations-20261112' &&
+        github.event.workflow_run.head_repository.full_name == github.repository))
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     outputs:
@@ -25,7 +37,7 @@ jobs:
       # branch, not master or the pending synchronisation PR.
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
-          ref: design/library-explorations-20261112
+          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || 'design/library-explorations-20261112' }}
           persist-credentials: false
       - id: version
         name: Record exact design revision
@@ -66,6 +78,16 @@ jobs:
           test -s dist/manifest.webmanifest
           cp scripts/standalone-headers.txt dist/_headers
           printf '\n/*\n  X-Robots-Tag: noindex, nofollow\n' >> dist/_headers
+      - name: Browser-check real preview build with fictional EPUBs and disabled private API
+        run: |
+          npm run preview -- --host 127.0.0.1 --port 4174 --strictPort > /tmp/taiyou-design-only.log 2>&1 &
+          ok=0
+          for i in $(seq 1 35); do
+            if curl -fsS http://127.0.0.1:4174/ >/dev/null; then ok=1; break; fi
+            sleep 1
+          done
+          test "$ok" = 1 || { tail -50 /tmp/taiyou-design-only.log; exit 1; }
+          node scripts/browser_design_preview_smoke.mjs
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: taiyou-design-preview-${{ steps.version.outputs.sha }}
