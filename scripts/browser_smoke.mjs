@@ -420,6 +420,15 @@ try {
     await page.getByRole('button', { name: 'Go to library home' }).click();
     await page.getByRole('navigation', { name: 'Library sections' }).waitFor();
     await page.locator('.book-rating-pill').getByText('8/10').waitFor();
+    // Detect late EPUB.js display work after fast open/close reader navigation.
+    for (let cycle = 0; cycle < 4; cycle++) {
+      await page.getByRole('button', { name: 'View details for Sample Library Book' }).click();
+      await page.getByRole('button', { name: 'Start reading' }).click();
+      await page.getByRole('button', { name: 'Go to library home' }).click();
+      await page.getByRole('navigation', { name: 'Library sections' }).waitFor();
+    }
+    await page.waitForTimeout(300);
+    if (errors.length) throw new Error('Rapid EPUB teardown raised browser errors: ' + errors.join(' | '));
     // Verify a true offline *reload* of the compiled app, then open/read the
     // already-cached synthetic EPUB without any network or HF credentials.
     await page.evaluate(async () => {
