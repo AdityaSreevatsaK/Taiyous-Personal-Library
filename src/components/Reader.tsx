@@ -247,8 +247,21 @@ export default function Reader({ book, settings, onSettings, onBack, onNovelDeta
       cancelled = true;
       renditionRef.current = null;
       bookRef.current = null;
-      try { renderer?.destroy(); } catch { /* cleanup */ }
-      try { epubBook?.destroy(); } catch { /* cleanup */ }
+      // EPUB.js display() jobs are queued and can execute after this component
+      // unmounts. Book.destroy() resets locations._locations to undefined;
+      // an old Rendition._display() would then call locations.length() and
+      // throw asynchronously. Disarm the queue and its book reference BEFORE
+      // destroying either object, even if manager.destroy() itself throws.
+      if (renderer) {
+        try { renderer.q?.stop(); } catch { /* detached rendition */ }
+        renderer.book = undefined;
+        try { renderer.destroy(); } catch { /* best-effort iframe cleanup */ }
+      }
+      if (epubBook) {
+        // Book.destroy() also invokes rendition.destroy(): never do it twice.
+        if (renderer && epubBook.rendition === renderer) epubBook.rendition = undefined;
+        try { epubBook.destroy(); } catch { /* pending EPUB open may be closing */ }
+      }
     };
     // Intentionally initialize only when the selected book changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
