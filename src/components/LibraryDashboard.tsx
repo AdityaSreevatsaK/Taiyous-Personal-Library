@@ -3,7 +3,7 @@ import AdvancedSearch from './AdvancedSearch';
 import { useCoverArt } from './useCoverArt';
 import {
   ArrowRight, Book, BookOpen, CheckCircle2, ChevronDown, CloudOff, Download, WifiOff,
-  Feather, Hash, Library, LockKeyhole, Menu, Pencil, Plus, Search, Settings2,
+  Feather, Hash, Library, LockKeyhole, Menu, Moon, Pencil, Plus, Search, Settings2,
   Sparkles, Star, Sun, Tag, Trash2, Upload, X, Cloud, RefreshCw, LogIn, LogOut,
 } from 'lucide-react';
 import type { LibraryBook, ReaderTheme } from '../types';
@@ -56,6 +56,8 @@ interface Props {
   onCloudRefresh: () => void;
   onCloudPublishCached: () => void;
 }
+
+const themes: ReaderTheme[] = THEME_OPTIONS.map(option => option.id);
 
 export function Cover({ book, variant = 'normal', cloudRepo = '', cloudSession = null }: {
   book: LibraryBook;
