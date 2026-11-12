@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import {
   BookCover, LabSearch, LayoutDetail, ProgressLine, StatusPill,
-  type ConceptProps, type LabBook,
+  type ConceptProps,
 } from './core';
 import './atlas.css';
 
