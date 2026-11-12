@@ -422,3 +422,27 @@
 @media (max-width: 700px) {
   .design-preview-pill { max-width: min(54vw,230px); padding: 6px 9px; font-size: 10px; }
 }
+
+/* On the static design staging only: a clear entry point to the *new* layouts. */
+.design-layout-banner {
+ display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;
+ background:linear-gradient(115deg,var(--design-hero),var(--design-sidebar));
+ color:var(--design-hero-text);
+ border:1px solid var(--design-sidebar-border);border-radius:14px;
+ padding:15px 19px;margin:0 0 18px;
+ box-shadow:var(--shadow);
+}
+.design-layout-banner>div {display:grid;gap:5px;}
+.design-layout-banner strong{font:600 19px Georgia,serif;letter-spacing:-.015em;}
+.design-layout-banner span{font-size:11px;color:var(--design-hero-muted);line-height:1.5;}
+.design-layout-banner a {
+ color:var(--design-hero-cta-text);background:var(--design-hero-cta);
+ border:1px solid var(--design-hero-cta);text-decoration:none;border-radius:8px;
+ font-size:12px;font-weight:800;white-space:nowrap;padding:12px 15px;
+}
+.design-layout-banner a:hover{filter:brightness(1.12);}
+@media(max-width:700px) {
+ .design-layout-banner{padding:13px;align-items:stretch;}
+ .design-layout-banner strong{font-size:17px;}
+ .design-layout-banner a{text-align:center;display:block;}
+}
