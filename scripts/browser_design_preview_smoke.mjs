@@ -38,7 +38,7 @@ try {
     if (viewport.width < 900) await page.mouse.click(viewport.width - 20, 100);
     await page.getByRole('button', {name: 'View details for The Jade Ascendant'}).click();
     await page.getByRole('heading', {name: 'The Jade Ascendant'}).waitFor();
-    await page.getByRole('button', {name: 'Start reading'}).click();
+    await page.getByRole('button', {name: /Start reading|Continue reading/}).click();
     await page.locator('.reader-page iframe').first().waitFor({state: 'visible', timeout: 25000});
     const text = await page.locator('.reader-page iframe').first().evaluate(frame =>
       frame.contentDocument?.body?.textContent || '');
