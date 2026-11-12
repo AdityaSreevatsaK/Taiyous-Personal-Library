@@ -90,6 +90,7 @@ jobs:
             sleep 1
           done
           node scripts/browser_smoke.mjs
+          node scripts/browser_sync_smoke.mjs
       - name: Diagnose the public production OAuth metadata externally
         shell: bash
         run: |

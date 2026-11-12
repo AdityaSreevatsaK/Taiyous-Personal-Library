@@ -1,5 +1,6 @@
 import { commit, uploadFiles, type CommitOperation } from '@huggingface/hub';
 import { hasOwnerGrant } from './owner';
+import { personalRequest } from '../_lib/personal';
 import {
   CATALOGUE_LIMIT, parseDatasetCatalogue, planAdditiveCatalogueUpload,
   type DatasetCatalogue,
@@ -193,6 +194,10 @@ async function upload(request: Request, repo: string, token: string): Promise<Re
   // Sidecar notes/collections are independent and never carry book files.
   if (hasCatalogue) return uploadCatalogueAddition(repo, token, files, title);
   if (hasNovelData) return reject(403, 'Direct novel-file replacement is not permitted');
+  // Do not allow legacy clients to bypass revision-aware personal sync.
+  if (files.some(file => file.path.startsWith('data/personal/'))) {
+    return reject(409, 'Please reload the application to use safe cross-device personal sync.');
+  }
   await uploadFiles({
     repo: { type: 'dataset', name: repo },
     accessToken: token,
@@ -342,6 +347,9 @@ export async function onRequest({ request, env }: PagesContext): Promise<Respons
       }
     }
     return respond(await downloadFile(DATASET_REPO, path, token));
+  }
+  if ((request.method === 'GET' || request.method === 'POST') && action === 'personal') {
+    return respond(await personalRequest(request, DATASET_REPO, token, json));
   }
   if (request.method === 'POST' && action === 'delete-novel') {
     return respond(await deleteHostedNovel(request, token, env, auth.session));

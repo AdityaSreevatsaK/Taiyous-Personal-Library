@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { assertPrivateDataset, blendCloudAndLocal, createCloudSession, validateDatasetRepo } from '../src/lib/cloud';
+import { assertPrivateDataset, blendCloudAndLocal, createCloudSession, validateDatasetRepo, uploadPrivateDatasetFiles } from '../src/lib/cloud';
 import type { LibraryBook } from '../src/types';
 
 const id = '0123456789abcdef01234567';
@@ -56,5 +56,28 @@ describe('private dataset credential session', () => {
   it('rejects missing or unexpected tokens', () => {
     expect(() => createCloudSession('reader/taiyous-novels', 'x')).toThrow();
     expect(() => createCloudSession('reader/taiyous-novels', 'Bearer hf_ABCDEF1234567890')).toThrow();
+  });
+});
+
+
+describe('manual bearer-token uploads must not bypass revisioned sync', () => {
+  it('refuses unguarded personal notes, collections, and progress writes', async () => {
+    const manual = createCloudSession('reader/taiyous-novels', 'hf_' + 'x'.repeat(32));
+    const paths = ['data/personal/collections.json',
+      'data/personal/reviews/' + id + '.json',
+      'data/personal/progress/' + id + '.json'];
+    for (const path of paths) {
+      await expect(uploadPrivateDatasetFiles('reader/taiyous-novels', manual,
+        [{ path, content: new Blob(['{"version":1}']) }], 'Unsafe write'))
+        .rejects.toThrow(/OAuth sign-in/);
+    }
+  });
+  it('also rejects novel and catalogue writes from legacy tokens', async () => {
+    const manual = createCloudSession('reader/taiyous-novels', 'hf_' + 'x'.repeat(32));
+    for (const path of ['data/library.json', 'data/novels/' + id + '/source.epub']) {
+      await expect(uploadPrivateDatasetFiles('reader/taiyous-novels', manual,
+        [{ path, content: new Blob(['placeholder']) }], 'Unsafe write'))
+        .rejects.toThrow(/OAuth sign-in/);
+    }
   });
 });

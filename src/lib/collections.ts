@@ -1,5 +1,5 @@
 import type { CloudSession } from './cloud';
-import { assertPrivateDataset, uploadPrivateDatasetFiles, validateDatasetRepo } from './cloud';
+import { assertPrivateDataset, uploadPrivateDatasetFiles, validateDatasetRepo, readRevisionedPersonal, writeRevisionedPersonal, CloudPersonalConflict, type CloudRevisionSnapshot } from './cloud';
 
 export interface BookCollection {
   id: string;
@@ -97,3 +97,69 @@ export async function saveCloudCollections(
   ], 'Update private reading collections');
   return merged;
 }
+
+
+/** A known missing cloud file is null; an unknown v1 base is undefined. */
+const BASE_KEY = 'taiyou.collections-cloud-revision.v2';
+const CONFLICT_KEY = 'taiyou.collections-conflict.v2';
+
+export type CollectionsSyncConflict = {
+  remote: BookCollection[];
+  revision: string | null;
+};
+
+export function readCollectionsCloudRevision(): string | null | undefined {
+  try {
+    const raw = localStorage.getItem(BASE_KEY);
+    if (raw === null) return undefined;
+    const value = JSON.parse(raw) as unknown;
+    return value === null || (typeof value === 'string' && /^[a-f0-9]{64}$/.test(value))
+      ? value : undefined;
+  } catch { return undefined; }
+}
+
+export function writeCollectionsCloudRevision(revision: string | null): void {
+  localStorage.setItem(BASE_KEY, JSON.stringify(revision));
+}
+
+export function readCollectionsConflict(): CollectionsSyncConflict | null {
+  try {
+    const raw = localStorage.getItem(CONFLICT_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<CollectionsSyncConflict>;
+    if (!(parsed.revision === null || (typeof parsed.revision === 'string' &&
+      /^[a-f0-9]{64}$/.test(parsed.revision)))) return null;
+    return {
+      remote: validateCollections({ version: 1, collections: parsed.remote }),
+      revision: parsed.revision,
+    };
+  } catch { return null; }
+}
+
+export function writeCollectionsConflict(conflict: CollectionsSyncConflict | null): void {
+  if (conflict) localStorage.setItem(CONFLICT_KEY, JSON.stringify(conflict));
+  else localStorage.removeItem(CONFLICT_KEY);
+}
+
+export const fetchVersionedCollections = (repo: string, session: CloudSession):
+  Promise<CloudRevisionSnapshot<BookCollection[]>> =>
+  readRevisionedPersonal(repo, session, CLOUD_PATH, value =>
+    validateCollections(value));
+
+export const writeVersionedCollections = (
+  repo: string, session: CloudSession, collections: BookCollection[], baseRevision: string | null,
+): Promise<CloudRevisionSnapshot<BookCollection[]>> =>
+  writeRevisionedPersonal<CollectionDocument>(repo, session, CLOUD_PATH, {
+    version: 1 as const, collections: validateCollections({ version: 1, collections }),
+  }, baseRevision, value => ({ version: 1, collections: validateCollections(value) }))
+    .then(result => ({ value: result.value?.collections ?? null, revision: result.revision }))
+    .catch(error => {
+      if (error instanceof CloudPersonalConflict) {
+        const remote = error.snapshot.value as { version: 1; collections: BookCollection[] } | null;
+        throw new CloudPersonalConflict<BookCollection[]>({
+          value: remote ? validateCollections(remote) : null,
+          revision: error.snapshot.revision,
+        });
+      }
+      throw error;
+    });

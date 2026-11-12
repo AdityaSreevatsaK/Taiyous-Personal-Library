@@ -1271,3 +1271,34 @@ a.details-top-title:focus-visible { outline: 2px solid #80ac8b; outline-offset: 
   border-radius: 9px; padding: 10px 12px; margin: 10px 0;
   line-height: 1.5; font-size: 12px; color: var(--text); overflow-wrap: anywhere;
 }
+
+/* Cross-device divergence remains visible until an explicit owner decision. */
+.cloud-sync-conflicts {
+  margin: 12px 0;
+  padding: 12px;
+  border: 1px solid var(--border, #b7a487);
+  border-radius: 12px;
+}
+.cloud-sync-conflicts > p { margin: 8px 0 12px; line-height: 1.45; }
+.sync-conflict-item {
+  padding: 10px 0;
+  border-top: 1px solid var(--border, #b7a487);
+}
+.sync-conflict-item > p { margin: 6px 0 10px; overflow-wrap: anywhere; }
+.sync-conflict-item .cloud-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.sync-conflict-item .secondary-button { white-space: normal; text-align: center; }
+
+.sync-conflict-comparison { margin: 10px 0; }
+.sync-conflict-comparison > summary { cursor: pointer; text-decoration: underline; }
+.sync-conflict-comparison pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  overflow: auto;
+  max-height: 220px;
+  margin: 5px 0 12px;
+  padding: 8px;
+  border: 1px solid var(--border, #b7a487);
+  border-radius: 8px;
+  font: inherit;
+  font-size: 0.87em;
+}

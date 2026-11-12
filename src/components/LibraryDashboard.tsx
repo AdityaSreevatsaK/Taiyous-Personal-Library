@@ -25,6 +25,8 @@ interface Props {
   pendingReviewCount: number;
   pendingProgressCount: number;
   collectionsSyncPending: boolean;
+  syncConflicts: Array<{kind: 'progress' | 'review' | 'collections'; bookId?: string; title: string; detail: string; localText?: string; remoteText?: string}>;
+  onResolveSyncConflict: (kind: 'progress' | 'review' | 'collections', bookId: string | undefined, choice: 'cloud' | 'device') => void;
   collections: BookCollection[];
   onCreateCollection: (name: string) => Promise<void>;
   onRenameCollection: (id: string, name: string) => Promise<void>;
@@ -97,7 +99,7 @@ export function Cover({ book, variant = 'normal', cloudRepo = '', cloudSession =
 }
 
 export default function LibraryDashboard({
-  books, cachedEpubIds, online, offlineShellReady, bulkOfflineProgress, onCacheAllOffline, offlineRetention, pendingReviewCount, pendingProgressCount, collectionsSyncPending,
+  books, cachedEpubIds, online, offlineShellReady, bulkOfflineProgress, onCacheAllOffline, offlineRetention, pendingReviewCount, pendingProgressCount, collectionsSyncPending, syncConflicts, onResolveSyncConflict,
   collections, onCreateCollection, onRenameCollection, onDeleteCollection, onCollectionMembership,
   initialTag, globalSearch, onGlobalSearch, theme, onThemeChange, onImportClick, onFiles, onOpen, onRead, onRemoveOffline,
   importing, notice, error, storageError, cloudRepo, cloudSession,
@@ -250,7 +252,7 @@ export default function LibraryDashboard({
 
       <main className="main-panel">
         <header className="topbar"><button className="icon-button mobile-menu" onClick={() => setSidebarOpen(true)} aria-label="Open menu"><Menu size={22} /></button><section className="cloud-connect" aria-label="Cloud library storage" ref={cloudRoot}>
-            <div className="cloud-connect-head"><span><Cloud size={16} /><strong>Cloud library</strong><small className={syncProblem ? 'connection-badge needs-attention' : cloudRepo && cloudSession ? 'connection-badge is-connected' : 'connection-badge'}>{syncProblem ? 'Needs sync' : cloudRepo && cloudSession ? 'Connected' : cloudRepo ? 'Disconnected' : 'Not set up'}</small></span>{!cloudSession && online && <button type="button" className="secondary-button oauth-header-login" onClick={() => window.location.assign('/api/oauth/login')}><LogIn size={14}/> Sign in with HF</button>}<button type="button" className="secondary-button" aria-expanded={showCloud} onClick={() => setShowCloud(v => !v)}>{showCloud ? 'Close' : 'Settings'}</button></div>
+            <div className="cloud-connect-head"><span><Cloud size={16} /><strong>Cloud library</strong><small className={(syncProblem || syncConflicts.length) ? 'connection-badge needs-attention' : cloudRepo && cloudSession ? 'connection-badge is-connected' : 'connection-badge'}>{syncProblem || syncConflicts.length ? 'Needs sync' : cloudRepo && cloudSession ? 'Connected' : cloudRepo ? 'Disconnected' : 'Not set up'}</small></span>{!cloudSession && online && <button type="button" className="secondary-button oauth-header-login" onClick={() => window.location.assign('/api/oauth/login')}><LogIn size={14}/> Sign in with HF</button>}<button type="button" className="secondary-button" aria-expanded={showCloud} onClick={() => setShowCloud(v => !v)}>{showCloud ? 'Close' : 'Settings'}</button></div>
             {showCloud && <div className="cloud-connect-body">
               <p>Use one private Hugging Face dataset as the shared <code>data/</code> folder on PC and mobile. When connected, importing a ZIP saves its original archive, EPUB and catalogue to that repository.</p>
               {cloudSession?.via === 'oauth' ? <p className="cloud-access-connected"><LockKeyhole size={15}/> Signed in with Hugging Face. Your private dataset token is kept in an encrypted server-side session cookie, not saved by this page.</p> : <form onSubmit={event => {event.preventDefault(); onCloudRepo(repoDraft); }} className="cloud-repo-form"><label htmlFor="cloud-repo-input">Private dataset repository</label><input id="cloud-repo-input" value={repoDraft} onChange={event => setRepoDraft(event.target.value)} placeholder="your-username/taiyous-novels" autoComplete="off" /><button type="submit" className="secondary-button">Save</button></form>}
@@ -281,9 +283,30 @@ export default function LibraryDashboard({
                   </details>
                 </div>}
               </div>
+              {syncConflicts.length > 0 && <section className="cloud-sync-conflicts" aria-label="Cross-device sync conflicts">
+                <strong>{syncConflicts.length} private sync conflict{syncConflicts.length === 1 ? '' : 's'} need a decision</strong>
+                <p>Both copies are retained. Compare them before choosing. A choice affects only the specified private record, not EPUBs or the shared novel catalogue.</p>
+                {syncConflicts.map(item => <div className="sync-conflict-item" key={item.kind + ':' + (item.bookId || 'all')}>
+                  <strong>{item.title}</strong><p>{item.detail}</p>
+                  {item.localText !== undefined && item.remoteText !== undefined &&
+                    <details className="sync-conflict-comparison">
+                      <summary>Compare the complete saved versions</summary>
+                      <p><strong>This device</strong></p>
+                      <pre>{item.localText}</pre>
+                      <p><strong>Private cloud</strong></p>
+                      <pre>{item.remoteText}</pre>
+                    </details>}
+                  <div className="cloud-actions">
+                    <button type="button" className="secondary-button" disabled={cloudBusy || !online || cloudSession?.via !== 'oauth'}
+                      onClick={() => onResolveSyncConflict(item.kind, item.bookId, 'cloud')}>Use latest cloud copy</button>
+                    <button type="button" className="secondary-button" disabled={cloudBusy || !online || cloudSession?.via !== 'oauth'}
+                      onClick={() => onResolveSyncConflict(item.kind, item.bookId, 'device')}>Keep this device’s copy</button>
+                  </div>
+                </div>)}
+              </section>}
               {syncProblem && <p className="cloud-sync-warning" role="status">{syncProblem}</p>}
               {cloudMessage && <p className="cloud-sync-message" role="status">{cloudMessage}</p>}
-              {cloudSession?.via !== 'oauth' && <p className="cloud-caution" id="cloud-token-note">Legacy manual connection: use only a fine-grained dataset token. It is held in memory only and not retained after restarting the app. The Hugging Face OAuth sign-in is preferred, so you need not re-enter a token on every visit.</p>}
+              {cloudSession?.via !== 'oauth' && <p className="cloud-caution" id="cloud-token-note">Legacy manual connection is read-only for cloud personal data: safe cross-device editing requires Hugging Face OAuth. Use only a fine-grained dataset token. It is held in memory only and not retained after restarting the app. The Hugging Face OAuth sign-in is preferred, so you need not re-enter a token on every visit.</p>}
             </div>}
           </section><div className="top-actions"><label className="global-search-field"><Search size={16} /><input aria-label="Search all novels" placeholder="Search all novels…" value={globalSearch} onChange={event => onGlobalSearch(event.target.value)} />{globalSearch && <button type="button" aria-label="Clear global search" onClick={() => onGlobalSearch('')}><X size={15} /></button>}</label><button type="button" className="advanced-search-launch" onClick={() => { setShowAdvanced(true); setSidebarOpen(false); }}><Search size={16} /><span>Advanced search</span></button><button className="icon-button theme-switch" onClick={() => onThemeChange(themes[(themes.indexOf(theme) + 1) % themes.length])} title="Change theme" aria-label="Change theme">{theme === 'dark' ? <Moon size={19} /> : <Sun size={19} />}</button></div></header>
         <div className="page-content">

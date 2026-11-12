@@ -44,7 +44,11 @@ try {
     const page = await context.newPage();
     const errors = [];
     const failedAssets = [];
-    page.on('pageerror', error => errors.push(error.message));
+    page.on('pageerror', error => {
+      const diagnostic = error.stack || error.message;
+      errors.push(diagnostic);
+      console.error('Captured browser exception at ' + page.url() + ': ' + diagnostic);
+    });
     page.on('console', message => {
       // Chromium logs this benign Permissions-Policy message when epub.js replaces an iframe.
       if (/Permissions policy violation: unload is not allowed in this document/i.test(message.text())) return;
@@ -388,6 +392,17 @@ try {
     await page.getByRole('button', { name: 'Go to library home' }).click();
     await page.getByRole('navigation', { name: 'Library sections' }).waitFor();
     await page.locator('.book-rating-pill').getByText('8/10').waitFor();
+    // Stress a fast reader open/close cycle. EPUB.js queues display() work on
+    // animation frames; closing before a queued display executes must not
+    // let the destroyed book's locations throw an asynchronous TypeError.
+    for (let cycle = 0; cycle < 4; cycle++) {
+      await page.getByRole('button', { name: 'View details for Sample Library Book' }).click();
+      await page.getByRole('button', { name: 'Start reading' }).click();
+      await page.getByRole('button', { name: 'Go to library home' }).click();
+      await page.getByRole('navigation', { name: 'Library sections' }).waitFor();
+    }
+    await page.waitForTimeout(300);
+    if (errors.length) throw new Error('Rapid EPUB teardown raised browser errors: ' + errors.join(' | '));
     // Verify a true offline *reload* of the compiled app, then open/read the
     // already-cached synthetic EPUB without any network or HF credentials.
     await page.evaluate(async () => {
