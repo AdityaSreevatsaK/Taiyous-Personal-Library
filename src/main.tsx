@@ -2,6 +2,8 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
 import './styles.css';
+// Deliberately after legacy layout rules: visual-only design tokens and skins.
+import './design/foundation.css';
 import { registerOfflineApp } from './lib/offline';
 
 registerOfflineApp();
