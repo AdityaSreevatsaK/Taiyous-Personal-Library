@@ -181,6 +181,11 @@ try {
     if (await libraryTitle.getAttribute('href') !== '/') {
       throw new Error('Taiyou library title must be an actual hyperlink');
     }
+    if (viewport.width > 700 &&
+        !(await libraryTitle.evaluate(element => getComputedStyle(element).textDecorationLine))
+          .includes('underline')) {
+      throw new Error('Library home link must be visually identifiable without hovering');
+    }
     await page.reload({ waitUntil: 'networkidle' });
     await page.getByRole('heading', { name: 'Sample Library Book' }).waitFor();
     if (viewport.width <= 700) {
