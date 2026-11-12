@@ -3,10 +3,11 @@ import AdvancedSearch from './AdvancedSearch';
 import { useCoverArt } from './useCoverArt';
 import {
   ArrowRight, Book, BookOpen, CheckCircle2, ChevronDown, CloudOff, Download, WifiOff,
-  Feather, Hash, Library, LockKeyhole, Menu, Moon, Pencil, Plus, Search, Settings2,
+  Feather, Hash, Library, LockKeyhole, Menu, Pencil, Plus, Search, Settings2,
   Sparkles, Star, Sun, Tag, Trash2, Upload, X, Cloud, RefreshCw, LogIn, LogOut,
 } from 'lucide-react';
 import type { LibraryBook, ReaderTheme } from '../types';
+import { THEME_OPTIONS, themeLabel } from '../design/themes';
 import { bookTags, includesTag, tagCounts } from '../lib/tags';
 import type { CloudSession } from '../lib/cloud';
 import type { BookCollection } from '../lib/collections';
@@ -55,8 +56,6 @@ interface Props {
   onCloudRefresh: () => void;
   onCloudPublishCached: () => void;
 }
-
-const themes: ReaderTheme[] = ['light', 'dark', 'sepia'];
 
 export function Cover({ book, variant = 'normal', cloudRepo = '', cloudSession = null }: {
   book: LibraryBook;
@@ -245,7 +244,19 @@ export default function LibraryDashboard({
           <button className="collection-link" onClick={onImportClick}><span className="collection-icon"><Plus size={16} /></span><span>Add a new novel</span></button>
           <div className="side-note"><Sparkles size={17} /><p>“There is no friend as loyal as a book.”<small>ERNEST HEMINGWAY</small></p></div>
         </div>
-        <div className="sidebar-bottom"><div className="privacy-indicator"><LockKeyhole size={15} /><span>{cloudRepo && cloudSession ? "Private · Cloud + local cache" : "Private · Stored on this device"}</span></div><button className="sidebar-theme" onClick={() => onThemeChange(themes[(themes.indexOf(theme) + 1) % themes.length])} title="Cycle between light, dark and sepia"><Sun size={17} /><span>{theme === 'dark' ? 'Dark' : theme === 'sepia' ? 'Sepia' : 'Light'} appearance</span><Moon size={15} /></button></div>
+        <div className="sidebar-bottom">
+          <div className="privacy-indicator"><LockKeyhole size={15} /><span>{cloudRepo && cloudSession ? "Private · Cloud + local cache" : "Private · Stored on this device"}</span></div>
+          <div className="sidebar-appearance" role="group" aria-label="Appearance theme">
+            <div className="sidebar-appearance-heading"><Sun size={16} /><span>Appearance</span><small>{themeLabel(theme)}</small></div>
+            <div className="sidebar-appearance-options">
+              {THEME_OPTIONS.map(option => (
+                <button key={option.id} type="button" className={theme === option.id ? 'selected' : ''}
+                  onClick={() => onThemeChange(option.id)} aria-pressed={theme === option.id}
+                  aria-label={`Use ${option.label} theme`} title={option.description}>{option.shortLabel}</button>
+              ))}
+            </div>
+          </div>
+        </div>
       </aside>
 
       <main className="main-panel">
