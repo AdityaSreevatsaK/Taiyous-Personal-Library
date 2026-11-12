@@ -50,7 +50,7 @@ const chapterNames = [
   'The Valley Beyond the Clouds', 'A Path Forward',
 ] as const;
 
-async function sampleEpub(title: string, author: string, id: string): Promise<Blob> {
+export async function sampleEpub(title: string, author: string, id: string): Promise<Blob> {
   const zip = new JSZip();
   zip.file('mimetype', 'application/epub+zip', { compression: 'STORE' });
   zip.file('META-INF/container.xml',
