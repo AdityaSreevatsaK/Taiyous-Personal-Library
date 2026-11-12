@@ -74,7 +74,7 @@ try {
 
     // Each visual concept must be a REAL, substantially distinct React layout,
     // not the existing dashboard with an alternative colour palette.
-    await page.goto(url + '/layouts#grand', {waitUntil:'domcontentloaded'});
+    await page.getByRole('link', {name:/Compare all five designs/}).click();
     const labNav = page.getByRole('navigation', {name:'Design concept navigation'});
     await labNav.waitFor({state:'visible'});
     const concepts = [
