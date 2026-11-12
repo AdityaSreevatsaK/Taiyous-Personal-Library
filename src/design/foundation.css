@@ -1,0 +1,387 @@
+/*
+ * Taiyou design foundation
+ *
+ * Layered AFTER the existing, battle-tested layout. Keep persisted theme IDs,
+ * reader scrolling, EPUB iframe sizing, chapter navigation and all data flows.
+ * Dark = Jade Archive; Light = Paper & Ink; Sepia = reading-focused default.
+ *
+ * Theme palette values live here so cards, chrome, popovers and actions share
+ * an identity without changing the app's React component contracts.
+ */
+.app-shell.theme-sepia,
+.details-shell.theme-sepia,
+.reader-shell.theme-sepia {
+  --bg: #eee4d4;
+  --surface: #faf3e7;
+  --border: #d9cbb7;
+  --text: #423326;
+  --subtext: #705e4b;
+  --pale: #f0e3cf;
+  --surface-soft: #e8d9bf;
+  --reader-paper: #f5ebd6;
+  --shadow: 0 12px 35px rgba(71, 48, 28, .075);
+  --design-accent: #6a4831;
+  --design-accent-contrast: #fff7e9;
+  --design-focus: #946e40;
+  --design-sidebar: #493a2c;
+  --design-sidebar-border: #655140;
+  --design-sidebar-text: #f3e8d4;
+  --design-sidebar-muted: #d0bba0;
+  --design-sidebar-hover: #5d4936;
+  --design-sidebar-selected: #6a523b;
+  --design-sidebar-field: #5a4937;
+  --design-hero: #4f4436;
+  --design-hero-glow: #806a4c;
+  --design-hero-text: #f8f1e4;
+  --design-hero-muted: #e3d6c4;
+  --design-hero-cta: #f3e5cc;
+  --design-hero-cta-text: #3e3326;
+  --design-decorative: #a38a62;
+}
+
+.app-shell.theme-light,
+.details-shell.theme-light,
+.reader-shell.theme-light {
+  --bg: #f3eee5;
+  --surface: #fffaf2;
+  --border: #dfd1c1;
+  --text: #3a2f2a;
+  --subtext: #6e625b;
+  --pale: #f0e5d7;
+  --surface-soft: #ebddcd;
+  --reader-paper: #fffaf1;
+  --shadow: 0 12px 36px rgba(79, 52, 38, .065);
+  --design-accent: #763d36;
+  --design-accent-contrast: #fff9ef;
+  --design-focus: #834337;
+  --design-sidebar: #e9dfd1;
+  --design-sidebar-border: #d5c5b3;
+  --design-sidebar-text: #40322d;
+  --design-sidebar-muted: #685b50;
+  --design-sidebar-hover: #e0d2c0;
+  --design-sidebar-selected: #d9c7b5;
+  --design-sidebar-field: #f7efe5;
+  --design-hero: #e4d5c2;
+  --design-hero-glow: #f4eadc;
+  --design-hero-text: #44352d;
+  --design-hero-muted: #6b574d;
+  --design-hero-cta: #763d36;
+  --design-hero-cta-text: #fffaf1;
+  --design-decorative: #ae8a68;
+}
+
+.app-shell.theme-dark,
+.details-shell.theme-dark,
+.reader-shell.theme-dark {
+  --bg: #12221b;
+  --surface: #1c3026;
+  --border: #405b4a;
+  --text: #f1ebdc;
+  --subtext: #bfcbbe;
+  --pale: #263d2f;
+  --surface-soft: #304936;
+  --reader-paper: #17251e;
+  --shadow: 0 12px 36px rgba(0, 0, 0, .22);
+  --design-accent: #dec58c;
+  --design-accent-contrast: #192b20;
+  --design-focus: #ead6a6;
+  --design-sidebar: #10231b;
+  --design-sidebar-border: #34503d;
+  --design-sidebar-text: #f4eddd;
+  --design-sidebar-muted: #b8c7b5;
+  --design-sidebar-hover: #274533;
+  --design-sidebar-selected: #365941;
+  --design-sidebar-field: #203c2c;
+  --design-hero: #203d2d;
+  --design-hero-glow: #3a644b;
+  --design-hero-text: #f5eedf;
+  --design-hero-muted: #d0dfca;
+  --design-hero-cta: #e7d6a9;
+  --design-hero-cta-text: #192c20;
+  --design-decorative: #b5a077;
+}
+
+/* Shared quiet editorial hierarchy. Existing dimensions and controls remain. */
+.app-shell,
+.details-shell,
+.reader-shell {
+  background: var(--bg);
+  color: var(--text);
+  accent-color: var(--design-accent);
+}
+:where(.app-shell, .details-shell, .reader-shell) :where(button, a, input, select, textarea):focus-visible {
+  outline: 2px solid var(--design-focus);
+  outline-offset: 3px;
+}
+.app-shell .page-head h1,
+.app-shell .section-titlebar h2,
+.app-shell .reading-resume-info > button,
+.details-shell .details-hero h1,
+.details-shell .details-section-header h2,
+.reader-shell .panel-header h2,
+.reader-shell .reader-chapter-picker-header h2 {
+  font-family: Literata, Georgia, 'Times New Roman', serif;
+  font-weight: 500;
+  letter-spacing: -.035em;
+}
+.app-shell .topbar, .details-shell .details-topbar, .reader-shell .reader-header {
+  background: var(--surface);
+  border-color: var(--border);
+}
+.app-shell .section-overline,
+.app-shell .eyebrow,
+.details-shell .details-label,
+.reader-shell .section-overline {
+  color: var(--design-accent);
+}
+.app-shell .serif-accent { color: var(--design-accent); }
+
+/* Bookcase-style navigation. On Paper & Ink the same sidebar becomes light. */
+.app-shell .sidebar {
+  background: var(--design-sidebar);
+  color: var(--design-sidebar-text);
+  border-color: var(--design-sidebar-border);
+}
+.app-shell .brand strong {
+  color: var(--design-sidebar-text);
+  font-family: Literata, Georgia, serif;
+}
+.app-shell .brand-mark {
+  background: var(--design-accent);
+  color: var(--design-accent-contrast);
+  border-radius: 13px 13px 13px 4px;
+}
+.app-shell .brand small,
+.app-shell .brand-dot,
+.app-shell .side-caption,
+.app-shell .side-note small {
+  color: var(--design-sidebar-muted);
+}
+.app-shell .side-link,
+.app-shell .sidebar-tag,
+.app-shell .collection-link,
+.app-shell .privacy-indicator {
+  color: var(--design-sidebar-muted);
+}
+.app-shell .side-link:hover,
+.app-shell .sidebar-tag:hover,
+.app-shell .collection-link:hover {
+  background: var(--design-sidebar-hover);
+  color: var(--design-sidebar-text);
+}
+.app-shell .side-link.active,
+.app-shell .sidebar-tag.active {
+  background: var(--design-sidebar-selected);
+  color: var(--design-sidebar-text);
+  box-shadow: inset 3px 0 var(--design-accent);
+}
+.app-shell .side-link.active em,
+.app-shell .side-link em,
+.app-shell .sidebar-tag em {
+  color: var(--design-sidebar-muted);
+}
+.app-shell .sidebar-tag.active em { color: var(--design-sidebar-text); }
+.app-shell .sidebar-bottom {
+  border-color: var(--design-sidebar-border);
+  background: var(--design-sidebar);
+}
+.app-shell .advanced-side-link { color: var(--design-sidebar-text); border-color: var(--design-sidebar-border); }
+.app-shell .side-note {
+  background: var(--design-sidebar-field);
+  border: 1px solid var(--design-sidebar-border);
+  color: var(--design-sidebar-text);
+}
+.app-shell .side-note svg { color: var(--design-accent); }
+.app-shell .side-note p { color: var(--design-sidebar-text); }
+.app-shell .collection-icon { border-color: var(--design-sidebar-muted); }
+.app-shell .sidebar-tag-list { scrollbar-color: var(--design-sidebar-border) transparent; }
+
+/* Explicit rather than cyclical theme controls, also usable by keyboard. */
+.sidebar-appearance {
+  border: 1px solid var(--design-sidebar-border);
+  border-radius: 12px;
+  background: var(--design-sidebar-field);
+  padding: 10px;
+}
+.sidebar-appearance-heading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 9px;
+  color: var(--design-sidebar-text);
+  font-size: 11px;
+  font-weight: 750;
+}
+.sidebar-appearance-heading svg { color: var(--design-accent); }
+.sidebar-appearance-heading small {
+  margin-left: auto;
+  font: italic 10px Georgia,serif;
+  color: var(--design-sidebar-muted);
+  white-space: nowrap;
+}
+.sidebar-appearance-options {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0,1fr));
+  gap: 5px;
+}
+.sidebar-appearance-options button {
+  min-width: 0;
+  border: 1px solid var(--design-sidebar-border);
+  border-radius: 8px;
+  padding: 8px 3px;
+  color: var(--design-sidebar-text);
+  background: var(--design-sidebar);
+  font-size: 10px;
+  font-weight: 700;
+}
+.sidebar-appearance-options button:hover { background: var(--design-sidebar-hover); }
+.sidebar-appearance-options button.selected {
+  background: var(--design-accent);
+  border-color: var(--design-accent);
+  color: var(--design-accent-contrast);
+}
+.sidebar-appearance-options button:focus-visible {
+  outline: 2px solid var(--design-focus);
+  outline-offset: 2px;
+}
+
+/* Library surface: elegant book-first presentation, never fewer book details. */
+.app-shell .page-content {
+  background: transparent;
+}
+.app-shell .primary-button,
+.app-shell .reading-resume-continue,
+.app-shell .advanced-search-launch:hover {
+  background: var(--design-accent);
+  color: var(--design-accent-contrast);
+  border-color: var(--design-accent);
+}
+.app-shell .primary-button:hover,
+.app-shell .reading-resume-continue:hover {
+  filter: brightness(1.08);
+}
+.app-shell .reading-resume-strip {
+  background: linear-gradient(125deg, var(--surface) 65%, var(--pale));
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow);
+  border-radius: 14px;
+}
+.app-shell .reading-resume-icon {
+  background: var(--design-hero);
+  color: var(--design-hero-text);
+}
+.app-shell .reading-resume-info > span { color: var(--design-accent); }
+.app-shell .library-section .library-toolbar,
+.app-shell .library-utility-bar .cloud-connect {
+  background: var(--surface);
+  border-color: var(--border);
+  box-shadow: 0 3px 18px rgba(0,0,0,.025);
+}
+.app-shell .filter-tabs button.selected,
+.app-shell .library-toolbar .filter-tabs button.selected {
+  background: var(--pale);
+  color: var(--text);
+  border-color: var(--border);
+}
+.app-shell .cover-button .cover {
+  transition: box-shadow .18s ease, filter .18s ease;
+}
+.app-shell .cover-button:hover .cover {
+  box-shadow: 0 13px 32px rgba(0,0,0,.18), inset 5px 0 4px rgba(0,0,0,.14);
+  filter: saturate(1.06);
+}
+.app-shell .mini-progress i,
+.details-shell .details-progress-track i {
+  background: var(--design-accent);
+}
+.app-shell .tile-title,
+.app-shell .reading-resume-info > button {
+  color: var(--text);
+}
+.app-shell .book-rating-pill { color: var(--design-accent); }
+.app-shell .feature-panel,
+.app-shell .empty-feature {
+  background: radial-gradient(circle at 80% 10%, var(--design-hero-glow), var(--design-hero) 60%);
+  color: var(--design-hero-text);
+}
+.app-shell .feature-button {
+  background: var(--design-hero-cta);
+  color: var(--design-hero-cta-text);
+}
+
+/* Details: the same illustrated hero across all themes, with correct contrast. */
+.details-shell .details-hero {
+  background: radial-gradient(circle at 83% 25%, var(--design-hero-glow), var(--design-hero) 62%);
+  color: var(--design-hero-text);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow);
+}
+.details-shell .details-hero::after { color: color-mix(in srgb, var(--design-decorative), transparent 83%); }
+.details-shell .details-eyebrow,
+.details-shell .details-byline,
+.details-shell .details-meta-row,
+.details-shell .details-hero-tags button {
+  color: var(--design-hero-muted);
+}
+.details-shell .details-start {
+  background: var(--design-hero-cta);
+  color: var(--design-hero-cta-text);
+}
+.details-shell .details-start:hover { filter: brightness(1.06); }
+.details-shell .details-top-read,
+.details-shell .details-resume,
+.details-shell .primary-button {
+  background: var(--design-accent);
+  color: var(--design-accent-contrast);
+}
+.details-shell .details-top-read:hover,
+.details-shell .details-resume:hover,
+.details-shell .primary-button:hover { filter: brightness(1.07); }
+.details-shell .details-card { border-color: var(--border); box-shadow: var(--shadow); }
+.details-shell .details-synopsis { line-height: 1.87; }
+.details-shell .hero-rating-choice.selected {
+  border-color: var(--design-hero-cta);
+  background: var(--design-hero-cta);
+  color: var(--design-hero-cta-text);
+}
+
+/* Reading must stay calm, scroll-only and at the user's selected width. */
+.reader-shell .reader-main { background: var(--reader-paper); }
+.reader-shell .reader-header-progress > div { background: var(--design-accent); }
+.reader-shell .reader-brand,
+.reader-shell .reader-active,
+.reader-shell .toc-item.active,
+.reader-shell .toc-item.active .toc-chapter-icon { color: var(--design-accent); }
+.reader-shell .toc-item.active { border-left-color: var(--design-accent); }
+.reader-shell .reader-chapter-footer {
+  background: var(--surface);
+  border-color: var(--border);
+}
+.reader-shell .theme-choice.selected { outline-color: var(--design-focus); }
+.reader-shell .choice-light { color: #3b302a; background: #fffaf1; }
+.reader-shell .choice-sepia { color: #493827; background: #f5ebd6; }
+.reader-shell .choice-dark { color: #f3e8d4; background: #172b20; }
+.reader-shell .setting-group input[type=range] { accent-color: var(--design-accent); }
+.reader-shell .width-choice.selected {
+  background: var(--design-accent);
+  border-color: var(--design-accent);
+  color: var(--design-accent-contrast);
+}
+
+/* Accessibility and narrow screens. Do not alter reader chapter controls. */
+@media (max-width: 900px) {
+  .app-shell .sidebar { border-right: 1px solid var(--design-sidebar-border); }
+}
+@media (max-width: 430px) {
+  .sidebar-appearance { padding: 9px; }
+  .app-shell .page-head h1 { letter-spacing: -.025em; }
+  .details-shell .details-hero { border-radius: 14px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .app-shell, .details-shell, .reader-shell,
+  .app-shell .cover-button, .app-shell .cover-button .cover,
+  .reader-shell .reader-header-progress > div {
+    transition-duration: 0s !important;
+    animation-duration: 0s !important;
+  }
+}
