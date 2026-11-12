@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import {
   BookCover, FilterStrip, LabSearch, LayoutDetail,
-  filterBooks, type ConceptProps, type LabBook, type LabFilter,
+  filterBooks, type ConceptProps, type LabFilter,
 } from './core';
 import './shelves.css';
 
