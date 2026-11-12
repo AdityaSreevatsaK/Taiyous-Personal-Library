@@ -62,7 +62,7 @@ export default function ReadingDesk({books, active, select, read}: ConceptProps)
           </button>
         </div>
         <div className="desk-book-list">
-          {visible.map((book,index)=><button type="button" key={book.id}
+          {visible.map(book=><button type="button" key={book.id}
             className={'desk-row '+(selected?.id===book.id?'selected':'')}
             onClick={()=>select(book)} aria-pressed={selected?.id===book.id}
             aria-label={'Inspect '+book.title}>
