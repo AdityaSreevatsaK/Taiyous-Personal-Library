@@ -71,6 +71,67 @@ try {
     if (errors.length) throw new Error('Preview browser error: ' + errors.join(' | '));
     console.log('Design preview passed: ' + viewport.width + 'x' + viewport.height +
       ', 8 isolated EPUBs, real reader, no private API');
+
+    // Each visual concept must be a REAL, substantially distinct React layout,
+    // not the existing dashboard with an alternative colour palette.
+    await page.goto(url + '/layouts#grand', {waitUntil:'domcontentloaded'});
+    const labNav = page.getByRole('navigation', {name:'Design concept navigation'});
+    await labNav.waitFor({state:'visible'});
+    const concepts = [
+      ['grand', '.grand-banner', '.grand-book-tile'],
+      ['desk', '.desk-workspace', '.desk-row'],
+      ['shelves', '.shelves-board', '.shelves-standing'],
+      ['atlas', '.atlas-map', '.atlas-region'],
+      ['journal', '.journal-masthead', '.journal-index-row'],
+    ];
+    for (const [id, structure, items] of concepts) {
+      await labNav.locator('a[href="#' + id + '"]').click();
+      await page.locator(structure).first().waitFor({state:'visible'});
+      if (!await page.locator(items).count()) throw new Error('Empty layout: ' + id);
+      const size = await page.evaluate(() => ({
+        page: document.documentElement.scrollWidth, viewport: window.innerWidth,
+      }));
+      if (size.page > size.viewport + 4) {
+        throw new Error('Horizontal document overflow in ' + id + ': ' + JSON.stringify(size));
+      }
+      if (await page.locator('.topbar > .cloud-connect').count())
+        throw new Error('Lab exposed live private data connection in ' + id);
+    }
+    const labTheme = page.getByRole('group', {name:'Design lab palette'});
+    await labTheme.getByRole('button', {name:'Jade'}).click();
+    if (!await page.locator('.layout-lab').evaluate(el=>el.getAttribute('data-theme')==='dark'))
+      throw new Error('Gallery could not switch to Jade Archive');
+    await labTheme.getByRole('button', {name:'Sepia'}).click();
+
+    await labNav.locator('a[href="#grand"]').click();
+    await page.locator('.grand-book-tile').first().click();
+    await page.getByRole('dialog', {name:/Details for/}).waitFor();
+    await page.getByRole('button', {name:'Return to collection'}).click();
+
+    await labNav.locator('a[href="#desk"]').click();
+    await page.locator('.desk-row').nth(1).click();
+    await page.locator('.desk-inspector-info h2').waitFor({state:'visible'});
+
+    await labNav.locator('a[href="#shelves"]').click();
+    await page.locator('.shelves-standing').first().click();
+    await page.getByRole('dialog', {name:/Selected book/}).waitFor();
+    await page.getByRole('button', {name:'Return to collection'}).click();
+
+    await labNav.locator('a[href="#atlas"]').click();
+    await page.getByRole('button', {name:/Explore Immortal Peaks/}).click();
+    if (await page.locator('.atlas-mosaic-card').count() !== 3)
+      throw new Error('Atlas regional filtering should show three cultivation books');
+
+    await labNav.locator('a[href="#journal"]').click();
+    await page.locator('.journal-index-row').nth(4).click();
+    await page.getByRole('heading', {name:'The Immortal Archivist'}).waitFor();
+    await page.locator('.journal-actions .lab-action').click();
+    await page.locator('.reader-shell').waitFor({state:'visible', timeout:30000});
+    if (privateWrites.length) throw new Error('Layout lab attempted a private API mutation');
+    if (errors.length) throw new Error('Layout lab browser exceptions: ' + errors.join(' | '));
+    console.log('Five-layout gallery passed: ' + viewport.width + 'x' + viewport.height +
+      ', all concept structures, filters, novel details and EPUB reader');
+
     await context.close();
   }
 } finally {
