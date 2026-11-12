@@ -101,8 +101,16 @@ def main() -> int:
                     path_or_fileobj=encoded(stale), parent_commit=old_parent,
                     commit_message=f"Simulate stale device B {kind}",
                 )
-            except Exception:
-                rejected = True
+            except Exception as exc:
+                status = getattr(getattr(exc, "response", None), "status_code", None)
+                message = str(exc).lower()
+                # A general timeout or network outage is NOT proof that the
+                # Hub enforced optimistic concurrency. Require a clear stale-
+                # parent error instead of accidentally claiming a pass.
+                if status in (409, 412) or (status == 400 and "parent" in message):
+                    rejected = True
+                else:
+                    raise
             if not rejected:
                 raise AssertionError(f"Stale {kind} write unexpectedly succeeded.")
 
