@@ -1,0 +1,131 @@
+name: Deploy Design Preview
+on:
+  # Initial creation runs once; later publication is a manual action.
+  push:
+    branches: [master]
+    paths: [.github/workflows/deploy-design-preview.yml]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: taiyou-design-preview
+  cancel-in-progress: false
+
+jobs:
+  build-and-verify:
+    if: github.repository == 'AdityaSreevatsaK/Taiyous-Personal-Library' && github.ref == 'refs/heads/master'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    outputs:
+      source_sha: ${{ steps.version.outputs.sha }}
+    steps:
+      # No Cloudflare secrets in this job. This is the isolated *design*
+      # branch, not master or the pending synchronisation PR.
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: design/library-explorations-20261112
+          persist-credentials: false
+      - id: version
+        name: Record exact design revision
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22'
+      - name: Install project dependencies
+        run: npm ci --no-fund --no-audit
+      - name: Tests, types, dependencies and standard build
+        run: |
+          npm run typecheck
+          npm test
+          npm audit --omit=dev --audit-level=high
+          npm run build
+          python3 scripts/check_deployment_package.py
+      - name: Install browser regression dependencies
+        run: |
+          npm install --no-save --package-lock=false playwright
+          npx playwright install chromium
+      - name: Verify real desktop, mobile and offline reader
+        run: |
+          npm run preview -- --host 127.0.0.1 --port 4173 --strictPort > /tmp/taiyou-design-browser.log 2>&1 &
+          ok=0
+          for i in $(seq 1 35); do
+            if curl -fsS http://127.0.0.1:4173/ >/dev/null; then ok=1; break; fi
+            sleep 1
+          done
+          test "$ok" = 1 || { tail -50 /tmp/taiyou-design-browser.log; exit 1; }
+          node scripts/browser_smoke.mjs
+      - name: Build a static-only, cloud-disabled review edition
+        env:
+          VITE_DESIGN_PREVIEW: 'true'
+        run: |
+          npm run build
+          python3 scripts/check_deployment_package.py
+          test -s dist/index.html
+          test -s dist/manifest.webmanifest
+          cp scripts/standalone-headers.txt dist/_headers
+          printf '\n/*\n  X-Robots-Tag: noindex, nofollow\n' >> dist/_headers
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: taiyou-design-preview-${{ steps.version.outputs.sha }}
+          path: dist/
+          if-no-files-found: error
+          retention-days: 14
+
+  publish-static-preview:
+    needs: build-and-verify
+    if: github.repository == 'AdityaSreevatsaK/Taiyous-Personal-Library' && github.ref == 'refs/heads/master'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    # Existing environment retains CF credentials. The deployment branch below
+    # is hard-coded to NON-production. No private data or HF secret is required.
+    environment: standalone-staging
+    env:
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+      CF_PAGES_PROJECT: ${{ vars.CF_PAGES_PROJECT }}
+      SOURCE_SHA: ${{ needs.build-and-verify.outputs.source_sha }}
+    steps:
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22'
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: taiyou-design-preview-${{ needs.build-and-verify.outputs.source_sha }}
+          path: preview-dist
+      - name: Assert destination cannot be production
+        shell: bash
+        run: |
+          test -n "$CLOUDFLARE_ACCOUNT_ID" || { echo '::error::Missing CF_ACCOUNT_ID'; exit 1; }
+          test -n "$CLOUDFLARE_API_TOKEN" || { echo '::error::Missing CF_API_TOKEN'; exit 1; }
+          test "$CF_PAGES_PROJECT" = 'taiyous-personal-library' || { echo '::error::Unexpected Pages project'; exit 1; }
+          test "${{ github.ref }}" = 'refs/heads/master' || exit 1
+          test -s preview-dist/index.html
+          test -s preview-dist/_headers
+          test ! -d preview-dist/functions
+          test -n "$SOURCE_SHA"
+      - name: Publish ONLY the static design assets on a preview branch
+        shell: bash
+        run: |
+          # Deploy from an artifact-only temporary directory: the private
+          # functions/ folder is deliberately absent, so this preview cannot
+          # access the protected Hugging Face dataset via Cloudflare Functions.
+          mkdir -p "$RUNNER_TEMP/taiyou-design-preview-static"
+          cp -a preview-dist/. "$RUNNER_TEMP/taiyou-design-preview-static/"
+          cd "$RUNNER_TEMP/taiyou-design-preview-static"
+          test ! -e functions
+          npx --yes wrangler@4 pages deploy . \
+            --project-name "$CF_PAGES_PROJECT" \
+            --branch design-preview \
+            --commit-hash "$SOURCE_SHA"
+      - name: Print preview URL and warn if preview access is protected
+        shell: bash
+        run: |
+          url='https://design-preview.taiyous-personal-library.pages.dev/'
+          echo "Design preview (not production): $url" >> "$GITHUB_STEP_SUMMARY"
+          code="$(curl -L --silent --output /tmp/taiyou-design-live.html --write-out '%{http_code}' --max-time 20 "$url" || true)"
+          echo "Preview HTTP status: ${code:-unavailable}" >> "$GITHUB_STEP_SUMMARY"
+          if [ "$code" != 200 ]; then
+            echo '::warning::Preview URL may be protected by Cloudflare Access or not yet propagated.'
+          fi
