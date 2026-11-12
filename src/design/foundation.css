@@ -339,10 +339,34 @@
 .details-shell .primary-button:hover { filter: brightness(1.07); }
 .details-shell .details-card { border-color: var(--border); box-shadow: var(--shadow); }
 .details-shell .details-synopsis { line-height: 1.87; }
-.details-shell .hero-rating-choice.selected {
+.details-shell .hero-rating-fieldset legend,
+.details-shell .hero-rating-clear,
+.details-shell .hero-rating-choice,
+.details-shell .details-download,
+.details-shell .details-hero-tags button {
+  color: var(--design-hero-text);
+}
+.details-shell .hero-rating-choice,
+.details-shell .details-download,
+.details-shell .details-hero-tags button {
+  border-color: color-mix(in srgb, var(--design-hero-text), transparent 57%);
+  background: color-mix(in srgb, var(--design-hero-text), transparent 91%);
+}
+.details-shell .hero-rating-choice:hover,
+.details-shell .details-download:hover,
+.details-shell .details-hero-tags button:hover {
+  background: color-mix(in srgb, var(--design-hero-text), transparent 80%);
+}
+.details-shell .hero-rating-choice.selected,
+.details-shell .hero-rating-save {
   border-color: var(--design-hero-cta);
   background: var(--design-hero-cta);
   color: var(--design-hero-cta-text);
+}
+.details-shell .details-trial-toggle {
+  color: var(--text);
+  background: var(--surface-soft);
+  border-color: var(--border);
 }
 
 /* Reading must stay calm, scroll-only and at the user's selected width. */
