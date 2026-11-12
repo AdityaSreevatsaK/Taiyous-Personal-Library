@@ -127,7 +127,12 @@ try {
         throw new Error('Missing palette tokens or theme switch for ' + label + ': ' + JSON.stringify(palette));
       }
     }
-    if (viewport.width <= 900) await page.getByRole('button', { name: 'Close sidebar' }).click();
+    if (viewport.width <= 900) {
+      // The backdrop sits BEHIND the drawer. Click the exposed area on the
+      // right, as an actual mobile user would, not the button's occluded centre.
+      await page.mouse.click(viewport.width - 20, 100);
+      await page.locator('.sidebar.sidebar-open').waitFor({ state: 'detached' });
+    }
     await page.reload({ waitUntil: 'networkidle' });
     if (!(await page.locator('.app-shell').evaluate(node => node.classList.contains('theme-sepia')))) {
       throw new Error('Sepia setting did not survive a full reload');
