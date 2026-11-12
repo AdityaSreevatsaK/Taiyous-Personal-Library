@@ -247,8 +247,18 @@ export default function Reader({ book, settings, onSettings, onBack, onNovelDeta
       cancelled = true;
       renditionRef.current = null;
       bookRef.current = null;
-      try { renderer?.destroy(); } catch { /* cleanup */ }
-      try { epubBook?.destroy(); } catch { /* cleanup */ }
+      // A Rendition.display() job may be queued after reader unmount.
+      // Stop it before Book.destroy() resets EPUB.js locations internals.
+      if (renderer) {
+        try { renderer.q?.stop(); } catch { /* detached rendition */ }
+        renderer.book = undefined;
+        try { renderer.destroy(); } catch { /* best-effort iframe cleanup */ }
+      }
+      if (epubBook) {
+        // Book.destroy() also tears down rendition; avoid doing that twice.
+        if (renderer && epubBook.rendition === renderer) epubBook.rendition = undefined;
+        try { epubBook.destroy(); } catch { /* EPUB may be closing */ }
+      }
     };
     // Intentionally initialize only when the selected book changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
