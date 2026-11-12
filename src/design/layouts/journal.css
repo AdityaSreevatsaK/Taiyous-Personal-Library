@@ -1,0 +1,112 @@
+
+.journal-shell{background:var(--lab-surface);color:var(--lab-ink);min-height:100dvh}
+.journal-topline{display:flex;justify-content:space-between;gap:10px;align-items:center;
+ border-bottom:1px solid var(--lab-ink);padding:14px max(18px,calc((100vw - 1430px)/2));font-size:9px;letter-spacing:.18em}
+.journal-masthead{display:grid;grid-template-columns:80px 1fr 80px;align-items:center;text-align:center;
+ padding:35px clamp(16px,5vw,70px) 28px;max-width:1430px;margin:auto}
+.journal-mark{font:48px Georgia,serif;color:var(--lab-accent)}
+.journal-title-lead{font-size:11px;letter-spacing:.36em;color:var(--lab-muted);font-weight:700}
+.journal-masthead h1{font-size:clamp(44px,7vw,92px);line-height:.96;letter-spacing:-.075em;margin:8px 0 14px}
+.journal-masthead p{letter-spacing:.21em;font-size:10px;color:var(--lab-accent)}
+.journal-nav{max-width:1430px;margin:auto;display:flex;justify-content:center;gap:0;
+ border-top:4px double var(--lab-ink);border-bottom:1px solid var(--lab-ink)}
+.journal-nav button{border:0;border-right:1px solid var(--lab-edge);background:transparent;
+ color:var(--lab-muted);font-size:10px;letter-spacing:.14em;padding:17px 24px;white-space:nowrap}
+.journal-nav button.selected{color:var(--lab-accent);box-shadow:inset 0 -3px var(--lab-accent);font-weight:800}
+.journal-nav button:hover{background:var(--lab-bg)}
+.journal-main{display:grid;grid-template-columns:minmax(0,2.3fr) minmax(260px,.8fr);
+ max-width:1430px;margin:auto;gap:0;border-left:1px solid var(--lab-edge);border-right:1px solid var(--lab-edge)}
+.journal-edit{padding:38px clamp(21px,4vw,55px) 70px;border-right:1px solid var(--lab-edge);min-width:0}
+.journal-story-top{display:flex;justify-content:space-between;gap:13px;border-bottom:1px solid var(--lab-edge);padding-bottom:16px}
+.journal-story-top>span:last-child{font-size:10px;color:var(--lab-muted);letter-spacing:.13em}
+.journal-feature-content{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(170px,.8fr);gap:clamp(20px,3vw,50px);align-items:start;padding-top:25px}
+.journal-dropcap{font:italic 19px Georgia,serif;color:var(--lab-accent);margin:0}
+.journal-feature-copy h2{font-size:clamp(39px,5.4vw,75px);line-height:1.02;
+ letter-spacing:-.065em;margin:14px 0 8px}
+.journal-feature-byline{font:italic 16px Georgia,serif;color:var(--lab-muted)}
+.journal-feature-rule{height:4px;width:90px;background:var(--lab-accent);margin:23px 0}
+.journal-lead{font:17px/1.7 Georgia,serif}
+.journal-story-extra{font:13px/1.85 Georgia,serif;color:var(--lab-muted);margin-top:16px}
+.journal-feature-info{display:flex;flex-wrap:wrap;align-items:center;gap:13px;
+ padding:19px 0;font-size:10px;letter-spacing:.08em;color:var(--lab-muted)}
+.journal-actions{display:flex;align-items:center;gap:17px;flex-wrap:wrap;margin:23px 0}
+.journal-actions a{font-size:11px;letter-spacing:.08em;text-underline-offset:4px}
+.journal-feature-art{padding:13px 0}
+.journal-feature-art .lab-book-cover{box-shadow:9px 12px 30px #0003;max-width:300px;margin:auto}
+.journal-feature-art .lab-cover-crest{font-size:70px}
+.journal-feature-art .lab-cover-name{font-size:23px}
+.journal-art-caption{text-align:center;font-size:9px;letter-spacing:.15em;color:var(--lab-muted);margin-top:21px}
+.journal-index{border-top:4px double var(--lab-ink);margin-top:35px}
+.journal-index-top{display:flex;align-items:end;justify-content:space-between;gap:18px;
+ flex-wrap:wrap;margin:26px 0}
+.journal-index h2{font-size:36px;letter-spacing:-.045em;margin:8px 0}
+.journal-index-top .lab-search{width:225px}
+.journal-index-head,.journal-index-row{display:grid;grid-template-columns:43px minmax(190px,1fr) minmax(90px,.5fr) 90px;
+ align-items:center;gap:14px;padding:13px 10px}
+.journal-index-head{font-size:10px;letter-spacing:.18em;color:var(--lab-muted);border-block:1px solid var(--lab-ink)}
+.journal-index-row{border:0;border-bottom:1px solid var(--lab-edge);width:100%;background:transparent;
+ text-align:left;color:var(--lab-ink)}
+.journal-index-row:hover{background:var(--lab-bg)}
+.journal-index-number{font:27px Georgia,serif;color:var(--lab-accent)}
+.journal-index-book{display:grid;gap:3px}
+.journal-index-book strong{font:600 19px Georgia,serif}
+.journal-index-book small{font-size:10px;color:var(--lab-muted)}
+.journal-index-genre{font:italic 12px Georgia,serif;color:var(--lab-muted)}
+.journal-margin{padding:40px 26px;display:flex;flex-direction:column;gap:26px;background:color-mix(in srgb,var(--lab-surface-2),transparent 54%)}
+.journal-margin-heading{display:flex;align-items:center;justify-content:space-between;border-bottom:2px solid var(--lab-ink);
+ padding-bottom:13px;font-size:11px;letter-spacing:.15em;font-weight:800}
+.journal-margin-heading>span:last-child{font:24px Georgia,serif;color:var(--lab-accent)}
+.journal-column{border-bottom:1px solid var(--lab-edge);padding-bottom:24px}
+.journal-column h2{font-size:34px;line-height:1.05;margin:14px 0}
+.journal-column p{font:italic 14px/1.9 Georgia,serif;color:var(--lab-muted)}
+.journal-record>div{display:flex;align-items:baseline;justify-content:space-between;gap:10px;
+ border-bottom:1px solid var(--lab-edge);padding:11px 0}
+.journal-record>div b{font:normal 40px Georgia,serif}
+.journal-record>div span{font-size:10px;color:var(--lab-muted);letter-spacing:.12em}
+.journal-mini-read{border:0;background:none;color:var(--lab-ink);
+ border-bottom:1px solid var(--lab-edge);padding:15px 0;display:grid;
+ grid-template-columns:42px 1fr;text-align:left;gap:12px;align-items:center;width:100%}
+.journal-mini-read .lab-book-cover{width:42px;box-shadow:2px 3px 5px #0002}
+.journal-mini-read .lab-cover-crest{font-size:23px}.journal-mini-read .lab-cover-name{font-size:8px}
+.journal-mini-read .lab-cover-imprint{display:none}
+.journal-mini-read strong{display:block;font:600 15px Georgia,serif;margin-bottom:7px}
+.journal-mini-read small{font-size:10px;color:var(--lab-muted)}
+.journal-colophon{margin-top:auto;text-align:center;border:1px solid var(--lab-edge);padding:28px 9px}
+.journal-colophon>span{font:40px Georgia,serif;color:var(--lab-accent)}
+.journal-colophon p{font:italic 20px/1.4 Georgia,serif}
+.journal-colophon small{font-size:9px;letter-spacing:.14em;color:var(--lab-muted)}
+.journal-footer{display:flex;justify-content:space-between;gap:12px;max-width:1430px;margin:auto;
+ border-top:4px double var(--lab-ink);padding:20px;font-size:10px;letter-spacing:.1em;color:var(--lab-muted)}
+@media(max-width:1070px){
+ .journal-main{grid-template-columns:1fr 245px}.journal-edit{padding:22px}
+ .journal-margin{padding:26px 14px}.journal-feature-content{grid-template-columns:1fr 160px;gap:20px}
+ .journal-feature-copy h2{font-size:42px}
+}
+@media(max-width:800px){
+ .journal-masthead{grid-template-columns:35px 1fr 35px;padding:28px 15px}
+ .journal-mark{font-size:26px}.journal-masthead h1{font-size:49px}
+ .journal-nav{overflow-x:auto;justify-content:flex-start}.journal-nav button{padding:13px 14px}
+ .journal-main{display:block}.journal-edit{border-right:0}
+ .journal-margin{display:grid;grid-template-columns:1fr 1fr;gap:17px}
+ .journal-margin-heading{grid-column:1/-1}.journal-colophon{display:none}
+ .journal-topline>span:nth-child(2){display:none}
+}
+@media(max-width:590px){
+ .journal-topline{font-size:8px;padding:11px 13px}
+ .journal-masthead{display:block}.journal-mark{display:none}
+ .journal-masthead h1{font-size:47px}.journal-masthead p{font-size:8px}
+ .journal-edit{padding:21px 17px}.journal-feature-content{grid-template-columns:1fr 110px;gap:15px}
+ .journal-feature-copy h2{font-size:35px}.journal-dropcap{font-size:14px}
+ .journal-feature-byline{font-size:13px}.journal-lead{font-size:13px}
+ .journal-story-extra{display:none}
+ .journal-feature-art .lab-cover-name{font-size:12px}.journal-feature-art .lab-cover-crest{font-size:34px}
+ .journal-feature-art .lab-cover-imprint{display:none}
+ .journal-art-caption{font-size:7px;letter-spacing:0}
+ .journal-feature-info{gap:7px;padding:10px 0}
+ .journal-index h2{font-size:31px}
+ .journal-index-head,.journal-index-row{grid-template-columns:30px minmax(0,1fr) 85px;gap:8px}
+ .journal-index-head span:nth-child(3),.journal-index-genre{display:none}
+ .journal-index-book strong{font-size:15px}
+ .journal-index-number{font-size:20px}.journal-index-top .lab-search{width:100%}
+ .journal-margin{grid-template-columns:1fr}.journal-footer{font-size:8px}
+}
