@@ -1,0 +1,83 @@
+
+.shelves-shell{background:var(--lab-bg);color:var(--lab-ink);min-height:100dvh}
+.shelves-entrance{position:relative;overflow:hidden;min-height:335px;padding:47px clamp(20px,6vw,95px) 38px;
+ background:radial-gradient(ellipse at 88% 0%,#dcc79d77,transparent 44%),var(--lab-surface);
+ border-bottom:4px double var(--lab-edge)}
+.shelves-entrance:before,.shelves-entrance:after{content:"";position:absolute;right:6%;top:-190px;width:370px;height:425px;
+ border:16px solid var(--lab-edge);border-bottom:0;border-radius:50% 50% 0 0;opacity:.3;pointer-events:none}
+.shelves-entrance:after{right:10%;top:-158px;width:285px;height:363px;border-width:1px;opacity:.6}
+.shelves-entrance-decor{color:var(--lab-accent);font-size:27px;margin-bottom:4px}
+.shelves-entrance h1{font-size:clamp(35px,4.4vw,61px);margin:10px 0 6px;letter-spacing:-.05em;line-height:1.08}
+.shelves-entrance h1 em{color:var(--lab-accent)}
+.shelves-entrance>p{font:italic 16px/1.65 Georgia,serif;max-width:580px;color:var(--lab-muted)}
+.shelves-top-actions{display:flex;gap:15px;align-items:center;flex-wrap:wrap;margin-top:21px;position:relative;z-index:2}
+.shelves-top-actions .lab-search{min-width:min(100%,270px)}
+.shelves-entrance-stat{position:absolute;right:12%;bottom:28px;color:var(--lab-accent);text-align:center;z-index:1}
+.shelves-entrance-stat b{font:normal 60px Georgia,serif;display:block;line-height:1}
+.shelves-entrance-stat small{font-size:9px;letter-spacing:.2em}
+.shelves-room{max-width:1440px;margin:auto;padding:35px clamp(18px,5vw,70px) 70px}
+.shelves-room-overline{display:flex;justify-content:space-between;gap:12px;color:var(--lab-muted);font-size:10px;letter-spacing:.17em;
+ padding:0 0 17px;border-bottom:1px solid var(--lab-edge);margin-bottom:22px}
+.shelves-unit{margin-bottom:43px}
+.shelves-row-heading{display:flex;align-items:center;gap:16px;margin-bottom:16px}
+.shelves-emblem{width:49px;height:49px;border-radius:50%;border:1px solid var(--lab-edge);
+ display:grid;place-items:center;color:var(--lab-accent);font:24px Georgia,serif}
+.shelves-row-heading h2{font-size:30px;letter-spacing:-.04em;margin:3px 0}
+.shelves-count{margin-left:auto;font-size:10px;color:var(--lab-muted);letter-spacing:.12em}
+.shelves-board{padding:0 20px;border-radius:16px 16px 0 0;
+ background:linear-gradient(90deg,#100e0b0c 0 1px,transparent 1px 100px),var(--lab-surface);
+ border:1px solid var(--lab-edge);overflow:hidden;box-shadow:0 18px 35px #39291b12;}
+.shelves-volume-rail{min-height:278px;display:flex;align-items:flex-end;gap:17px;overflow-x:auto;
+ overflow-y:hidden;padding:25px 12px 0;scrollbar-width:thin;scrollbar-color:var(--lab-edge) transparent}
+.shelves-standing{position:relative;background:transparent;border:0;padding:0;flex:0 0 auto;width:153px;
+ text-align:left;color:var(--lab-ink);transition:transform .2s}
+.shelves-standing .lab-book-cover{height:234px;aspect-ratio:unset;transition:transform .2s}
+.shelves-standing .lab-cover-crest{font-size:60px}
+.shelves-standing-1{width:139px;transform:rotate(1.7deg);transform-origin:bottom}
+.shelves-standing-2{width:148px;transform:rotate(-1deg);transform-origin:bottom}
+.shelves-standing:hover{transform:translateY(-12px) rotate(0deg);z-index:5}
+.shelves-volume-label{display:block;text-overflow:ellipsis;overflow:hidden;white-space:nowrap;
+ font-size:10px;padding:9px 4px;color:var(--lab-muted)}
+.shelves-book-progress{position:absolute;top:8px;right:8px;border-radius:30px;padding:5px 7px;
+ background:#eed7aa;color:#463323;font-size:10px;font-weight:800}
+.shelves-wood-plank{height:23px;margin:0 -20px;
+ background:linear-gradient(#cead7a,#8e6548 18%,#765139 60%,#452c20 99%);
+ box-shadow:0 9px 12px #20110a55,inset 0 3px 2px #ffebbb88;position:relative;z-index:2}
+.shelves-wood-plank:after{content:"";height:4px;position:absolute;bottom:0;left:0;right:0;background:#24170e}
+.shelves-room-footer{text-align:center;font:11px Georgia,serif;letter-spacing:.1em;color:var(--lab-muted);margin-top:42px}
+.shelves-dialog-backdrop{position:fixed;inset:0;z-index:80;overflow:auto;padding:30px 20px;background:#1b110ad9;backdrop-filter:blur(7px);display:grid;place-items:center}
+.shelves-book-open{width:min(1080px,100%);margin:auto;position:relative;border:14px solid #744c33;
+ border-top-color:#9c7250;border-left-color:#ae8461;border-radius:10px 18px 18px 10px;
+ padding:clamp(18px,4vw,46px);background:linear-gradient(90deg,#efe0c8 0 1%,#fff7e8 1% 49%,#dcc9a6 49.6%,
+ #f8edda 51%,#f8edda 100%);color:#372e28;box-shadow:4px 27px 70px #0008}
+.shelves-book-open .lab-kicker{color:#78523d}
+.shelves-book-open .lab-byline,.shelves-book-open .lab-disclaimer{color:#765a47}
+.shelves-book-open .lab-detail-meta>span{background:#f7e7d0;color:#342c27;border-color:#dcc3a4}
+.shelves-book-open .lab-tags span{color:#503a2d;background:#ead7bb}
+.shelves-book-open .lab-action{background:#654b35;color:#fff6e8;border-color:#654b35}
+.shelves-book-open .lab-detail-back{color:#76523b}
+.shelves-book-open .lab-description{color:#372e28}
+.shelves-book-open .lab-progress-track{background:#d6c1a0}
+.shelves-open-binding{position:absolute;left:49.7%;top:0;bottom:0;width:3px;background:#6e53352b;pointer-events:none}
+.shelves-detail .lab-detail-cover{max-width:210px}
+@media(max-width:1000px){
+ .shelves-entrance-stat{right:4%;bottom:25px}.shelves-entrance-stat b{font-size:42px}
+ .shelves-volume-rail{min-height:260px}.shelves-standing .lab-book-cover{height:210px}.shelves-standing{width:132px}.shelves-standing-1{width:126px}
+}
+@media(max-width:650px){
+ .shelves-entrance{padding:28px 20px;min-height:auto}
+ .shelves-entrance h1{font-size:41px}.shelves-entrance>p{font-size:13px}
+ .shelves-entrance-stat{display:none}
+ .shelves-entrance:before,.shelves-entrance:after{opacity:.11}
+ .shelves-top-actions{align-items:stretch}.shelves-top-actions .lab-search{width:100%}
+ .shelves-room{padding:23px 14px}
+ .shelves-room-overline span:last-child,.shelves-count{display:none}
+ .shelves-emblem{width:39px;height:39px;font-size:21px}.shelves-row-heading h2{font-size:25px}
+ .shelves-board{padding:0 7px}.shelves-volume-rail{gap:12px;padding-left:9px;min-height:240px}
+ .shelves-standing,.shelves-standing-1,.shelves-standing-2{width:115px}
+ .shelves-standing .lab-book-cover{height:190px}
+ .shelves-standing .lab-cover-crest{font-size:39px}
+ .shelves-wood-plank{margin:0 -7px}
+ .shelves-book-open{border-width:6px;padding:16px;background:#f8edda}
+ .shelves-open-binding{display:none}
+}
