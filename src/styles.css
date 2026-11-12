@@ -1240,10 +1240,11 @@ html, body, #root { max-width: 100%; overflow-x: clip; }
 .tag-draft-actions > span { flex: 1; }
 .tag-draft-actions .primary-button, .tag-draft-actions .secondary-button { margin: 0; }
 a.details-top-title {
-  color: var(--text); text-decoration: none; cursor: pointer;
-  border-radius: 5px; text-underline-offset: 4px;
+  color: var(--text); text-decoration: underline; cursor: pointer;
+  border-radius: 5px; text-decoration-color: var(--subtext);
+  text-decoration-thickness: 1px; text-underline-offset: 5px;
 }
-a.details-top-title:hover { text-decoration: underline; }
+a.details-top-title:hover { text-decoration-color: currentColor; }
 a.details-top-title:focus-visible { outline: 2px solid #80ac8b; outline-offset: 5px; }
 .reader-route-loading {
   display: flex; align-items: center; flex-direction: column; justify-content: center;
