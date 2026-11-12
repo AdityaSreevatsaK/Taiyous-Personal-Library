@@ -409,3 +409,16 @@
     animation-duration: 0s !important;
   }
 }
+
+/* Deployed design preview builds are static and intentionally cannot connect
+   to the owner's live private Hugging Face dataset. */
+.design-preview-pill {
+  display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  padding: 9px 14px; border: 1px solid var(--border);
+  background: var(--pale); border-radius: 99px;
+  color: var(--text); font-size: 12px; font-weight: 750;
+}
+.design-preview-pill svg { color: var(--design-accent); }
+@media (max-width: 700px) {
+  .design-preview-pill { max-width: min(54vw,230px); padding: 6px 9px; font-size: 10px; }
+}
