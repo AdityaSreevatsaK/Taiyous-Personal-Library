@@ -1,5 +1,6 @@
 import { commit, uploadFiles, type CommitOperation } from '@huggingface/hub';
 import { hasOwnerGrant } from './owner';
+import { parseNovelFilePath, verifiedNovelFolder } from '../../src/lib/novel-paths';
 import {
   CATALOGUE_LIMIT, parseDatasetCatalogue, planAdditiveCatalogueUpload,
   type DatasetCatalogue,
@@ -12,12 +13,13 @@ import {
 /** Only the authenticated HF owner may read or write the one fixed private dataset. */
 interface PagesContext { request: Request; env: Bindings & { TAIYOU_OWNER_PASSPHRASE?: string } }
 const NO_STORE = privateHeaders;
-const FILE_PATH = /^data\/(?:library\.json|personal\/collections\.json|personal\/(?:reviews|progress)\/[0-9a-f]{24}\.json|novels\/[0-9a-f]{24}\/(?:source\.epub|original\.zip|cover\.jpg))$/;
+const PERSONAL_OR_CATALOGUE = /^data\/(?:library\.json|personal\/collections\.json|personal\/(?:reviews|progress)\/[a-f0-9]{24}\.json)$/;
 const MAX_UPLOAD_BYTES = 75 * 1024 * 1024;
 const MAX_SINGLE_BYTES = 70 * 1024 * 1024;
 
 export function isAllowedDatasetPath(path: unknown): path is string {
-  return typeof path === 'string' && FILE_PATH.test(path);
+  return typeof path === 'string' &&
+    (PERSONAL_OR_CATALOGUE.test(path) || parseNovelFilePath(path) !== null);
 }
 
 function json(value: unknown, status = 200): Response {
@@ -35,7 +37,8 @@ const HF_ORIGIN = 'https://huggingface.co';
 
 /** Query the exact immutable HF commit being validated, never /main. */
 async function treeHasFiles(repo: string, sha: string, path: string, token: string): Promise<boolean> {
-  const res = await fetch(HF_ORIGIN + '/api/datasets/' + repo + '/tree/' + sha + '/' + path +
+  const safePath = path.split('/').map(encodeURIComponent).join('/');
+  const res = await fetch(HF_ORIGIN + '/api/datasets/' + repo + '/tree/' + sha + '/' + safePath +
     '?recursive=true&limit=1', {
     headers: { Authorization: 'Bearer ' + token }, cache: 'no-store',
   });
@@ -104,13 +107,21 @@ async function uploadCatalogueAddition(repo: string, token: string,
   }
   // A missing catalogue may be created only in a genuinely empty data/ tree.
   // Never overwrite unlisted/orphaned data in the intended book folder.
+  const plannedBook = plan.next.books.find(book => book.id === plan.novelId)!;
+  const directory = verifiedNovelFolder(plannedBook)!;
   if (plan.operation === 'add') {
-    if (await treeHasFiles(repo, snapshot.sha, 'data/novels/' + plan.novelId, token)) {
-      return reject(409, 'Novel files already exist outside the catalogue; recover before uploading');
+    // Check the intended directory AND the old ID-only directory. This avoids
+    // silently overwriting an orphan when importing during a partial migration.
+    const candidates = new Set([directory, 'data/novels/' + plan.novelId]);
+    for (const candidate of candidates) {
+      if (await treeHasFiles(repo, snapshot.sha, candidate, token)) {
+        return reject(409, 'Novel files already exist outside the catalogue; recover before uploading');
+      }
     }
   } else {
-    const zip = 'data/novels/' + plan.novelId + '/original.zip';
-    const res = await fetch(HF_ORIGIN + '/datasets/' + repo + '/resolve/' + snapshot.sha + '/' + zip, {
+    const zip = directory + '/original.zip';
+    const encodedZip = zip.split('/').map(encodeURIComponent).join('/');
+    const res = await fetch(HF_ORIGIN + '/datasets/' + repo + '/resolve/' + snapshot.sha + '/' + encodedZip, {
       method: 'HEAD', headers: { Authorization: 'Bearer ' + token }, cache: 'no-store',
     });
     if (res.status !== 404) {
@@ -148,7 +159,9 @@ async function downloadFile(repo: string, path: string, token: string): Promise<
   // Stream bytes; never buffer a book or its original archive in Worker memory.
   const type = path.endsWith('.epub') ? 'application/epub+zip'
     : path.endsWith('.zip') ? 'application/zip'
-      : path.endsWith('.jpg') ? 'image/jpeg' : 'application/json; charset=utf-8';
+      : /\.(?:jpg|jpeg)$/.test(path) ? 'image/jpeg'
+        : path.endsWith('.png') ? 'image/png'
+          : path.endsWith('.webp') ? 'image/webp' : 'application/json; charset=utf-8';
   return new Response(result.body, {
     status: 200, headers: { ...NO_STORE, 'Content-Type': type },
   });
@@ -247,25 +260,20 @@ async function deleteHostedNovel(request: Request, token: string, env: PagesCont
     { headers, cache: 'no-store' },
   );
   if (!catalogResponse.ok) return reject(502, 'Could not verify the private dataset catalogue');
-  const catalog = await catalogResponse.json() as { version?: unknown; books?: unknown };
-  if (catalog.version !== 1 || !Array.isArray(catalog.books) ||
-      catalog.books.length > 30000 || catalog.books.some((value: unknown) =>
-        !value || typeof value !== 'object' ||
-        typeof (value as {id?: unknown}).id !== 'string' ||
-        typeof (value as {metadata?: {title?: unknown}}).metadata?.title !== 'string')) {
-    return reject(502, 'The remote catalogue cannot be safely modified');
-  }
-  const books = catalog.books as Array<{id: string; metadata: {title: string}; epubPath: string; archivePath?: string; coverPath?: string}>;
+  let catalog: DatasetCatalogue;
+  try { catalog = parseDatasetCatalogue(await catalogResponse.json()); }
+  catch { return reject(502, 'The remote catalogue cannot be safely modified'); }
+  const books = catalog.books;
   const target = books.find(entry => entry.id === id);
   if (!target || target.metadata.title !== title) {
     return reject(409, 'Novel ID or title changed. Refresh and try again');
   }
-  const folder = 'data/novels/' + id + '/';
-  if (target.epubPath !== folder + 'source.epub' ||
-      (target.archivePath && target.archivePath !== folder + 'original.zip') ||
-      (target.coverPath && target.coverPath !== folder + 'cover.jpg')) {
-    return reject(409, 'Unexpected novel storage paths. Deletion cancelled');
-  }
+  // Owner grants never authorise an arbitrary path. Delete only the directory
+  // verified by the immutable-ID catalogue, including its optional EPUB, ZIP
+  // and all cover variants. Do not infer the folder from the current title.
+  const directory = verifiedNovelFolder(target);
+  if (!directory) return reject(409, 'Unexpected novel storage paths. Deletion cancelled');
+  const folder = directory + '/';
   const personalPaths = [
     'data/personal/reviews/' + id + '.json',
     'data/personal/progress/' + id + '.json',
@@ -317,11 +325,12 @@ export async function onRequest({ request, env }: PagesContext): Promise<Respons
   // local downloaded copy to be removed. Catalogue metadata alone is not proof.
   if (request.method === 'GET' && action === 'exists') {
     const path = url.searchParams.get('path');
-    if (!path || !/^data\/novels\/[0-9a-f]{24}\/source\.epub$/.test(path)) {
+    const novelFile = parseNovelFilePath(path);
+    if (!novelFile || novelFile.fileName !== 'source.epub') {
       return respond(reject(400, 'Invalid hosted EPUB path'));
     }
     const upstream = await fetch('https://huggingface.co/datasets/' + DATASET_REPO +
-      '/resolve/main/' + path, {
+      '/resolve/main/' + (path as string).split('/').map(encodeURIComponent).join('/'), {
       method: 'HEAD', headers: { Authorization: 'Bearer ' + token }, cache: 'no-store',
     });
     return respond(secureResponse({ exists: upstream.ok }));

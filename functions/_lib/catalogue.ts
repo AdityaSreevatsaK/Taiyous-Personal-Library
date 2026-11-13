@@ -1,3 +1,5 @@
+import { verifiedNovelFolder } from '../../src/lib/novel-paths';
+
 /**
  * Dataset catalogue mutation guard. The reader may ADD a novel or attach
  * its first original ZIP, but it may never replace/remove existing catalogue
@@ -21,19 +23,14 @@ export type AdditivePlan = {
   novelId: string;
   operation: 'add' | 'attach-archive';
 };
-const NOVEL_ID = /^[0-9a-f]{24}$/;
 export const CATALOGUE_LIMIT = 4 * 1024 * 1024;
 
 function canonical(entry: CatalogueEntry): boolean {
-  const prefix = 'data/novels/' + entry.id + '/';
-  return NOVEL_ID.test(entry.id) &&
-    entry.metadata?.id === entry.id &&
+  return entry.metadata?.id === entry.id &&
     typeof entry.metadata.title === 'string' &&
     entry.metadata.title.trim().length > 0 &&
     entry.metadata.title.length <= 255 &&
-    entry.epubPath === prefix + 'source.epub' &&
-    (entry.archivePath === undefined || entry.archivePath === prefix + 'original.zip') &&
-    (entry.coverPath === undefined || entry.coverPath === prefix + 'cover.jpg');
+    verifiedNovelFolder(entry) !== null;
 }
 
 export function parseDatasetCatalogue(value: unknown): DatasetCatalogue {
@@ -58,6 +55,10 @@ export function planAdditiveCatalogueUpload(
   proposed: DatasetCatalogue,
   suppliedPaths: string[],
 ): AdditivePlan {
+  // Do not trust callers who invoke this planner without first parsing a
+  // catalogue. An invalid mixed-folder entry must never reach an HF commit.
+  parseDatasetCatalogue(current);
+  parseDatasetCatalogue(proposed);
   if (suppliedPaths.filter(path => path === 'data/library.json').length !== 1 ||
       new Set(suppliedPaths).size !== suppliedPaths.length ||
       suppliedPaths.length < 2 || suppliedPaths.length > 3) {
@@ -77,7 +78,7 @@ export function planAdditiveCatalogueUpload(
   if (added.length === 1 && changed.length === 0) {
     const book = added[0];
     // Covers are managed via the storage controller, not arbitrary web uploads.
-    if (book.coverPath) throw new Error('A new novel cannot declare an unverified cover');
+    if (book.coverPath || book.metadata.coverPath) throw new Error('A new novel cannot declare an unverified cover');
     const required = [book.epubPath, ...(book.archivePath ? [book.archivePath] : [])];
     const supplied = suppliedPaths.filter(path => path !== 'data/library.json');
     if (required.length !== supplied.length ||
@@ -93,7 +94,7 @@ export function planAdditiveCatalogueUpload(
     const { archivePath: _ignored, ...withoutArchive } = newer;
     // The only permitted existing-book mutation is adding its first ZIP path.
     if (older.archivePath === undefined &&
-        newer.archivePath === 'data/novels/' + newer.id + '/original.zip' &&
+        newer.archivePath === verifiedNovelFolder(older)! + '/original.zip' &&
         JSON.stringify(withoutArchive) === JSON.stringify(older) &&
         suppliedPaths.length === 2 &&
         suppliedPaths.includes(newer.archivePath)) {
