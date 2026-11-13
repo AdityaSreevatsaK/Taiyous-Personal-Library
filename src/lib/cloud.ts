@@ -214,18 +214,20 @@ async function privateGetAfterPossibleMove(
 ): Promise<Response> {
   const initial = await privateGet(repo, originalPath, session);
   if (initial.status !== 404) return initial;
+  let refreshed: CloudCatalog;
   try {
-    const refreshed = await fetchCloudCatalog(repo, session);
-    const matching = refreshed.books.find(entry => entry.id === id);
-    if (!matching) return initial;
-    const nextPath = currentPath(matching);
-    if (!nextPath || nextPath === originalPath) return initial;
-    return await privateGet(repo, nextPath, session);
+    refreshed = await fetchCloudCatalog(repo, session);
   } catch {
     // If refreshing fails, retain the original 404 outcome. Never guess a
     // different folder or bypass catalogue and authentication validation.
     return initial;
   }
+  const matching = refreshed.books.find(entry => entry.id === id);
+  if (!matching) return initial;
+  const nextPath = currentPath(matching);
+  if (!nextPath || nextPath === originalPath) return initial;
+  // A second request's authorisation or upstream error remains visible.
+  return privateGet(repo, nextPath, session);
 }
 
 /** Retrieve cover artwork from the same private dataset; never expose a bearer token as an image URL. */
