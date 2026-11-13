@@ -27,7 +27,7 @@ The Storage Controller's authoritative implementation is `taiyou_storage/paths.p
 | Metadata-only coverPath | Supported | Supported |
 | Owner-protected whole-novel deletion | Deletes exact validated folder | Deletes exact validated folder |
 | Personal notes, progress, collections | ID-keyed, unchanged | ID-keyed, unchanged |
-| New in-browser imports | Continue to use legacy directory | Existing readable books are recognised; new readable imports remain an explicitly gated rollout |
+| New in-browser imports | Existing legacy books remain supported | New books use ID - sanitised-title directories; existing books retain their original directory |
 
 **No ID change or database migration is required in the browser.** Local EPUB caches, reviews, progress and collections remain keyed by immutable ID.
 
@@ -61,4 +61,4 @@ These tests use **synthetic entries and mocked private HF responses**. They do n
 4. Enable and perform the **separately authorised production migration**, one revision-bound atomic novel move at a time. Never do this from the Library App.
 5. After migration, check both old and new folders, progress, collections and cover URLs. Do not remove legacy compatibility after migration.
 
-**Status:** Library compatibility code lives in a separate draft PR. No production data writes or migration were performed by this change. Keep the hybrid UI design PR separate and reconcile both changes before any design merge.
+**Status:** Compatibility is implemented, including readable paths for newly uploaded web novels. Migrating pre-existing production folders is an independent Storage Controller operation requiring an authenticated deployment, private full backup and live synthetic dataset verification. Keep the hybrid UI design PR separate and reconcile both changes before any design merge.
