@@ -1,6 +1,6 @@
 import { uploadFiles } from '@huggingface/hub';
 import type { LibraryBook, ImportedBook } from '../types';
-import { coverPathForEntry, novelFolderFromEpubPath, parseNovelFilePath, verifiedNovelFolder } from './novel-paths';
+import { coverPathForEntry, novelFolderFromEpubPath, parseNovelFilePath, readableNovelFolder, verifiedNovelFolder } from './novel-paths';
 
 /**
  * The private HF Dataset is accessed through our same-origin Cloudflare Pages
@@ -428,12 +428,14 @@ export async function uploadNovelToCloud(
   const catalog = await fetchCloudCatalog(repo, session);
   const id = imported.metadata.id;
   const present = catalog.books.find(book => book.id === id);
+  // Existing novels retain their verified directories. New browser imports
+  // use readable directories; stable IDs still govern progress and metadata.
   // A previously migrated novel owns its catalogue-declared directory even
   // when the novel's title has since changed. Never attach a ZIP to ID-only
   // just because the caller supplied an original archive.
   const existingFolder = present ? novelFolderFromEpubPath(id, present.epubPath) : null;
   if (present && !existingFolder) throw new Error('Hosted novel has an invalid storage path; refresh before uploading');
-  const folder = existingFolder ?? 'data/novels/' + id;
+  const folder = existingFolder ?? readableNovelFolder(id, imported.metadata.title);
   const epubPath = folder + '/source.epub';
   const archivePath = original.name.toLowerCase().endsWith('.zip') ? folder + '/original.zip' : undefined;
   if (present) {
