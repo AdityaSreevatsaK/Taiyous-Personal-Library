@@ -38,7 +38,7 @@ afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks(); });
 function oauthMock(latest: CloudEntry[], onFile: (path: string) => Response) {
   const paths: string[] = [];
   const fetcher = vi.fn(async (input: RequestInfo | URL) => {
-    const uri = new URL(String(input));
+    const uri = new URL(String(input), 'https://reader.example');
     const action = uri.searchParams.get('action');
     if (action === 'info') return new Response(JSON.stringify({ private: true }));
     if (action !== 'file') throw new Error('Unexpected gateway request');
