@@ -1,6 +1,8 @@
 # One-shot deployment request for the fully verified readable-folder compatibility fix.
 # Does NOT deploy by itself. Requests the existing comprehensively tested
 # Deploy Application workflow in publish mode. Never repeats on normal pushes.
+# Release request 2026-11-13: deploy Reader PR #6 migration-race recovery
+# after 121/121 PR tests, desktop/mobile/offline and production audit passed.
 name: "One-shot: request readable-folder compatible production deployment"
 
 on:
