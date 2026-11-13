@@ -211,7 +211,7 @@ export async function fetchCloudCover(repo: string, book: Pick<LibraryBook, 'id'
   const blob = await response.blob();
   // Limit to passive, signature-verified image types. Reject SVG/HTML even if
   // an upstream response falsely labels it as an image.
-  if (blob.size < 12 || blob.size > 8 * 1024 * 1024) return null;
+  if (blob.size < 4 || blob.size > 8 * 1024 * 1024) return null;
   const header = new Uint8Array(await blob.slice(0, 12).arrayBuffer());
   const extension = parsed.fileName.slice('cover.'.length);
   if (extension === 'jpg' || extension === 'jpeg') {
