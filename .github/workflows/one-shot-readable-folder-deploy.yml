@@ -1,0 +1,37 @@
+# One-shot deployment request for the fully verified readable-folder compatibility fix.
+# Does NOT deploy by itself. Requests the existing comprehensively tested
+# Deploy Application workflow in publish mode. Never repeats on normal pushes.
+name: "One-shot: request readable-folder compatible production deployment"
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - .github/workflows/one-shot-readable-folder-deploy.yml
+
+permissions:
+  contents: read
+  actions: write
+
+jobs:
+  dispatch:
+    if: github.repository == 'AdityaSreevatsaK/Taiyous-Personal-Library'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      TRIGGER_SHA: ${{ github.sha }}
+    steps:
+      - name: Require verified current master before scheduling existing deployment
+        shell: bash
+        run: |
+          set -euo pipefail
+          current="$(gh api "repos/$GH_REPO/git/ref/heads/master" --jq '.object.sha')"
+          if [ "$current" != "$TRIGGER_SHA" ]; then
+            echo "::error::Master changed since this one-shot request. Deployment not started."
+            exit 1
+          fi
+          echo "Dispatching the existing guarded Deploy Application workflow for verified master."
+          gh workflow run deploy-standalone.yml --ref master -f publish=true --repo "$GH_REPO"
+          echo "Deployment was requested; its independent validate/deploy job must still pass."
