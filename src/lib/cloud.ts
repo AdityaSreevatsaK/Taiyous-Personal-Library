@@ -1,5 +1,6 @@
 import { uploadFiles } from '@huggingface/hub';
 import type { LibraryBook, ImportedBook } from '../types';
+import { coverPathForEntry, novelFolderFromEpubPath, parseNovelFilePath, verifiedNovelFolder } from './novel-paths';
 
 /**
  * The private HF Dataset is accessed through our same-origin Cloudflare Pages
@@ -123,7 +124,9 @@ export async function uploadPrivateDatasetFiles(
 
 function resolveUrl(repo: string, path: string): string {
   const repoId = validateDatasetRepo(repo);
-  if (!/^data\/[\w/-]+\.(epub|zip|json|jpg)$/.test(path) || path.includes('..')) throw new Error('Invalid library file path.');
+  if (!(path === 'data/library.json' || path === 'data/personal/collections.json' ||
+      /^data\/personal\/(?:reviews|progress)\/[a-f0-9]{24}\.json$/.test(path) ||
+      parseNovelFilePath(path))) throw new Error('Invalid library file path.');
   return `https://huggingface.co/datasets/${repoId}/resolve/main/${path.split('/').map(encodeURIComponent).join('/')}?v=${Date.now()}`;
 }
 
@@ -158,9 +161,10 @@ function validEntry(entry: unknown): entry is CloudEntry {
   return typeof value.id === 'string' && ID_PATTERN.test(value.id)
     && value.metadata?.id === value.id
     && typeof value.metadata.title === 'string'
-    && value.epubPath === `data/novels/${value.id}/source.epub`
-    && (!value.archivePath || value.archivePath === `data/novels/${value.id}/original.zip`)
-    && (value.coverPath === undefined || value.coverPath === `data/novels/${value.id}/cover.jpg`);
+    && value.metadata.title.trim().length > 0
+    && value.metadata.title.length <= 255
+    && typeof value.epubPath === 'string'
+    && verifiedNovelFolder(value as CloudEntry) !== null;
 }
 
 export async function fetchCloudCatalog(repo: string, session: CloudSession): Promise<CloudCatalog> {
@@ -199,16 +203,31 @@ export async function fetchCloudCatalog(repo: string, session: CloudSession): Pr
 /** Retrieve cover artwork from the same private dataset; never expose a bearer token as an image URL. */
 export async function fetchCloudCover(repo: string, book: Pick<LibraryBook, 'id' | 'coverPath'>, session: CloudSession): Promise<Blob | null> {
   const path = book.coverPath;
-  if (!path || !ID_PATTERN.test(book.id) || path !== `data/novels/${book.id}/cover.jpg`) return null;
-  const response = await privateGet(repo, path, session);
+  const parsed = parseNovelFilePath(path);
+  if (!parsed || parsed.id !== book.id || !parsed.fileName.startsWith('cover.')) return null;
+  const response = await privateGet(repo, path!, session);
   if (response.status === 404) return null;
   if (!response.ok) throw new Error(`Unable to retrieve private cover (${response.status}).`);
   const blob = await response.blob();
-  // Only allow plausible JPEG artwork. Never parse or display active image formats.
-  if (blob.size < 4 || blob.size > 8 * 1024 * 1024) return null;
-  const header = new Uint8Array(await blob.slice(0, 3).arrayBuffer());
-  if (header[0] !== 0xff || header[1] !== 0xd8 || header[2] !== 0xff) return null;
-  return new Blob([blob], { type: 'image/jpeg' });
+  // Limit to passive, signature-verified image types. Reject SVG/HTML even if
+  // an upstream response falsely labels it as an image.
+  if (blob.size < 12 || blob.size > 8 * 1024 * 1024) return null;
+  const header = new Uint8Array(await blob.slice(0, 12).arrayBuffer());
+  const extension = parsed.fileName.slice('cover.'.length);
+  if (extension === 'jpg' || extension === 'jpeg') {
+    if (header[0] !== 0xff || header[1] !== 0xd8 || header[2] !== 0xff) return null;
+    return new Blob([blob], { type: 'image/jpeg' });
+  }
+  if (extension === 'png') {
+    if (![137, 80, 78, 71, 13, 10, 26, 10].every((byte, index) => header[index] === byte)) return null;
+    return new Blob([blob], { type: 'image/png' });
+  }
+  if (extension === 'webp') {
+    if (String.fromCharCode(...header.slice(0, 4)) !== 'RIFF' ||
+        String.fromCharCode(...header.slice(8, 12)) !== 'WEBP') return null;
+    return new Blob([blob], { type: 'image/webp' });
+  }
+  return null;
 }
 
 /** Verify a hosted EPUB actually exists without downloading its contents.
@@ -408,9 +427,15 @@ export async function uploadNovelToCloud(
   // Fetch immediately before commit so a recently uploaded novel is not lost.
   const catalog = await fetchCloudCatalog(repo, session);
   const id = imported.metadata.id;
-  const epubPath = `data/novels/${id}/source.epub`;
-  const archivePath = original.name.toLowerCase().endsWith('.zip') ? `data/novels/${id}/original.zip` : undefined;
   const present = catalog.books.find(book => book.id === id);
+  // A previously migrated novel owns its catalogue-declared directory even
+  // when the novel's title has since changed. Never attach a ZIP to ID-only
+  // just because the caller supplied an original archive.
+  const existingFolder = present ? novelFolderFromEpubPath(id, present.epubPath) : null;
+  if (present && !existingFolder) throw new Error('Hosted novel has an invalid storage path; refresh before uploading');
+  const folder = existingFolder ?? 'data/novels/' + id;
+  const epubPath = folder + '/source.epub';
+  const archivePath = original.name.toLowerCase().endsWith('.zip') ? folder + '/original.zip' : undefined;
   if (present) {
     // A novel may have been published earlier as EPUB only. If its original
     // ZIP is supplied later, back it up without duplicating the novel entry.
@@ -462,7 +487,7 @@ export function blendCloudAndLocal(remote: CloudEntry[], local: LibraryBook[]): 
     const prior = existing.get(entry.id);
     // Local progress, favourites and summary always take precedence.
     existing.set(entry.id, { ...entry.metadata, cloud: true,
-      ...(entry.coverPath ? { coverPath: entry.coverPath } : prior?.coverPath ? { coverPath: prior.coverPath } : {}),
+      ...(coverPathForEntry(entry) ? { coverPath: coverPathForEntry(entry) } : prior?.coverPath ? { coverPath: prior.coverPath } : {}),
       ...(prior ? { personalTags: prior.personalTags, userDescription: prior.userDescription,
         personalRating: prior.personalRating, personalReview: prior.personalReview,
         personalReviewUpdatedAt: prior.personalReviewUpdatedAt,
