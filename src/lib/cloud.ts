@@ -200,12 +200,44 @@ export async function fetchCloudCatalog(repo: string, session: CloudSession): Pr
   return result;
 }
 
+/**
+ * A migration batch can commit between an app's catalogue refresh and its
+ * next EPUB/ZIP/cover request. On an actual 404 only, re-read the validated
+ * catalogue and try the current path for the SAME immutable novel ID.
+ *
+ * Never invent a new folder from title, retry after an authorisation failure,
+ * or overwrite user data. This is deliberately a one-retry read-only fallback.
+ */
+async function privateGetAfterPossibleMove(
+  repo: string, session: CloudSession, id: string, originalPath: string,
+  currentPath: (entry: CloudEntry) => string | undefined,
+): Promise<Response> {
+  const initial = await privateGet(repo, originalPath, session);
+  if (initial.status !== 404) return initial;
+  let refreshed: CloudCatalog;
+  try {
+    refreshed = await fetchCloudCatalog(repo, session);
+  } catch {
+    // If refreshing fails, retain the original 404 outcome. Never guess a
+    // different folder or bypass catalogue and authentication validation.
+    return initial;
+  }
+  const matching = refreshed.books.find(entry => entry.id === id);
+  if (!matching) return initial;
+  const nextPath = currentPath(matching);
+  if (!nextPath || nextPath === originalPath) return initial;
+  // A second request's authorisation or upstream error remains visible.
+  return privateGet(repo, nextPath, session);
+}
+
 /** Retrieve cover artwork from the same private dataset; never expose a bearer token as an image URL. */
 export async function fetchCloudCover(repo: string, book: Pick<LibraryBook, 'id' | 'coverPath'>, session: CloudSession): Promise<Blob | null> {
   const path = book.coverPath;
   const parsed = parseNovelFilePath(path);
   if (!parsed || parsed.id !== book.id || !parsed.fileName.startsWith('cover.')) return null;
-  const response = await privateGet(repo, path!, session);
+  const response = await privateGetAfterPossibleMove(
+    repo, session, book.id, path!, coverPathForEntry,
+  );
   if (response.status === 404) return null;
   if (!response.ok) throw new Error(`Unable to retrieve private cover (${response.status}).`);
   const blob = await response.blob();
@@ -260,7 +292,9 @@ export async function hostedEpubExists(_repo: string, entry: CloudEntry, session
 
 export async function fetchCloudEpub(repo: string, entry: CloudEntry, session: CloudSession): Promise<Blob> {
   if (!validEntry(entry)) throw new Error('Invalid cloud novel entry.');
-  const response = await privateGet(repo, entry.epubPath, session);
+  const response = await privateGetAfterPossibleMove(
+    repo, session, entry.id, entry.epubPath, current => current.epubPath,
+  );
   if (!response.ok) throw new Error(`Unable to download ${entry.metadata.title} (${response.status}).`);
   const blob = await response.blob();
   if (!blob.size || blob.size > 120 * 1024 * 1024) throw new Error('The hosted EPUB is empty or too large.');
@@ -389,7 +423,9 @@ export async function saveCloudPersonalReview(
 
 export async function fetchCloudArchive(repo: string, entry: CloudEntry, session: CloudSession): Promise<Blob> {
   if (!validEntry(entry) || !entry.archivePath) throw new Error('No original ZIP archive is available for this novel.');
-  const response = await privateGet(repo, entry.archivePath, session);
+  const response = await privateGetAfterPossibleMove(
+    repo, session, entry.id, entry.archivePath, current => current.archivePath,
+  );
   if (!response.ok) throw new Error(`Unable to download original ZIP (${response.status}).`);
   const blob = await response.blob();
   if (!blob.size) throw new Error('The original ZIP is empty.');
