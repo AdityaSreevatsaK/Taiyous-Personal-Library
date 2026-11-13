@@ -108,7 +108,17 @@ export default function App() {
     // Remove a short-lived OAuth session previously stored by older builds.
     clearCloudSession();
     let active = true;
-    Promise.all([getBooks(), getCachedEpubIds()]).then(([saved, cachedIds]) => {
+    // Preview builds show fictional, locally generated sample EPUBs. This
+    // branch is compiled away for normal production builds and never accesses
+    // the real private novel dataset.
+    const loadLocal = async () => {
+      if (import.meta.env.VITE_DESIGN_PREVIEW === 'true') {
+        const { seedPreviewBooks } = await import('./design/preview-fixtures');
+        await seedPreviewBooks();
+      }
+      return Promise.all([getBooks(), getCachedEpubIds()]);
+    };
+    void loadLocal().then(([saved, cachedIds]) => {
       if (!active) return;
       const shown = verifiedCloudCatalogue.current
         ? reconcileCloudLibrary([...cloudEntries.current.values()], saved, cachedIds).books : saved;

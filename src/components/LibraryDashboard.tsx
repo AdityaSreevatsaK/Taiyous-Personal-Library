@@ -7,6 +7,7 @@ import {
   Sparkles, Star, Sun, Tag, Trash2, Upload, X, Cloud, RefreshCw, LogIn, LogOut,
 } from 'lucide-react';
 import type { LibraryBook, ReaderTheme } from '../types';
+import { THEME_OPTIONS, themeLabel } from '../design/themes';
 import { bookTags, includesTag, tagCounts } from '../lib/tags';
 import type { CloudSession } from '../lib/cloud';
 import type { BookCollection } from '../lib/collections';
@@ -56,7 +57,7 @@ interface Props {
   onCloudPublishCached: () => void;
 }
 
-const themes: ReaderTheme[] = ['light', 'dark', 'sepia'];
+const themes: ReaderTheme[] = THEME_OPTIONS.map(option => option.id);
 
 export function Cover({ book, variant = 'normal', cloudRepo = '', cloudSession = null }: {
   book: LibraryBook;
@@ -245,11 +246,23 @@ export default function LibraryDashboard({
           <button className="collection-link" onClick={onImportClick}><span className="collection-icon"><Plus size={16} /></span><span>Add a new novel</span></button>
           <div className="side-note"><Sparkles size={17} /><p>“There is no friend as loyal as a book.”<small>ERNEST HEMINGWAY</small></p></div>
         </div>
-        <div className="sidebar-bottom"><div className="privacy-indicator"><LockKeyhole size={15} /><span>{cloudRepo && cloudSession ? "Private · Cloud + local cache" : "Private · Stored on this device"}</span></div><button className="sidebar-theme" onClick={() => onThemeChange(themes[(themes.indexOf(theme) + 1) % themes.length])} title="Cycle between light, dark and sepia"><Sun size={17} /><span>{theme === 'dark' ? 'Dark' : theme === 'sepia' ? 'Sepia' : 'Light'} appearance</span><Moon size={15} /></button></div>
+        <div className="sidebar-bottom">
+          <div className="privacy-indicator"><LockKeyhole size={15} /><span>{cloudRepo && cloudSession ? "Private · Cloud + local cache" : "Private · Stored on this device"}</span></div>
+          <div className="sidebar-appearance" role="group" aria-label="Appearance theme">
+            <div className="sidebar-appearance-heading"><Sun size={16} /><span>Appearance</span><small>{themeLabel(theme)}</small></div>
+            <div className="sidebar-appearance-options">
+              {THEME_OPTIONS.map(option => (
+                <button key={option.id} type="button" className={theme === option.id ? 'selected' : ''}
+                  onClick={() => onThemeChange(option.id)} aria-pressed={theme === option.id}
+                  aria-label={`Use ${option.label} theme`} title={option.description}>{option.shortLabel}</button>
+              ))}
+            </div>
+          </div>
+        </div>
       </aside>
 
       <main className="main-panel">
-        <header className="topbar"><button className="icon-button mobile-menu" onClick={() => setSidebarOpen(true)} aria-label="Open menu"><Menu size={22} /></button><section className="cloud-connect" aria-label="Cloud library storage" ref={cloudRoot}>
+        <header className="topbar"><button className="icon-button mobile-menu" onClick={() => setSidebarOpen(true)} aria-label="Open menu"><Menu size={22} /></button>{import.meta.env.VITE_DESIGN_PREVIEW === 'true' ? <div className="design-preview-pill" role="status" aria-label="Design preview only"><Sparkles size={16} /> Design preview · Cloud disabled</div> : <section className="cloud-connect" aria-label="Cloud library storage" ref={cloudRoot}>
             <div className="cloud-connect-head"><span><Cloud size={16} /><strong>Cloud library</strong><small className={syncProblem ? 'connection-badge needs-attention' : cloudRepo && cloudSession ? 'connection-badge is-connected' : 'connection-badge'}>{syncProblem ? 'Needs sync' : cloudRepo && cloudSession ? 'Connected' : cloudRepo ? 'Disconnected' : 'Not set up'}</small></span>{!cloudSession && online && <button type="button" className="secondary-button oauth-header-login" onClick={() => window.location.assign('/api/oauth/login')}><LogIn size={14}/> Sign in with HF</button>}<button type="button" className="secondary-button" aria-expanded={showCloud} onClick={() => setShowCloud(v => !v)}>{showCloud ? 'Close' : 'Settings'}</button></div>
             {showCloud && <div className="cloud-connect-body">
               <p>Use one private Hugging Face dataset as the shared <code>data/</code> folder on PC and mobile. When connected, importing a ZIP saves its original archive, EPUB and catalogue to that repository.</p>
@@ -285,8 +298,13 @@ export default function LibraryDashboard({
               {cloudMessage && <p className="cloud-sync-message" role="status">{cloudMessage}</p>}
               {cloudSession?.via !== 'oauth' && <p className="cloud-caution" id="cloud-token-note">Legacy manual connection: use only a fine-grained dataset token. It is held in memory only and not retained after restarting the app. The Hugging Face OAuth sign-in is preferred, so you need not re-enter a token on every visit.</p>}
             </div>}
-          </section><div className="top-actions"><label className="global-search-field"><Search size={16} /><input aria-label="Search all novels" placeholder="Search all novels…" value={globalSearch} onChange={event => onGlobalSearch(event.target.value)} />{globalSearch && <button type="button" aria-label="Clear global search" onClick={() => onGlobalSearch('')}><X size={15} /></button>}</label><button type="button" className="advanced-search-launch" onClick={() => { setShowAdvanced(true); setSidebarOpen(false); }}><Search size={16} /><span>Advanced search</span></button><button className="icon-button theme-switch" onClick={() => onThemeChange(themes[(themes.indexOf(theme) + 1) % themes.length])} title="Change theme" aria-label="Change theme">{theme === 'dark' ? <Moon size={19} /> : <Sun size={19} />}</button></div></header>
+          </section>}<div className="top-actions"><label className="global-search-field"><Search size={16} /><input aria-label="Search all novels" placeholder="Search all novels…" value={globalSearch} onChange={event => onGlobalSearch(event.target.value)} />{globalSearch && <button type="button" aria-label="Clear global search" onClick={() => onGlobalSearch('')}><X size={15} /></button>}</label><button type="button" className="advanced-search-launch" onClick={() => { setShowAdvanced(true); setSidebarOpen(false); }}><Search size={16} /><span>Advanced search</span></button><button className="icon-button theme-switch" onClick={() => onThemeChange(themes[(themes.indexOf(theme) + 1) % themes.length])} title="Change theme" aria-label="Change theme">{theme === 'dark' ? <Moon size={19} /> : <Sun size={19} />}</button></div></header>
         <div className="page-content">
+          {import.meta.env.VITE_DESIGN_PREVIEW === 'true' && <section className="design-layout-banner" aria-label="Five redesigned library layouts">
+            <div><strong>Five completely new library layouts are ready to explore</strong>
+              <span>Cinematic discovery, Reading Desk, Bookshelf House, Collection Atlas and Literary Journal.</span></div>
+            <a href="/layouts#grand">Compare all five designs ↗</a>
+          </section>}
           {notice && <div className="alert success-alert" role="status"><CheckCircle2 size={17} />{notice}</div>}
           {(error || storageError) && <div className="alert error-alert" role="alert">{error || storageError}</div>}
           {!showAdvanced && <div className="page-head page-head-compact">

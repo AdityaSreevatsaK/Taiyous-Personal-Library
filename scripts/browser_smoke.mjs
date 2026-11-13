@@ -100,6 +100,43 @@ try {
     if (!rootText.includes('Personal Library') || !rootText.includes('YOUR SHELVES')) {
       throw new Error('Expected library dashboard content is missing');
     }
+    // Visual foundation: Sepia remains the starting theme. Explicit theme
+    // choices must work on desktop/mobile and persist without touching EPUBs.
+    const appearance = page.getByRole('group', { name: 'Appearance theme' });
+    if (viewport.width <= 900) await page.getByRole('button', { name: 'Open menu' }).click();
+    await appearance.waitFor({ state: 'visible' });
+    if (!(await page.locator('.app-shell').evaluate(node => node.classList.contains('theme-sepia')))) {
+      throw new Error('New readers should start with Sepia by default');
+    }
+    for (const [label, theme] of [
+      ['Paper & Ink', 'light'], ['Jade Archive', 'dark'], ['Sepia', 'sepia'],
+    ]) {
+      const choice = appearance.getByRole('button', { name: `Use ${label} theme` });
+      await choice.click();
+      if (await choice.getAttribute('aria-pressed') !== 'true') {
+        throw new Error(`Theme ${label} does not expose its active state`);
+      }
+      const palette = await page.locator('.app-shell').evaluate(node => ({
+        theme: node.className,
+        bg: getComputedStyle(node).backgroundColor,
+        accent: getComputedStyle(node).getPropertyValue('--design-accent').trim(),
+        sidebar: getComputedStyle(node.querySelector('.sidebar')).backgroundColor,
+      }));
+      if (!palette.theme.includes('theme-' + theme) || !palette.accent ||
+          !palette.bg.startsWith('rgb') || !palette.sidebar.startsWith('rgb')) {
+        throw new Error('Missing palette tokens or theme switch for ' + label + ': ' + JSON.stringify(palette));
+      }
+    }
+    if (viewport.width <= 900) {
+      // The backdrop sits BEHIND the drawer. Click the exposed area on the
+      // right, as an actual mobile user would, not the button's occluded centre.
+      await page.mouse.click(viewport.width - 20, 100);
+      await page.locator('.sidebar.sidebar-open').waitFor({ state: 'detached' });
+    }
+    await page.reload({ waitUntil: 'networkidle' });
+    if (!(await page.locator('.app-shell').evaluate(node => node.classList.contains('theme-sepia')))) {
+      throw new Error('Sepia setting did not survive a full reload');
+    }
     // Cloud connection must not dominate the bookshelf by default, but remain accessible.
     const cloudSettings = page.getByRole('button', { name: 'Settings', exact: true });
     await cloudSettings.waitFor();
@@ -388,6 +425,15 @@ try {
     await page.getByRole('button', { name: 'Go to library home' }).click();
     await page.getByRole('navigation', { name: 'Library sections' }).waitFor();
     await page.locator('.book-rating-pill').getByText('8/10').waitFor();
+    // Detect late EPUB.js display work after fast open/close reader navigation.
+    for (let cycle = 0; cycle < 4; cycle++) {
+      await page.getByRole('button', { name: 'View details for Sample Library Book' }).click();
+      await page.getByRole('button', { name: 'Start reading' }).click();
+      await page.getByRole('button', { name: 'Go to library home' }).click();
+      await page.getByRole('navigation', { name: 'Library sections' }).waitFor();
+    }
+    await page.waitForTimeout(300);
+    if (errors.length) throw new Error('Rapid EPUB teardown raised browser errors: ' + errors.join(' | '));
     // Verify a true offline *reload* of the compiled app, then open/read the
     // already-cached synthetic EPUB without any network or HF credentials.
     await page.evaluate(async () => {
