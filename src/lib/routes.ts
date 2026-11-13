@@ -10,8 +10,8 @@ export type LibraryRoute =
 const ID = '[0-9a-f]{24}';
 const LEGACY_DETAILS = new RegExp('^/book/(' + ID + ')/?$');
 const LEGACY_READER = new RegExp('^/book/(' + ID + ')/read/?$');
-const NAMED_DETAILS = new RegExp('^/novels/([^/]+)/?
-const NAMED_READER = new RegExp('^/novels/([^/]+)/read/?
+const NAMED_DETAILS = new RegExp('^/novels/([^/]+)/?$');
+const NAMED_READER = new RegExp('^/novels/([^/]+)/read/?$');
 
 /** Preserve non-Latin titles whilst removing punctuation and unsafe separators. */
 export function slugifyNovelTitle(title: string): string {
