@@ -149,7 +149,7 @@ describe('reader recovery while Storage Controller migrates novel batches', () =
       if (uri.includes('/api/datasets/')) return new Response(JSON.stringify({ private: true }));
       if (uri.includes('data%2Flibrary.json') || uri.includes('data/library.json'))
         return new Response(JSON.stringify({ version: 1, books: [movedEntryA] }));
-      if (uri.includes(encodeURIComponent(oldA.split('/').at(-1)!)))
+      if (uri.includes('/' + a + '/source.epub'))
         return new Response(null, { status: 404 });
       return new Response(new Uint8Array([1,2,3,4]));
     }));
