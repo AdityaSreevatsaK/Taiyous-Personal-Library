@@ -118,7 +118,7 @@ describe('hosted readable novel folders in browser', () => {
     expect(uploadPaths).not.toContain('data/novels/' + id + '/original.zip');
   });
 
-  it('preserves legacy folder layout for new web imports before production migration', async () => {
+  it('creates readable folders for new web imports without changing stable novel IDs', async () => {
     let files: string[] = [];
     vi.stubGlobal('fetch', vi.fn(async (url: RequestInfo | URL, opts?: RequestInit) => {
       const uri = String(url);
@@ -134,6 +134,6 @@ describe('hosted readable novel folders in browser', () => {
       new File(['epub contents'], 'source.epub', { type: 'application/epub+zip' }),
       { metadata: book, epub: new Blob(['epub contents']) });
     expect(added).toBe('added');
-    expect(files).toEqual(['data/novels/' + id + '/source.epub', 'data/library.json']);
+    expect(files).toEqual(['data/novels/' + id + ' - New Title After Migration/source.epub', 'data/library.json']);
   });
 });
