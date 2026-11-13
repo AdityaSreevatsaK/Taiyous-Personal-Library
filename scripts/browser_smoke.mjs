@@ -170,9 +170,14 @@ try {
     if (await page.locator('.offline-health').count()) throw new Error('Offline status shown outside Offline tab');
     await page.getByRole('button', { name: 'View details for Sample Library Book' }).click();
     await page.getByRole('heading', { name: 'Sample Library Book' }).waitFor();
-    if (new URL(page.url()).pathname !== '/book/aaaaaaaaaaaaaaaaaaaaaaaa') {
-      throw new Error('Novel detail URL must be bookmarkable');
+    if (new URL(page.url()).pathname !== '/novels/sample-library-book') {
+      throw new Error('Novel detail URL must use the readable title slug');
     }
+    // Existing ID-based bookmarks must land on the identical book and replace
+    // their URL with the title slug without losing any local IndexedDB data.
+    await page.goto(baseUrl + '/book/aaaaaaaaaaaaaaaaaaaaaaaa', { waitUntil: 'networkidle' });
+    await page.getByRole('heading', { name: 'Sample Library Book' }).waitFor();
+    await page.waitForURL('**/novels/sample-library-book');
     const libraryTitle = page.locator('a.details-top-title');
     if (await libraryTitle.getAttribute('href') !== '/') {
       throw new Error('Taiyou library title must be an actual hyperlink');
@@ -300,9 +305,9 @@ try {
     await page.getByRole('button', { name: 'View details for Sample Library Book' }).click();
     await page.getByRole('button', { name: 'Start reading' }).click();
     // EPUB loading is asynchronous: verify the URL after the read action commits.
-    await page.waitForURL('**/book/aaaaaaaaaaaaaaaaaaaaaaaa/read');
-    if (new URL(page.url()).pathname !== '/book/aaaaaaaaaaaaaaaaaaaaaaaa/read') {
-      throw new Error('Reader URL must identify the book');
+    await page.waitForURL('**/novels/sample-library-book/read');
+    if (new URL(page.url()).pathname !== '/novels/sample-library-book/read') {
+      throw new Error('Reader URL must use the readable title slug');
     }
     await page.reload({ waitUntil: 'networkidle' });
     // Reader navigation belongs in the bottom strip, outside the hosting overlay.
