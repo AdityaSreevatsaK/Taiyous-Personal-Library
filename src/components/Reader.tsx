@@ -17,6 +17,10 @@ interface Props {
   onBack: () => void;
   onNovelDetails: () => void;
   initialChapterHref?: string;
+  /** One-based chapter from /read/chapter-N. */
+  initialChapterNumber?: number;
+  /** URL is updated only after a verified EPUB relocation. */
+  onChapterChange: (chapter: number) => void;
   onProgress: (patch: Partial<LibraryBook>) => void;
 }
 
@@ -81,11 +85,12 @@ function applyAppearance(rendition: any, settings: ReaderSettings) {
   rendition.themes.fontSize(`${settings.fontSize}%`);
 }
 
-export default function Reader({ book, settings, onSettings, onBack, onNovelDetails, onProgress, initialChapterHref }: Props) {
+export default function Reader({ book, settings, onSettings, onBack, onNovelDetails, onProgress, initialChapterHref, initialChapterNumber, onChapterChange }: Props) {
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const bookRef = useRef<any>(null);
   const renditionRef = useRef<any>(null);
   const progressRef = useRef(onProgress);
+  const chapterChangeRef = useRef(onChapterChange);
   const settingsRef = useRef(settings);
   const [toc, setToc] = useState<ChapterItem[]>([]);
   const [activeHref, setActiveHref] = useState('');
@@ -101,6 +106,7 @@ export default function Reader({ book, settings, onSettings, onBack, onNovelDeta
   const [moving, setMoving] = useState(false);
 
   useEffect(() => { progressRef.current = onProgress; }, [onProgress]);
+  useEffect(() => { chapterChangeRef.current = onChapterChange; }, [onChapterChange]);
   useEffect(() => { settingsRef.current = settings; if (renditionRef.current) applyAppearance(renditionRef.current, settings); }, [settings]);
 
   useEffect(() => {
@@ -228,19 +234,26 @@ export default function Reader({ book, settings, onSettings, onBack, onNovelDeta
             currentChapter: chapterName, currentChapterIndex: index,
             currentChapterNumber: chapterNumber > 0 ? chapterNumber : undefined,
             lastOpenedAt: Date.now() });
+          // Front matter and unknown TOC entries do not get invented chapter URLs.
+          if (chapterNumber > 0) chapterChangeRef.current(chapterNumber);
         });
         renderer.on('displayError', (reason: unknown) => {
           if (!cancelled) setError(`Unable to display this section: ${String(reason)}`);
         });
         const frontMatterOffset = firstRealChapterIndex(actualToc, book.chapterCount);
-        const firstChapter = frontMatterOffset ? actualToc[frontMatterOffset]?.href : undefined;
+        const readableChapters = actualToc.slice(frontMatterOffset);
+        const firstChapter = readableChapters[0]?.href;
+        // Explicit chapter links override saved CFI progress, even when
+        // opening an EPUB on a different device. Invalid edition-specific
+        // chapter numbers fall back to the beginning and canonicalise on load.
+        const linkedChapter = initialChapterNumber
+          ? readableChapters[initialChapterNumber - 1]?.href || firstChapter
+          : undefined;
+        const explicitChapter = initialChapterHref || linkedChapter;
         try {
-          // Direct chapter selection from Novel Details takes priority over Resume.
-          await renderer.display(initialChapterHref || book.lastCfi || firstChapter || undefined);
+          await renderer.display(explicitChapter || book.lastCfi || firstChapter || undefined);
         } catch (previousPositionError) {
-          // A TOC target can be invalid in a malformed EPUB; fall back to its
-          // beginning, not to the old saved position that the user bypassed.
-          if (initialChapterHref || book.lastCfi) await renderer.display(firstChapter || undefined);
+          if (explicitChapter || book.lastCfi) await renderer.display(firstChapter || undefined);
           else throw previousPositionError;
         }
         if (!cancelled) setLoading(false);

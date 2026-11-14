@@ -372,9 +372,9 @@ try {
     }
     await page.getByRole('button', { name: 'Start reading' }).click();
     // EPUB loading is asynchronous: verify the URL after the read action commits.
-    await page.waitForURL('**/novels/sample-library-book/read');
-    if (new URL(page.url()).pathname !== '/novels/sample-library-book/read') {
-      throw new Error('Reader URL must use the readable title slug');
+    await page.waitForURL('**/novels/sample-library-book/read/chapter-1');
+    if (new URL(page.url()).pathname !== '/novels/sample-library-book/read/chapter-1') {
+      throw new Error('Reader URL must use the title slug AND actual chapter number');
     }
     await page.reload({ waitUntil: 'networkidle' });
     // Reader navigation belongs in the bottom strip, outside the hosting overlay.
@@ -437,6 +437,7 @@ try {
     await chapterDialog.getByRole('button', { name: 'Go', exact: true }).click();
     await chapterDialog.waitFor({ state: 'detached' });
     await page.getByText('Chapter 2 of 2').waitFor();
+    await page.waitForURL('**/novels/sample-library-book/read/chapter-2');
     const paragraphAligned = await page.locator('.reader-page iframe').first().evaluate(frame => {
       const paragraph = Array.from(frame.contentDocument?.querySelectorAll('p') || [])
         .find(el => el.textContent?.includes('Chapter 2: The Next Step'));
@@ -447,6 +448,22 @@ try {
     await page.getByRole('dialog', { name: 'Choose chapter' }).getByRole('spinbutton', { name: 'Chapter number' }).fill('1');
     await page.getByRole('dialog', { name: 'Choose chapter' }).getByRole('button', { name: 'Go', exact: true }).click();
     await page.getByText('Chapter 1 of 2').waitFor();
+    await page.waitForURL('**/novels/sample-library-book/read/chapter-1');
+
+    // The URL must select an explicit chapter even when the stored CFI
+    // points to chapter 1. Verify direct links, reload and browser history.
+    await page.goto(baseUrl + '/novels/sample-library-book/read/chapter-2', {waitUntil:'networkidle'});
+    await page.getByText('Chapter 2 of 2').waitFor();
+    await page.waitForURL('**/novels/sample-library-book/read/chapter-2');
+    await page.reload({waitUntil:'networkidle'});
+    await page.getByText('Chapter 2 of 2').waitFor();
+    await page.goto(baseUrl + '/book/aaaaaaaaaaaaaaaaaaaaaaaa/read/chapter-1', {waitUntil:'networkidle'});
+    await page.waitForURL('**/novels/sample-library-book/read/chapter-1');
+    await page.getByText('Chapter 1 of 2').waitFor();
+    await page.goto(baseUrl + '/novels/sample-library-book/read', {waitUntil:'networkidle'});
+    await page.waitForURL(/\/novels\/sample-library-book\/read\/chapter-[12]$/);
+    await page.getByText(/Chapter [12] of 2/).first().waitFor();
+
     const hasContentOverflow = await page.locator('.reader-page iframe').first().evaluate((frame) => {
       const doc = frame.contentDocument;
       return doc ? doc.documentElement.scrollWidth > doc.documentElement.clientWidth + 3 : false;
@@ -456,7 +473,9 @@ try {
     if (overflow) throw new Error('Reader produced horizontal page overflow');
     await page.getByRole('button', { name: 'Go to Sample Library Book details' }).click();
     await page.getByRole('heading', { name: 'Sample Library Book' }).waitFor();
-    await page.getByRole('button', { name: 'Start reading' }).click();
+    // Reloading a deep link can persist real progress, legitimately changing
+    // this action's label from Start reading to Continue reading.
+    await page.getByRole('button', { name: /^(Start reading|Continue reading)$/ }).click();
     await page.getByRole('button', { name: 'Go to library home' }).click();
     await page.getByRole('navigation', { name: 'Library sections' }).waitFor();
     await page.locator('.book-rating-pill').getByText('8/10').waitFor();
@@ -508,7 +527,7 @@ try {
       }
       await page.locator('nav[aria-label="Library sections"]').waitFor({ state: 'attached' });
       await page.getByRole('button', { name: 'View details for Sample Library Book' }).click();
-      await page.getByRole('button', { name: 'Start reading' }).click();
+      await page.getByRole('button', { name: /^(Start|Continue) reading$/ }).click();
       await page.locator('.reader-page iframe').first().waitFor({ state: 'visible', timeout: 20000 });
       await page.getByRole('button', { name: 'Go to library home' }).click();
       await page.locator('nav[aria-label="Library sections"]').waitFor({ state: 'attached' });

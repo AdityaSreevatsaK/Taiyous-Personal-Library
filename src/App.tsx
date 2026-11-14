@@ -114,12 +114,17 @@ export default function App() {
   // available. Legacy /book/<id> bookmarks are canonicalised without reloading.
   // Never use a title slug as a storage/progress identifier.
   useEffect(() => {
-    const route = parseLibraryRoute(routePath);
+    // A reader relocation can replaceState its chapter number without
+    // re-rendering the SPA. Always derive canonical URLs from the LIVE path,
+    // otherwise a progress update could silently strip /chapter-N.
+    const route = parseLibraryRoute(window.location.pathname);
     const book = resolveNovelRoute(route, books);
     if (!book) return;
     setDetailsId(book.id);
     setReadingId(route.page === 'reader' ? book.id : null);
-    const canonical = namedNovelUrl(book, books, route.page === 'reader');
+    const canonical = namedNovelUrl(
+      book, books, route.page === 'reader', route.page === 'reader' ? route.chapter : undefined,
+    );
     if (window.location.pathname !== canonical) {
       window.history.replaceState(null, '', canonical + window.location.search + window.location.hash);
     }
@@ -973,6 +978,11 @@ export default function App() {
   }
   const activeBook = books.find(book => book.id === readingId);
   const detailBook = books.find(book => book.id === detailsId);
+  // A numeric reader deep link takes priority over any saved CFI position.
+  // Current chapter changes are written with replaceState, so routine
+  // scrolling never floods the browser history with hundreds of entries.
+  const currentRoute = parseLibraryRoute(window.location.pathname);
+  const requestedChapter = currentRoute.page === 'reader' ? currentRoute.chapter : undefined;
   return <>
     {activeBook && !cachedEpubIds.includes(activeBook.id) ? (
       <div className={`reader-route-loading theme-${settings.theme}`} role="status">
@@ -982,6 +992,16 @@ export default function App() {
     ) : activeBook ? (
       <Reader key={activeBook.id} book={activeBook} settings={settings} onSettings={setSettings}
         initialChapterHref={startChapterHref || undefined}
+        initialChapterNumber={requestedChapter}
+        onChapterChange={chapter => {
+          const current = parseLibraryRoute(window.location.pathname);
+          const currentBook = resolveNovelRoute(current, booksRef.current);
+          if (current.page !== 'reader' || currentBook?.id !== activeBook.id) return;
+          const chapterUrl = namedNovelUrl(activeBook, booksRef.current, true, chapter);
+          if (window.location.pathname !== chapterUrl) {
+            window.history.replaceState(window.history.state, '', chapterUrl + window.location.search + window.location.hash);
+          }
+        }}
         onBack={goLibrary}
         onNovelDetails={() => { setReadingId(null); setDetailsId(activeBook.id); setStartChapterHref(null); navigate(namedNovelUrl(activeBook, booksRef.current)); }} onProgress={recordProgress} />
     ) : detailBook ? (

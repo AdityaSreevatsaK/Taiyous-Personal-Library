@@ -4,14 +4,16 @@ import type { LibraryBook } from '../types';
 type NamedBook = Pick<LibraryBook, 'id' | 'title'>;
 export type LibraryRoute =
   | { page: 'library' }
-  | { page: 'details' | 'reader'; id: string }
-  | { page: 'details' | 'reader'; slug: string };
+  | { page: 'details'; id: string }
+  | { page: 'reader'; id: string; chapter?: number }
+  | { page: 'details'; slug: string }
+  | { page: 'reader'; slug: string; chapter?: number };
 
 const ID = '[0-9a-f]{24}';
 const LEGACY_DETAILS = new RegExp('^/book/(' + ID + ')/?$');
-const LEGACY_READER = new RegExp('^/book/(' + ID + ')/read/?$');
+const LEGACY_READER = new RegExp('^/book/(' + ID + ')/read(?:/chapter-([1-9][0-9]{0,5}))?/?$');
 const NAMED_DETAILS = new RegExp('^/novels/([^/]+)/?$');
-const NAMED_READER = new RegExp('^/novels/([^/]+)/read/?$');
+const NAMED_READER = new RegExp('^/novels/([^/]+)/read(?:/chapter-([1-9][0-9]{0,5}))?/?$');
 
 /** Preserve non-Latin titles whilst removing punctuation and unsafe separators. */
 export function slugifyNovelTitle(title: string): string {
@@ -44,16 +46,24 @@ export function novelSlug(book: NamedBook, catalogue: readonly NamedBook[]): str
   throw new Error('Unable to distinguish duplicate novel titles');
 }
 
+/** One-based chapter numbers are optional so existing /read links resume. */
 export function namedNovelUrl(
-  book: NamedBook, catalogue: readonly NamedBook[], reader = false,
+  book: NamedBook, catalogue: readonly NamedBook[], reader = false, chapter?: number,
 ): string {
-  return '/novels/' + encodeURIComponent(novelSlug(book, catalogue)) + (reader ? '/read' : '');
+  return '/novels/' + encodeURIComponent(novelSlug(book, catalogue)) + chapterUrlSuffix(reader, chapter);
+}
+
+function chapterUrlSuffix(reader: boolean, chapter?: number): string {
+  if (chapter !== undefined && (!reader || !Number.isInteger(chapter) || chapter < 1 || chapter > 999999)) {
+    throw new Error('Invalid chapter number');
+  }
+  return reader ? '/read' + (chapter === undefined ? '' : '/chapter-' + chapter) : '';
 }
 
 /** Existing ID-based bookmarks are intentionally supported as legacy aliases. */
-export function novelUrl(id: string, reader = false): string {
+export function novelUrl(id: string, reader = false, chapter?: number): string {
   if (!new RegExp('^' + ID + '$').test(id)) throw new Error('Invalid novel identifier');
-  return '/book/' + id + (reader ? '/read' : '');
+  return '/book/' + id + chapterUrlSuffix(reader, chapter);
 }
 
 function parseSlug(segment: string): string | null {
@@ -69,13 +79,17 @@ function parseSlug(segment: string): string | null {
 
 export function parseLibraryRoute(path: string): LibraryRoute {
   const legacyReader = LEGACY_READER.exec(path);
-  if (legacyReader) return { page: 'reader', id: legacyReader[1] };
+  if (legacyReader) return legacyReader[2]
+    ? { page: 'reader', id: legacyReader[1], chapter: Number(legacyReader[2]) }
+    : { page: 'reader', id: legacyReader[1] };
   const legacyDetails = LEGACY_DETAILS.exec(path);
   if (legacyDetails) return { page: 'details', id: legacyDetails[1] };
   const namedReader = NAMED_READER.exec(path);
   if (namedReader) {
     const slug = parseSlug(namedReader[1]);
-    if (slug) return { page: 'reader', slug };
+    if (slug) return namedReader[2]
+      ? { page: 'reader', slug, chapter: Number(namedReader[2]) }
+      : { page: 'reader', slug };
   }
   const namedDetails = NAMED_DETAILS.exec(path);
   if (namedDetails) {
