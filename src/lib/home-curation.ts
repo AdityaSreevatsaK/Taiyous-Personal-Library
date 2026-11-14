@@ -108,8 +108,11 @@ export function selectHomeShelves(
   for (let index = 0; index < candidates.length && selected.length < limit; index++) {
     if (allocate(index, new Set())) selected.push(index);
   }
-  return selected.map(index => {
-    const { members: _members, ...shelf } = candidates[index];
-    return { ...shelf, preview: previews.get(index)! };
-  });
+  return selected.map(index => ({
+    kind: candidates[index].kind,
+    id: candidates[index].id,
+    name: candidates[index].name,
+    count: candidates[index].count,
+    preview: previews.get(index)!,
+  }));
 }
