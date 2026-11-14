@@ -1,0 +1,32 @@
+# Owner-approved one-shot deployment of the verified curated homepage and /library.
+# This workflow only runs when its own file is added to master.
+name: "One-shot: deploy curated homepage"
+on:
+  push:
+    branches: [master]
+    paths:
+      - .github/workflows/one-shot-deploy-curated-home-20261114.yml
+permissions:
+  contents: read
+  actions: write
+jobs:
+  dispatch-verified-production-deployment:
+    if: github.repository == 'AdityaSreevatsaK/Taiyous-Personal-Library' && github.ref == 'refs/heads/master'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      EXPECTED_SHA: ${{ github.sha }}
+    steps:
+      - name: Deploy only the exact owner-approved master commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          current="$(gh api "repos/$GH_REPO/git/ref/heads/master" --jq '.object.sha')"
+          if [ "$current" != "$EXPECTED_SHA" ]; then
+            echo '::error::Master changed; refusing stale deployment.'
+            exit 1
+          fi
+          gh workflow run deploy-standalone.yml --repo "$GH_REPO" --ref master -f publish=true
+          echo 'Requested guarded production validation and Cloudflare deployment of curated Home and /library. No private data modifications or v1.0 release.' >> "$GITHUB_STEP_SUMMARY"
