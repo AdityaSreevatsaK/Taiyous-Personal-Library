@@ -6,12 +6,15 @@ import type { ChapterItem, LibraryBook } from '../types';
 interface Props {
   book: LibraryBook;
   onReadChapter: (href: string) => void;
+  isCachedOffline: boolean;
+  onLoadChapters: () => Promise<void>;
 }
 
 /** Chapter selection on the novel's details page (before entering the reader). */
-export default function ChapterBrowser({ book, onReadChapter }: Props) {
+export default function ChapterBrowser({ book, onReadChapter, isCachedOffline, onLoadChapters }: Props) {
   const [chapters, setChapters] = useState<ChapterItem[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(isCachedOffline);
+  const [preparing, setPreparing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [chapterNumber, setChapterNumber] = useState('');
@@ -20,10 +23,11 @@ export default function ChapterBrowser({ book, onReadChapter }: Props) {
 
   useEffect(() => {
     let active = true;
-    setLoading(true);
     setError(null);
     setChapters([]);
     setPage(0);
+    if (!isCachedOffline) { setLoading(false); return () => { active = false; }; }
+    setLoading(true);
     void loadChapterCatalog(book.id, book.chapterCount).then((list) => {
       if (!active) return;
       setChapters(list);
@@ -35,7 +39,18 @@ export default function ChapterBrowser({ book, onReadChapter }: Props) {
       setLoading(false);
     });
     return () => { active = false; };
-  }, [book.id]); // A metadata enrichment should not force an EPUB reparse.
+  }, [book.id, isCachedOffline]); // Metadata enrichment must not reparse the EPUB.
+
+  async function prepareChapters() {
+    if (preparing || isCachedOffline) return;
+    setPreparing(true);
+    setError(null);
+    try {
+      await onLoadChapters();
+    } catch (reason) {
+      setError(`Unable to prepare chapters: ${reason instanceof Error ? reason.message : String(reason)}`);
+    } finally { setPreparing(false); }
+  }
 
   const filtered = useMemo(() => searchChapterCatalog(chapters, search), [chapters, search]);
   const pageCount = Math.max(1, Math.ceil(filtered.length / CHAPTERS_PER_PAGE));
@@ -62,7 +77,14 @@ export default function ChapterBrowser({ book, onReadChapter }: Props) {
       <List size={21} className="details-section-icon" aria-hidden="true" />
     </div>
     <p className="details-help chapter-intro">Choose any chapter to begin reading there. Your new reading position is saved automatically.</p>
-    {loading ? <div className="chapter-loading" role="status">Loading chapter titles from your EPUB…</div>
+    {!isCachedOffline ? <div className="chapter-on-demand">
+        <p className="details-help">Chapter titles are available after downloading the EPUB. Opening details does not download the novel.</p>
+        <button type="button" className="primary-button" disabled={preparing} onClick={() => void prepareChapters()}>
+          {preparing ? 'Preparing EPUB…' : 'Load chapter list'}
+        </button>
+        {error && <p className="chapter-error" role="alert">{error}</p>}
+      </div>
+      : loading ? <div className="chapter-loading" role="status">Loading chapter titles from your EPUB…</div>
       : error ? <p className="chapter-error" role="alert">{error}</p>
         : <>
           <div className="chapter-topline">
