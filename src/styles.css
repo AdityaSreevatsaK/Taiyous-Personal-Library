@@ -1271,3 +1271,18 @@ a.details-top-title:focus-visible { outline: 2px solid #80ac8b; outline-offset: 
   border-radius: 9px; padding: 10px 12px; margin: 10px 0;
   line-height: 1.5; font-size: 12px; color: var(--text); overflow-wrap: anywhere;
 }
+
+
+/* PREVIEW-ONLY: Never offer cloud authentication or private data operations. */
+.static-hybrid-preview .topbar>.cloud-connect,
+.static-hybrid-preview .sidebar .privacy-indicator,
+.static-hybrid-preview .sidebar .collection-link,
+.static-hybrid-preview .desktop-import,
+.static-hybrid-preview .mobile-fab { display: none !important; }
+.static-hybrid-preview .hybrid-demo-notice{
+ display:flex; flex-wrap:wrap;align-items:center;gap:8px;
+ background:#eadfca;color:#4b3a22;border:1px solid #c3ad8a;
+ padding:10px 16px;margin-bottom:17px;font-size:12px;line-height:1.45;
+}
+.static-hybrid-preview .hybrid-demo-notice strong{font-size:10px;letter-spacing:.18em}
+@media(max-width:700px){.static-hybrid-preview .hybrid-demo-notice{padding:10px 12px;font-size:11px}}
