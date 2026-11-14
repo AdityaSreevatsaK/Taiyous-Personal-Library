@@ -34,13 +34,13 @@ A responsive, installable EPUB reader and personal novel library for desktop and
 - **Offline:** installable PWA, local bookshelf management and **Save all offline**. A downloaded EPUB can be removed with ordinary confirmation only after the hosted replacement is verified.
 - **Private cloud:** Hugging Face OAuth for novel imports, covers, reading progress, personal reviews and collections. Personal tags, custom summaries and reader settings remain device-local.
 
-For complete behaviour, see [Capabilities and offline behaviour](docs/CAPABILITIES.md).
+For complete behaviour, see [Capabilities and offline behaviour](docs/CAPABILITIES.md). The production dataset's **89 novel folders have now been migrated** to human-readable names, with stable IDs and all personal sidecar paths preserved. See [migration compatibility sign-off](docs/READABLE_FOLDER_MIGRATION_SIGNOFF_2026-11-14.md).
 
 ## Storage, authentication and safety
 
 | Location | Data |
 | --- | --- |
-| Private Hugging Face Dataset | `data/library.json` catalogue, `data/novels/<id>/source.epub`, optional ZIPs/covers, and `data/personal/` progress, reviews and collections |
+| Private Hugging Face Dataset | `data/library.json` catalogue, `data/novels/<id> - <sanitised-title>/source.epub` (historical ID-only folders remain supported), optional ZIPs/covers, and `data/personal/` progress, reviews and collections |
 | Browser IndexedDB | Cached EPUBs/covers, book metadata, progress and pending local edits |
 | Browser localStorage | Collections and device-local preferences |
 | GitHub / Cloudflare Pages | Source and public app shell; **no private novels or Hugging Face credentials** |
