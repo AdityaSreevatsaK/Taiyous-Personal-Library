@@ -1,6 +1,7 @@
 // Smoke-test the exact compiled Vite app through Chromium, not a synthetic HTML fixture.
 import { chromium } from 'playwright';
 import JSZip from 'jszip';
+import { mkdir } from 'node:fs/promises';
 
 // A valid, original EPUB fixture lets Chromium exercise epub.js and real scrolling.
 async function makeTestEpub() {
@@ -156,6 +157,8 @@ try {
     await grand.waitFor({ state: 'visible' });
     await page.locator('.editorial-journal').waitFor({ state: 'visible' });
     await page.locator('.editorial-index-row').first().waitFor();
+    await mkdir('artifacts/design-screenshots', { recursive: true });
+    await page.screenshot({ path: `artifacts/design-screenshots/editorial-home-${viewport.width}.png`, fullPage: true });
     if (!(await grand.getByRole('heading', { name: /Where worlds unfold/ }).count())) {
       throw new Error('Grand Library title is absent');
     }
