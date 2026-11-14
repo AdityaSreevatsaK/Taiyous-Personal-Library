@@ -1,6 +1,7 @@
 import { openDB, type DBSchema, type IDBPDatabase } from 'idb';
 import type { LibraryBook, ReaderSettings } from '../types';
 import { DEFAULT_SETTINGS } from '../types';
+import { isReaderTheme } from './themes';
 
 interface NovelDB extends DBSchema {
   books: { key: string; value: LibraryBook };
@@ -110,7 +111,7 @@ export function readSettings(): ReaderSettings {
     // Afterwards Comfortable/Wide/custom choices are kept as usual.
     const readingWidth = widthFixNeeded ? 0 : (firstRunOfWidthEdition && legacyWidth === 680 ? 0 : legacyWidth);
     return {
-      theme: firstRunOfSepiaEdition ? 'sepia' : (['light', 'dark', 'sepia'].includes(saved.theme ?? '') ? saved.theme! : DEFAULT_SETTINGS.theme),
+      theme: firstRunOfSepiaEdition ? 'sepia' : (isReaderTheme(saved.theme) ? saved.theme : DEFAULT_SETTINGS.theme),
       font: ['literary', 'classic', 'georgia', 'sans', 'clear'].includes(saved.font ?? '') ? saved.font! : DEFAULT_SETTINGS.font,
       fontSize: Number.isFinite(saved.fontSize) ? Math.min(170, Math.max(75, saved.fontSize!)) : DEFAULT_SETTINGS.fontSize,
       lineHeight: Number.isFinite(saved.lineHeight) ? Math.min(2.2, Math.max(1.3, saved.lineHeight!)) : DEFAULT_SETTINGS.lineHeight,

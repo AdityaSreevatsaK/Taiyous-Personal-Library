@@ -1,4 +1,4 @@
-export type ReaderTheme = 'light' | 'dark' | 'sepia';
+export type ReaderTheme = 'light' | 'dark' | 'sepia' | 'midnight' | 'ocean' | 'plum';
 export type FontChoice = 'literary' | 'classic' | 'georgia' | 'sans' | 'clear';
 
 export interface ReaderSettings {
