@@ -25,14 +25,14 @@ jobs:
       - name: Fetch pinned isolated preview source, NEVER production checkout
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
-          ref: e47e7c9ea81e90c99552c8158c687a3137cafa4a
+          ref: b0fe0092e8aa5c3a1cc0a12f4b0d627e02581cc5
           persist-credentials: false
       - id: source
         name: Assert source revision and repository identity
         shell: bash
         run: |
           set -euo pipefail
-          test "$(git rev-parse HEAD)" = 'e47e7c9ea81e90c99552c8158c687a3137cafa4a'
+          test "$(git rev-parse HEAD)" = 'b0fe0092e8aa5c3a1cc0a12f4b0d627e02581cc5'
           test "${{ github.repository }}" = 'AdityaSreevatsaK/Taiyous-Personal-Library'
           echo "revision=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
@@ -104,7 +104,7 @@ jobs:
           test -n "$CLOUDFLARE_ACCOUNT_ID"
           test -n "$CLOUDFLARE_API_TOKEN"
           test "$CF_PAGES_PROJECT" = 'taiyous-personal-library'
-          test "$SOURCE_REVISION" = 'e47e7c9ea81e90c99552c8158c687a3137cafa4a'
+          test "$SOURCE_REVISION" = 'b0fe0092e8aa5c3a1cc0a12f4b0d627e02581cc5'
           test ! -d preview-dist/functions
           test -s preview-dist/_headers
           test -s preview-dist/index.html
