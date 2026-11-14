@@ -150,6 +150,22 @@ try {
       db.close();
     }, epubBytes);
     await page.reload({ waitUntil: 'networkidle' });
+    // The integrated redesign uses the REAL IndexedDB books, not design fixtures.
+    // Its new cover-led home and editorial index must work on desktop and mobile.
+    const grand = page.locator('.editorial-grand');
+    await grand.waitFor({ state: 'visible' });
+    await page.locator('.editorial-journal').waitFor({ state: 'visible' });
+    await page.locator('.editorial-index-row').first().waitFor();
+    if (!(await grand.getByRole('heading', { name: /Where worlds unfold/ }).count())) {
+      throw new Error('Grand Library title is absent');
+    }
+    await page.getByRole('button', { name: 'Featured cover for Sample Library Book' }).click();
+    await page.getByRole('heading', { name: 'Sample Library Book' }).waitFor();
+    if (new URL(page.url()).pathname !== '/novels/sample-library-book') {
+      throw new Error('The featured cover must navigate to the real readable novel URL');
+    }
+    await page.getByRole('button', { name: 'My library' }).click();
+    await page.locator('.editorial-grand').waitFor({ state: 'visible' });
     // Dedicated advanced search must work with loaded novels on desktop and mobile.
     await page.locator('.advanced-search-launch').click();
     await page.getByRole('region', { name: 'Advanced novel search' }).waitFor();
