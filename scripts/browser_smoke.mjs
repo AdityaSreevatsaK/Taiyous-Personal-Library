@@ -160,10 +160,9 @@ try {
       throw new Error('Grand Library title is absent');
     }
     await page.getByRole('button', { name: 'Featured cover for Sample Library Book' }).click();
+    // The existing detail action first resolves EPUB availability asynchronously.
+    await page.waitForURL('**/novels/sample-library-book');
     await page.getByRole('heading', { name: 'Sample Library Book' }).waitFor();
-    if (new URL(page.url()).pathname !== '/novels/sample-library-book') {
-      throw new Error('The featured cover must navigate to the real readable novel URL');
-    }
     await page.getByRole('button', { name: 'My library' }).click();
     await page.locator('.editorial-grand').waitFor({ state: 'visible' });
     // Dedicated advanced search must work with loaded novels on desktop and mobile.
