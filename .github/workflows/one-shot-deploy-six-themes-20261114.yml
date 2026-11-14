@@ -1,0 +1,33 @@
+# Owner-approved one-time deployment: six persistent reader colour themes.
+name: "One-shot: deploy six selectable reader themes"
+on:
+  push:
+    branches: [master]
+    paths:
+      - .github/workflows/one-shot-deploy-six-themes-20261114.yml
+permissions:
+  contents: read
+  actions: write
+jobs:
+  deploy-verified-colours:
+    if: github.repository == 'AdityaSreevatsaK/Taiyous-Personal-Library' && github.ref == 'refs/heads/master'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      EXPECTED_SHA: ${{ github.sha }}
+    steps:
+      - name: Dispatch production deployment through existing guarded workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          current="$(gh api "repos/$GH_REPO/git/ref/heads/master" --jq '.object.sha')"
+          test "$current" = "$EXPECTED_SHA" || {
+            echo '::error::Master changed; refusing a stale theme deployment.'
+            exit 1
+          }
+          # Existing workflow independently builds, tests and validates private
+          # Cloudflare Functions and production access boundaries.
+          gh workflow run deploy-standalone.yml --repo "$GH_REPO" --ref master -f publish=true
+          echo "Six-theme deployment requested for master revision $EXPECTED_SHA." >> "$GITHUB_STEP_SUMMARY"
