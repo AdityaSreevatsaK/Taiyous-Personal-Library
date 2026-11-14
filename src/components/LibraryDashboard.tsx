@@ -8,7 +8,7 @@ import './top-navigation.css';
 import { useCoverArt } from './useCoverArt';
 import {
   ArrowRight, BarChart3, Book, BookOpen, CheckCircle2, ChevronDown, CloudOff, Download, WifiOff,
-  Feather, Hash, Library, LockKeyhole, Pencil, Plus, Search, Settings2,
+  Hash, Library, LockKeyhole, Pencil, Plus, Search, Settings2,
   Sparkles, Star, Tag, Trash2, Upload, X, Cloud, RefreshCw, LogIn, LogOut,
 } from 'lucide-react';
 import type { LibraryBook, ReaderTheme } from '../types';
