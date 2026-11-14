@@ -9,6 +9,7 @@ import { normalizeTags } from './lib/tags';
 import { namedNovelUrl, parseLibraryRoute, resolveNovelRoute } from './lib/routes';
 import { mapWithConcurrency, retryTransientRead } from './lib/network-pool';
 import { requestOfflineRetention } from './lib/offline';
+import { installUsageTracker } from './lib/usage-analytics';
 import { deleteBook, removeCachedEpub, getBookFile, getBooks, getCachedEpubIds, readSettings, saveBook, updateBook, writeSettings } from './lib/storage';
 import {
   reconcileCloudLibrary, clearCloudSession, createCloudSession, discoverHostedOAuthSession, assertPrivateDataset,
@@ -64,6 +65,15 @@ export default function App() {
   // Never delete local records or cached EPUBs as a side effect of syncing.
   const verifiedCloudCatalogue = useRef(false);
   const deepLinkFetches = useRef(new Set<string>());
+  const readingForUsage = useRef<string | null>(null);
+  const onlineForUsage = useRef(online);
+  readingForUsage.current = readingId && cachedEpubIds.includes(readingId) ? readingId : null;
+  onlineForUsage.current = online;
+  // One tracker for the entire SPA lifetime. Never run trackers per rerender.
+  useEffect(() => installUsageTracker(
+    () => readingForUsage.current,
+    () => onlineForUsage.current,
+  ), []);
 
   function navigate(path: string, replace = false) {
     if (window.location.pathname !== path) {
