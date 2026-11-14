@@ -950,7 +950,7 @@ export default function App() {
         onBack={goLibrary}
         onNovelDetails={() => { setReadingId(null); setDetailsId(activeBook.id); setStartChapterHref(null); navigate(namedNovelUrl(activeBook, booksRef.current)); }} onProgress={recordProgress} />
     ) : detailBook ? (
-      <BookDetails book={detailBook} theme={settings.theme}
+      <BookDetails book={detailBook} theme={settings.theme} onThemeChange={theme => setSettings(current => ({ ...current, theme }))}
         onBack={goLibrary} onRead={() => openBook(detailBook)}
         onReadChapter={href => openBook(detailBook, href)}
         onDownloadEpub={() => downloadEpub(detailBook)}
