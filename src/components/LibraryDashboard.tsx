@@ -3,10 +3,11 @@ import AdvancedSearch from './AdvancedSearch';
 import EditorialHome from './EditorialHome';
 import ThemeSwitcher from './ThemeSwitcher';
 import BrandMark from './BrandMark';
+import UsageDashboard from './UsageDashboard';
 import './top-navigation.css';
 import { useCoverArt } from './useCoverArt';
 import {
-  ArrowRight, Book, BookOpen, CheckCircle2, ChevronDown, CloudOff, Download, WifiOff,
+  ArrowRight, BarChart3, Book, BookOpen, CheckCircle2, ChevronDown, CloudOff, Download, WifiOff,
   Feather, Hash, Library, LockKeyhole, Pencil, Plus, Search, Settings2,
   Sparkles, Star, Tag, Trash2, Upload, X, Cloud, RefreshCw, LogIn, LogOut,
 } from 'lucide-react';
@@ -15,7 +16,7 @@ import { bookTags, includesTag, tagCounts } from '../lib/tags';
 import type { CloudSession } from '../lib/cloud';
 import type { BookCollection } from '../lib/collections';
 
-type Filter = 'all' | 'trying' | 'reading' | 'unread' | 'finished' | 'offline';
+type Filter = 'all' | 'trying' | 'reading' | 'unread' | 'finished' | 'offline' | 'analytics';
 type Sort = 'recent' | 'title' | 'added';
 
 interface Props {
@@ -210,6 +211,7 @@ export default function LibraryDashboard({
     { id: 'unread' as Filter, name: 'To be read', count: books.filter((b) => b.shelfStatus !== 'trying' && b.progress === 0).length, icon: Book },
     { id: 'finished' as Filter, name: 'Finished', count: finished.length, icon: CheckCircle2 },
     { id: 'offline' as Filter, name: 'Available offline', count: cachedEpubIds.length, icon: Download },
+    { id: 'analytics' as Filter, name: 'Analytics', count: 0, icon: BarChart3 },
   ];
 
   return (
@@ -258,7 +260,7 @@ export default function LibraryDashboard({
           <div className="top-nav-links">
             {navEntries.map(({ id, name, count }) => <button type="button" key={id} className={`top-nav-link ${!showAdvanced && filter === id && !selectedTag && !selectedCollectionId ? 'active' : ''}`}
               aria-current={!showAdvanced && filter === id && !selectedTag && !selectedCollectionId ? 'page' : undefined}
-              onClick={() => goTo(id)}><span>{name}</span><small>{count}</small></button>)}
+              onClick={() => goTo(id)}><span>{name}</span>{id !== 'analytics' && <small>{count}</small>}</button>)}
           </div>
           <div className="top-nav-tools">
             <details className="top-nav-menu" aria-label="Novel tags">
@@ -305,7 +307,7 @@ export default function LibraryDashboard({
         <div className="page-content">
           {notice && <div className="alert success-alert" role="status"><CheckCircle2 size={17} />{notice}</div>}
           {(error || storageError) && <div className="alert error-alert" role="alert">{error || storageError}</div>}
-          {!showAdvanced && !showEditorialHome && <div className="page-head page-head-compact">
+          {!showAdvanced && !showEditorialHome && filter !== 'analytics' && <div className="page-head page-head-compact">
             <div><div className="eyebrow"><span className="eyebrow-line" /> TAIYOU'S COLLECTION</div>
               <h1>{filter === 'offline' ? 'Offline library' : filter === 'trying' ? 'Trying out' : selectedCollection ? selectedCollection.name : selectedTag ? selectedTag : 'Your library'}<span className="serif-accent">.</span></h1>
               <p>{filter === 'offline' ? `${cachedEpubIds.length} downloaded for reading without a connection` : filter === 'trying' ? `${books.filter(b => b.shelfStatus === 'trying').length} novels to sample before deciding` : `${books.length} stories to explore, all in one place`}</p>
@@ -334,7 +336,7 @@ export default function LibraryDashboard({
            </section>}
                     {showAdvanced ? <AdvancedSearch books={books} offlineIds={cachedEpubIds} initialName={globalSearch} cloudRepo={cloudRepo} cloudSession={cloudSession}
             onClose={() => { setShowAdvanced(false); onGlobalSearch(''); }} onOpen={onOpen}
-            onBrowseTag={browseTag} /> : <>
+            onBrowseTag={browseTag} /> : filter === 'analytics' ? <UsageDashboard books={books} /> : <>
 
           {showEditorialHome && <EditorialHome books={books} onOpen={onOpen} onRead={onRead} onBrowseTag={browseTag}
             cover={(book, isFeatured) => <Cover book={book} variant={isFeatured ? 'feature' : 'normal'} cloudRepo={cloudRepo} cloudSession={cloudSession} />} />}
