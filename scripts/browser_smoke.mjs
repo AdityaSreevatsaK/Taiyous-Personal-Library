@@ -695,6 +695,64 @@ try {
           getComputedStyle(el).getPropertyValue('--novel-hero-shadow').trim());
         if (!/^#[0-9a-f]{6}$/i.test(colour)) throw new Error('Novel hero colour is not derived from its immutable ID');
         console.log('Uncached novel details navigated without EPUB in ' + detailLatencyMs + ' ms');
+
+        // Reproduce the owner's varied card heights: long/short titles, tags
+        // that used to wrap '+N' to a second line, ratings and progress states.
+        await fastPage.evaluate(async () => {
+          const db = await new Promise((resolve, reject) => {
+            const request = indexedDB.open('folio-personal-library-v1', 2);
+            request.onsuccess = () => resolve(request.result);
+            request.onerror = () => reject(request.error);
+          });
+          const transaction = db.transaction('books', 'readwrite');
+          const cases = [
+            { id:'cccccccccccccccccccccccc', title:'Long Cultivation: My Augmented Statuses Have Unlimited Duration', author:'Long Author Name and Another Name',
+              progress:0, sourceTags:['Action','Adventure','Fantasy','System','Martial Arts'], personalRating:8 },
+            { id:'dddddddddddddddddddddddd', title:'Short Tale', author:'Writer', progress:46,
+              sourceTags:['Action','Fantasy'] },
+            { id:'eeeeeeeeeeeeeeeeeeeeeeee', title:'A Novel Under Consideration', author:'Another Author',
+              progress:0, sourceTags:['Adventure'], shelfStatus:'trying' },
+            { id:'ffffffffffffffffffffffff', title:'Novel With No Tags', author:'Longish Writer Name', progress:92,
+              sourceTags:[], personalRating:9 },
+          ];
+          for (const [index, book] of cases.entries()) transaction.objectStore('books').put({
+            originalFileName:'mock-not-downloaded.epub', importedAt:Date.now() + index,
+            size:0, cloud:true, metadataScanned:true, ...book,
+          });
+          await new Promise((resolve, reject) => {
+            transaction.oncomplete = () => resolve();
+            transaction.onerror = () => reject(transaction.error);
+          });
+          db.close();
+        });
+        await fastPage.goto(baseUrl + '/library', { waitUntil:'networkidle' });
+        await fastPage.getByRole('button', { name:'View details for Long Cultivation: My Augmented Statuses Have Unlimited Duration' }).waitFor();
+        await fastPage.locator('.tile-trying-status').waitFor();
+        await fastPage.locator('.tile-progress-value').first().waitFor();
+        const metrics = await fastPage.locator('.book-grid .book-tile').evaluateAll(cards => cards.map(card => {
+          const box = card.getBoundingClientRect();
+          const tags = card.querySelector('.tile-tags');
+          const footer = card.querySelector('.tile-bottom');
+          const chips = [...tags.children].map(chip => chip.getBoundingClientRect().top);
+          const tagRect = tags.getBoundingClientRect();
+          return {
+            cardTop: box.top, tagsTop: tagRect.top, tagsHeight: tagRect.height,
+            footerTop: footer.getBoundingClientRect().top,
+            chipRows: chips.length === 0 ? 1 : new Set(chips.map(top => Math.round(top))).size,
+            chipCount: chips.length,
+            titleAlignment: getComputedStyle(card.querySelector('.tile-title')).textAlign,
+            authorAlignment: getComputedStyle(card.querySelector('.tile-meta > p')).textAlign,
+          };
+        }));
+        const firstRow = metrics.filter(item => Math.abs(item.cardTop - metrics[0].cardTop) < 2);
+        if (firstRow.length < 2 ||
+            firstRow.some(item => Math.abs(item.tagsTop - firstRow[0].tagsTop) > 2 ||
+              Math.abs(item.footerTop - firstRow[0].footerTop) > 2 ||
+              item.tagsHeight > 26 || item.chipRows > 1 ||
+              item.chipCount > 3 || item.titleAlignment !== 'center' || item.authorAlignment !== 'center')) {
+          throw new Error('Catalogue metadata rows no longer align: ' + JSON.stringify({ viewport, firstRow }));
+        }
+        await fastPage.screenshot({path:`artifacts/design-screenshots/catalogue-tiles-${viewport.width}.png`,fullPage:true});
       } finally {
         await fastPage.close();
         await context.close();

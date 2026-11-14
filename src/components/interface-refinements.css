@@ -68,3 +68,85 @@
 @media(max-width:660px) {
   .app-shell .page-head-actions {width:100%}
 }
+
+
+/*
+ * Uniform catalogue cards. Reserve the same two-line title and author slots,
+ * keep tag chips to one row, and pin reading status to a shared baseline.
+ * Full tag names remain available via each chip's title/accessibility label.
+ */
+.app-shell .book-grid { align-items:stretch; row-gap:clamp(28px,2.4vw,40px); }
+.app-shell .book-grid .book-tile {
+  min-width:0; height:100%; padding-bottom:0;
+  display:flex; flex-direction:column;
+}
+.app-shell .book-tile .cover-button { flex:0 0 auto; }
+.app-shell .book-tile .tile-meta {
+  flex:1 1 auto; display:flex; flex-direction:column;
+  padding:12px 1px 0; min-width:0;
+}
+.app-shell .book-tile .tile-title-row {
+  min-height:39px; height:39px; display:flex;
+  align-items:flex-start; justify-content:center;
+}
+.app-shell .book-tile .tile-title {
+  display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2;
+  overflow:hidden; max-height:39px; line-height:1.38;
+  text-align:center; width:100%; flex:1 1 auto;
+}
+.app-shell .book-tile .tile-meta > p {
+  display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2;
+  overflow:hidden; min-height:30px; max-height:30px;
+  line-height:1.4; margin:4px 0 9px; text-align:center;
+}
+.app-shell .book-tile .tile-tags {
+  display:flex; flex-wrap:nowrap; align-items:center; justify-content:center;
+  min-height:24px; height:24px; width:100%; max-width:100%;
+  overflow:hidden; margin:0 0 10px; padding:0 1px; gap:4px;
+}
+.app-shell .book-tile .tile-tags button {
+  display:inline-block; flex:0 1 auto; min-width:0; max-width:48%;
+  overflow:hidden; white-space:nowrap; text-overflow:ellipsis;
+  padding:4px 6px; line-height:1.3; text-align:center;
+}
+.app-shell .book-tile .tile-tags:has(> span) button {
+  max-width:calc((100% - 40px)/2);
+}
+.app-shell .book-tile .tile-tags span {
+  flex:0 0 auto; text-align:center; padding:4px 6px; line-height:1.3;
+}
+.app-shell .book-tile .book-collection-tools {
+  margin:1px 0 10px; justify-content:center; min-width:0;
+}
+.app-shell .book-tile .offline-tile-actions {
+  text-align:center; margin:1px 0 10px;
+}
+.app-shell .book-tile .tile-bottom {
+  margin-top:auto; display:flex; flex-wrap:nowrap;
+  align-items:center; justify-content:center; gap:6px;
+  width:100%; min-width:0; min-height:29px;
+  border-top:1px solid var(--border);
+  padding:7px 0 0; font-size:10px;
+}
+.app-shell .book-tile .tile-bottom .mini-progress {
+  flex:0 1 75px; width:75px; min-width:15px;
+  height:4px; margin:0; border-radius:3px;
+}
+.app-shell .book-tile .tile-bottom .tile-progress-value,
+.app-shell .book-tile .tile-bottom .unread-label {
+  flex:0 0 auto; text-align:center; white-space:nowrap;
+}
+.app-shell .book-tile .tile-bottom .book-rating-pill {
+  flex:0 0 auto; padding:3px 5px; font-size:10px; white-space:nowrap;
+}
+.app-shell .book-tile .tile-trying-status {
+  flex:0 0 auto; font-size:9px; line-height:1.3; font-weight:750;
+  letter-spacing:.04em; color:var(--subtext);
+}
+@media(max-width:550px) {
+  .app-shell .book-tile .tile-meta {padding-top:10px}
+  .app-shell .book-tile .tile-tags {gap:3px}
+  .app-shell .book-tile .tile-tags button {padding:4px 5px}
+  .app-shell .book-tile .tile-bottom {gap:4px}
+  .app-shell .book-tile .tile-bottom .book-rating-pill {padding:2px 3px}
+}
