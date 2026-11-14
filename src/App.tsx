@@ -649,7 +649,7 @@ export default function App() {
   const metadataScansInFlight = useRef(new Set<string>());
   useEffect(() => {
     const id = detailsId;
-    if (!id || !cachedEpubIds.includes(id)) return;
+    if (!id || readingId || !cachedEpubIds.includes(id)) return;
     const target = booksRef.current.find(item => item.id === id);
     if (!target || target.metadataScanned || metadataScansInFlight.current.has(id)) return;
     let cancelled = false;
@@ -687,7 +687,7 @@ export default function App() {
     }
     const handle = window.setTimeout(scan, 450);
     return () => { cancelled = true; window.clearTimeout(handle); };
-  }, [detailsId, cachedEpubIds]);
+  }, [detailsId, readingId, cachedEpubIds]);
 
   const savePersonalTags = useCallback(async (bookId: string, tags: string[]) => {
     const current = booksRef.current.find(book => book.id === bookId);
