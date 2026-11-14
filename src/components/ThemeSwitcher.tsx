@@ -1,4 +1,5 @@
 import { Check } from 'lucide-react';
+import type { CSSProperties } from 'react';
 import type { ReaderTheme } from '../types';
 import { THEME_OPTIONS, nextReaderTheme, themeById } from '../lib/themes';
 import './theme-switcher.css';
@@ -29,7 +30,7 @@ export default function ThemeSwitcher({ value, onChange, compact = false, label 
       title={option.name}
       aria-pressed={option.id === value}
       onClick={() => onChange(option.id)}
-      style={{ '--swatch-bg': option.swatch, '--swatch-ink': option.foreground } as React.CSSProperties}>
+      style={{ '--swatch-bg': option.swatch, '--swatch-ink': option.foreground } as CSSProperties}>
       <span className="theme-swatch-circle" aria-hidden="true">
         {option.id === value && <Check size={12} strokeWidth={3} />}
       </span>
