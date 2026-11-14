@@ -1,0 +1,41 @@
+/* Every swatch applies its theme with ONE click, without opening settings. */
+.theme-swatches {
+ display:flex; align-items:center; justify-content:flex-end; gap:3px;
+ flex:0 0 auto; padding:3px 4px; border:1px solid var(--border);
+ border-radius:999px; background:var(--surface);
+}
+.theme-swatch {
+ display:grid; place-items:center; border:0; padding:2px;
+ background:transparent; border-radius:50%; width:28px; height:28px;
+ flex:0 0 28px; color:var(--swatch-ink);
+}
+.theme-swatch-circle {
+ display:grid; place-items:center; width:21px; height:21px;
+ border-radius:50%; background:var(--swatch-bg); border:1px solid #8090a644;
+ box-shadow:inset 0 0 0 1px #ffffff18;
+}
+.theme-swatch:hover { background:var(--pale); }
+.theme-swatch.is-selected { outline:2px solid var(--accent,#597ba4); outline-offset:0; }
+.theme-swatch:focus-visible,.theme-next-button:focus-visible { outline:3px solid var(--accent,#597ba4); outline-offset:2px; }
+.theme-next-button {
+ border:1px solid var(--border); border-radius:999px; background:var(--surface);
+ color:var(--text); display:inline-flex; align-items:center; justify-content:center;
+ gap:6px; padding:6px 9px; font-size:10px; font-weight:650; min-width:0;
+}
+.theme-next-button:hover { background:var(--pale); }
+.theme-dot { display:block; width:17px; height:17px; border-radius:50%; border:1px solid var(--border); flex:0 0 auto; }
+.theme-options { grid-template-columns:repeat(3,minmax(0,1fr)); }
+.theme-choice { min-width:0; }
+.choice-midnight { color:#e7edf9; background:#12213b; }
+.choice-ocean { color:#244464; background:#e8f3fb; }
+.choice-plum { color:#f5e7f2; background:#302536; }
+.theme-choice.selected { outline-color:var(--accent,#597ba4); }
+@media(max-width:760px) {
+ .theme-swatches { gap:1px; padding:2px; }
+ .theme-swatch { width:25px; height:25px; flex-basis:25px; }
+ .theme-swatch-circle { width:19px; height:19px; }
+}
+@media(max-width:440px) {
+ .reader-head-right .theme-next-text { display:none; }
+ .reader-head-right .theme-next-button { padding:6px; min-width:30px; }
+}
