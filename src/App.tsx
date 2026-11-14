@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type ChangeEvent } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ChangeEvent } from 'react';
 import LibraryDashboard from './components/LibraryDashboard';
 import BookDetails from './components/BookDetails';
 import Reader from './components/Reader';
@@ -71,6 +71,14 @@ export default function App() {
     }
     setRoutePath(path);
   }
+  // The SPA keeps its root scrolling element across page changes.
+  // A novel details page must ALWAYS open at its top, not at the previous
+  // catalogue scroll position. Also reset on browser Back/Forward routes.
+  useLayoutEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+    if (document.scrollingElement) document.scrollingElement.scrollTop = 0;
+  }, [routePath]);
+
   const goLibrary = useCallback(() => {
     navigate('/');
     setReadingId(null);
