@@ -72,7 +72,7 @@ export default function EditorialHome({ books, onOpen, onRead, onBrowseTag, cove
           {displayBooks.map((book, index) => <button
             className={'editorial-art-book editorial-art-book-' + index}
             type="button" key={book.id}
-            aria-label={'View details for ' + book.title}
+            aria-label={'Featured cover for ' + book.title}
             onClick={() => onOpen(book)}
           >{cover(book, true)}</button>)}
           <span className="editorial-art-caption">{books.length} WORLDS · YOUR COLLECTION</span>
@@ -92,7 +92,7 @@ export default function EditorialHome({ books, onOpen, onRead, onBrowseTag, cove
       </div>
       <div className="editorial-continue-rail">
         {reading.slice(0, 6).map(book => <article className="editorial-continue-card" key={book.id}>
-          <button type="button" className="editorial-continue-cover" aria-label={'View details for ' + book.title} onClick={() => onOpen(book)}>{cover(book)}</button>
+          <button type="button" className="editorial-continue-cover" aria-label={'Reading desk cover for ' + book.title} onClick={() => onOpen(book)}>{cover(book)}</button>
           <div className="editorial-continue-copy">
             <p className="editorial-eyebrow">CURRENTLY READING</p>
             <button type="button" className="editorial-book-title" onClick={() => onOpen(book)}>{book.title}</button>
@@ -123,7 +123,7 @@ export default function EditorialHome({ books, onOpen, onRead, onBrowseTag, cove
           <div className="editorial-index-rows">
             {index.map((book, i) => <button type="button" key={book.id}
               className="editorial-index-row" onClick={() => onOpen(book)}
-              aria-label={'View details for ' + book.title}>
+              aria-label={'Journal entry for ' + book.title}>
               <span className="editorial-index-number">{String(i + 1).padStart(2, '0')}</span>
               <span className="editorial-index-name"><strong>{book.title}</strong><small>{book.author}</small></span>
               <span className="editorial-index-genre">{bookTags(book)[0] || 'Novel'}</span>
