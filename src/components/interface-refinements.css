@@ -32,3 +32,15 @@
 }
 .app-shell .reading-resume-continue:hover { filter:brightness(1.1); }
 .app-shell .reading-resume-info>span { color:var(--subtext); }
+
+/* Approved Sun artwork floats freely without the old feather's tile. */
+.app-shell .library-wordmark-mark {
+  width:40px; height:40px; display:grid; place-items:center;
+  border:0; border-radius:0; padding:0; background:transparent;
+  overflow:visible;
+}
+.app-shell .taiyou-brand-mark {width:36px;height:36px;object-fit:contain;}
+@media(max-width:700px){
+  .app-shell .library-wordmark-mark { width:34px; height:34px; }
+  .app-shell .taiyou-brand-mark {width:32px !important;height:32px !important;}
+}
