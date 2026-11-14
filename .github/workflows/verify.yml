@@ -90,6 +90,14 @@ jobs:
             sleep 1
           done
           node scripts/browser_smoke.mjs
+      - name: Publish synthetic-only design screenshots for review
+        if: ${{ always() && github.event_name == 'pull_request' && startsWith(github.head_ref, 'design/') }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: editorial-design-desktop-mobile
+          path: artifacts/design-screenshots/*.png
+          if-no-files-found: ignore
+          retention-days: 14
       - name: Diagnose the public production OAuth metadata externally
         shell: bash
         run: |
