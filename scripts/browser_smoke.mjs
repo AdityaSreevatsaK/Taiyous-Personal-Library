@@ -142,7 +142,7 @@ try {
     await page.getByRole('button', { name: 'Advanced search' }).click();
     await page.waitForURL('**/advanced-search');
     await page.getByRole('button', { name: 'Back to shelf' }).click();
-    await page.waitForURL('**/');
+    await page.waitForURL('**/library');
     await nav.getByRole('button', { name: 'Analytics' }).click();
     await page.waitForURL('**/analytics');
     await page.getByRole('heading', { name: 'Reading analytics' }).waitFor();
@@ -156,7 +156,7 @@ try {
     await recordToggle.check();
     await page.getByRole('button', { name: 'Clear analytics' }).waitFor();
     await nav.getByRole('button', { name: /All books/ }).click();
-    await page.waitForURL('**/');
+    await page.waitForURL('**/library');
     for (const [name, path, heading] of [
       [/Trying out/, '/trying-out', /Trying out/],
       [/Currently reading/, '/currently-reading', /Your library/],
@@ -173,7 +173,7 @@ try {
     await page.goForward({ waitUntil: 'domcontentloaded' });
     await page.waitForURL('**/offline');
     await nav.getByRole('button', { name: /All books/ }).click();
-    await page.waitForURL('**/');
+    await page.waitForURL('**/library');
 
     // Cloud connection must not dominate the bookshelf by default, but remain accessible.
     const cloudSettings = page.getByRole('button', { name: 'Settings', exact: true });
@@ -225,6 +225,9 @@ try {
       });
       db.close();
     }, epubBytes);
+    // Seeded catalogue was opened on /library; return to the separately addressable Home.
+    await page.getByRole('button', { name: "Taiyou's Personal Library home" }).click();
+    await page.waitForURL('**/');
     await page.reload({ waitUntil: 'networkidle' });
     // The integrated redesign uses the REAL IndexedDB books, not design fixtures.
     // Its new cover-led home and editorial index must work on desktop and mobile.
@@ -232,11 +235,36 @@ try {
     await grand.waitFor({ state: 'visible' });
     await page.locator('.editorial-journal').waitFor({ state: 'visible' });
     await page.locator('.editorial-index-row').first().waitFor();
+    if (await page.locator('#library-full-catalogue, .book-grid').count()) {
+      throw new Error('Homepage must NOT render the entire catalogue below the Literary Journal');
+    }
+    if (await page.locator('.editorial-index-row').count() > 6 ||
+        await page.locator('.editorial-shelf-card').count() > 4) {
+      throw new Error('Curated home exceeded its small, bounded selections');
+    }
+    await page.getByRole('button', { name: 'Browse tag Fantasy' }).waitFor();
     await mkdir('artifacts/design-screenshots', { recursive: true });
     await page.screenshot({ path: `artifacts/design-screenshots/editorial-home-${viewport.width}.png`, fullPage: true });
     if (!(await grand.getByRole('heading', { name: /Where worlds unfold/ }).count())) {
       throw new Error('Grand Library title is absent');
     }
+    await page.getByRole('button', { name: /Browse all 1 novel/ }).click();
+    await page.waitForURL('**/library');
+    await page.getByRole('button', { name: 'View details for Sample Library Book' }).waitFor();
+    if (await page.locator('.editorial-journal').count()) throw new Error('Journal must not duplicate on the catalogue page');
+    if (await page.locator('.sort-field select').inputValue() !== 'title') {
+      throw new Error('Complete catalogue must retain alphabetical sorting');
+    }
+    await page.reload({ waitUntil: 'networkidle' });
+    await page.waitForURL('**/library');
+    await page.getByRole('button', { name: 'View details for Sample Library Book' }).waitFor();
+    await page.goBack({ waitUntil: 'domcontentloaded' });
+    await page.waitForURL('**/');
+    await page.locator('.editorial-grand').waitFor();
+    await page.getByRole('button', { name: 'Browse tag Fantasy' }).click();
+    await page.waitForURL('**/tags/fantasy');
+    await page.getByRole('button', { name: "Taiyou's Personal Library home" }).click();
+    await page.waitForURL('**/');
     await page.getByRole('button', { name: 'Featured cover for Sample Library Book' }).click();
     // The existing detail action first resolves EPUB availability asynchronously.
     await page.waitForURL('**/novels/sample-library-book');
@@ -380,7 +408,7 @@ try {
     await page.getByRole('button', { name: 'View details for Sample Library Book' }).waitFor();
     await page.getByRole('button', { name: 'Clear global search' }).click();
     await page.getByRole('button', { name: 'Show all novels' }).click();
-    await page.waitForURL('**/');
+    await page.waitForURL('**/library');
     // Collections are independent from tags, work offline and survive reload.
     await page.getByText('Collections', { exact: true }).click();
     await page.getByRole('button', { name: 'Create collection' }).click();
@@ -527,6 +555,9 @@ try {
     await page.getByRole('button', { name: /^(Start reading|Continue reading)$/ }).click();
     await page.getByRole('button', { name: 'Go to library home' }).click();
     await page.getByRole('navigation', { name: 'Library sections' }).waitFor();
+    await page.getByRole('navigation', { name: 'Library sections' })
+      .getByRole('button', { name: /All books/ }).click();
+    await page.waitForURL('**/library');
     await page.locator('.book-rating-pill').getByText('8/10').waitFor();
     // Verify a true offline *reload* of the compiled app, then open/read the
     // already-cached synthetic EPUB without any network or HF credentials.
@@ -611,7 +642,7 @@ try {
       // for an entire remote EPUB and failed without a connected cloud.
       const fastPage = await context.newPage();
       try {
-        await fastPage.goto(baseUrl + '/', { waitUntil: 'networkidle' });
+        await fastPage.goto(baseUrl + '/library', { waitUntil: 'networkidle' });
         await fastPage.evaluate(async () => {
           const request = indexedDB.open('folio-personal-library-v1', 2);
           const db = await new Promise((resolve, reject) => {

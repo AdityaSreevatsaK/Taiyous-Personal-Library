@@ -1,11 +1,16 @@
 import { useMemo, type ReactNode } from 'react';
 import { ArrowRight, BookOpen, Bookmark, Feather, Sparkles } from 'lucide-react';
 import { bookTags, tagCounts } from '../lib/tags';
+import type { BookCollection } from '../lib/collections';
+import { selectHomeBooks, selectHomeShelves } from '../lib/home-curation';
 import type { LibraryBook } from '../types';
 import './editorial-home.css';
 
 interface Props {
   books: LibraryBook[];
+  collections: BookCollection[];
+  onBrowseCollection: (id: string) => void;
+  onBrowseAll: () => void;
   onOpen: (book: LibraryBook) => void;
   onRead: (book: LibraryBook) => void;
   onBrowseTag: (tag: string) => void;
@@ -24,21 +29,17 @@ function readingStatus(book: LibraryBook): string {
  * Journal's editorial index. All actions use the REAL library callbacks:
  * no fictional fixtures, separate catalogue, or replacement of owner controls.
  */
-export default function EditorialHome({ books, onOpen, onRead, onBrowseTag, cover }: Props) {
-  const reading = useMemo(
-    () => books.filter(book => book.shelfStatus !== 'trying' && book.progress > 0 && book.progress < 99.5)
-      .sort((a, b) => (b.lastOpenedAt ?? 0) - (a.lastOpenedAt ?? 0)),
-    [books],
-  );
-  const featured = reading[0] ?? books.find(book => book.shelfStatus !== 'trying') ?? books[0];
-  const displayBooks = useMemo(() => {
-    if (!featured) return [];
-    return [featured, ...books.filter(book => book.id !== featured.id).slice(0, 2)];
-  }, [books, featured]);
-  const index = useMemo(() => [...books]
-    .sort((a, b) => a.title.localeCompare(b.title, undefined, { sensitivity: 'base', numeric: true }))
-    .slice(0, 10), [books]);
-  const commonTags = useMemo(() => tagCounts(books).slice(0, 7), [books]);
+export default function EditorialHome({
+  books, collections, onBrowseCollection, onBrowseAll, onOpen, onRead, onBrowseTag, cover,
+}: Props) {
+  const { featured, continueReading, journal } = useMemo(() => selectHomeBooks(books), [books]);
+  const readingCount = useMemo(() =>
+    books.filter(book => book.shelfStatus !== 'trying' && book.progress > 0 && book.progress < 99.5).length, [books]);
+  const displayBooks = useMemo(() =>
+    featured ? [featured, ...journal.filter(book => book.id !== featured.id).slice(0, 2)] : [],
+    [featured, journal]);
+  const shelves = useMemo(() => selectHomeShelves(books, collections, 4), [books, collections]);
+  const commonTags = useMemo(() => tagCounts(books).slice(0, 5), [books]);
   const trialCount = books.filter(book => book.shelfStatus === 'trying').length;
   if (!featured) return null;
 
@@ -80,18 +81,18 @@ export default function EditorialHome({ books, onOpen, onRead, onBrowseTag, cove
       </div>
       <div className="editorial-grand-ledger" aria-label="Your library at a glance">
         <span><b>{books.length}</b> novels on your shelves</span>
-        <span><b>{reading.length}</b> journeys in progress</span>
+        <span><b>{readingCount}</b> journeys in progress</span>
         <span><b>{trialCount}</b> under consideration</span>
       </div>
     </section>
 
-    {reading.length > 0 && <section className="editorial-continue" aria-label="Continue reading shelf">
+    {continueReading.length > 0 && <section className="editorial-continue" aria-label="Continue reading shelf">
       <div className="editorial-section-heading">
         <div><span className="editorial-eyebrow">01 / THE READING DESK</span><h2>Continue your journey</h2></div>
-        <span className="editorial-section-aside">{reading.length} {reading.length === 1 ? 'story' : 'stories'} in progress</span>
+        <span className="editorial-section-aside">Other novels in progress</span>
       </div>
       <div className="editorial-continue-rail">
-        {reading.slice(0, 6).map(book => <article className="editorial-continue-card" key={book.id}>
+        {continueReading.map(book => <article className="editorial-continue-card" key={book.id}>
           <button type="button" className="editorial-continue-cover" aria-label={'Reading desk cover for ' + book.title} onClick={() => onOpen(book)}>{cover(book)}</button>
           <div className="editorial-continue-copy">
             <p className="editorial-eyebrow">CURRENTLY READING</p>
@@ -116,12 +117,12 @@ export default function EditorialHome({ books, onOpen, onRead, onBrowseTag, cove
       <div className="editorial-journal-columns">
         <div className="editorial-journal-index">
           <div className="editorial-section-heading">
-            <div><span className="editorial-eyebrow">02 / THE INDEX</span><h3>An index of worlds</h3></div>
-            <a href="#library-full-catalogue">Full catalogue <ArrowRight size={14}/></a>
+            <div><span className="editorial-eyebrow">02 / CURATED FOR YOU</span><h3>From your shelves</h3></div>
+            <button type="button" className="editorial-text-link" onClick={onBrowseAll}>Full catalogue <ArrowRight size={14}/></button>
           </div>
           <div className="editorial-index-labels" aria-hidden="true"><span>NO.</span><span>NOVEL</span><span>GENRE</span><span>YOUR SHELF</span></div>
           <div className="editorial-index-rows">
-            {index.map((book, i) => <button type="button" key={book.id}
+            {journal.map((book, i) => <button type="button" key={book.id}
               className="editorial-index-row" onClick={() => onOpen(book)}
               aria-label={'Journal entry for ' + book.title}>
               <span className="editorial-index-number">{String(i + 1).padStart(2, '0')}</span>
@@ -130,7 +131,7 @@ export default function EditorialHome({ books, onOpen, onRead, onBrowseTag, cove
               <span className="editorial-index-state">{readingStatus(book)}</span>
             </button>)}
           </div>
-          {books.length > index.length && <a className="editorial-index-more" href="#library-full-catalogue">Explore all {books.length} novels <ArrowRight size={15}/></a>}
+          {books.length > journal.length && <button type="button" className="editorial-index-more" onClick={onBrowseAll}>Explore all {books.length} novels <ArrowRight size={15}/></button>}
         </div>
         <aside className="editorial-margin" aria-label="Notes from your reading room">
           <div className="editorial-margin-rule"><span>IN THE MARGINS</span><span>✦</span></div>
@@ -142,7 +143,7 @@ export default function EditorialHome({ books, onOpen, onRead, onBrowseTag, cove
           <section className="editorial-margin-stats">
             <span className="editorial-eyebrow">YOUR READING RECORD</span>
             <div><strong>{books.length}</strong><span>STORIES</span></div>
-            <div><strong>{reading.length}</strong><span>IN PROGRESS</span></div>
+            <div><strong>{readingCount}</strong><span>IN PROGRESS</span></div>
             <div><strong>{trialCount}</strong><span>TRYING OUT</span></div>
           </section>
           {commonTags.length > 0 && <section className="editorial-margin-topics">
@@ -154,6 +155,37 @@ export default function EditorialHome({ books, onOpen, onRead, onBrowseTag, cove
           </section>}
         </aside>
       </div>
+    </section>
+
+    {shelves.length > 0 && <section className="editorial-shelves" aria-label="Explore collections and genres">
+      <div className="editorial-section-heading">
+        <div><span className="editorial-eyebrow">03 / YOUR BOOKSHELVES</span><h2>Explore your shelves</h2></div>
+        <span className="editorial-section-aside">A few paths into your collection</span>
+      </div>
+      <div className="editorial-shelf-grid">
+        {shelves.map(shelf => <button type="button" className="editorial-shelf-card"
+          key={shelf.kind + ':' + shelf.id}
+          onClick={() => shelf.kind === 'collection' ? onBrowseCollection(shelf.id) : onBrowseTag(shelf.id)}
+          aria-label={`Browse ${shelf.kind} ${shelf.name}`}>
+          <span className="editorial-shelf-cover" aria-hidden="true">{cover(shelf.preview)}</span>
+          <span className="editorial-shelf-details">
+            <span className="editorial-eyebrow">{shelf.kind === 'collection' ? 'COLLECTION' : 'GENRE & TAG'}</span>
+            <strong>{shelf.name}</strong>
+            <small>{shelf.count} {shelf.count === 1 ? 'novel' : 'novels'}</small>
+          </span>
+          <ArrowRight size={17} aria-hidden="true" />
+        </button>)}
+      </div>
+    </section>}
+
+    <section className="editorial-all-books" aria-label="Open complete novel catalogue">
+      <div><span className="editorial-eyebrow">THE COMPLETE COLLECTION</span>
+        <h2>Every world, one library.</h2>
+        <p>Browse your entire collection with sorting, searching and filters whenever you wish.</p>
+      </div>
+      <button type="button" className="editorial-browse-all" onClick={onBrowseAll}>
+        Browse all {books.length} {books.length === 1 ? 'novel' : 'novels'} <ArrowRight size={16}/>
+      </button>
     </section>
   </div>;
 }
