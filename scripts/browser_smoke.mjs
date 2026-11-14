@@ -243,6 +243,9 @@ try {
       throw new Error('Curated home exceeded its small, bounded selections');
     }
     await page.getByRole('button', { name: 'Browse tag Fantasy' }).waitFor();
+    if (await page.getByText('GENRE & TAG', { exact: true }).count()) {
+      throw new Error('Home genre cards must not repeat the redundant genre/tag caption');
+    }
     await mkdir('artifacts/design-screenshots', { recursive: true });
     await page.screenshot({ path: `artifacts/design-screenshots/editorial-home-${viewport.width}.png`, fullPage: true });
     if (!(await grand.getByRole('heading', { name: /Where worlds unfold/ }).count())) {
@@ -251,6 +254,15 @@ try {
     await page.getByRole('button', { name: /Browse all 1 novel/ }).click();
     await page.waitForURL('**/library');
     await page.getByRole('button', { name: 'View details for Sample Library Book' }).waitFor();
+    const catalogueCaption = await page.locator('.book-tile').first().evaluate(tile => ({
+      title: getComputedStyle(tile.querySelector('.tile-title')).textAlign,
+      author: getComputedStyle(tile.querySelector('.tile-meta > p')).textAlign,
+      tags: getComputedStyle(tile.querySelector('.tile-tags')).justifyContent,
+    }));
+    if (catalogueCaption.title !== 'center' || catalogueCaption.author !== 'center' ||
+        catalogueCaption.tags !== 'center') {
+      throw new Error('Novel names, authors and tags must be centred below the cover: ' + JSON.stringify(catalogueCaption));
+    }
     if (await page.locator('.editorial-journal').count()) throw new Error('Journal must not duplicate on the catalogue page');
     if (await page.locator('.sort-field select').inputValue() !== 'title') {
       throw new Error('Complete catalogue must retain alphabetical sorting');
@@ -263,6 +275,11 @@ try {
     await page.locator('.editorial-grand').waitFor();
     await page.getByRole('button', { name: 'Browse tag Fantasy' }).click();
     await page.waitForURL('**/tags/fantasy');
+    if (await page.locator('.tag-collection-head:not(.collection-heading)').count()) {
+      throw new Error('Filtered tag page repeats the selected tag in an unnecessary full-width bar');
+    }
+    await page.getByRole('button', { name: 'Show all novels' }).waitFor();
+    await page.getByText('1 novel in this category').waitFor();
     await page.getByRole('button', { name: "Taiyou's Personal Library home" }).click();
     await page.waitForURL('**/');
     await page.getByRole('button', { name: 'Featured cover for Sample Library Book' }).click();
