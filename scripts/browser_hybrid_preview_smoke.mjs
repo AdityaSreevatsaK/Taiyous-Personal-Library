@@ -17,6 +17,16 @@ try {
     await page.locator('.editorial-grand').waitFor({ state: 'visible', timeout: 30000 });
     await page.locator('.editorial-journal').waitFor({ state: 'visible' });
     await page.locator('.editorial-index-row').first().waitFor();
+    if (await page.locator('.sidebar').count()) throw new Error('Permanent sidebar remains on the new layout');
+    await page.getByRole('navigation', { name: 'Library sections' }).waitFor({ state: 'visible' });
+    await page.getByRole('navigation', { name: 'Library sections' }).getByRole('button', { name: /Trying out/ }).click();
+    await page.getByRole('heading', { name: /Trying out/ }).first().waitFor();
+    await page.getByRole('navigation', { name: 'Library sections' }).getByRole('button', { name: /All books/ }).click();
+    await page.locator('.editorial-grand').waitFor({ state: 'visible' });
+    await page.getByText('Tags', { exact: true }).click();
+    await page.getByRole('group', { name: 'Browse tags' }).getByRole('button', { name: /Cultivation/ }).first().waitFor();
+    await page.getByText('Tags', { exact: true }).click();
+
     await page.getByRole('button', { name: 'Featured cover for The Jade Ascendant' }).waitFor();
     if (await page.locator('.topbar>.cloud-connect').isVisible()) {
       throw new Error('Private cloud sign-in must be hidden in preview');
