@@ -1,0 +1,35 @@
+# One-shot owner-approved deployment for reader title-based URLs.
+# Requests ONLY the existing guarded Deploy Application workflow.
+name: "One-shot: deploy verified human-readable novel URLs"
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - .github/workflows/one-shot-title-route-deploy-20261114.yml
+
+permissions:
+  contents: read
+  actions: write
+
+jobs:
+  request-publish:
+    if: github.repository == 'AdityaSreevatsaK/Taiyous-Personal-Library' && github.ref == 'refs/heads/master'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      EXPECTED_SHA: ${{ github.sha }}
+    steps:
+      - name: Dispatch existing, gated Cloudflare deployment for exact master
+        shell: bash
+        run: |
+          set -euo pipefail
+          current="$(gh api "repos/$GH_REPO/git/ref/heads/master" --jq '.object.sha')"
+          if [ "$current" != "$EXPECTED_SHA" ]; then
+            echo '::error::Master advanced; refusing an out-of-date deploy request.'
+            exit 1
+          fi
+          gh workflow run deploy-standalone.yml --repo "$GH_REPO" --ref master -f publish=true
+          echo 'The existing validation, private Functions packaging and Cloudflare deployment checks must all pass.'
