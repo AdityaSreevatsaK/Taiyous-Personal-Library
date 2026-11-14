@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type DragEvent } from 'react';
 import AdvancedSearch from './AdvancedSearch';
+import ThemeSwitcher from './ThemeSwitcher';
+import { nextReaderTheme } from '../lib/themes';
 import { useCoverArt } from './useCoverArt';
 import {
   ArrowRight, Book, BookOpen, CheckCircle2, ChevronDown, CloudOff, Download, WifiOff,
@@ -56,7 +58,7 @@ interface Props {
   onCloudPublishCached: () => void;
 }
 
-const themes: ReaderTheme[] = ['light', 'dark', 'sepia'];
+
 
 export function Cover({ book, variant = 'normal', cloudRepo = '', cloudSession = null }: {
   book: LibraryBook;
@@ -245,7 +247,7 @@ export default function LibraryDashboard({
           <button className="collection-link" onClick={onImportClick}><span className="collection-icon"><Plus size={16} /></span><span>Add a new novel</span></button>
           <div className="side-note"><Sparkles size={17} /><p>“There is no friend as loyal as a book.”<small>ERNEST HEMINGWAY</small></p></div>
         </div>
-        <div className="sidebar-bottom"><div className="privacy-indicator"><LockKeyhole size={15} /><span>{cloudRepo && cloudSession ? "Private · Cloud + local cache" : "Private · Stored on this device"}</span></div><button className="sidebar-theme" onClick={() => onThemeChange(themes[(themes.indexOf(theme) + 1) % themes.length])} title="Cycle between light, dark and sepia"><Sun size={17} /><span>{theme === 'dark' ? 'Dark' : theme === 'sepia' ? 'Sepia' : 'Light'} appearance</span><Moon size={15} /></button></div>
+        <div className="sidebar-bottom"><div className="privacy-indicator"><LockKeyhole size={15} /><span>{cloudRepo && cloudSession ? "Private · Cloud + local cache" : "Private · Stored on this device"}</span></div><button className="sidebar-theme" onClick={() => onThemeChange(nextReaderTheme(theme))} title="Cycle between light, dark and sepia"><Sun size={17} /><span>{theme === 'dark' ? 'Dark' : theme === 'sepia' ? 'Sepia' : 'Light'} appearance</span><Moon size={15} /></button></div>
       </aside>
 
       <main className="main-panel">
@@ -285,7 +287,7 @@ export default function LibraryDashboard({
               {cloudMessage && <p className="cloud-sync-message" role="status">{cloudMessage}</p>}
               {cloudSession?.via !== 'oauth' && <p className="cloud-caution" id="cloud-token-note">Legacy manual connection: use only a fine-grained dataset token. It is held in memory only and not retained after restarting the app. The Hugging Face OAuth sign-in is preferred, so you need not re-enter a token on every visit.</p>}
             </div>}
-          </section><div className="top-actions"><label className="global-search-field"><Search size={16} /><input aria-label="Search all novels" placeholder="Search all novels…" value={globalSearch} onChange={event => onGlobalSearch(event.target.value)} />{globalSearch && <button type="button" aria-label="Clear global search" onClick={() => onGlobalSearch('')}><X size={15} /></button>}</label><button type="button" className="advanced-search-launch" onClick={() => { setShowAdvanced(true); setSidebarOpen(false); }}><Search size={16} /><span>Advanced search</span></button><button className="icon-button theme-switch" onClick={() => onThemeChange(themes[(themes.indexOf(theme) + 1) % themes.length])} title="Change theme" aria-label="Change theme">{theme === 'dark' ? <Moon size={19} /> : <Sun size={19} />}</button></div></header>
+          </section><div className="top-actions"><label className="global-search-field"><Search size={16} /><input aria-label="Search all novels" placeholder="Search all novels…" value={globalSearch} onChange={event => onGlobalSearch(event.target.value)} />{globalSearch && <button type="button" aria-label="Clear global search" onClick={() => onGlobalSearch('')}><X size={15} /></button>}</label><button type="button" className="advanced-search-launch" onClick={() => { setShowAdvanced(true); setSidebarOpen(false); }}><Search size={16} /><span>Advanced search</span></button><ThemeSwitcher value={theme} onChange={onThemeChange} label="Choose library theme" /></div></header>
         <div className="page-content">
           {notice && <div className="alert success-alert" role="status"><CheckCircle2 size={17} />{notice}</div>}
           {(error || storageError) && <div className="alert error-alert" role="alert">{error || storageError}</div>}
