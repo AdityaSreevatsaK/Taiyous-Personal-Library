@@ -8,7 +8,7 @@ export interface LibraryView {
 }
 
 const BASE_PATHS: Record<ShelfFilter,string> = {
-  all: '/', trying: '/trying-out', reading: '/currently-reading',
+  all: '/library', trying: '/trying-out', reading: '/currently-reading',
   unread: '/to-be-read', finished: '/finished', offline: '/offline',
   analytics: '/analytics',
 };
@@ -37,6 +37,7 @@ export function parseLibraryViewPath(path: string): LibraryView {
   const ordinary = (filter: ShelfFilter = 'all', advanced = false): LibraryView =>
     ({filter, tag:'', collectionId:'', advanced});
   const normal = path.length > 1 ? path.replace(/\/$/, '') : path;
+  if (normal === '/') return ordinary('all'); // Curated Home, not the complete catalogue.
   if (normal === '/advanced-search') return ordinary('all', true);
   if (Object.prototype.hasOwnProperty.call(PATH_FILTERS,normal)) return ordinary(PATH_FILTERS[normal]);
   const tagMatch = /^\/tags\/([^/]+)(?:\/shelf\/(all|trying|reading|unread|finished|offline))?$/.exec(normal);
