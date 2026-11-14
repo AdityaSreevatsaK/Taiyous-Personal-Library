@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type DragEvent } from 'react';
 import AdvancedSearch from './AdvancedSearch';
+import EditorialHome from './EditorialHome';
 import { useCoverArt } from './useCoverArt';
 import {
   ArrowRight, Book, BookOpen, CheckCircle2, ChevronDown, CloudOff, Download, WifiOff,
@@ -152,6 +153,7 @@ export default function LibraryDashboard({
 
   const globalMode = globalSearch.trim().length > 0;
   const selectedCollection = collections.find(c => c.id === selectedCollectionId);
+  const showEditorialHome = books.length > 0 && filter === 'all' && !selectedTag && !selectedCollectionId && !globalMode && !showAdvanced;
   const visible = useMemo(() => {
     const q = (globalMode ? globalSearch : query).trim().toLocaleLowerCase();
     return books.filter((book) => {
@@ -289,7 +291,7 @@ export default function LibraryDashboard({
         <div className="page-content">
           {notice && <div className="alert success-alert" role="status"><CheckCircle2 size={17} />{notice}</div>}
           {(error || storageError) && <div className="alert error-alert" role="alert">{error || storageError}</div>}
-          {!showAdvanced && <div className="page-head page-head-compact">
+          {!showAdvanced && !showEditorialHome && <div className="page-head page-head-compact">
             <div><div className="eyebrow"><span className="eyebrow-line" /> TAIYOU'S COLLECTION</div>
               <h1>{filter === 'offline' ? 'Offline library' : filter === 'trying' ? 'Trying out' : selectedCollection ? selectedCollection.name : selectedTag ? selectedTag : 'Your library'}<span className="serif-accent">.</span></h1>
               <p>{filter === 'offline' ? `${cachedEpubIds.length} downloaded for reading without a connection` : filter === 'trying' ? `${books.filter(b => b.shelfStatus === 'trying').length} novels to sample before deciding` : `${books.length} stories to explore, all in one place`}</p>
@@ -320,7 +322,10 @@ export default function LibraryDashboard({
             onClose={() => { setShowAdvanced(false); onGlobalSearch(''); }} onOpen={onOpen}
             onBrowseTag={browseTag} /> : <>
 
-          {reading.length > 0 && featured && (
+          {showEditorialHome && <EditorialHome books={books} onOpen={onOpen} onRead={onRead} onBrowseTag={browseTag}
+            cover={(book, isFeatured) => <Cover book={book} variant={isFeatured ? 'feature' : 'normal'} cloudRepo={cloudRepo} cloudSession={cloudSession} />} />}
+
+          {!showEditorialHome && reading.length > 0 && featured && (
             <section className="reading-resume-strip" aria-label="Continue reading">
               <div className="reading-resume-icon"><BookOpen size={20}/></div>
               <div className="reading-resume-info"><span>CONTINUE READING</span>
@@ -333,7 +338,7 @@ export default function LibraryDashboard({
             </section>
           )}
 
-          <section className="library-section" aria-label="Book collection"><div className={`section-titlebar ${!globalMode && !selectedTag && !selectedCollection && (filter === 'all' || filter === 'offline') ? 'section-titlebar-quiet' : '' }`}><div><div className="section-overline">{globalMode ? 'ALL NOVELS' : selectedCollection ? 'YOUR COLLECTION' : selectedTag ? 'BROWSING TAG' : 'THE COLLECTION'}</div><h2>{globalMode ? 'Global search results' : selectedCollection ? selectedCollection.name : selectedTag ? selectedTag : filter === 'all' ? 'All your stories' : navEntries.find((i) => i.id === filter)?.name}<span className="title-count">{visible.length}</span></h2></div><span className="library-description">A little world on every shelf</span></div>
+          <section id="library-full-catalogue" className="library-section" aria-label="Book collection"><div className={`section-titlebar ${!globalMode && !selectedTag && !selectedCollection && (filter === 'all' || filter === 'offline') ? 'section-titlebar-quiet' : '' }`}><div><div className="section-overline">{globalMode ? 'ALL NOVELS' : selectedCollection ? 'YOUR COLLECTION' : selectedTag ? 'BROWSING TAG' : 'THE COLLECTION'}</div><h2>{globalMode ? 'Global search results' : selectedCollection ? selectedCollection.name : selectedTag ? selectedTag : filter === 'all' ? 'All your stories' : navEntries.find((i) => i.id === filter)?.name}<span className="title-count">{visible.length}</span></h2></div><span className="library-description">A little world on every shelf</span></div>
             {selectedTag && !globalMode && <div className="tag-collection-head"><span>Novels tagged <strong>{selectedTag}</strong> · Sorted A–Z</span><button type="button" onClick={clearTag}>Show all novels <X size={13} /></button></div>}{selectedCollection && !globalMode && <div className="tag-collection-head collection-heading">
               <span><strong>{selectedCollection.name}</strong> · {visible.length} novels · Sorted A–Z</span>
               <div className="collection-actions">
