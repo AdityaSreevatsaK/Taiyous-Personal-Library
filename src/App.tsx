@@ -7,6 +7,7 @@ import { ownerPost } from './lib/owner';
 import { extractEpubMetadata, prepareImport } from './lib/importer';
 import { normalizeTags } from './lib/tags';
 import { namedNovelUrl, parseLibraryRoute, resolveNovelRoute } from './lib/routes';
+import { libraryTagUrl } from './lib/library-routes';
 import { mapWithConcurrency, retryTransientRead } from './lib/network-pool';
 import { requestOfflineRetention } from './lib/offline';
 import { installUsageTracker } from './lib/usage-analytics';
@@ -1025,7 +1026,7 @@ export default function App() {
         onSaveSummary={summary => savePersonalSummary(detailBook.id, summary)}
         onSaveReview={(rating, review) => savePersonalReview(detailBook.id, rating, review)}
         onSetTrial={(trying) => savePersonalReview(detailBook.id, detailBook.personalRating, detailBook.personalReview || '', trying ? 'trying' : 'regular')}
-        onBrowseTag={tag => { setBrowseTag(tag); setGlobalSearch(''); goLibrary(); }} error={error} />
+        onBrowseTag={tag => { setBrowseTag(tag); setGlobalSearch(''); setReadingId(null); setDetailsId(null); setStartChapterHref(null); navigate(libraryTagUrl(tag)); }} error={error} />
     ) : (
       <LibraryDashboard books={books} theme={settings.theme}
         cachedEpubIds={cachedEpubIds} online={online} offlineShellReady={offlineShellReady}
@@ -1039,7 +1040,7 @@ export default function App() {
         onRenameCollection={renameCollection}
         onDeleteCollection={requestDeleteCollection}
         onCollectionMembership={changeCollectionMembership}
-        initialTag={browseTag} globalSearch={globalSearch} onGlobalSearch={setGlobalSearch}
+        initialTag={browseTag} libraryPath={routePath} onLibraryNavigate={navigate} globalSearch={globalSearch} onGlobalSearch={setGlobalSearch}
         onThemeChange={theme => setSettings(settings => ({ ...settings, theme }))}
         onImportClick={() => filePicker.current?.click()}
         onFiles={files => void importFiles(files)} onOpen={showDetails}
