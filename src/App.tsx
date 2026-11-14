@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type ChangeEvent } from 'react';
 import LibraryDashboard from './components/LibraryDashboard';
+import { seedPreviewBooks } from './design/preview-fixtures';
 import BookDetails from './components/BookDetails';
 import Reader from './components/Reader';
 import OwnerActionDialog, { type OwnerRemovalRequest } from './components/OwnerActionDialog';
@@ -129,7 +130,13 @@ export default function App() {
     // Remove a short-lived OAuth session previously stored by older builds.
     clearCloudSession();
     let active = true;
-    Promise.all([getBooks(), getCachedEpubIds()]).then(([saved, cachedIds]) => {
+    // The preview branch contains fictional EPUBs only, on an isolated Cloudflare origin.
+    // Never seed, replace or fetch the user's private production catalogue.
+    const initialise = async () => {
+      if (import.meta.env.VITE_DESIGN_PREVIEW === 'true') await seedPreviewBooks();
+      return Promise.all([getBooks(), getCachedEpubIds()]);
+    };
+    initialise().then(([saved, cachedIds]) => {
       if (!active) return;
       const shown = verifiedCloudCatalogue.current
         ? reconcileCloudLibrary([...cloudEntries.current.values()], saved, cachedIds).books : saved;
@@ -146,6 +153,8 @@ export default function App() {
   // hostname, discover the private dataset session automatically.
   // No Hugging Face token is ever copied to browser state or local storage.
   useEffect(() => {
+    // Static-only design edition has no Pages Functions or private dataset.
+    if (import.meta.env.VITE_DESIGN_PREVIEW === 'true') return;
     let active = true;
     const connect = async () => {
       const detected = await discoverHostedOAuthSession();
