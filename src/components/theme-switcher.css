@@ -53,6 +53,12 @@
  .app-shell .topbar .theme-swatches { flex:0 0 auto; max-width:100%; margin-left:auto; }
  .app-shell .topbar .theme-swatch { width:23px; height:23px; flex-basis:23px; }
  .app-shell .topbar .theme-swatch-circle { width:18px; height:18px; }
+ /* Place Cloud settings BELOW the entire two-row header, leaving search clickable. */
+ .app-shell .topbar .cloud-connect-body {
+   top:calc(100% + 58px); left:auto; right:0;
+   width:min(490px,calc(100vw - 24px));
+ }
+ .app-shell .topbar .cloud-status { top:calc(100% + 58px); left:auto; right:0; }
 }
 @media(max-width:390px){
  .app-shell .topbar .theme-swatches { gap:0; }
