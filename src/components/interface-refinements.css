@@ -44,3 +44,27 @@
   .app-shell .library-wordmark-mark { width:34px; height:34px; }
   .app-shell .taiyou-brand-mark {width:32px !important;height:32px !important;}
 }
+
+/* Catalogue cover captions: centre names, authors and the tag chips.
+   Scope to book tiles so reader details, search and journal typography stay intact. */
+.app-shell .book-tile .tile-title-row { justify-content:center; }
+.app-shell .book-tile .tile-title { text-align:center; width:100%; }
+.app-shell .book-tile .tile-meta > p { text-align:center; }
+.app-shell .book-tile .tile-tags { justify-content:center; align-content:flex-start; }
+.app-shell .book-tile .tile-tags button,
+.app-shell .book-tile .tile-tags span { text-align:center; }
+
+/* Filtered tag pages already name the category in their heading.
+   Keep the 'Show all novels' escape action, without another full-width bar. */
+.app-shell .page-head-actions {display:flex;align-items:center;flex-wrap:wrap;gap:12px}
+.app-shell .tag-clear-link {
+  display:inline-flex;align-items:center;gap:6px;justify-content:center;
+  border:1px solid var(--border);border-radius:6px;
+  padding:8px 11px;background:var(--surface);color:var(--text);
+  font-size:12px;font-weight:650;
+}
+.app-shell .tag-clear-link:hover {background:var(--pale)}
+.app-shell .tag-clear-link:focus-visible {outline:3px solid var(--accent);outline-offset:3px}
+@media(max-width:660px) {
+  .app-shell .page-head-actions {width:100%}
+}
