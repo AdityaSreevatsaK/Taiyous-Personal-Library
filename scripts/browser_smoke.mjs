@@ -276,7 +276,6 @@ try {
     } else {
       await libraryTitle.click();
     }
-    if (viewport.width <= 900) await page.getByRole('button', { name: 'Open menu' }).click();
     await page.getByRole('navigation', { name: 'Library sections' }).getByRole('button', { name: /Trying out/ }).click();
     await page.getByRole('button', { name: 'View details for Sample Library Book' }).waitFor();
     await page.getByRole('button', { name: 'View details for Sample Library Book' }).click();
@@ -303,17 +302,16 @@ try {
     await page.getByRole('button', { name: 'Clear global search' }).click();
     await page.getByRole('button', { name: 'Show all novels' }).click();
     // Collections are independent from tags, work offline and survive reload.
-    if (viewport.width <= 900) await page.getByRole('button', { name: 'Open menu' }).click();
+    await page.getByText('Collections', { exact: true }).click();
     await page.getByRole('button', { name: 'Create collection' }).click();
     await page.getByRole('textbox', { name: 'Collection name' }).fill('Example Series');
     await page.getByRole('button', { name: 'Save new collection' }).click();
     await page.getByRole('button', { name: 'Open collection Example Series' }).waitFor();
     await page.getByRole('combobox', { name: 'Add Sample Library Book to collection' }).selectOption({ label: 'Example Series' });
-    if (viewport.width <= 900) await page.getByRole('button', { name: 'Open menu' }).click();
     await page.getByRole('button', { name: 'Open collection Example Series' }).click();
     await page.getByRole('button', { name: 'View details for Sample Library Book' }).waitFor();
     await page.reload({ waitUntil: 'networkidle' });
-    if (viewport.width <= 900) await page.getByRole('button', { name: 'Open menu' }).click();
+    await page.getByText('Collections', { exact: true }).click();
     await page.getByRole('button', { name: 'Open collection Example Series' }).waitFor();
     await page.getByRole('button', { name: 'Open collection Example Series' }).click();
     await page.getByRole('button', { name: 'View details for Sample Library Book' }).waitFor();
