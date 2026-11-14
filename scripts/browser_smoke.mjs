@@ -98,9 +98,13 @@ try {
     if (await page.locator('.sort-field select').inputValue() !== 'title') {
       throw new Error('Library should default to alphabetical Title A–Z sorting');
     }
-    if (!rootText.includes('Personal Library') || !rootText.includes('YOUR SHELVES')) {
-      throw new Error('Expected library dashboard content is missing');
+    if (!rootText.includes('TAIYOU') || !rootText.includes('PERSONAL LIBRARY')) {
+      throw new Error('Top navigation brand is absent from the library shell');
     }
+    if (await page.locator('.sidebar').count()) {
+      throw new Error('The new full-width library must not render a permanent sidebar');
+    }
+    await page.locator('.primary-top-nav').waitFor({ state: 'visible' });
     // Cloud connection must not dominate the bookshelf by default, but remain accessible.
     const cloudSettings = page.getByRole('button', { name: 'Settings', exact: true });
     await cloudSettings.waitFor();
