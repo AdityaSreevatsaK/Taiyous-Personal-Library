@@ -169,7 +169,6 @@ export default function EditorialHome({
           aria-label={`Browse ${shelf.kind} ${shelf.name}`}>
           <span className="editorial-shelf-cover" aria-hidden="true">{cover(shelf.preview)}</span>
           <span className="editorial-shelf-details">
-            <span className="editorial-eyebrow">{shelf.kind === 'collection' ? 'COLLECTION' : 'GENRE & TAG'}</span>
             <strong>{shelf.name}</strong>
             <small>{shelf.count} {shelf.count === 1 ? 'novel' : 'novels'}</small>
           </span>
