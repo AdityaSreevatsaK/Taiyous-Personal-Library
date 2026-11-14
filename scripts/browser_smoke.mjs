@@ -503,7 +503,52 @@ try {
       }
     } finally {
       await context.setOffline(false);
-      await context.close();
+
+      // Performance regression: a cloud catalogue entry with no cached EPUB
+      // must navigate directly to its details. The old implementation waited
+      // for an entire remote EPUB and failed without a connected cloud.
+      const fastPage = await context.newPage();
+      try {
+        await fastPage.goto(baseUrl + '/', { waitUntil: 'networkidle' });
+        await fastPage.evaluate(async () => {
+          const request = indexedDB.open('folio-personal-library-v1', 2);
+          const db = await new Promise((resolve, reject) => {
+            request.onsuccess = () => resolve(request.result);
+            request.onerror = () => reject(request.error);
+          });
+          const transaction = db.transaction(['books'], 'readwrite');
+          transaction.objectStore('books').put({
+            id: 'bbbbbbbbbbbbbbbbbbbbbbbb',
+            title: 'Cloud Metadata Only', author: 'Synthetic Test Author',
+            importedAt: Date.now(), progress: 0, chapterCount: 2686,
+            metadataScanned: true, sourceTags: ['Mystery'], cloud: true,
+            originalFileName: 'not-downloaded.epub', size: 0,
+          });
+          await new Promise((resolve, reject) => {
+            transaction.oncomplete = () => resolve();
+            transaction.onerror = () => reject(transaction.error);
+          });
+          db.close();
+        });
+        await fastPage.reload({ waitUntil: 'networkidle' });
+        const began = Date.now();
+        await fastPage.getByRole('button', { name: 'View details for Cloud Metadata Only' }).click();
+        await fastPage.waitForURL('**/novels/cloud-metadata-only', { timeout: 3500 });
+        await fastPage.locator('.details-hero').getByRole('heading', { name: 'Cloud Metadata Only' }).waitFor();
+        const detailLatencyMs = Date.now() - began;
+        if (detailLatencyMs > 2800) throw new Error('Uncached details navigation regressed: ' + detailLatencyMs + ' ms');
+        await fastPage.getByRole('button', { name: 'Load chapter list' }).waitFor();
+        if (await fastPage.getByText(/Unable to open novel/).count()) {
+          throw new Error('Details incorrectly required a downloaded EPUB');
+        }
+        const colour = await fastPage.locator('.details-hero').evaluate(el =>
+          getComputedStyle(el).getPropertyValue('--novel-hero-shadow').trim());
+        if (!/^#[0-9a-f]{6}$/i.test(colour)) throw new Error('Novel hero colour is not derived from its immutable ID');
+        console.log('Uncached novel details navigated without EPUB in ' + detailLatencyMs + ' ms');
+      } finally {
+        await fastPage.close();
+        await context.close();
+      }
     }
     console.log(`Browser render and offline cold launch passed at ${viewport.width}x${viewport.height}`);
   }
