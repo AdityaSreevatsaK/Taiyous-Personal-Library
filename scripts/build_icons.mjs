@@ -52,11 +52,11 @@ const customised = await Promise.all([192, 512].map(async size => {
     throw error;
   }
 }));
-if (customised.some(Boolean) && !customised.every(Boolean)) {
-  throw new Error('Brand icons require BOTH taiyou-app-192.png and taiyou-app-512.png');
+if (!customised.every(Boolean)) {
+  throw new Error('Approved Sun icon assets missing: require both 192px and 512px PNGs');
 }
 for (const [index, size] of [192, 512].entries()) {
-  await writeFile(join(dist, `library-icon-${size}.png`), customised[index] || generate(size));
+  await writeFile(join(dist, `library-icon-${size}.png`), customised[index]);
 }
 // The header and favicon use exactly the approved logo source, while preserving
 // the known public icon path for existing installed PWAs.
@@ -64,9 +64,9 @@ await copyFile(join(branding, 'taiyou-mark.svg'), join(dist, 'library-icon.svg')
 const path = join(dist, 'manifest.webmanifest');
 const manifest = JSON.parse(await readFile(path, 'utf8'));
 manifest.icons = [
-  { src: './library-icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any maskable' },
+  { src: './library-icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
   { src: './library-icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any maskable' },
   { src: './library-icon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'any' },
 ];
 await writeFile(path, JSON.stringify(manifest, null, 2) + '\n');
-console.log(customised.every(Boolean) ? 'Copied approved brand icon assets.' : 'Using existing generated PWA icon until final Sun artwork is supplied.');
+console.log('Copied approved Taiyou Sun brand and 192px/512px install icons.');
