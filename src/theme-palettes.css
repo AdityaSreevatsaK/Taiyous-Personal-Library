@@ -1,0 +1,72 @@
+/* Shared reader and library palette tokens.
+ * The original three choices keep their saved identifiers. Sepia remains default. */
+.theme-light {
+  --bg:#f6f8fc; --surface:#ffffff; --border:#dce3ee;
+  --text:#26334a; --subtext:#69778d; --pale:#ecf2fa;
+  --surface-soft:#e8eef7; --reader-paper:#fffefa;
+  --accent:#4a6c9b; --accent-ink:#ffffff;
+  --shadow:0 16px 50px #142c4c0d;
+}
+.theme-sepia {
+  --bg:#f1e9db; --surface:#faf2e5; --border:#e5d7c1;
+  --text:#403529; --subtext:#847665; --pale:#f2e6d2;
+  --surface-soft:#ebdec9; --reader-paper:#f4ead7;
+  --accent:#6b6381; --accent-ink:#ffffff;
+  --shadow:0 16px 50px #412c1513;
+}
+.theme-dark {
+  --bg:#191d26; --surface:#242a36; --border:#394457;
+  --text:#edf0f7; --subtext:#abb6c9; --pale:#2e3544;
+  --surface-soft:#363f50; --reader-paper:#22252c;
+  --accent:#91aedb; --accent-ink:#151b26;
+  --shadow:0 16px 50px #00000036;
+}
+.theme-midnight {
+  --bg:#0c1527; --surface:#14243b; --border:#30425e;
+  --text:#e9f0fc; --subtext:#b3c3da; --pale:#1d3451;
+  --surface-soft:#263d5b; --reader-paper:#12213b;
+  --accent:#b5c9eb; --accent-ink:#14213a;
+  --shadow:0 16px 50px #0008136b;
+}
+.theme-ocean {
+  --bg:#e9f2fa; --surface:#f9fcff; --border:#cbdde9;
+  --text:#244464; --subtext:#55718e; --pale:#dcebf6;
+  --surface-soft:#d1e5f3; --reader-paper:#e8f3fb;
+  --accent:#376e9c; --accent-ink:#ffffff;
+  --shadow:0 16px 50px #173d6615;
+}
+.theme-plum {
+  --bg:#211b2a; --surface:#30273a; --border:#55465e;
+  --text:#f4eaf4; --subtext:#c9b6cc; --pale:#403349;
+  --surface-soft:#493b53; --reader-paper:#302536;
+  --accent:#e2b3df; --accent-ink:#291c2c;
+  --shadow:0 16px 50px #0d081050;
+}
+.app-shell .sidebar { background:var(--nav-bg,#172743);border-right-color:var(--border); }
+.app-shell .sidebar .side-link.active { background:#355782; }
+.app-shell .sidebar .side-link:hover { background:#2c486e; }
+.app-shell .sidebar .brand-mark { background:#dce7fa;color:#203453; }
+.app-shell .sidebar .sidebar-bottom,.app-shell .sidebar .sidebar-theme { border-color:#344b6a; }
+.app-shell .sidebar .sidebar-theme { background:#203957; }
+.app-shell .sidebar .side-caption,.app-shell .sidebar .brand small {color:#aec0d9}
+.app-shell .sidebar .sidebar-tag:hover,.app-shell .sidebar .sidebar-tag.active {background:#355782}
+.app-shell .topbar .theme-swatches { max-width:100%; }
+.theme-midnight .details-tag.personal-tag,.theme-plum .details-tag.personal-tag { background:var(--pale);border-color:var(--border) }
+.theme-midnight .chapter-list-current,.theme-plum .chapter-list-current { background:var(--pale) }
+.theme-midnight .connection-badge.is-connected,.theme-plum .connection-badge.is-connected { background:var(--pale);color:var(--text); }
+/* Retire the remaining green accents without altering the application's data logic. */
+.theme-dark .connection-badge.is-connected { background:#31445d;color:#d0def8; }
+.theme-choice.selected { outline-color:var(--accent); }
+
+.details-top-controls { display:flex; align-items:center; gap:12px; flex:0 0 auto; }
+.reader-head-right .theme-next-button { min-height:34px; }
+.reader-shell .reader-header { --accent:var(--accent,#597ba4); }
+@media(max-width:760px) {
+ .details-top-controls { gap:5px; }
+ .details-top-controls .theme-next-text { display:none; }
+ .details-top-controls .theme-next-button { padding:7px; }
+ .reader-head-right .theme-next-button { padding:6px; }
+}
+@media(max-width:600px) {
+ .app-shell .topbar .theme-swatches { max-width:100%; }
+}
