@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState, type CSSProperties } from 're
 import ePub from 'epubjs';
 import {
   ArrowLeft, BookOpen, Check, ChevronDown, ChevronLeft, ChevronRight, List, Minus,
-  Moon, PanelRightClose, Plus, Search, Settings2, SlidersHorizontal, Sun, Type, X,
+  PanelRightClose, Plus, Search, Settings2, SlidersHorizontal, Type, X,
 } from 'lucide-react';
 import { DEFAULT_SETTINGS, type ChapterItem, type LibraryBook, type ReaderSettings } from '../types';
 import { THEME_OPTIONS, themeById } from '../lib/themes';
