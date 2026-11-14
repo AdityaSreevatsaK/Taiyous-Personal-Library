@@ -6,13 +6,17 @@ import {
 
 describe('deep-linkable library sections', () => {
   const shelves: Array<[ShelfFilter,string]> = [
-    ['all','/'], ['trying','/trying-out'], ['reading','/currently-reading'],
+    ['all','/library'], ['trying','/trying-out'], ['reading','/currently-reading'],
     ['unread','/to-be-read'],['finished','/finished'],['offline','/offline'],['analytics','/analytics'],
   ];
   it.each(shelves)('%s uses a stable address and can be loaded directly', (filter,path) => {
     expect(libraryShelfUrl(filter)).toBe(path);
     expect(parseLibraryViewPath(path)).toEqual({filter,tag:'',collectionId:'',advanced:false});
     expect(parseLibraryViewPath(path+'/' )).toEqual({filter,tag:'',collectionId:'',advanced:false});
+  });
+  it('reserves / for the curated home and /library for the complete catalogue', () => {
+    expect(libraryShelfUrl('all')).toBe('/library');
+    expect(parseLibraryViewPath('/')).toEqual({filter:'all',tag:'',collectionId:'',advanced:false});
   });
   it('makes advanced search addressable independently of normal shelves', () => {
     expect(parseLibraryViewPath('/advanced-search')).toEqual({
