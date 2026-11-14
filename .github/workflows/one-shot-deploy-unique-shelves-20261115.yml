@@ -1,0 +1,33 @@
+# One-shot owner-approved deployment of tested unique genre previews and tag-page layout.
+name: "One-shot: deploy distinct shelf previews"
+on:
+  push:
+    branches: [master]
+    paths:
+      - .github/workflows/one-shot-deploy-unique-shelves-20261115.yml
+
+permissions:
+  contents: read
+  actions: write
+
+jobs:
+  dispatch-guarded-production-workflow:
+    if: github.repository == 'AdityaSreevatsaK/Taiyous-Personal-Library' && github.ref == 'refs/heads/master'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      EXPECTED_SHA: ${{ github.sha }}
+    steps:
+      - name: Deploy only this verified master revision
+        shell: bash
+        run: |
+          set -euo pipefail
+          current="$(gh api "repos/$GH_REPO/git/ref/heads/master" --jq '.object.sha')"
+          if [ "$current" != "$EXPECTED_SHA" ]; then
+            echo '::error::Master changed; refusing stale deployment.'
+            exit 1
+          fi
+          gh workflow run deploy-standalone.yml --repo "$GH_REPO" --ref master -f publish=true
+          echo 'Requested production validation and Cloudflare deployment of PR #17. No dataset writes or version tag.' >> "$GITHUB_STEP_SUMMARY"
