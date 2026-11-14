@@ -7,6 +7,7 @@ import { ownerPost } from './lib/owner';
 import { extractEpubMetadata, prepareImport } from './lib/importer';
 import { normalizeTags } from './lib/tags';
 import { namedNovelUrl, parseLibraryRoute, resolveNovelRoute } from './lib/routes';
+import { libraryTagUrl } from './lib/library-routes';
 import { mapWithConcurrency, retryTransientRead } from './lib/network-pool';
 import { requestOfflineRetention } from './lib/offline';
 import { installUsageTracker } from './lib/usage-analytics';
@@ -25,6 +26,13 @@ export default function App() {
   const [books, setBooks] = useState<LibraryBook[]>([]);
   const [settings, setSettings] = useState<ReaderSettings>(readSettings);
   const [routePath, setRoutePath] = useState(() => window.location.pathname);
+  useEffect(() => {
+    const icon = document.getElementById('taiyou-favicon') as HTMLLinkElement | null;
+    if (!icon) return;
+    const light = settings.theme === 'light' || settings.theme === 'ocean' || settings.theme === 'sepia';
+    icon.href = light ? '/branding/favicon-light.png' : '/branding/favicon-dark.png';
+  }, [settings.theme]);
+
   const [readingId, setReadingId] = useState<string | null>(() => {
     const route = parseLibraryRoute(window.location.pathname);
     return route.page === 'reader' && 'id' in route ? route.id : null;
@@ -75,12 +83,12 @@ export default function App() {
     () => onlineForUsage.current,
   ), []);
 
-  function navigate(path: string, replace = false) {
+  const navigate = useCallback((path: string, replace = false) => {
     if (window.location.pathname !== path) {
       window.history[replace ? 'replaceState' : 'pushState'](null, '', path);
     }
     setRoutePath(path);
-  }
+  }, []);
   // The SPA keeps its root scrolling element across page changes.
   // A novel details page must ALWAYS open at its top, not at the previous
   // catalogue scroll position. Also reset on browser Back/Forward routes.
@@ -1025,7 +1033,7 @@ export default function App() {
         onSaveSummary={summary => savePersonalSummary(detailBook.id, summary)}
         onSaveReview={(rating, review) => savePersonalReview(detailBook.id, rating, review)}
         onSetTrial={(trying) => savePersonalReview(detailBook.id, detailBook.personalRating, detailBook.personalReview || '', trying ? 'trying' : 'regular')}
-        onBrowseTag={tag => { setBrowseTag(tag); setGlobalSearch(''); goLibrary(); }} error={error} />
+        onBrowseTag={tag => { setBrowseTag(tag); setGlobalSearch(''); setReadingId(null); setDetailsId(null); setStartChapterHref(null); navigate(libraryTagUrl(tag)); }} error={error} />
     ) : (
       <LibraryDashboard books={books} theme={settings.theme}
         cachedEpubIds={cachedEpubIds} online={online} offlineShellReady={offlineShellReady}
@@ -1039,7 +1047,7 @@ export default function App() {
         onRenameCollection={renameCollection}
         onDeleteCollection={requestDeleteCollection}
         onCollectionMembership={changeCollectionMembership}
-        initialTag={browseTag} globalSearch={globalSearch} onGlobalSearch={setGlobalSearch}
+        initialTag={browseTag} libraryPath={routePath} onLibraryNavigate={navigate} globalSearch={globalSearch} onGlobalSearch={setGlobalSearch}
         onThemeChange={theme => setSettings(settings => ({ ...settings, theme }))}
         onImportClick={() => filePicker.current?.click()}
         onFiles={files => void importFiles(files)} onOpen={showDetails}
