@@ -123,7 +123,11 @@ try {
     // Local private analytics must be usable and switchable without a server.
     const nav = page.getByRole('navigation', { name: 'Library sections' });
     await nav.getByRole('button', { name: 'Analytics' }).click();
+    await page.waitForURL('**/analytics');
     await page.getByRole('heading', { name: 'Reading analytics' }).waitFor();
+    await page.reload({ waitUntil: 'networkidle' });
+    await page.getByRole('heading', { name: 'Reading analytics' }).waitFor();
+    if (new URL(page.url()).pathname !== '/analytics') throw new Error('Analytics deep link lost on reload');
     await page.getByText('Private and on-device').waitFor();
     const recordToggle = page.getByRole('checkbox', { name: 'Record analytics on this device' });
     await recordToggle.uncheck();
@@ -131,6 +135,24 @@ try {
     await recordToggle.check();
     await page.getByRole('button', { name: 'Clear analytics' }).waitFor();
     await nav.getByRole('button', { name: /All books/ }).click();
+    await page.waitForURL('**/');
+    for (const [name, path, heading] of [
+      [/Trying out/, '/trying-out', /Trying out/],
+      [/Currently reading/, '/currently-reading', /Your library/],
+      [/To be read/, '/to-be-read', /Your library/],
+      [/Finished/, '/finished', /Your library/],
+      [/Available offline/, '/offline', /Offline library/],
+    ]) {
+      await nav.getByRole('button', { name }).click();
+      await page.waitForURL('**' + path);
+      await page.getByRole('heading', { name: heading }).first().waitFor();
+    }
+    await page.goBack({ waitUntil: 'domcontentloaded' });
+    await page.waitForURL('**/finished');
+    await page.goForward({ waitUntil: 'domcontentloaded' });
+    await page.waitForURL('**/offline');
+    await nav.getByRole('button', { name: /All books/ }).click();
+    await page.waitForURL('**/');
 
     // Cloud connection must not dominate the bookshelf by default, but remain accessible.
     const cloudSettings = page.getByRole('button', { name: 'Settings', exact: true });
@@ -322,6 +344,7 @@ try {
       throw new Error('Rating controls must live in title panel, not comments card');
     }
     await page.getByRole('button', { name: 'Browse novels tagged Fantasy' }).first().click();
+    await page.waitForURL('**/tags/fantasy');
     if (await page.locator('.reading-resume-strip').count()) {
       throw new Error('Filtered tag page must not show unrelated Continue Reading ribbon');
     }
@@ -336,6 +359,7 @@ try {
     await page.getByRole('button', { name: 'View details for Sample Library Book' }).waitFor();
     await page.getByRole('button', { name: 'Clear global search' }).click();
     await page.getByRole('button', { name: 'Show all novels' }).click();
+    await page.waitForURL('**/');
     // Collections are independent from tags, work offline and survive reload.
     await page.getByText('Collections', { exact: true }).click();
     await page.getByRole('button', { name: 'Create collection' }).click();
