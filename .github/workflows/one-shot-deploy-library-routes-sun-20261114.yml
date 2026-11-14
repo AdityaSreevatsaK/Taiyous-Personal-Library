@@ -1,0 +1,32 @@
+# One-shot owner-approved deployment of PR #15: navigable library routes and approved Sun branding.
+# Triggered only when this file is added to master; does not alter private novel data.
+name: "One-shot: deploy library routes and Sun branding"
+on:
+  push:
+    branches: [master]
+    paths:
+      - .github/workflows/one-shot-deploy-library-routes-sun-20261114.yml
+permissions:
+  contents: read
+  actions: write
+jobs:
+  dispatch-verified-production-deployment:
+    if: github.repository == 'AdityaSreevatsaK/Taiyous-Personal-Library' && github.ref == 'refs/heads/master'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      EXPECTED_SHA: ${{ github.sha }}
+    steps:
+      - name: Only deploy the exact verified master revision
+        shell: bash
+        run: |
+          set -euo pipefail
+          current="$(gh api "repos/$GH_REPO/git/ref/heads/master" --jq '.object.sha')"
+          if [ "$current" != "$EXPECTED_SHA" ]; then
+            echo '::error::Master changed. Refusing stale deployment.'
+            exit 1
+          fi
+          gh workflow run deploy-standalone.yml --repo "$GH_REPO" --ref master -f publish=true
+          echo 'Requested guarded Cloudflare Pages production validation and deployment of PR #15. No v1.0 release or private novel-data changes.' >> "$GITHUB_STEP_SUMMARY"
