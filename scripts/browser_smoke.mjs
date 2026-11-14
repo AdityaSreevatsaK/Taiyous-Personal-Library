@@ -555,6 +555,9 @@ try {
     await page.getByRole('button', { name: /^(Start reading|Continue reading)$/ }).click();
     await page.getByRole('button', { name: 'Go to library home' }).click();
     await page.getByRole('navigation', { name: 'Library sections' }).waitFor();
+    await page.getByRole('navigation', { name: 'Library sections' })
+      .getByRole('button', { name: /All books/ }).click();
+    await page.waitForURL('**/library');
     await page.locator('.book-rating-pill').getByText('8/10').waitFor();
     // Verify a true offline *reload* of the compiled app, then open/read the
     // already-cached synthetic EPUB without any network or HF credentials.
@@ -639,7 +642,7 @@ try {
       // for an entire remote EPUB and failed without a connected cloud.
       const fastPage = await context.newPage();
       try {
-        await fastPage.goto(baseUrl + '/', { waitUntil: 'networkidle' });
+        await fastPage.goto(baseUrl + '/library', { waitUntil: 'networkidle' });
         await fastPage.evaluate(async () => {
           const request = indexedDB.open('folio-personal-library-v1', 2);
           const db = await new Promise((resolve, reject) => {
