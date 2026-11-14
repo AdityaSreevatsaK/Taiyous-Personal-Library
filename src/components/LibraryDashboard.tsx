@@ -4,7 +4,7 @@ import EditorialHome from './EditorialHome';
 import { useCoverArt } from './useCoverArt';
 import {
   ArrowRight, Book, BookOpen, CheckCircle2, ChevronDown, CloudOff, Download, WifiOff,
-  Feather, Hash, Library, LockKeyhole, Menu, Moon, Pencil, Plus, Search, Settings2,
+  Feather, Hash, Library, LockKeyhole, Moon, Pencil, Plus, Search, Settings2,
   Sparkles, Star, Sun, Tag, Trash2, Upload, X, Cloud, RefreshCw, LogIn, LogOut,
 } from 'lucide-react';
 import type { LibraryBook, ReaderTheme } from '../types';
@@ -146,7 +146,6 @@ export default function LibraryDashboard({
   }, [showCloud]);
   const [datasetToken, setDatasetToken] = useState('');
   const [dragging, setDragging] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   const reading = books.filter((book) => book.shelfStatus !== 'trying' && book.progress > 0 && book.progress < 99.5);
   const finished = books.filter((book) => book.shelfStatus !== 'trying' && book.progress >= 99.5);
   const featured = [...reading].sort((a, b) => (b.lastOpenedAt || 0) - (a.lastOpenedAt || 0))[0] || books[0];
@@ -180,10 +179,9 @@ export default function LibraryDashboard({
     setQuery('');
     setFilter('all');
     onGlobalSearch('');
-    setSidebarOpen(false);
   }
   function clearTag() { setSelectedTag(''); setQuery(''); }
-  function browseCollection(id: string) { setShowAdvanced(false); setSelectedCollectionId(id); setSelectedTag(''); setFilter('all'); setQuery(''); onGlobalSearch(''); setSidebarOpen(false); }
+  function browseCollection(id: string) { setShowAdvanced(false); setSelectedCollectionId(id); setSelectedTag(''); setFilter('all'); setQuery(''); onGlobalSearch(''); }
   function clearCollection() { setSelectedCollectionId(''); setQuery(''); }
 
 
@@ -199,7 +197,7 @@ export default function LibraryDashboard({
   function leave(event: DragEvent<HTMLElement>) {
     if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setDragging(false);
   }
-  function goTo(newFilter: Filter) { setShowAdvanced(false); setFilter(newFilter); clearTag(); clearCollection(); onGlobalSearch(''); setSidebarOpen(false); }
+  function goTo(newFilter: Filter) { setShowAdvanced(false); setFilter(newFilter); clearTag(); clearCollection(); onGlobalSearch(''); }
 
 
   const navEntries = [
@@ -214,44 +212,9 @@ export default function LibraryDashboard({
   return (
     <div className={`app-shell theme-${theme} ${import.meta.env.VITE_DESIGN_PREVIEW === 'true' ? 'static-hybrid-preview' : ''}`} onDragOver={over} onDrop={drop} onDragLeave={leave}>
       {dragging && <div className="drop-overlay" aria-hidden="true"><Upload size={46} /><strong>Drop your novels to import</strong><span>EPUB or supported Novel ZIP</span></div>}
-      {sidebarOpen && <button className="mobile-shade" aria-label="Close sidebar" onClick={() => setSidebarOpen(false)} />}
-      <aside className={`sidebar ${sidebarOpen ? 'sidebar-open' : ''}`}>
-        <div className="brand"><div className="brand-mark"><Feather size={21} strokeWidth={1.9} /></div><div><strong>Taiyou's<span className="brand-line">Personal Library</span></strong><small>PRIVATE READING SPACE</small></div></div>
-        <div className="sidebar-scroll">
-          <p className="side-caption">YOUR SHELVES</p>
-          <nav className="side-links" aria-label="Library sections">
-            {navEntries.map(({ id, name, count, icon: Icon }) => (
-              <button key={id} className={`side-link ${!showAdvanced && filter === id ? 'active' : ''}`} onClick={() => goTo(id)}>
-                <Icon size={18} strokeWidth={1.9} /><span>{name}</span><em>{count}</em>
-              </button>
-            ))}
-          </nav>
-          <button type="button" className={`side-link advanced-side-link ${showAdvanced ? 'active' : ''}`}
-            onClick={() => { setShowAdvanced(true); setSidebarOpen(false); }}>
-            <Search size={18} strokeWidth={1.9}/><span>Advanced search</span><ArrowRight size={15}/>
-          </button>
-          {availableTags.length > 0 && <><p className="side-caption collection-caption">BROWSE BY TAG</p><div className="sidebar-tag-list">{availableTags.slice(0, 12).map(({ tag, count }) => <button key={tag} type="button" className={`sidebar-tag ${selectedTag.toLowerCase() === tag.toLowerCase() ? 'active' : ''}`} onClick={() => browseTag(selectedTag.toLowerCase() === tag.toLowerCase() ? '' : tag)}><Hash size={14} /><span>{tag}</span><em>{count}</em></button>)}</div></>}
-          <div className="side-collection-title"><p className="side-caption collection-caption">YOUR COLLECTIONS</p><button type="button" onClick={() => setCreatingCollection(v => !v)} aria-label="Create collection" title="Create collection"><Plus size={17} /></button></div>
-          {creatingCollection && <form className="collection-create-form" onSubmit={event => {
-            event.preventDefault(); if (!newCollectionName.trim()) return;
-            void onCreateCollection(newCollectionName).then(() => { setNewCollectionName(''); setCreatingCollection(false); setSidebarOpen(false); });
-          }}>
-            <label className="sr-only" htmlFor="collection-name-input">Collection name</label>
-            <input id="collection-name-input" maxLength={90} value={newCollectionName} onChange={event => setNewCollectionName(event.target.value)} placeholder="e.g. Harry Potter" required />
-            <button type="submit" aria-label="Save new collection"><CheckCircle2 size={17} /></button>
-          </form>}
-          <div className="sidebar-tag-list" aria-label="Novel collections">
-            {collections.map(c => <button key={c.id} type="button" className={`sidebar-tag ${selectedCollectionId === c.id ? 'active' : ''}`} onClick={() => browseCollection(c.id)} aria-label={`Open collection ${c.name}`}><Library size={14} /><span>{c.name}</span><em>{c.bookIds.length}</em></button>)}
-          </div>
-          <p className="side-caption collection-caption">YOUR NOVELS</p>
-          <button className="collection-link" onClick={onImportClick}><span className="collection-icon"><Plus size={16} /></span><span>Add a new novel</span></button>
-          <div className="side-note"><Sparkles size={17} /><p>“There is no friend as loyal as a book.”<small>ERNEST HEMINGWAY</small></p></div>
-        </div>
-        <div className="sidebar-bottom"><div className="privacy-indicator"><LockKeyhole size={15} /><span>{cloudRepo && cloudSession ? "Private · Cloud + local cache" : "Private · Stored on this device"}</span></div><button className="sidebar-theme" onClick={() => onThemeChange(themes[(themes.indexOf(theme) + 1) % themes.length])} title="Cycle between light, dark and sepia"><Sun size={17} /><span>{theme === 'dark' ? 'Dark' : theme === 'sepia' ? 'Sepia' : 'Light'} appearance</span><Moon size={15} /></button></div>
-      </aside>
 
       <main className="main-panel">
-        <header className="topbar"><button className="icon-button mobile-menu" onClick={() => setSidebarOpen(true)} aria-label="Open menu"><Menu size={22} /></button><section className="cloud-connect" aria-label="Cloud library storage" ref={cloudRoot}>
+        <header className="topbar"><button className="library-wordmark" type="button" aria-label="Taiyou's Personal Library home" onClick={() => goTo('all')}><span className="library-wordmark-mark"><Feather size={20}/></span><span className="library-wordmark-text"><strong>TAIYOU</strong><small>PERSONAL LIBRARY</small></span></button><section className="cloud-connect" aria-label="Cloud library storage" ref={cloudRoot}>
             <div className="cloud-connect-head"><span><Cloud size={16} /><strong>Cloud library</strong><small className={syncProblem ? 'connection-badge needs-attention' : cloudRepo && cloudSession ? 'connection-badge is-connected' : 'connection-badge'}>{syncProblem ? 'Needs sync' : cloudRepo && cloudSession ? 'Connected' : cloudRepo ? 'Disconnected' : 'Not set up'}</small></span>{!cloudSession && online && <button type="button" className="secondary-button oauth-header-login" onClick={() => window.location.assign('/api/oauth/login')}><LogIn size={14}/> Sign in with HF</button>}<button type="button" className="secondary-button" aria-expanded={showCloud} onClick={() => setShowCloud(v => !v)}>{showCloud ? 'Close' : 'Settings'}</button></div>
             {showCloud && <div className="cloud-connect-body">
               <p>Use one private Hugging Face dataset as the shared <code>data/</code> folder on PC and mobile. When connected, importing a ZIP saves its original archive, EPUB and catalogue to that repository.</p>
@@ -287,7 +250,55 @@ export default function LibraryDashboard({
               {cloudMessage && <p className="cloud-sync-message" role="status">{cloudMessage}</p>}
               {cloudSession?.via !== 'oauth' && <p className="cloud-caution" id="cloud-token-note">Legacy manual connection: use only a fine-grained dataset token. It is held in memory only and not retained after restarting the app. The Hugging Face OAuth sign-in is preferred, so you need not re-enter a token on every visit.</p>}
             </div>}
-          </section><div className="top-actions"><label className="global-search-field"><Search size={16} /><input aria-label="Search all novels" placeholder="Search all novels…" value={globalSearch} onChange={event => onGlobalSearch(event.target.value)} />{globalSearch && <button type="button" aria-label="Clear global search" onClick={() => onGlobalSearch('')}><X size={15} /></button>}</label><button type="button" className="advanced-search-launch" onClick={() => { setShowAdvanced(true); setSidebarOpen(false); }}><Search size={16} /><span>Advanced search</span></button><button className="icon-button theme-switch" onClick={() => onThemeChange(themes[(themes.indexOf(theme) + 1) % themes.length])} title="Change theme" aria-label="Change theme">{theme === 'dark' ? <Moon size={19} /> : <Sun size={19} />}</button></div></header>
+          </section><div className="top-actions"><label className="global-search-field"><Search size={16} /><input aria-label="Search all novels" placeholder="Search all novels…" value={globalSearch} onChange={event => onGlobalSearch(event.target.value)} />{globalSearch && <button type="button" aria-label="Clear global search" onClick={() => onGlobalSearch('')}><X size={15} /></button>}</label><button type="button" className="advanced-search-launch" onClick={() => { setShowAdvanced(true); }}><Search size={16} /><span>Advanced search</span></button><button className="icon-button theme-switch" onClick={() => onThemeChange(themes[(themes.indexOf(theme) + 1) % themes.length])} title="Change theme" aria-label="Change theme">{theme === 'dark' ? <Moon size={19} /> : <Sun size={19} />}</button></div></header>
+        <nav className="primary-top-nav" aria-label="Library sections">
+          <div className="top-nav-links">
+            {navEntries.map(({ id, name, count }) => <button type="button" key={id} className={`top-nav-link ${!showAdvanced && filter === id && !selectedTag && !selectedCollectionId ? 'active' : ''}`}
+              aria-current={!showAdvanced && filter === id && !selectedTag && !selectedCollectionId ? 'page' : undefined}
+              onClick={() => goTo(id)}><span>{name}</span><small>{count}</small></button>)}
+          </div>
+          <div className="top-nav-tools">
+            <details className="top-nav-menu" aria-label="Novel tags">
+              <summary><Hash size={15}/> Tags <ChevronDown size={13}/></summary>
+              <div className="top-nav-dropdown" role="group" aria-label="Browse tags">
+                <strong className="top-nav-caption">BROWSE BY TAG</strong>
+                {availableTags.length > 0 ? availableTags.map(({ tag, count }) =>
+                  <button type="button" key={tag} className="top-nav-dropdown-item" aria-label={`Browse novels tagged ${tag}`}
+                    onClick={event => { event.currentTarget.closest('details')?.removeAttribute('open'); browseTag(tag); }}>
+                    <span>{tag}</span><small>{count}</small></button>)
+                  : <p className="top-nav-empty">No tags yet</p>}
+              </div>
+            </details>
+            <details className="top-nav-menu" aria-label="Novel collections">
+              <summary><Library size={15}/> Collections <ChevronDown size={13}/></summary>
+              <div className="top-nav-dropdown" role="group" aria-label="Manage collections">
+                <strong className="top-nav-caption">YOUR COLLECTIONS</strong>
+                {collections.map(collection => <button type="button" key={collection.id} className="top-nav-dropdown-item"
+                    aria-label={`Open collection ${collection.name}`} onClick={event => {
+                      event.currentTarget.closest('details')?.removeAttribute('open'); browseCollection(collection.id);
+                    }}><span>{collection.name}</span><small>{collection.bookIds.length}</small></button>)}
+                {collections.length === 0 && <p className="top-nav-empty">No collections yet</p>}
+                <button type="button" className="top-nav-new-collection" aria-label="Create collection"
+                  onClick={() => setCreatingCollection(value => !value)}><Plus size={14}/> New collection</button>
+                {creatingCollection && <form className="top-nav-collection-form" onSubmit={event => {
+                  event.preventDefault();
+                  if (!newCollectionName.trim()) return;
+                  void onCreateCollection(newCollectionName).then(() => {
+                    setNewCollectionName(''); setCreatingCollection(false);
+                  });
+                }}>
+                  <label htmlFor="collection-name-input">Collection name</label>
+                  <input id="collection-name-input" maxLength={90} value={newCollectionName}
+                    onChange={event => setNewCollectionName(event.target.value)} placeholder="e.g. Favourite series" required />
+                  <button type="submit" aria-label="Save new collection"><CheckCircle2 size={17}/> Save</button>
+                </form>}
+              </div>
+            </details>
+            <button type="button" className="top-nav-add" onClick={onImportClick} disabled={importing}>
+              <Plus size={16}/><span>{importing ? 'Importing…' : 'Add novel'}</span>
+            </button>
+          </div>
+        </nav>
         <div className="page-content">
           {import.meta.env.VITE_DESIGN_PREVIEW === 'true' && <div className="hybrid-demo-notice" role="note">
             <strong>DESIGN PREVIEW</strong> Fictional novels and sample chapters only. This separate site cannot access your private Hugging Face library.
