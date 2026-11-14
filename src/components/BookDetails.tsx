@@ -5,6 +5,8 @@ import {
 } from 'lucide-react';
 import { Cover } from './LibraryDashboard';
 import ThemeSwitcher from './ThemeSwitcher';
+import { novelHeroStyle } from '../lib/novel-hero';
+import './details-palettes.css';
 import type { CloudSession } from '../lib/cloud';
 import ChapterBrowser from './ChapterBrowser';
 import { bookTags, normalizeTags } from '../lib/tags';
@@ -26,6 +28,7 @@ interface Props {
   cloudRepo: string;
   cloudSession: CloudSession | null;
   onReadChapter: (href: string) => void;
+  onLoadChapters: () => Promise<void>;
   onSaveTags: (tags: string[]) => Promise<void>;
   onSaveSummary: (summary: string) => Promise<void>;
   onSaveReview: (rating: number | undefined, review: string) => Promise<void>;
@@ -34,7 +37,7 @@ interface Props {
   error: string | null;
 }
 
-export default function BookDetails({ book, theme, onThemeChange, onBack, onRead, onDownloadEpub, isCachedOffline, onSaveOffline, onRemoveOffline, onDeleteLocal, onDownloadArchive, cloudConnected, cloudRepo, cloudSession, onReadChapter, onSaveTags, onSaveSummary, onSaveReview, onSetTrial, onBrowseTag, error }: Props) {
+export default function BookDetails({ book, theme, onThemeChange, onBack, onRead, onDownloadEpub, isCachedOffline, onSaveOffline, onRemoveOffline, onDeleteLocal, onDownloadArchive, cloudConnected, cloudRepo, cloudSession, onReadChapter, onLoadChapters, onSaveTags, onSaveSummary, onSaveReview, onSetTrial, onBrowseTag, error }: Props) {
   const [tagInput, setTagInput] = useState('');
   const [tagDraft, setTagDraft] = useState<string[]>(() => book.personalTags || []);
   const [editingSummary, setEditingSummary] = useState(false);
@@ -122,7 +125,7 @@ export default function BookDetails({ book, theme, onThemeChange, onBack, onRead
       <div className="details-top-controls"><ThemeSwitcher compact value={theme} onChange={onThemeChange} /><button className="details-top-read" type="button" onClick={onRead}>Read <ArrowRight size={17} /></button></div>
     </header>
     <main className="details-layout">
-      <div className="details-hero">
+      <div className="details-hero" style={novelHeroStyle(book.id)}>
         <div className="details-cover-wrap"><Cover book={book} variant="feature" cloudRepo={cloudRepo} cloudSession={cloudSession} /></div>
         <div className="details-hero-content">
           <span className="details-eyebrow"><BookOpen size={15} /> NOVEL DETAILS</span>
@@ -216,7 +219,7 @@ export default function BookDetails({ book, theme, onThemeChange, onBack, onRead
                 : <p className="details-muted">No synopsis is present in this EPUB. You can add your own with <strong>Edit summary</strong>.</p>}
           </section>
 
-          <ChapterBrowser book={book} onReadChapter={onReadChapter} />
+          <ChapterBrowser book={book} onReadChapter={onReadChapter} isCachedOffline={isCachedOffline} onLoadChapters={onLoadChapters} />
 
           <section className="details-card" aria-labelledby="detail-tags-heading">
             <div className="details-section-header"><div><span className="details-label">ORGANISE YOUR READING</span><h2 id="detail-tags-heading">Tags & genres</h2></div><Tag size={20} className="details-section-icon" /></div>
