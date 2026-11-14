@@ -57,3 +57,16 @@
 /* Retire the remaining green accents without altering the application's data logic. */
 .theme-dark .connection-badge.is-connected { background:#31445d;color:#d0def8; }
 .theme-choice.selected { outline-color:var(--accent); }
+
+.details-top-controls { display:flex; align-items:center; gap:12px; flex:0 0 auto; }
+.reader-head-right .theme-next-button { min-height:34px; }
+.reader-shell .reader-header { --accent:var(--accent,#597ba4); }
+@media(max-width:760px) {
+ .details-top-controls { gap:5px; }
+ .details-top-controls .theme-next-text { display:none; }
+ .details-top-controls .theme-next-button { padding:7px; }
+ .reader-head-right .theme-next-button { padding:6px; }
+}
+@media(max-width:600px) {
+ .app-shell .topbar .theme-swatches { max-width:100%; }
+}
