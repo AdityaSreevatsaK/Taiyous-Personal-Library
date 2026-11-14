@@ -11,8 +11,9 @@ Combine the agreed **Grand Library** opening with the **Literary Journal** index
 1. **Grand Library opening:** a large cinematic dark-green feature, real cover artwork arranged as overlapping books, current/resumable novel text, two genuine actions (read and details), and counts taken from the real private or offline catalogue.
 2. **Continue reading rail:** a horizontally accessible card collection with real progress, current chapter and read/detail actions. It is hidden when no books are in progress.
 3. **Literary Journal:** editorial masthead, alphabetically ordered top-ten index, reading-status column, actual tag links, and a notes-margin panel with reading statistics. The index links to existing book detail actions; the full catalogue link scrolls to the complete original functionality.
-4. **Original full library and management:** every collection action, tag filter, sorting, searching, bulk offline download, Owner mode, Cloudflare OAuth, EPUB, ZIP, reading progress, rating and comment control remains in its existing component. The new editorial sections are additional navigational structure, **not replacement data stores**.
-5. **Other shelves:** Trying Out, Reading, Unread, Finished and Offline continue to use their established focused views. The editorial opening displays only on the unfiltered All Books home, never over search, tags, collections or advanced search.
+4. **Full-width top navigation:** no permanent sidebar. A compact brand bar contains global search, Cloudflare connection/settings and theme controls. A second slim horizontal navigation row exposes All Books, Trying Out, Reading, To Be Read, Finished and Offline, with compact dropdowns for every tag and collection, including collection creation. Existing collection rename/delete actions remain on the selected collection screen.
+5. **Original full library and management:** every collection action, tag filter, sorting, searching, bulk offline download, Owner mode, Cloudflare OAuth, EPUB, ZIP, reading progress, rating and comment control remains in its existing component. The new editorial sections are additional navigational structure, **not replacement data stores**.
+6. **Other shelves:** Trying Out, Reading, Unread, Finished and Offline continue to use their established focused views. The editorial opening displays only on the unfiltered All Books home, never over search, tags, collections or advanced search.
 
 ## Safety and behaviour
 
@@ -21,7 +22,7 @@ Combine the agreed **Grand Library** opening with the **Literary Journal** index
 - Opens novels through original `onOpen` and `onRead` callbacks; retains new title-based URLs and compatible ID bookmarks from PR #7.
 - No removal of current `BookDetails` / `Reader` views, offline deletion rules, or Owner protection.
 - Default Sepia remains in the production reader. All editorial surfaces inherit existing light/sepia/dark CSS tokens except the intentionally dark grand feature.
-- Responsive: single-column mobile hero, three overlapping covers with space for touch, horizontally scrollable progress cards, and journal index columns condensed for narrow screens. Keyboard focus remains visible and motion honours reduced-motion preferences.
+- Responsive: full-width desktop without sidebar; compact horizontal section navigation; single-column mobile hero, three overlapping covers with space for touch, horizontally scrollable progress cards, and journal index columns condensed for narrow screens. Keyboard focus remains visible and motion honours reduced-motion preferences.
 - No v1.0.0 tag, master merge or production deployment without explicit owner acceptance of design.
 
 ## Acceptance checklist
