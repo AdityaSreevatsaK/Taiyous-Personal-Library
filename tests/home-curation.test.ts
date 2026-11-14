@@ -42,14 +42,38 @@ describe('curated private library homepage', () => {
       { id: 'deleted-group', name: 'Deleted', bookIds: [books[0].id], updatedAt: 1, deleted: true },
     ];
     const shelves = selectHomeShelves(books, collections);
-    expect(shelves.map(s => s.name)).toEqual(['Series', 'Cultivation', 'Romance']);
+    expect(shelves.map(s => s.name)).toEqual(['Series', 'Cultivation']);
+    expect(new Set(shelves.map(s => s.preview.id)).size).toBe(shelves.length);
     expect(shelves[0]).toMatchObject({ kind: 'collection', count: 1, preview: books[1] });
     expect(shelves[1]).toMatchObject({ kind: 'tag', count: 2 });
+  });
+  it('reassigns an earlier genre preview when a later genre only has that book', () => {
+    const shared = book(1, { lastOpenedAt: 2000, sourceTags: ['Action', 'Fantasy'] });
+    const alternative = book(2, { lastOpenedAt: 1000, sourceTags: ['Action'] });
+    const shelves = selectHomeShelves([shared, alternative], []);
+    expect(shelves.map(s => s.name)).toEqual(['Action', 'Fantasy']);
+    expect(shelves.map(s => s.preview.id)).toEqual([alternative.id, shared.id]);
+  });
+  it('uses four distinct covers even when all four genres share the same titles', () => {
+    const tags = ['Action', 'Adventure', 'Fantasy', 'Martial Arts'];
+    const books = Array.from({ length: 6 }, (_, i) =>
+      book(i + 1, { sourceTags: tags, lastOpenedAt: 600 - i }));
+    const shelves = selectHomeShelves(books, []);
+    expect(shelves).toHaveLength(4);
+    expect(new Set(shelves.map(s => s.preview.id)).size).toBe(4);
+    expect(shelves.map(s => s.count)).toEqual([6, 6, 6, 6]);
+    expect(selectHomeShelves(books, [])).toEqual(shelves);
+  });
+  it('shows fewer shelf cards rather than reusing a cover with insufficient unique books', () => {
+    const only = book(1, { sourceTags: ['Action', 'Fantasy', 'Martial Arts'] });
+    const shelves = selectHomeShelves([only], []);
+    expect(shelves).toHaveLength(1);
+    expect(shelves[0]).toMatchObject({ name: 'Action', count: 1, preview: only });
   });
   it('caps shelves and remains safe with no genres or empty catalogue', () => {
     expect(selectHomeShelves([], [])).toEqual([]);
     expect(selectHomeShelves([book(1)], [])).toEqual([]);
     expect(selectHomeShelves([book(1, { personalTags: ['Adventure', 'Fantasy', 'Progression'] })], [], 2))
-      .toHaveLength(2);
+      .toHaveLength(1);
   });
 });
