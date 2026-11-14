@@ -473,7 +473,9 @@ try {
     if (overflow) throw new Error('Reader produced horizontal page overflow');
     await page.getByRole('button', { name: 'Go to Sample Library Book details' }).click();
     await page.getByRole('heading', { name: 'Sample Library Book' }).waitFor();
-    await page.getByRole('button', { name: 'Start reading' }).click();
+    // Reloading a deep link can persist real progress, legitimately changing
+    // this action's label from Start reading to Continue reading.
+    await page.getByRole('button', { name: /^(Start reading|Continue reading)$/ }).click();
     await page.getByRole('button', { name: 'Go to library home' }).click();
     await page.getByRole('navigation', { name: 'Library sections' }).waitFor();
     await page.locator('.book-rating-pill').getByText('8/10').waitFor();
