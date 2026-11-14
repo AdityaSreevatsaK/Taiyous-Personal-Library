@@ -4,6 +4,7 @@ import {
   Info, LockKeyhole, Pencil, Plus, Star, Tag, Trash2, X,
 } from 'lucide-react';
 import { Cover } from './LibraryDashboard';
+import ThemeSwitcher from './ThemeSwitcher';
 import type { CloudSession } from '../lib/cloud';
 import ChapterBrowser from './ChapterBrowser';
 import { bookTags, normalizeTags } from '../lib/tags';
@@ -12,6 +13,7 @@ import type { LibraryBook, ReaderTheme } from '../types';
 interface Props {
   book: LibraryBook;
   theme: ReaderTheme;
+  onThemeChange: (theme: ReaderTheme) => void;
   onBack: () => void;
   onRead: () => void;
   onDownloadEpub: () => Promise<void>;
@@ -32,7 +34,7 @@ interface Props {
   error: string | null;
 }
 
-export default function BookDetails({ book, theme, onBack, onRead, onDownloadEpub, isCachedOffline, onSaveOffline, onRemoveOffline, onDeleteLocal, onDownloadArchive, cloudConnected, cloudRepo, cloudSession, onReadChapter, onSaveTags, onSaveSummary, onSaveReview, onSetTrial, onBrowseTag, error }: Props) {
+export default function BookDetails({ book, theme, onThemeChange, onBack, onRead, onDownloadEpub, isCachedOffline, onSaveOffline, onRemoveOffline, onDeleteLocal, onDownloadArchive, cloudConnected, cloudRepo, cloudSession, onReadChapter, onSaveTags, onSaveSummary, onSaveReview, onSetTrial, onBrowseTag, error }: Props) {
   const [tagInput, setTagInput] = useState('');
   const [tagDraft, setTagDraft] = useState<string[]>(() => book.personalTags || []);
   const [editingSummary, setEditingSummary] = useState(false);
@@ -117,7 +119,7 @@ export default function BookDetails({ book, theme, onBack, onRead, onDownloadEpu
         event.preventDefault();
         onBack();
       }} title="Return to Taiyou's Personal Library">Taiyou's Personal Library</a>
-      <button className="details-top-read" type="button" onClick={onRead}>Read <ArrowRight size={17} /></button>
+      <div className="details-top-controls"><ThemeSwitcher compact value={theme} onChange={onThemeChange} /><button className="details-top-read" type="button" onClick={onRead}>Read <ArrowRight size={17} /></button></div>
     </header>
     <main className="details-layout">
       <div className="details-hero">
