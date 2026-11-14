@@ -153,3 +153,58 @@
 @media(prefers-reduced-motion:reduce){
  .editorial-art-book,.editorial-continue-rail{transition:none;scroll-behaviour:auto}
 }
+
+
+/* Curated home: intentional short shelves, not an infinite catalogue. */
+.app-shell .editorial-grand-inner{min-height:410px}
+.editorial-journal-index .editorial-text-link{
+  display:inline-flex;align-items:center;gap:6px;background:none;border:0;
+  color:var(--text);padding:4px 0;text-decoration:underline;text-underline-offset:4px;
+  font-size:11px;cursor:pointer;text-align:left;
+}
+.editorial-index-more{background:none;border:0;border-bottom:1px solid var(--text);
+  border-radius:0;cursor:pointer;text-align:left}
+.editorial-shelves{padding:6px 0 35px}
+.editorial-shelf-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}
+.editorial-shelf-card{
+  background:var(--surface);color:var(--text);border:1px solid var(--border);
+  border-radius:5px;min-width:0;min-height:145px;padding:14px;
+  display:flex;align-items:center;gap:13px;text-align:left;
+  box-shadow:var(--shadow);cursor:pointer;transition:transform .18s,border-color .18s;
+}
+.editorial-shelf-card:hover{border-color:#ad9068;transform:translateY(-2px)}
+.editorial-shelf-cover{flex:0 0 64px;width:64px;min-width:0;pointer-events:none}
+.editorial-shelf-cover .cover{width:64px;height:96px;min-width:0;box-shadow:3px 7px 12px #00000020}
+.editorial-shelf-cover .cover-heading{font-size:9px}
+.editorial-shelf-cover .cover-author{font-size:7px}
+.editorial-shelf-details{display:flex;flex-direction:column;min-width:0;flex:1;gap:7px}
+.editorial-shelf-details .editorial-eyebrow{font-size:8px;letter-spacing:.11em}
+.editorial-shelf-details strong{font:600 17px/1.25 Georgia,serif;overflow-wrap:anywhere}
+.editorial-shelf-details small{font-size:11px;color:var(--subtext)}
+.editorial-shelf-card>svg{color:var(--subtext);flex:0 0 auto;align-self:end}
+.editorial-all-books{
+  border-top:3px double var(--border);border-bottom:1px solid var(--border);
+  padding:30px clamp(16px,3vw,36px);margin-top:4px;
+  display:flex;align-items:center;justify-content:space-between;gap:24px;
+  background:var(--pale);
+}
+.editorial-all-books h2{font:500 clamp(25px,2.8vw,36px)/1.14 Georgia,serif;margin:9px 0}
+.editorial-all-books p{color:var(--subtext);font-size:12px;line-height:1.6;margin:0;max-width:440px}
+.editorial-browse-all{
+  display:inline-flex;align-items:center;justify-content:center;gap:10px;
+  padding:13px 17px;border-radius:4px;background:var(--text);color:var(--surface);
+  border:1px solid var(--text);font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap
+}
+.editorial-browse-all:hover{opacity:.88}
+@media(max-width:1190px){.editorial-shelf-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:660px){
+  .app-shell .editorial-grand-inner{min-height:0}
+  .editorial-shelf-grid{display:flex;gap:10px;overflow-x:auto;scroll-snap-type:x mandatory;padding:3px 2px 14px}
+  .editorial-shelf-card{flex:0 0 min(275px,82vw);scroll-snap-align:start;min-height:126px}
+  .editorial-all-books{flex-direction:column;align-items:stretch;gap:18px;padding:25px 18px}
+  .editorial-browse-all{width:100%;white-space:normal}
+}
+@media(prefers-reduced-motion:reduce){
+  .editorial-shelf-card{transition:none}
+  .editorial-shelf-card:hover{transform:none}
+}
