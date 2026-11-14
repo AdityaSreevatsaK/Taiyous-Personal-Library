@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { ArrowRight, BookMarked, ChevronLeft, ChevronRight, List, Search } from 'lucide-react';
 import { CHAPTERS_PER_PAGE, loadChapterCatalog, resolveChapterNumber, searchChapterCatalog } from '../lib/catalog';
 import type { ChapterItem, LibraryBook } from '../types';
@@ -15,6 +15,8 @@ export default function ChapterBrowser({ book, onReadChapter, isCachedOffline, o
   const [chapters, setChapters] = useState<ChapterItem[]>([]);
   const [loading, setLoading] = useState(isCachedOffline);
   const [preparing, setPreparing] = useState(false);
+  const [nearViewport, setNearViewport] = useState(false);
+  const sectionRef = useRef<HTMLElement>(null);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [chapterNumber, setChapterNumber] = useState('');
@@ -22,6 +24,21 @@ export default function ChapterBrowser({ book, onReadChapter, isCachedOffline, o
   const [invalidNumber, setInvalidNumber] = useState(false);
 
   useEffect(() => {
+    setNearViewport(false);
+    if (!isCachedOffline) return;
+    if (typeof IntersectionObserver === 'undefined') { setNearViewport(true); return; }
+    const observer = new IntersectionObserver(entries => {
+      if (entries.some(entry => entry.isIntersecting)) {
+        setNearViewport(true);
+        observer.disconnect();
+      }
+    }, { rootMargin: '280px' });
+    if (sectionRef.current) observer.observe(sectionRef.current);
+    return () => observer.disconnect();
+  }, [book.id, isCachedOffline]);
+
+  useEffect(() => {
+    if (isCachedOffline && !nearViewport) return;
     let active = true;
     setError(null);
     setChapters([]);
@@ -39,7 +56,7 @@ export default function ChapterBrowser({ book, onReadChapter, isCachedOffline, o
       setLoading(false);
     });
     return () => { active = false; };
-  }, [book.id, isCachedOffline]); // Metadata enrichment must not reparse the EPUB.
+  }, [book.id, isCachedOffline, nearViewport]); // Defer large EPUB parsing until chapters are near view.
 
   async function prepareChapters() {
     if (preparing || isCachedOffline) return;
@@ -71,7 +88,7 @@ export default function ChapterBrowser({ book, onReadChapter, isCachedOffline, o
     // Keeping the chapter list on the page preserves the saved location.
   }
 
-  return <section className="details-card chapter-browser" aria-labelledby="detail-chapters-heading">
+  return <section ref={sectionRef} className="details-card chapter-browser" aria-labelledby="detail-chapters-heading">
     <div className="details-section-header">
       <div><span className="details-label">PICK UP ANYWHERE</span><h2 id="detail-chapters-heading">Chapters</h2></div>
       <List size={21} className="details-section-icon" aria-hidden="true" />
@@ -84,6 +101,7 @@ export default function ChapterBrowser({ book, onReadChapter, isCachedOffline, o
         </button>
         {error && <p className="chapter-error" role="alert">{error}</p>}
       </div>
+      : !nearViewport ? <div className="chapter-loading">Chapter titles will load when you reach this section.</div>
       : loading ? <div className="chapter-loading" role="status">Loading chapter titles from your EPUB…</div>
       : error ? <p className="chapter-error" role="alert">{error}</p>
         : <>
