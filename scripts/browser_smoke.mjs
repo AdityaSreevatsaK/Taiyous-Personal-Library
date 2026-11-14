@@ -187,10 +187,8 @@ try {
     await page.locator('.filter-tabs').getByRole('button', { name: 'All', exact: true }).click();
     if (await page.locator('.offline-health').count()) throw new Error('Offline status shown outside Offline tab');
     await page.getByRole('button', { name: 'View details for Sample Library Book' }).click();
+    await page.waitForURL('**/novels/sample-library-book');
     await page.getByRole('heading', { name: 'Sample Library Book' }).waitFor();
-    if (new URL(page.url()).pathname !== '/novels/sample-library-book') {
-      throw new Error('Novel detail URL must use the readable title slug');
-    }
     // Existing ID-based bookmarks must land on the identical book and replace
     // their URL with the title slug without losing any local IndexedDB data.
     await page.goto(baseUrl + '/book/aaaaaaaaaaaaaaaaaaaaaaaa', { waitUntil: 'networkidle' });
