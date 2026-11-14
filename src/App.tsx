@@ -630,38 +630,64 @@ export default function App() {
     }
   }, [bulkOfflineProgress, ensureCached]);
 
+  // Details are catalogue metadata. Never block page navigation on fetching an
+  // EPUB (which can exceed 100 MB). The reader and explicit chapter download
+  // retain their existing verified EPUB caching flow.
   const showDetails = useCallback((book: LibraryBook) => {
     setError(null);
     setNotice(null);
-    setLoadingBook(book.title);
-    void (async () => {
-      try {
-        await ensureCached(book);
-        setDetailsId(book.id);
-        setReadingId(null);
-        navigate(namedNovelUrl(book, booksRef.current));
-        if (!book.metadataScanned) {
-          const file = await getBookFile(book.id);
+    setLoadingBook(null);
+    setReadingId(null);
+    setStartChapterHref(null);
+    setDetailsId(book.id);
+    navigate(namedNovelUrl(book, booksRef.current));
+  }, []);
+
+  // Older locally imported EPUBs can need metadata enrichment. Preserve that
+  // behaviour after the details have painted, and only from existing offline
+  // content. Never download a private/cloud EPUB merely to show metadata.
+  const metadataScansInFlight = useRef(new Set<string>());
+  useEffect(() => {
+    const id = detailsId;
+    if (!id || readingId || !cachedEpubIds.includes(id)) return;
+    const target = booksRef.current.find(item => item.id === id);
+    if (!target || target.metadataScanned || metadataScansInFlight.current.has(id)) return;
+    let cancelled = false;
+    const scan = () => {
+      if (cancelled || metadataScansInFlight.current.has(id)) return;
+      metadataScansInFlight.current.add(id);
+      void (async () => {
+        try {
+          const file = await getBookFile(id);
           const parsed = await extractEpubMetadata(file);
-          const current = booksRef.current.find(item => item.id === book.id);
-          if (current && !current.metadataScanned) {
-            const updated: LibraryBook = { ...current,
-              description: current.description || parsed.description,
-              sourceTags: current.sourceTags?.length ? current.sourceTags : parsed.sourceTags,
-              sourceUrl: current.sourceUrl || parsed.sourceUrl,
-              status: current.status || parsed.status,
-              chapterCount: current.chapterCount || parsed.chapterCount,
-              metadataScanned: true,
-            };
-            await updateBook(updated);
-            booksRef.current = booksRef.current.map(item => item.id === book.id ? updated : item);
-            setBooks(booksRef.current);
-          }
+          const current = booksRef.current.find(item => item.id === id);
+          if (!current || current.metadataScanned) return;
+          const updated: LibraryBook = {
+            ...current,
+            description: current.description || parsed.description,
+            sourceTags: current.sourceTags?.length ? current.sourceTags : parsed.sourceTags,
+            sourceUrl: current.sourceUrl || parsed.sourceUrl,
+            status: current.status || parsed.status,
+            chapterCount: current.chapterCount || parsed.chapterCount,
+            metadataScanned: true,
+          };
+          await updateBook(updated);
+          booksRef.current = booksRef.current.map(item => item.id === id ? updated : item);
+          setBooks(booksRef.current);
+        } catch {
+          // The catalogue/details remain usable even if optional enrichment fails.
+        } finally {
+          metadataScansInFlight.current.delete(id);
         }
-      } catch (reason) { setError(`Unable to open novel: ${String(reason)}`); }
-      finally { setLoadingBook(null); }
-    })();
-  }, [ensureCached]);
+      })();
+    };
+    if (typeof window.requestIdleCallback === 'function') {
+      const handle = window.requestIdleCallback(scan, { timeout: 2300 });
+      return () => { cancelled = true; window.cancelIdleCallback(handle); };
+    }
+    const handle = setTimeout(scan, 450);
+    return () => { cancelled = true; clearTimeout(handle); };
+  }, [detailsId, readingId, cachedEpubIds]);
 
   const savePersonalTags = useCallback(async (bookId: string, tags: string[]) => {
     const current = booksRef.current.find(book => book.id === bookId);
@@ -942,6 +968,10 @@ export default function App() {
         onNovelDetails={() => { setReadingId(null); setDetailsId(activeBook.id); setStartChapterHref(null); navigate(namedNovelUrl(activeBook, booksRef.current)); }} onProgress={recordProgress} />
     ) : detailBook ? (
       <BookDetails book={detailBook} theme={settings.theme} onThemeChange={theme => setSettings(current => ({ ...current, theme }))}
+        onLoadChapters={async () => {
+          await ensureCached(detailBook);
+          setCachedEpubIds(ids => ids.includes(detailBook.id) ? ids : [...ids, detailBook.id]);
+        }}
         onBack={goLibrary} onRead={() => openBook(detailBook)}
         onReadChapter={href => openBook(detailBook, href)}
         onDownloadEpub={() => downloadEpub(detailBook)}
