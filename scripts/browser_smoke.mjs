@@ -105,6 +105,17 @@ try {
       throw new Error('The new full-width library must not render a permanent sidebar');
     }
     await page.locator('.primary-top-nav').waitFor({ state: 'visible' });
+    const sunLogo = page.locator('.taiyou-brand-mark');
+    await sunLogo.waitFor({ state:'visible' });
+    if (!(await sunLogo.getAttribute('src'))?.includes('/branding/sun-light.webp')) {
+      throw new Error('Sepia must show the approved blue-and-gold Sun mark');
+    }
+    if (!await sunLogo.evaluate(el => el instanceof HTMLImageElement && el.complete && el.naturalWidth > 0)) {
+      throw new Error('Approved Sun logo did not load in the header');
+    }
+    if (!(await page.locator('link#taiyou-favicon').getAttribute('href'))?.includes('favicon-light.png')) {
+      throw new Error('Favicon does not match current light reading theme');
+    }
     // Six palette swatches change the entire app in ONE click, and persist.
     const palettes = ['Sepia', 'Paper', 'Charcoal', 'Midnight', 'Ocean', 'Plum'];
     for (const name of palettes) {
@@ -112,6 +123,12 @@ try {
       const id = { Sepia: 'sepia', Paper: 'light', Charcoal: 'dark',
         Midnight: 'midnight', Ocean: 'ocean', Plum: 'plum' }[name];
       await page.locator('.app-shell.theme-' + id).waitFor({ state: 'visible' });
+      const expectedLogo = ['Sepia','Paper','Ocean'].includes(name) ? 'sun-light.webp' : 'sun-dark.webp';
+      await page.locator('.taiyou-brand-mark[src$="' + expectedLogo + '"]').waitFor();
+      const expectedFavicon = ['Sepia','Paper','Ocean'].includes(name) ? 'favicon-light.png' : 'favicon-dark.png';
+      if (!(await page.locator('link#taiyou-favicon').getAttribute('href'))?.includes(expectedFavicon)) {
+        throw new Error('Favicon did not update with selected theme: ' + name);
+      }
       if ((await page.getByRole('button', { name: 'Use ' + name + ' theme' }).getAttribute('aria-pressed')) !== 'true') {
         throw new Error('Palette selection must be accessible: ' + name);
       }
