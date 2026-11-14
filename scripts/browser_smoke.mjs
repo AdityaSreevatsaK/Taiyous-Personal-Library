@@ -527,7 +527,7 @@ try {
       }
       await page.locator('nav[aria-label="Library sections"]').waitFor({ state: 'attached' });
       await page.getByRole('button', { name: 'View details for Sample Library Book' }).click();
-      await page.getByRole('button', { name: 'Start reading' }).click();
+      await page.getByRole('button', { name: /^(Start|Continue) reading$/ }).click();
       await page.locator('.reader-page iframe').first().waitFor({ state: 'visible', timeout: 20000 });
       await page.getByRole('button', { name: 'Go to library home' }).click();
       await page.locator('nav[aria-label="Library sections"]').waitFor({ state: 'attached' });
