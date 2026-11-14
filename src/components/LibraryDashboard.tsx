@@ -372,7 +372,7 @@ export default function LibraryDashboard({
              {collectionsSyncPending && <span className="pending-sync-status">Collections waiting to sync</span>}
            </section>}
                     {showAdvanced ? <AdvancedSearch books={books} offlineIds={cachedEpubIds} initialName={globalSearch} cloudRepo={cloudRepo} cloudSession={cloudSession}
-            onClose={() => { setShowAdvanced(false); onGlobalSearch(''); onLibraryNavigate('/'); }} onOpen={onOpen}
+            onClose={() => { setShowAdvanced(false); onGlobalSearch(''); onLibraryNavigate(libraryShelfUrl('all')); }} onOpen={onOpen}
             onBrowseTag={browseTag} /> : filter === 'analytics' ? <UsageDashboard books={books} /> : <>
 
           {showEditorialHome && <EditorialHome books={books} collections={collections}
