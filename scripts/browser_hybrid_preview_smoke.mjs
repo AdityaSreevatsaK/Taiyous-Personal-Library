@@ -16,6 +16,15 @@ try {
     await page.locator('.hybrid-demo-notice').waitFor({ state: 'visible' });
     await page.locator('.editorial-grand').waitFor({ state: 'visible', timeout: 30000 });
     await page.locator('.editorial-journal').waitFor({ state: 'visible' });
+    // The actual preview shell supports six instantly applied, persistent colours.
+    await page.getByRole('button', { name: 'Use Midnight theme' }).click();
+    await page.locator('.app-shell.theme-midnight').waitFor({ state: 'visible' });
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await page.locator('.app-shell.theme-midnight').waitFor({ state: 'visible', timeout: 15000 });
+    await page.getByRole('button', { name: 'Use Ocean theme' }).click();
+    await page.locator('.app-shell.theme-ocean').waitFor({ state: 'visible' });
+    await page.getByRole('button', { name: 'Use Sepia theme' }).click();
+    await page.locator('.app-shell.theme-sepia').waitFor({ state: 'visible' });
     await page.locator('.editorial-index-row').first().waitFor();
     if (await page.locator('.sidebar').count()) throw new Error('Permanent sidebar remains on the new layout');
     await page.getByRole('navigation', { name: 'Library sections' }).waitFor({ state: 'visible' });
