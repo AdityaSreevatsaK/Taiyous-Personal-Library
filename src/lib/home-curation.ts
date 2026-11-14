@@ -55,30 +55,61 @@ export function selectHomeBooks(books: readonly LibraryBook[]): HomeBookSelectio
 
 /**
  * Prefer the owner's non-empty collections, then real catalogue tags.
- * Blank/deleted collections and empty tag groups never create fake shelves.
- * Cards are navigable into the existing scoped catalogue routes.
+ * Use a distinct novel for every preview. An augmenting-path assignment
+ * permits an earlier shelf to change its cover when a later shelf has only
+ * one possible novel. If distinct previews are impossible, show fewer cards
+ * rather than repeating the same cover under multiple genres.
+ *
+ * Book IDs, not cover image URLs, determine identity; a title may have more
+ * than one tag, but its preview appears at most once across these cards.
  */
 export function selectHomeShelves(
   books: readonly LibraryBook[], collections: readonly BookCollection[], limit = 4,
 ): HomeShelf[] {
   if (!books.length || limit < 1) return [];
+  type Candidate = Omit<HomeShelf, 'preview'> & { members: LibraryBook[] };
   const byId = new Map(books.map(book => [book.id, book]));
-  const shelves: HomeShelf[] = [];
+  const candidates: Candidate[] = [];
+
   for (const collection of [...collections].filter(item => !item.deleted).sort((a, b) =>
     a.name.localeCompare(b.name))) {
-    const members = collection.bookIds.map(id => byId.get(id)).filter((book): book is LibraryBook => !!book);
-    if (!members.length) continue;
-    members.sort(recentFirst);
-    shelves.push({ kind: 'collection', id: collection.id, name: collection.name,
-      count: members.length, preview: members[0] });
-    if (shelves.length === limit) return shelves;
+    const members = collection.bookIds.map(id => byId.get(id))
+      .filter((book): book is LibraryBook => !!book).sort(recentFirst);
+    if (members.length) candidates.push({
+      kind: 'collection', id: collection.id, name: collection.name, count: members.length, members,
+    });
   }
+
   for (const { tag } of tagCounts([...books])) {
     const members = books.filter(book => bookTags(book).some(value =>
       value.toLocaleLowerCase() === tag.toLocaleLowerCase())).sort(recentFirst);
-    if (!members.length) continue;
-    shelves.push({ kind: 'tag', id: tag, name: tag, count: members.length, preview: members[0] });
-    if (shelves.length === limit) break;
+    if (members.length) candidates.push({
+      kind: 'tag', id: tag, name: tag, count: members.length, members,
+    });
   }
-  return shelves;
+
+  const owners = new Map<string, number>();
+  const previews = new Map<number, LibraryBook>();
+  const selected: number[] = [];
+  function allocate(index: number, visited: Set<string>): boolean {
+    for (const book of candidates[index].members) {
+      if (visited.has(book.id)) continue;
+      visited.add(book.id);
+      const owner = owners.get(book.id);
+      if (owner === undefined || allocate(owner, visited)) {
+        owners.set(book.id, index);
+        previews.set(index, book);
+        return true;
+      }
+    }
+    return false;
+  }
+
+  for (let index = 0; index < candidates.length && selected.length < limit; index++) {
+    if (allocate(index, new Set())) selected.push(index);
+  }
+  return selected.map(index => {
+    const { members: _members, ...shelf } = candidates[index];
+    return { ...shelf, preview: previews.get(index)! };
+  });
 }
