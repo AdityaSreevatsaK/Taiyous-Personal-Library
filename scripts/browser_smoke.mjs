@@ -100,6 +100,21 @@ try {
     if (!rootText.includes('Personal Library') || !rootText.includes('YOUR SHELVES')) {
       throw new Error('Expected library dashboard content is missing');
     }
+    // Six palette swatches change the entire app in ONE click, and persist.
+    const palettes = ['Sepia', 'Paper', 'Charcoal', 'Midnight', 'Ocean', 'Plum'];
+    for (const name of palettes) {
+      await page.getByRole('button', { name: 'Use ' + name + ' theme' }).click();
+      const id = { Sepia: 'sepia', Paper: 'light', Charcoal: 'dark',
+        Midnight: 'midnight', Ocean: 'ocean', Plum: 'plum' }[name];
+      await page.locator('.app-shell.theme-' + id).waitFor({ state: 'visible' });
+      if ((await page.getByRole('button', { name: 'Use ' + name + ' theme' }).getAttribute('aria-pressed')) !== 'true') {
+        throw new Error('Palette selection must be accessible: ' + name);
+      }
+    }
+    await page.reload({ waitUntil: 'networkidle' });
+    await page.locator('.app-shell.theme-plum').waitFor({ state: 'visible' });
+    await page.getByRole('button', { name: 'Use Sepia theme' }).click();
+    await page.locator('.app-shell.theme-sepia').waitFor({ state: 'visible' });
     // Cloud connection must not dominate the bookshelf by default, but remain accessible.
     const cloudSettings = page.getByRole('button', { name: 'Settings', exact: true });
     await cloudSettings.waitFor();
