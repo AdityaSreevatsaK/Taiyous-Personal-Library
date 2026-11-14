@@ -11,7 +11,7 @@
 | Named collections | Create, rename and delete collections; assign/remove novels without deleting books; series grouping such as *Harry Potter*; local state plus optional private-dataset sync |
 | Details | Synopsis and metadata; reading progress; original source links; chapters; personal tags and summary; comments below information in left column. Synopsis saves prompt for confirmation; personal tags are batched as a draft and confirmed once. |
 | Rating and comments | Personal 1–10 rating in the green novel header, and separate reading notes. Locally cached; when connected for a hosted book, written to separate private per-book JSON documents and reloaded from cloud |
-| Reading | EPUB.js vertical chapter scroll; chapter selection/search; local reading progress and resume; chapter navigation at bottom-left (**Previous**) and bottom-right (**Next**); keyboard arrow shortcuts; header navigation to novel details and library. Bookmarkable `/book/<id>` and `/book/<id>/read` routes support direct links and browser history. |
+| Reading | EPUB.js vertical chapter scroll; chapter selection/search; local reading progress and resume; chapter navigation at bottom-left (**Previous**) and bottom-right (**Next**); keyboard arrow shortcuts; header navigation to novel details and library. Bookmarkable `/novels/<title-slug>` and `/novels/<title-slug>/read` routes support direct links and browser history; legacy `/book/<id>` links are resolved and rewritten to the name-based route. Duplicate titles receive a short ID suffix to prevent ambiguity. Internal storage and progress remain keyed by immutable ID. |
 | Appearance | Sepia/light/dark themes, fonts, line height, font size and reading width |
 | Novel cover artwork | Real JPEG covers are loaded from the private Hugging Face Dataset when catalogue entries contain `coverPath: data/novels/<existing-id>/cover.jpg`. Images appear on the bookshelf, advanced search results and novel details, are cached in a new IndexedDB `covers` store for offline reuse, and fall back to generated covers when missing or unavailable. Existing EPUBs, ZIPs and novel IDs are unchanged. |
 | EPUB and ZIP download | **Download EPUB** saves a real `.epub` file through the browser. Uses a cached EPUB, or obtains one from the authorised private dataset if missing. **Original ZIP** is offered only when a hosted archive exists and requires a network fetch |
@@ -32,6 +32,14 @@
 - **GitHub repository/Cloudflare Pages:** source code and built UI only; **never** the private novel dataset or user tokens.
 
 **Sync limitations:** Reading progress/last position, ratings/comments and collections use private cloud files when connected. Offline edits remain locally pending until a successful authorised retry. Personal tags, custom summaries and typography remain local to each browser. **Trying out** shelf state is recorded with private per-book reading notes and synchronised between devices when connected. Avoid simultaneous edits from multiple devices: collections use timestamp-based merging rather than transactional multi-writer guarantees; cloud notes also lack conflict-proof concurrent editing. A passing CI run does not replace testing with the actual private dataset.
+
+### Name-based deep-link behaviour
+
+- Novel details: `/novels/emperors-domination`; reader: `/novels/emperors-domination/read`.
+- The visible URL is a slug derived from the saved novel title. A duplicate title is disambiguated with a short stable ID suffix, without changing the underlying novel identity.
+- Historical `/book/<24-character-id>` and `/book/<id>/read` bookmarks still load, then the browser URL is canonicalised to the name-based path once the local or private cloud catalogue loads.
+- Browser Back/Forward, direct reloads and offline entry use the same app-shell routing logic. The private EPUB and personal metadata never appear in URL query parameters.
+- **Limit:** if a novel title is renamed, an *old title-only* bookmark cannot be resolved on a fresh device without a persistent alias catalogue. Historical ID-based links remain durable. Adding global old-title redirects is a separate, data-model-backed follow-up; do not guess which book an ambiguous slug means.
 
 ## Offline-first PWA behaviour (standalone hosting)
 
