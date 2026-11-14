@@ -212,7 +212,7 @@ export default function LibraryDashboard({
   ];
 
   return (
-    <div className={`app-shell theme-${theme}`} onDragOver={over} onDrop={drop} onDragLeave={leave}>
+    <div className={`app-shell theme-${theme} ${import.meta.env.VITE_DESIGN_PREVIEW === 'true' ? 'static-hybrid-preview' : ''}`} onDragOver={over} onDrop={drop} onDragLeave={leave}>
       {dragging && <div className="drop-overlay" aria-hidden="true"><Upload size={46} /><strong>Drop your novels to import</strong><span>EPUB or supported Novel ZIP</span></div>}
       {sidebarOpen && <button className="mobile-shade" aria-label="Close sidebar" onClick={() => setSidebarOpen(false)} />}
       <aside className={`sidebar ${sidebarOpen ? 'sidebar-open' : ''}`}>
@@ -289,6 +289,9 @@ export default function LibraryDashboard({
             </div>}
           </section><div className="top-actions"><label className="global-search-field"><Search size={16} /><input aria-label="Search all novels" placeholder="Search all novels…" value={globalSearch} onChange={event => onGlobalSearch(event.target.value)} />{globalSearch && <button type="button" aria-label="Clear global search" onClick={() => onGlobalSearch('')}><X size={15} /></button>}</label><button type="button" className="advanced-search-launch" onClick={() => { setShowAdvanced(true); setSidebarOpen(false); }}><Search size={16} /><span>Advanced search</span></button><button className="icon-button theme-switch" onClick={() => onThemeChange(themes[(themes.indexOf(theme) + 1) % themes.length])} title="Change theme" aria-label="Change theme">{theme === 'dark' ? <Moon size={19} /> : <Sun size={19} />}</button></div></header>
         <div className="page-content">
+          {import.meta.env.VITE_DESIGN_PREVIEW === 'true' && <div className="hybrid-demo-notice" role="note">
+            <strong>DESIGN PREVIEW</strong> Fictional novels and sample chapters only. This separate site cannot access your private Hugging Face library.
+          </div>}
           {notice && <div className="alert success-alert" role="status"><CheckCircle2 size={17} />{notice}</div>}
           {(error || storageError) && <div className="alert error-alert" role="alert">{error || storageError}</div>}
           {!showAdvanced && !showEditorialHome && <div className="page-head page-head-compact">
