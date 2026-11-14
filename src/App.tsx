@@ -76,12 +76,12 @@ export default function App() {
     () => onlineForUsage.current,
   ), []);
 
-  function navigate(path: string, replace = false) {
+  const navigate = useCallback((path: string, replace = false) => {
     if (window.location.pathname !== path) {
       window.history[replace ? 'replaceState' : 'pushState'](null, '', path);
     }
     setRoutePath(path);
-  }
+  }, []);
   // The SPA keeps its root scrolling element across page changes.
   // A novel details page must ALWAYS open at its top, not at the previous
   // catalogue scroll position. Also reset on browser Back/Forward routes.
