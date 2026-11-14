@@ -1,0 +1,34 @@
+/* Explicit brand state, never inferred from theme colours.
+   Green is intentionally reserved for a real authenticated cloud connection. */
+.app-shell .connection-badge.is-connected,
+.app-shell.theme-midnight .connection-badge.is-connected,
+.app-shell.theme-plum .connection-badge.is-connected,
+.app-shell.theme-dark .connection-badge.is-connected {
+  display:inline-flex; align-items:center; gap:6px;
+  color:#b5f3d1; background:#13452e;
+  border:1px solid #247a4c;
+}
+.app-shell .cloud-connected-dot { display:inline-block; width:7px; height:7px;
+  flex:0 0 7px; border-radius:50%; background:#38e595; box-shadow:0 0 0 2px #38e59518; }
+.app-shell .cloud-sync-flag { display:inline-flex; padding:2px 6px; border-radius:5px;
+  color:#ffe9b0; background:#68491c; font-size:10px; font-weight:700; }
+.app-shell .connection-badge:not(.is-connected) { border:1px solid var(--border); }
+.app-shell .library-wordmark-mark { overflow:hidden; }
+.app-shell .taiyou-brand-mark { display:block; width:23px; height:23px; object-fit:contain; }
+/* Theme-aware actions stay legible in default, hover, keyboard focus and pressed states. */
+.details-shell .details-resume,
+.details-shell .details-top-read { background:var(--accent); color:var(--accent-ink); }
+.details-shell .details-resume:hover:not(:disabled),
+.details-shell .details-top-read:hover:not(:disabled) {
+ background:var(--accent); color:var(--accent-ink); filter:brightness(1.13);
+}
+.details-shell .details-resume:focus-visible,.details-shell .details-top-read:focus-visible,
+.details-shell .details-start:focus-visible { outline:3px solid var(--accent); outline-offset:3px; }
+.details-shell .details-resume:active { filter:brightness(.92); }
+.app-shell .reading-resume-icon { background:var(--accent); color:var(--accent-ink); }
+.app-shell .reading-resume-continue,
+.app-shell .reading-resume-continue:hover {
+ background:var(--accent); color:var(--accent-ink);
+}
+.app-shell .reading-resume-continue:hover { filter:brightness(1.1); }
+.app-shell .reading-resume-info>span { color:var(--subtext); }
