@@ -90,7 +90,7 @@
   background:var(--bg); color:var(--text); padding:10px;
 }
 .app-shell .top-nav-collection-form button {
-  border:0; border-radius:5px; background:#294638; color:#fff; padding:9px 10px;
+  border:0; border-radius:5px; background:#253f68; color:#fff; padding:9px 10px;
   display:flex; gap:7px; align-items:center; justify-content:center;
 }
 .app-shell .top-nav-add {
