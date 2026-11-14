@@ -1,6 +1,7 @@
 // Smoke-test the exact compiled Vite app through Chromium, not a synthetic HTML fixture.
 import { chromium } from 'playwright';
 import JSZip from 'jszip';
+import { mkdir } from 'node:fs/promises';
 
 // A valid, original EPUB fixture lets Chromium exercise epub.js and real scrolling.
 async function makeTestEpub() {
@@ -97,9 +98,13 @@ try {
     if (await page.locator('.sort-field select').inputValue() !== 'title') {
       throw new Error('Library should default to alphabetical Title A–Z sorting');
     }
-    if (!rootText.includes('Personal Library') || !rootText.includes('YOUR SHELVES')) {
-      throw new Error('Expected library dashboard content is missing');
+    if (!rootText.includes('TAIYOU') || !rootText.includes('PERSONAL LIBRARY')) {
+      throw new Error('Top navigation brand is absent from the library shell');
     }
+    if (await page.locator('.sidebar').count()) {
+      throw new Error('The new full-width library must not render a permanent sidebar');
+    }
+    await page.locator('.primary-top-nav').waitFor({ state: 'visible' });
     // Six palette swatches change the entire app in ONE click, and persist.
     const palettes = ['Sepia', 'Paper', 'Charcoal', 'Midnight', 'Ocean', 'Plum'];
     for (const name of palettes) {
@@ -165,6 +170,23 @@ try {
       db.close();
     }, epubBytes);
     await page.reload({ waitUntil: 'networkidle' });
+    // The integrated redesign uses the REAL IndexedDB books, not design fixtures.
+    // Its new cover-led home and editorial index must work on desktop and mobile.
+    const grand = page.locator('.editorial-grand');
+    await grand.waitFor({ state: 'visible' });
+    await page.locator('.editorial-journal').waitFor({ state: 'visible' });
+    await page.locator('.editorial-index-row').first().waitFor();
+    await mkdir('artifacts/design-screenshots', { recursive: true });
+    await page.screenshot({ path: `artifacts/design-screenshots/editorial-home-${viewport.width}.png`, fullPage: true });
+    if (!(await grand.getByRole('heading', { name: /Where worlds unfold/ }).count())) {
+      throw new Error('Grand Library title is absent');
+    }
+    await page.getByRole('button', { name: 'Featured cover for Sample Library Book' }).click();
+    // The existing detail action first resolves EPUB availability asynchronously.
+    await page.waitForURL('**/novels/sample-library-book');
+    await page.getByRole('heading', { name: 'Sample Library Book' }).waitFor();
+    await page.getByRole('button', { name: 'My library' }).click();
+    await page.locator('.editorial-grand').waitFor({ state: 'visible' });
     // Dedicated advanced search must work with loaded novels on desktop and mobile.
     await page.locator('.advanced-search-launch').click();
     await page.getByRole('region', { name: 'Advanced novel search' }).waitFor();
@@ -184,10 +206,8 @@ try {
     await page.locator('.filter-tabs').getByRole('button', { name: 'All', exact: true }).click();
     if (await page.locator('.offline-health').count()) throw new Error('Offline status shown outside Offline tab');
     await page.getByRole('button', { name: 'View details for Sample Library Book' }).click();
+    await page.waitForURL('**/novels/sample-library-book');
     await page.getByRole('heading', { name: 'Sample Library Book' }).waitFor();
-    if (new URL(page.url()).pathname !== '/novels/sample-library-book') {
-      throw new Error('Novel detail URL must use the readable title slug');
-    }
     // Existing ID-based bookmarks must land on the identical book and replace
     // their URL with the title slug without losing any local IndexedDB data.
     await page.goto(baseUrl + '/book/aaaaaaaaaaaaaaaaaaaaaaaa', { waitUntil: 'networkidle' });
@@ -275,7 +295,6 @@ try {
     } else {
       await libraryTitle.click();
     }
-    if (viewport.width <= 900) await page.getByRole('button', { name: 'Open menu' }).click();
     await page.getByRole('navigation', { name: 'Library sections' }).getByRole('button', { name: /Trying out/ }).click();
     await page.getByRole('button', { name: 'View details for Sample Library Book' }).waitFor();
     await page.getByRole('button', { name: 'View details for Sample Library Book' }).click();
@@ -302,17 +321,16 @@ try {
     await page.getByRole('button', { name: 'Clear global search' }).click();
     await page.getByRole('button', { name: 'Show all novels' }).click();
     // Collections are independent from tags, work offline and survive reload.
-    if (viewport.width <= 900) await page.getByRole('button', { name: 'Open menu' }).click();
+    await page.getByText('Collections', { exact: true }).click();
     await page.getByRole('button', { name: 'Create collection' }).click();
     await page.getByRole('textbox', { name: 'Collection name' }).fill('Example Series');
     await page.getByRole('button', { name: 'Save new collection' }).click();
     await page.getByRole('button', { name: 'Open collection Example Series' }).waitFor();
     await page.getByRole('combobox', { name: 'Add Sample Library Book to collection' }).selectOption({ label: 'Example Series' });
-    if (viewport.width <= 900) await page.getByRole('button', { name: 'Open menu' }).click();
     await page.getByRole('button', { name: 'Open collection Example Series' }).click();
     await page.getByRole('button', { name: 'View details for Sample Library Book' }).waitFor();
     await page.reload({ waitUntil: 'networkidle' });
-    if (viewport.width <= 900) await page.getByRole('button', { name: 'Open menu' }).click();
+    await page.getByText('Collections', { exact: true }).click();
     await page.getByRole('button', { name: 'Open collection Example Series' }).waitFor();
     await page.getByRole('button', { name: 'Open collection Example Series' }).click();
     await page.getByRole('button', { name: 'View details for Sample Library Book' }).waitFor();
