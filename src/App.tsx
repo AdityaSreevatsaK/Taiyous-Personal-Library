@@ -26,6 +26,13 @@ export default function App() {
   const [books, setBooks] = useState<LibraryBook[]>([]);
   const [settings, setSettings] = useState<ReaderSettings>(readSettings);
   const [routePath, setRoutePath] = useState(() => window.location.pathname);
+  useEffect(() => {
+    const icon = document.getElementById('taiyou-favicon') as HTMLLinkElement | null;
+    if (!icon) return;
+    const light = settings.theme === 'light' || settings.theme === 'ocean' || settings.theme === 'sepia';
+    icon.href = light ? '/branding/favicon-light.png' : '/branding/favicon-dark.png';
+  }, [settings.theme]);
+
   const [readingId, setReadingId] = useState<string | null>(() => {
     const route = parseLibraryRoute(window.location.pathname);
     return route.page === 'reader' && 'id' in route ? route.id : null;
