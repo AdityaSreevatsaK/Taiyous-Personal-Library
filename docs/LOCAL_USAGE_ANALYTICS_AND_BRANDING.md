@@ -31,5 +31,16 @@ The UI shows total active time, reading time, offline time, today's reading time
 - Chromium browser smoke covering opening Analytics, opting out/in, retaining regular library navigation, EPUB and offline operations
 - Never require a Hugging Face connection to open Analytics
 
-## Branding change boundary
-`public/branding/taiyou-mark.svg` is an explicitly temporary old feather placeholder. Replace it only with the approved Sun artwork from the separate logo session. The PWA builder accepts both `taiyou-app-192.png` and `taiyou-app-512.png` together and updates the stable favicon/PWA URLs. This change does not silently choose a logo for the owner.
+## Approved Sun branding (14 November 2026)
+
+The owner supplied a logo handover containing exactly two transparent 128px Sun artwork variants and two 32px favicons. The approved image assets are now checked into `public/branding/`:
+
+- `sun-dark.webp`: golden Sun, selected for Charcoal, Midnight and Plum.
+- `sun-light.webp`: blue-and-gold Sun, selected for Paper, Ocean and Sepia.
+- `favicon-dark.png` and `favicon-light.png`: sharp 32px favicons.
+- `taiyou-app-192.png` and `taiyou-app-512.png`: transparent PWA icons derived directly from the supplied gold artwork, carefully resized and optimised.
+- `taiyou-mark.svg`: self-contained SVG compatibility wrapper around the original golden Sun artwork; **not** the old feather.
+
+`BrandMark.tsx` swaps assets based on the six existing saved themes, without an opaque icon tile. `App.tsx` updates the tab favicon on theme change. The PWA build copies approved install icons from their immutable source files, and fails rather than silently generating an old book-shaped icon. No analytics or third-party image requests are involved.
+
+The logo assets were obtained from the user's Library handover `logo-transfer-20261114.json`; no other design was substituted.
