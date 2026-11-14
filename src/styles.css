@@ -1278,7 +1278,8 @@ a.details-top-title:focus-visible { outline: 2px solid #80ac8b; outline-offset: 
 .static-hybrid-preview .sidebar .privacy-indicator,
 .static-hybrid-preview .sidebar .collection-link,
 .static-hybrid-preview .desktop-import,
-.static-hybrid-preview .mobile-fab { display: none !important; }
+.static-hybrid-preview .mobile-fab,
+.static-hybrid-preview .top-nav-add { display: none !important; }
 .static-hybrid-preview .hybrid-demo-notice{
  display:flex; flex-wrap:wrap;align-items:center;gap:8px;
  background:#eadfca;color:#4b3a22;border:1px solid #c3ad8a;
