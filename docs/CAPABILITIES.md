@@ -1,6 +1,6 @@
 # Capabilities and offline behaviour — `master` (Cloudflare standalone PWA)
 
-**Scope:** This file describes the current `master` code deployed as a standalone PWA on Cloudflare Pages. The Hugging Face Spaces are legacy application deployments; the private Hugging Face Dataset remains the book/metadata backend. Use `.github/workflows/deploy-standalone.yml` for manual Cloudflare publication after checks.
+**Scope:** This file describes the current `master` code deployed as a standalone PWA on Cloudflare Pages. The private novel dataset's 89 existing folders were migrated to readable names on 14 November 2026; see [migration sign-off](READABLE_FOLDER_MIGRATION_SIGNOFF_2026-11-14.md). The Hugging Face Spaces are legacy application deployments; the private Hugging Face Dataset remains the book/metadata backend. Use `.github/workflows/deploy-standalone.yml` for manual Cloudflare publication after checks.
 
 ## Features in master
 
@@ -28,7 +28,7 @@
 
 - **Browser IndexedDB:** cached EPUB binaries and optional JPEG cover artwork, book metadata, reading position and progress, ratings/comments as locally available metadata.
 - **Browser localStorage:** display preferences, private dataset repository ID, named collections and other local UI state. The Hugging Face token is not persisted.
-- **Private Hugging Face Dataset:** `data/library.json` catalogue and `data/novels/<book-id>/source.epub`; optional `original.zip`; per-book notes at `data/personal/reviews/<book-id>.json`; per-book reading positions at `data/personal/progress/<book-id>.json`; collections at `data/personal/collections.json`.
+- **Private Hugging Face Dataset:** `data/library.json` catalogue and catalogue-declared `data/novels/<book-id> - <sanitised-title>/source.epub` (legacy ID-only paths also supported); optional `original.zip`; per-book notes at `data/personal/reviews/<book-id>.json`; per-book reading positions at `data/personal/progress/<book-id>.json`; collections at `data/personal/collections.json`.
 - **GitHub repository/Cloudflare Pages:** source code and built UI only; **never** the private novel dataset or user tokens.
 
 **Sync limitations:** Reading progress/last position, ratings/comments and collections use private cloud files when connected. Offline edits remain locally pending until a successful authorised retry. Personal tags, custom summaries and typography remain local to each browser. **Trying out** shelf state is recorded with private per-book reading notes and synchronised between devices when connected. Avoid simultaneous edits from multiple devices: collections use timestamp-based merging rather than transactional multi-writer guarantees; cloud notes also lack conflict-proof concurrent editing. A passing CI run does not replace testing with the actual private dataset.
