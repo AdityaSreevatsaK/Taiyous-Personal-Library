@@ -34,7 +34,7 @@ function generate(size) {
       const isPage = inside(35, 31, 157, 161);
       const isBookmark = inside(106, 31, 130, 70);
       const isLine = [65, 87, 109].some(line => inside(56, line, line === 109 ? 111 : 136, line + 8));
-      const rgb = isBookmark ? [119, 154, 126] : isLine ? [45, 91, 65] : isPage ? [233, 232, 213] : [33, 56, 46];
+      const rgb = isBookmark ? [161, 181, 215] : isLine ? [43, 67, 106] : isPage ? [232, 238, 249] : [20, 35, 61];
       const p = row + 1 + x * 4;
       bytes[p] = rgb[0]; bytes[p+1] = rgb[1]; bytes[p+2] = rgb[2]; bytes[p+3] = 255;
     }
