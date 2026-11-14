@@ -75,7 +75,7 @@ export default function App() {
   // A novel details page must ALWAYS open at its top, not at the previous
   // catalogue scroll position. Also reset on browser Back/Forward routes.
   useLayoutEffect(() => {
-    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+    window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
     if (document.scrollingElement) document.scrollingElement.scrollTop = 0;
   }, [routePath]);
 
