@@ -1,0 +1,63 @@
+/* Six stable, accessible novel identity colours.
+   These intentionally do not include the former forest-green hero. */
+.details-shell .details-hero {
+  background: radial-gradient(ellipse at 80% 24%,
+    var(--novel-hero-glow, #365c85) 0%,
+    var(--novel-hero-mid, #243c5b) 45%,
+    var(--novel-hero-shadow, #14253f) 100%);
+  color:#f6f4f8;
+}
+.details-shell .details-eyebrow,
+.details-shell .hero-rating-fieldset legend,
+.details-shell .hero-rating-clear {
+  color:#e6dce9;
+}
+.details-shell .details-byline,
+.details-shell .details-meta-row {
+  color:#e0dceb;
+}
+.details-shell .details-hero-tags button,
+.details-shell .details-hero-tags span {
+  color:#f4f0f8;
+  border-color:#f0e9f06b;
+  background:#ffffff14;
+}
+.details-shell .details-hero-tags button:hover {
+  border-color:#f5eaf7;
+  background:#ffffff2a;
+}
+.details-shell .hero-rating-choice {
+  border-color:#f4f0f889;
+  background:#ffffff17;
+  color:#ffffff;
+}
+.details-shell .hero-rating-choice.selected,
+.details-shell .hero-rating-save,
+.details-shell .details-start {
+  background:#f5ecf2;
+  color:#25273e;
+  border-color:#f5ecf2;
+}
+.details-shell .hero-rating-save:hover,
+.details-shell .details-start:hover {
+  background:#ffffff;
+}
+.details-shell .details-download {
+  color:#faf7fc;
+  border-color:#e2dded99;
+  background:#ffffff18;
+}
+.details-shell .details-download:hover {background:#ffffff31}
+.details-shell .details-top-read,
+.details-shell .details-resume {
+  background:var(--accent,#678dc2);
+  color:var(--accent-ink,#ffffff);
+}
+.details-shell .details-top-read:hover,
+.details-shell .details-resume:hover {filter:brightness(1.09)}
+.details-shell .details-trial-toggle {background:var(--surface-soft);color:var(--text);border-color:var(--border)}
+.details-shell .details-tag.personal-tag {
+  background:var(--pale);
+  border-color:var(--border);
+}
+.details-shell .details-progress-track i {background:var(--accent,#678dc2)}
