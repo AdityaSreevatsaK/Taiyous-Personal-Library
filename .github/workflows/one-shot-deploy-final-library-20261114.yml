@@ -1,0 +1,34 @@
+# One-shot, owner-approved production deployment of the final full-width layout.
+name: "One-shot: deploy approved midnight-blue Library App"
+on:
+  push:
+    branches: [master]
+    paths:
+      - .github/workflows/one-shot-deploy-final-library-20261114.yml
+permissions:
+  contents: read
+  actions: write
+jobs:
+  request-production-deploy:
+    if: github.repository == 'AdityaSreevatsaK/Taiyous-Personal-Library' && github.ref == 'refs/heads/master'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      EXPECTED_SHA: ${{ github.sha }}
+    steps:
+      - name: Dispatch existing gated Cloudflare production deployment
+        shell: bash
+        run: |
+          set -euo pipefail
+          master="$(gh api "repos/$GH_REPO/git/ref/heads/master" --jq '.object.sha')"
+          if [ "$master" != "$EXPECTED_SHA" ]; then
+            echo '::error::Master changed since approval; refusing a stale deploy.'
+            exit 1
+          fi
+          # Do not upload any private novel data or start storage migration.
+          # Existing Deploy Application workflow validates tests, offline
+          # browser behaviour, private Pages Functions, OAuth and deployment.
+          gh workflow run deploy-standalone.yml --repo "$GH_REPO" --ref master -f publish=true
+          echo 'Requested Deploy Application for approved final Library App layout.' >> "$GITHUB_STEP_SUMMARY"
