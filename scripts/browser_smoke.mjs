@@ -124,7 +124,7 @@ try {
     const nav = page.getByRole('navigation', { name: 'Library sections' });
     await page.getByRole('button', { name: 'Advanced search' }).click();
     await page.waitForURL('**/advanced-search');
-    await page.getByRole('button', { name: 'Close advanced search' }).click();
+    await page.getByRole('button', { name: 'Back to shelf' }).click();
     await page.waitForURL('**/');
     await nav.getByRole('button', { name: 'Analytics' }).click();
     await page.waitForURL('**/analytics');
