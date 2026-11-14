@@ -6,8 +6,8 @@ import './top-navigation.css';
 import { useCoverArt } from './useCoverArt';
 import {
   ArrowRight, Book, BookOpen, CheckCircle2, ChevronDown, CloudOff, Download, WifiOff,
-  Feather, Hash, Library, LockKeyhole, Moon, Pencil, Plus, Search, Settings2,
-  Sparkles, Star, Sun, Tag, Trash2, Upload, X, Cloud, RefreshCw, LogIn, LogOut,
+  Feather, Hash, Library, LockKeyhole, Pencil, Plus, Search, Settings2,
+  Sparkles, Star, Tag, Trash2, Upload, X, Cloud, RefreshCw, LogIn, LogOut,
 } from 'lucide-react';
 import type { LibraryBook, ReaderTheme } from '../types';
 import { bookTags, includesTag, tagCounts } from '../lib/tags';
