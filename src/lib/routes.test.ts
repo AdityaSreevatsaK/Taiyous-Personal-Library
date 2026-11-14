@@ -24,6 +24,41 @@ describe('readable novel URLs', () => {
     expect(resolveNovelRoute(parseLibraryRoute('/novels/emperors-domination/read/'), books)).toEqual(emperor);
   });
 
+  it('makes the current chapter bookmarkable without exposing internal IDs', () => {
+    const books = [emperor, martial];
+    const chapter = namedNovelUrl(emperor, books, true, 6);
+    expect(chapter).toBe('/novels/emperors-domination/read/chapter-6');
+    expect(parseLibraryRoute(chapter)).toEqual({ page: 'reader', slug: 'emperors-domination', chapter: 6 });
+    expect(resolveNovelRoute(parseLibraryRoute(chapter), books)).toEqual(emperor);
+    expect(parseLibraryRoute(chapter + '/')).toEqual({ page: 'reader', slug: 'emperors-domination', chapter: 6 });
+    expect(namedNovelUrl(emperor, books, true, 2686)).toBe('/novels/emperors-domination/read/chapter-2686');
+    expect(chapter).not.toContain(id);
+  });
+
+  it('keeps chapter-numbered and unnumbered UUID bookmarks working', () => {
+    const books = [emperor, martial];
+    expect(parseLibraryRoute(novelUrl(id, true, 6))).toEqual({ page: 'reader', id, chapter: 6 });
+    expect(resolveNovelRoute(parseLibraryRoute(novelUrl(id, true, 6)), books)).toEqual(emperor);
+    expect(parseLibraryRoute(novelUrl(id, true))).toEqual({ page: 'reader', id });
+    expect(namedNovelUrl(emperor, books, true, 6)).not.toContain(id);
+  });
+
+  it('rejects chapter zero, malicious numbers, and noncanonical chapter syntax', () => {
+    const invalidChapters = ['/novels/emperors-domination/read/chapter-0',
+      '/novels/emperors-domination/read/chapter-06',
+      '/novels/emperors-domination/read/chapter--1',
+      '/novels/emperors-domination/read/chapter-NaN',
+      '/novels/emperors-domination/read/chapter-1000000',
+      '/novels/emperors-domination/read/chapter-2/anything',
+      '/novels/emperors-domination/read/%2Fchapter-6'];
+    for (const path of invalidChapters) expect(parseLibraryRoute(path)).toEqual({page:'library'});
+    for (const chapter of [0,-1,1.3,NaN,Infinity,1000000]) {
+      expect(() => namedNovelUrl(emperor,[emperor],true,chapter)).toThrow();
+    }
+    expect(() => namedNovelUrl(emperor,[emperor],false,6)).toThrow();
+    expect(() => novelUrl(id,false,6)).toThrow();
+  });
+
   it('keeps old ID bookmarks functional so they can be canonicalised', () => {
     const books = [emperor, martial];
     expect(parseLibraryRoute(novelUrl(id))).toEqual({ page: 'details', id });
