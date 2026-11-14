@@ -681,12 +681,12 @@ export default function App() {
         }
       })();
     };
-    if ('requestIdleCallback' in window) {
+    if (typeof window.requestIdleCallback === 'function') {
       const handle = window.requestIdleCallback(scan, { timeout: 2300 });
       return () => { cancelled = true; window.cancelIdleCallback(handle); };
     }
-    const handle = window.setTimeout(scan, 450);
-    return () => { cancelled = true; window.clearTimeout(handle); };
+    const handle = setTimeout(scan, 450);
+    return () => { cancelled = true; clearTimeout(handle); };
   }, [detailsId, readingId, cachedEpubIds]);
 
   const savePersonalTags = useCallback(async (bookId: string, tags: string[]) => {
