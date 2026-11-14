@@ -122,6 +122,10 @@ try {
     await page.locator('.app-shell.theme-sepia').waitFor({ state: 'visible' });
     // Local private analytics must be usable and switchable without a server.
     const nav = page.getByRole('navigation', { name: 'Library sections' });
+    await page.getByRole('button', { name: 'Advanced search' }).click();
+    await page.waitForURL('**/advanced-search');
+    await page.getByRole('button', { name: 'Close advanced search' }).click();
+    await page.waitForURL('**/');
     await nav.getByRole('button', { name: 'Analytics' }).click();
     await page.waitForURL('**/analytics');
     await page.getByRole('heading', { name: 'Reading analytics' }).waitFor();
@@ -368,8 +372,12 @@ try {
     await page.getByRole('button', { name: 'Open collection Example Series' }).waitFor();
     await page.getByRole('combobox', { name: 'Add Sample Library Book to collection' }).selectOption({ label: 'Example Series' });
     await page.getByRole('button', { name: 'Open collection Example Series' }).click();
+    await page.waitForURL(/\/collections\/[A-Za-z0-9_-]{8,100}$/);
+    const collectionUrl = new URL(page.url()).pathname;
     await page.getByRole('button', { name: 'View details for Sample Library Book' }).waitFor();
     await page.reload({ waitUntil: 'networkidle' });
+    if (new URL(page.url()).pathname !== collectionUrl) throw new Error('Collection deep link not preserved');
+    await page.getByRole('button', { name: 'View details for Sample Library Book' }).waitFor();
     await page.getByText('Collections', { exact: true }).click();
     await page.getByRole('button', { name: 'Open collection Example Series' }).waitFor();
     await page.getByRole('button', { name: 'Open collection Example Series' }).click();
