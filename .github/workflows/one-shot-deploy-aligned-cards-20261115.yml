@@ -1,0 +1,31 @@
+# One-shot deployment of the verified catalogue tile layout.
+name: "One-shot: deploy aligned catalogue cards"
+on:
+  push:
+    branches: [master]
+    paths:
+      - .github/workflows/one-shot-deploy-aligned-cards-20261115.yml
+permissions:
+  contents: read
+  actions: write
+jobs:
+  dispatch-verified-deployment:
+    if: github.repository == 'AdityaSreevatsaK/Taiyous-Personal-Library' && github.ref == 'refs/heads/master'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      EXPECTED_SHA: ${{ github.sha }}
+    steps:
+      - name: Deploy exact verified master revision only
+        shell: bash
+        run: |
+          set -euo pipefail
+          current="$(gh api "repos/$GH_REPO/git/ref/heads/master" --jq '.object.sha')"
+          if [ "$current" != "$EXPECTED_SHA" ]; then
+            echo '::error::Master changed; refusing stale deployment.'
+            exit 1
+          fi
+          gh workflow run deploy-standalone.yml --repo "$GH_REPO" --ref master -f publish=true
+          echo 'Guarded Cloudflare deployment requested for catalogue metadata alignment. No v1.0 tag or private novel-data writes.' >> "$GITHUB_STEP_SUMMARY"
