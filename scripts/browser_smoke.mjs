@@ -120,10 +120,23 @@ try {
     await page.locator('.app-shell.theme-plum').waitFor({ state: 'visible' });
     await page.getByRole('button', { name: 'Use Sepia theme' }).click();
     await page.locator('.app-shell.theme-sepia').waitFor({ state: 'visible' });
+    // Local private analytics must be usable and switchable without a server.
+    const nav = page.getByRole('navigation', { name: 'Library sections' });
+    await nav.getByRole('button', { name: 'Analytics' }).click();
+    await page.getByRole('heading', { name: 'Reading analytics' }).waitFor();
+    await page.getByText('Private and on-device').waitFor();
+    const recordToggle = page.getByRole('checkbox', { name: 'Record analytics on this device' });
+    await recordToggle.uncheck();
+    if (await recordToggle.isChecked()) throw new Error('Analytics opt-out does not work');
+    await recordToggle.check();
+    await page.getByRole('button', { name: 'Clear analytics' }).waitFor();
+    await nav.getByRole('button', { name: /All books/ }).click();
+
     // Cloud connection must not dominate the bookshelf by default, but remain accessible.
     const cloudSettings = page.getByRole('button', { name: 'Settings', exact: true });
     await cloudSettings.waitFor();
     if (!(await page.locator('.connection-badge').count())) throw new Error('Cloud status pill missing');
+    if (await page.locator('.cloud-connected-dot').count()) throw new Error('Disconnected dataset must NOT show a green connection dot');
     if (await page.locator('.cloud-connect-body').count()) {
       throw new Error('Cloud settings should be collapsed by default');
     }
@@ -309,6 +322,9 @@ try {
       throw new Error('Rating controls must live in title panel, not comments card');
     }
     await page.getByRole('button', { name: 'Browse novels tagged Fantasy' }).first().click();
+    if (await page.locator('.reading-resume-strip').count()) {
+      throw new Error('Filtered tag page must not show unrelated Continue Reading ribbon');
+    }
     await page.getByRole('heading', { name: /Fantasy/ }).first().waitFor();
     await page.getByRole('textbox', { name: 'Search within current list' }).fill('unmatched');
     if (await page.getByRole('button', { name: 'View details for Sample Library Book' }).count()) {
@@ -336,6 +352,24 @@ try {
     await page.getByRole('button', { name: 'View details for Sample Library Book' }).waitFor();
     // The current novel title returns to details; the library brand goes home.
     await page.getByRole('button', { name: 'View details for Sample Library Book' }).click();
+    await page.getByRole('heading', { name: 'Sample Library Book' }).waitFor();
+    if (await page.evaluate(() => window.scrollY) > 8) throw new Error('Novel details inherited old library scroll offset');
+    const previousTheme = await page.locator('.details-shell').getAttribute('class');
+    await page.getByRole('button', { name: /Choose colour theme, currently/ }).click();
+    if (await page.locator('.details-shell').getAttribute('class') !== previousTheme) {
+      throw new Error('Opening colour options should not cycle theme');
+    }
+    await page.getByRole('group', { name: 'Choose reading colour theme' })
+      .getByRole('button', { name: 'Use Plum theme' }).click();
+    await page.locator('.details-shell.theme-plum').waitFor();
+    await page.getByRole('button', { name: 'Begin this novel' }).hover();
+    const heroAction = await page.locator('.details-resume').evaluate(el => ({
+      background:getComputedStyle(el).backgroundColor,
+      ink:getComputedStyle(el).color,
+    }));
+    if (heroAction.background === 'rgb(35, 65, 47)' || heroAction.background === heroAction.ink) {
+      throw new Error('Reading action retains old green or has illegible hover contrast');
+    }
     await page.getByRole('button', { name: 'Start reading' }).click();
     // EPUB loading is asynchronous: verify the URL after the read action commits.
     await page.waitForURL('**/novels/sample-library-book/read');

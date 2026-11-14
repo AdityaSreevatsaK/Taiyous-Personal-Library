@@ -137,6 +137,15 @@ export default function Reader({ book, settings, onSettings, onBack, onNovelDeta
         renderer.hooks.content.register((contents: any) => {
           const doc = contents?.document as Document | undefined;
           if (!doc?.head) return;
+          // EPUB scroll/touch happens inside an iframe. Mark activity on the
+          // parent without reading or reporting any novel text or locations.
+          if (!doc.documentElement.hasAttribute('data-taiyou-usage-listening')) {
+            doc.documentElement.setAttribute('data-taiyou-usage-listening', '');
+            const activity = () => window.dispatchEvent(new Event('taiyou-reader-activity'));
+            for (const type of ['scroll', 'wheel', 'pointerdown', 'keydown', 'touchstart']) {
+              doc.addEventListener(type, activity, { capture: true, passive: true });
+            }
+          }
 
           if (!doc.querySelector('style[data-taiyou-hide-empty-embeds]')) {
             const cleanup = doc.createElement('style');

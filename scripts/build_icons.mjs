@@ -1,11 +1,12 @@
 // Generate standalone install icons without pulling in extra image dependencies.
-// Source art is deliberately original: a simple green book and page bookmark.
-import { readFile, writeFile } from 'node:fs/promises';
+// Falls back to the legacy generated icon until approved Sun artwork is provided.
+import { copyFile, readFile, writeFile } from 'node:fs/promises';
 import { deflateSync } from 'node:zlib';
 import { fileURLToPath } from 'node:url';
 import { join } from 'node:path';
 
 const dist = fileURLToPath(new URL('../dist/', import.meta.url));
+const branding = fileURLToPath(new URL('../public/branding/', import.meta.url));
 const pngHeader = Buffer.from('89504e470d0a1a0a', 'hex');
 function crc32(bytes) {
   let crc = 0xffffffff;
@@ -33,7 +34,7 @@ function generate(size) {
       const isPage = inside(35, 31, 157, 161);
       const isBookmark = inside(106, 31, 130, 70);
       const isLine = [65, 87, 109].some(line => inside(56, line, line === 109 ? 111 : 136, line + 8));
-      const rgb = isBookmark ? [119, 154, 126] : isLine ? [45, 91, 65] : isPage ? [233, 232, 213] : [33, 56, 46];
+      const rgb = isBookmark ? [161, 181, 215] : isLine ? [43, 67, 106] : isPage ? [232, 238, 249] : [20, 35, 61];
       const p = row + 1 + x * 4;
       bytes[p] = rgb[0]; bytes[p+1] = rgb[1]; bytes[p+2] = rgb[2]; bytes[p+3] = 255;
     }
@@ -43,7 +44,23 @@ function generate(size) {
   ihdr[8] = 8; ihdr[9] = 6;
   return Buffer.concat([pngHeader, chunk('IHDR', ihdr), chunk('IDAT', deflateSync(bytes, { level: 9 })), chunk('IEND', Buffer.alloc(0))]);
 }
-for (const size of [192, 512]) await writeFile(join(dist, `library-icon-${size}.png`), generate(size));
+// Never silently overwrite one custom PNG with a legacy generated PNG.
+const customised = await Promise.all([192, 512].map(async size => {
+  try { return await readFile(join(branding, `taiyou-app-${size}.png`)); }
+  catch (error) {
+    if (error?.code === 'ENOENT') return null;
+    throw error;
+  }
+}));
+if (customised.some(Boolean) && !customised.every(Boolean)) {
+  throw new Error('Brand icons require BOTH taiyou-app-192.png and taiyou-app-512.png');
+}
+for (const [index, size] of [192, 512].entries()) {
+  await writeFile(join(dist, `library-icon-${size}.png`), customised[index] || generate(size));
+}
+// The header and favicon use exactly the approved logo source, while preserving
+// the known public icon path for existing installed PWAs.
+await copyFile(join(branding, 'taiyou-mark.svg'), join(dist, 'library-icon.svg'));
 const path = join(dist, 'manifest.webmanifest');
 const manifest = JSON.parse(await readFile(path, 'utf8'));
 manifest.icons = [
@@ -52,4 +69,4 @@ manifest.icons = [
   { src: './library-icon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'any' },
 ];
 await writeFile(path, JSON.stringify(manifest, null, 2) + '\n');
-console.log('Generated 192px and 512px install icons.');
+console.log(customised.every(Boolean) ? 'Copied approved brand icon assets.' : 'Using existing generated PWA icon until final Sun artwork is supplied.');

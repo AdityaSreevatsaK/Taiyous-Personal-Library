@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type ChangeEvent } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ChangeEvent } from 'react';
 import LibraryDashboard from './components/LibraryDashboard';
 import BookDetails from './components/BookDetails';
 import Reader from './components/Reader';
@@ -9,6 +9,7 @@ import { normalizeTags } from './lib/tags';
 import { namedNovelUrl, parseLibraryRoute, resolveNovelRoute } from './lib/routes';
 import { mapWithConcurrency, retryTransientRead } from './lib/network-pool';
 import { requestOfflineRetention } from './lib/offline';
+import { installUsageTracker } from './lib/usage-analytics';
 import { deleteBook, removeCachedEpub, getBookFile, getBooks, getCachedEpubIds, readSettings, saveBook, updateBook, writeSettings } from './lib/storage';
 import {
   reconcileCloudLibrary, clearCloudSession, createCloudSession, discoverHostedOAuthSession, assertPrivateDataset,
@@ -64,6 +65,15 @@ export default function App() {
   // Never delete local records or cached EPUBs as a side effect of syncing.
   const verifiedCloudCatalogue = useRef(false);
   const deepLinkFetches = useRef(new Set<string>());
+  const readingForUsage = useRef<string | null>(null);
+  const onlineForUsage = useRef(online);
+  readingForUsage.current = readingId && cachedEpubIds.includes(readingId) ? readingId : null;
+  onlineForUsage.current = online;
+  // One tracker for the entire SPA lifetime. Never run trackers per rerender.
+  useEffect(() => installUsageTracker(
+    () => readingForUsage.current,
+    () => onlineForUsage.current,
+  ), []);
 
   function navigate(path: string, replace = false) {
     if (window.location.pathname !== path) {
@@ -71,6 +81,14 @@ export default function App() {
     }
     setRoutePath(path);
   }
+  // The SPA keeps its root scrolling element across page changes.
+  // A novel details page must ALWAYS open at its top, not at the previous
+  // catalogue scroll position. Also reset on browser Back/Forward routes.
+  useLayoutEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+    if (document.scrollingElement) document.scrollingElement.scrollTop = 0;
+  }, [routePath]);
+
   const goLibrary = useCallback(() => {
     navigate('/');
     setReadingId(null);

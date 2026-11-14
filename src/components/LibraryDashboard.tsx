@@ -2,11 +2,13 @@ import { useEffect, useMemo, useRef, useState, type DragEvent } from 'react';
 import AdvancedSearch from './AdvancedSearch';
 import EditorialHome from './EditorialHome';
 import ThemeSwitcher from './ThemeSwitcher';
+import BrandMark from './BrandMark';
+import UsageDashboard from './UsageDashboard';
 import './top-navigation.css';
 import { useCoverArt } from './useCoverArt';
 import {
-  ArrowRight, Book, BookOpen, CheckCircle2, ChevronDown, CloudOff, Download, WifiOff,
-  Feather, Hash, Library, LockKeyhole, Pencil, Plus, Search, Settings2,
+  ArrowRight, BarChart3, Book, BookOpen, CheckCircle2, ChevronDown, CloudOff, Download, WifiOff,
+  Hash, Library, LockKeyhole, Pencil, Plus, Search, Settings2,
   Sparkles, Star, Tag, Trash2, Upload, X, Cloud, RefreshCw, LogIn, LogOut,
 } from 'lucide-react';
 import type { LibraryBook, ReaderTheme } from '../types';
@@ -14,7 +16,7 @@ import { bookTags, includesTag, tagCounts } from '../lib/tags';
 import type { CloudSession } from '../lib/cloud';
 import type { BookCollection } from '../lib/collections';
 
-type Filter = 'all' | 'trying' | 'reading' | 'unread' | 'finished' | 'offline';
+type Filter = 'all' | 'trying' | 'reading' | 'unread' | 'finished' | 'offline' | 'analytics';
 type Sort = 'recent' | 'title' | 'added';
 
 interface Props {
@@ -209,6 +211,7 @@ export default function LibraryDashboard({
     { id: 'unread' as Filter, name: 'To be read', count: books.filter((b) => b.shelfStatus !== 'trying' && b.progress === 0).length, icon: Book },
     { id: 'finished' as Filter, name: 'Finished', count: finished.length, icon: CheckCircle2 },
     { id: 'offline' as Filter, name: 'Available offline', count: cachedEpubIds.length, icon: Download },
+    { id: 'analytics' as Filter, name: 'Analytics', count: 0, icon: BarChart3 },
   ];
 
   return (
@@ -216,8 +219,8 @@ export default function LibraryDashboard({
       {dragging && <div className="drop-overlay" aria-hidden="true"><Upload size={46} /><strong>Drop your novels to import</strong><span>EPUB or supported Novel ZIP</span></div>}
 
       <main className="main-panel">
-        <header className="topbar"><button className="library-wordmark" type="button" aria-label="Taiyou's Personal Library home" onClick={() => goTo('all')}><span className="library-wordmark-mark"><Feather size={20}/></span><span className="library-wordmark-text"><strong>TAIYOU</strong><small>PERSONAL LIBRARY</small></span></button><section className="cloud-connect" aria-label="Cloud library storage" ref={cloudRoot}>
-            <div className="cloud-connect-head"><span><Cloud size={16} /><strong>Cloud library</strong><small className={syncProblem ? 'connection-badge needs-attention' : cloudRepo && cloudSession ? 'connection-badge is-connected' : 'connection-badge'}>{syncProblem ? 'Needs sync' : cloudRepo && cloudSession ? 'Connected' : cloudRepo ? 'Disconnected' : 'Not set up'}</small></span>{!cloudSession && online && <button type="button" className="secondary-button oauth-header-login" onClick={() => window.location.assign('/api/oauth/login')}><LogIn size={14}/> Sign in with HF</button>}<button type="button" className="secondary-button" aria-expanded={showCloud} onClick={() => setShowCloud(v => !v)}>{showCloud ? 'Close' : 'Settings'}</button></div>
+        <header className="topbar"><button className="library-wordmark" type="button" aria-label="Taiyou's Personal Library home" onClick={() => goTo('all')}><span className="library-wordmark-mark"><BrandMark size={23}/></span><span className="library-wordmark-text"><strong>TAIYOU</strong><small>PERSONAL LIBRARY</small></span></button><section className="cloud-connect" aria-label="Cloud library storage" ref={cloudRoot}>
+            <div className="cloud-connect-head"><span><Cloud size={16} /><strong>Cloud library</strong><small className={cloudRepo && cloudSession ? 'connection-badge is-connected' : 'connection-badge'}>{cloudRepo && cloudSession && <span className="cloud-connected-dot" aria-hidden="true" />}{cloudRepo && cloudSession ? 'Connected' : cloudRepo ? 'Disconnected' : 'Not set up'}</small></span>{syncProblem && <span className="cloud-sync-flag" role="status" title={syncProblem}>Needs sync</span>}{!cloudSession && online && <button type="button" className="secondary-button oauth-header-login" onClick={() => window.location.assign('/api/oauth/login')}><LogIn size={14}/> Sign in with HF</button>}<button type="button" className="secondary-button" aria-expanded={showCloud} onClick={() => setShowCloud(v => !v)}>{showCloud ? 'Close' : 'Settings'}</button></div>
             {showCloud && <div className="cloud-connect-body">
               <p>Use one private Hugging Face dataset as the shared <code>data/</code> folder on PC and mobile. When connected, importing a ZIP saves its original archive, EPUB and catalogue to that repository.</p>
               {cloudSession?.via === 'oauth' ? <p className="cloud-access-connected"><LockKeyhole size={15}/> Signed in with Hugging Face. Your private dataset token is kept in an encrypted server-side session cookie, not saved by this page.</p> : <form onSubmit={event => {event.preventDefault(); onCloudRepo(repoDraft); }} className="cloud-repo-form"><label htmlFor="cloud-repo-input">Private dataset repository</label><input id="cloud-repo-input" value={repoDraft} onChange={event => setRepoDraft(event.target.value)} placeholder="your-username/taiyous-novels" autoComplete="off" /><button type="submit" className="secondary-button">Save</button></form>}
@@ -257,7 +260,7 @@ export default function LibraryDashboard({
           <div className="top-nav-links">
             {navEntries.map(({ id, name, count }) => <button type="button" key={id} className={`top-nav-link ${!showAdvanced && filter === id && !selectedTag && !selectedCollectionId ? 'active' : ''}`}
               aria-current={!showAdvanced && filter === id && !selectedTag && !selectedCollectionId ? 'page' : undefined}
-              onClick={() => goTo(id)}><span>{name}</span><small>{count}</small></button>)}
+              onClick={() => goTo(id)}><span>{name}</span>{id !== 'analytics' && <small>{count}</small>}</button>)}
           </div>
           <div className="top-nav-tools">
             <details className="top-nav-menu" aria-label="Novel tags">
@@ -304,7 +307,7 @@ export default function LibraryDashboard({
         <div className="page-content">
           {notice && <div className="alert success-alert" role="status"><CheckCircle2 size={17} />{notice}</div>}
           {(error || storageError) && <div className="alert error-alert" role="alert">{error || storageError}</div>}
-          {!showAdvanced && !showEditorialHome && <div className="page-head page-head-compact">
+          {!showAdvanced && !showEditorialHome && filter !== 'analytics' && <div className="page-head page-head-compact">
             <div><div className="eyebrow"><span className="eyebrow-line" /> TAIYOU'S COLLECTION</div>
               <h1>{filter === 'offline' ? 'Offline library' : filter === 'trying' ? 'Trying out' : selectedCollection ? selectedCollection.name : selectedTag ? selectedTag : 'Your library'}<span className="serif-accent">.</span></h1>
               <p>{filter === 'offline' ? `${cachedEpubIds.length} downloaded for reading without a connection` : filter === 'trying' ? `${books.filter(b => b.shelfStatus === 'trying').length} novels to sample before deciding` : `${books.length} stories to explore, all in one place`}</p>
@@ -333,12 +336,12 @@ export default function LibraryDashboard({
            </section>}
                     {showAdvanced ? <AdvancedSearch books={books} offlineIds={cachedEpubIds} initialName={globalSearch} cloudRepo={cloudRepo} cloudSession={cloudSession}
             onClose={() => { setShowAdvanced(false); onGlobalSearch(''); }} onOpen={onOpen}
-            onBrowseTag={browseTag} /> : <>
+            onBrowseTag={browseTag} /> : filter === 'analytics' ? <UsageDashboard books={books} /> : <>
 
           {showEditorialHome && <EditorialHome books={books} onOpen={onOpen} onRead={onRead} onBrowseTag={browseTag}
             cover={(book, isFeatured) => <Cover book={book} variant={isFeatured ? 'feature' : 'normal'} cloudRepo={cloudRepo} cloudSession={cloudSession} />} />}
 
-          {!showEditorialHome && reading.length > 0 && featured && (
+          {!showEditorialHome && !selectedTag && !selectedCollectionId && !globalMode && filter === 'all' && reading.length > 0 && featured && (
             <section className="reading-resume-strip" aria-label="Continue reading">
               <div className="reading-resume-icon"><BookOpen size={20}/></div>
               <div className="reading-resume-info"><span>CONTINUE READING</span>
