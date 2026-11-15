@@ -87,7 +87,10 @@ self.addEventListener('fetch', event => {
     // Read only from this version's verified shell cache. A global caches.match
     // could return obsolete assets from unrelated caches or prior deployments.
     // Never use ignoreSearch/ignoreVary for arbitrary URLs.
-    if (shellUrls.includes(url.href) && request.cache !== 'reload') {
+    // Browsers mark asset requests as cache:'reload' after an offline page reload;
+    // bypassing this verified cache would make an otherwise complete offline
+    // shell fail. Cache storage is distinct from the HTTP cache and is safe here.
+    if (shellUrls.includes(url.href)) {
       const cache = await caches.open(SHELL_CACHE);
       const cached = await cache.match(request);
       if (cached) return cached;
