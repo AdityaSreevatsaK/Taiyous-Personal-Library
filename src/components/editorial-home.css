@@ -339,3 +339,9 @@
 }
 .editorial-home .editorial-shelf-card:not(:has(.editorial-shelf-cover))
  .editorial-shelf-details strong {font-size:20px}
+
+
+/* A declared coverPath is not proof that a cover image actually loaded.
+   Never expose the decorative fallback as a genre/collection tile image. */
+.editorial-home .editorial-shelf-cover:not(:has(img.cover-art)) {display:none}
+.editorial-home .editorial-shelf-details strong {display:block;min-width:0}
