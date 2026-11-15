@@ -135,9 +135,9 @@ export async function assertPrivateDataset(repo: string, session: CloudSession):
   const repoId = validateDatasetRepo(repo);
   if (session.expiresAt <= Date.now() + 30_000) throw new Error('Hugging Face authorisation expired. Sign in again.');
   const result = session.via === 'oauth'
-    ? await fetch('/api/library?action=info', { credentials: 'same-origin', cache: 'no-store' })
+    ? await fetch('/api/library?action=info', { credentials: 'same-origin', cache: 'no-store', signal: AbortSignal.timeout(15_000) })
     : await fetch(`https://huggingface.co/api/datasets/${repoId}`, {
-        headers: { Authorization: `Bearer ${session.accessToken}` }, cache: 'no-store',
+        headers: { Authorization: `Bearer ${session.accessToken}` }, cache: 'no-store', signal: AbortSignal.timeout(15_000),
       });
   if (!result.ok) throw new Error(`Cannot access the private dataset ${repoId} (${result.status}). Create it and grant your account access.`);
   const info = await result.json() as { private?: boolean };
@@ -146,10 +146,12 @@ export async function assertPrivateDataset(repo: string, session: CloudSession):
 
 async function privateGet(repo: string, path: string, session: CloudSession): Promise<Response> {
   if (session.expiresAt <= Date.now() + 30_000) throw new Error('Hugging Face authorisation expired. Sign in again.');
+  // Bound small metadata reads without interrupting long-running EPUB/ZIP streams.
+  const signal = path.endsWith('.json') ? AbortSignal.timeout(15_000) : undefined;
   const response = session.via === 'oauth'
-    ? await fetch(proxyFileUrl(path), { credentials: 'same-origin', cache: 'no-store' })
+    ? await fetch(proxyFileUrl(path), { credentials: 'same-origin', cache: 'no-store', signal })
     : await fetch(resolveUrl(repo, path), {
-        headers: { Authorization: `Bearer ${session.accessToken}` }, cache: 'no-store',
+        headers: { Authorization: `Bearer ${session.accessToken}` }, cache: 'no-store', signal,
       });
   if ([401, 403].includes(response.status)) throw new Error('Cannot access the private novel dataset. Check your Hugging Face account and repository permissions.');
   return response;
