@@ -3,6 +3,7 @@ import { ArrowRight, BookOpen, Bookmark, Feather, Sparkles } from 'lucide-react'
 import { bookTags, tagCounts } from '../lib/tags';
 import type { BookCollection } from '../lib/collections';
 import { selectHomeBooks, selectHomeShelves } from '../lib/home-curation';
+import { isFinished, isCurrentlyReading } from '../lib/reading-status';
 import type { LibraryBook } from '../types';
 import './editorial-home.css';
 
@@ -20,7 +21,7 @@ interface Props {
 
 function readingStatus(book: LibraryBook): string {
   if (book.shelfStatus === 'trying') return 'Trying out';
-  if (book.progress >= 99.5) return 'Finished';
+  if (isFinished(book)) return 'Finished';
   if (book.progress > 0) return 'Reading';
   return 'To be read';
 }
@@ -35,14 +36,14 @@ export default function EditorialHome({
 }: Props) {
   const { featured, continueReading, journal } = useMemo(() => selectHomeBooks(books), [books]);
   const readingCount = useMemo(() =>
-    books.filter(book => book.shelfStatus !== 'trying' && book.progress > 0 && book.progress < 99.5).length, [books]);
+    books.filter(isCurrentlyReading).length, [books]);
   const displayBooks = useMemo(() =>
     featured ? [featured, ...journal.filter(book => book.id !== featured.id).slice(0, 2)] : [],
     [featured, journal]);
   const shelves = useMemo(() => selectHomeShelves(books, collections, 4), [books, collections]);
   const commonTags = useMemo(() => tagCounts(books).slice(0, 5), [books]);
   const trialCount = books.filter(book => book.shelfStatus === 'trying').length;
-  const completedCount = books.filter(book => book.shelfStatus !== 'trying' && book.progress >= 99.5).length;
+  const completedCount = books.filter(book => book.shelfStatus !== 'trying' && isFinished(book)).length;
   if (!featured) return null;
 
   return <div className="editorial-home" aria-label="Your library front page">

@@ -13,6 +13,7 @@ import {
   Sparkles, Star, Tag, Trash2, Upload, X, Cloud, RefreshCw, LogIn, LogOut,
 } from 'lucide-react';
 import type { LibraryBook, ReaderTheme } from '../types';
+import { isFinished, isCurrentlyReading } from '../lib/reading-status';
 import { bookTags, includesTag, tagCounts } from '../lib/tags';
 import type { CloudSession } from '../lib/cloud';
 import type { BookCollection } from '../lib/collections';
@@ -199,8 +200,8 @@ export default function LibraryDashboard({
   }, []);
   const [datasetToken, setDatasetToken] = useState('');
   const [dragging, setDragging] = useState(false);
-  const reading = books.filter((book) => book.shelfStatus !== 'trying' && book.progress > 0 && book.progress < 99.5);
-  const finished = books.filter((book) => book.shelfStatus !== 'trying' && book.progress >= 99.5);
+  const reading = books.filter(isCurrentlyReading);
+  const finished = books.filter((book) => book.shelfStatus !== 'trying' && isFinished(book));
   const featured = [...reading].sort((a, b) => (b.lastOpenedAt || 0) - (a.lastOpenedAt || 0))[0] || books[0];
 
   const globalMode = globalSearch.trim().length > 0;
@@ -214,9 +215,9 @@ export default function LibraryDashboard({
         if (filter === 'offline' && !cachedEpubIds.includes(book.id)) return false;
          if (filter === 'trying' && book.shelfStatus !== 'trying') return false;
          if (filter !== 'all' && filter !== 'offline' && filter !== 'trying' && book.shelfStatus === 'trying') return false;
-        if (filter === 'reading' && !(book.progress > 0 && book.progress < 99.5)) return false;
-        if (filter === 'finished' && book.progress < 99.5) return false;
-        if (filter === 'unread' && book.progress > 0) return false;
+        if (filter === 'reading' && !isCurrentlyReading(book)) return false;
+        if (filter === 'finished' && !isFinished(book)) return false;
+        if (filter === 'unread' && (book.progress > 0 || isFinished(book))) return false;
         if (selectedTag && !includesTag(book, selectedTag)) return false;
         if (selectedAuthor && book.author.normalize('NFKC').trim().toLocaleLowerCase() !== selectedAuthor.normalize('NFKC').trim().toLocaleLowerCase()) return false;
         if (selectedCollection && !selectedCollection.bookIds.includes(book.id)) return false;
@@ -292,7 +293,7 @@ export default function LibraryDashboard({
     { id: 'trying' as Filter, name: 'Trying out', count: books.filter(b => b.shelfStatus === 'trying').length, icon: Sparkles },
     { id: 'offline' as Filter, name: 'Available offline', count: books.filter(b => cachedEpubIds.includes(b.id)).length, icon: Download },
     { id: 'finished' as Filter, name: 'Finished', count: finished.length, icon: CheckCircle2 },
-    { id: 'unread' as Filter, name: 'To be read', count: books.filter((b) => b.shelfStatus !== 'trying' && b.progress === 0).length, icon: Book },
+    { id: 'unread' as Filter, name: 'To be read', count: books.filter((b) => b.shelfStatus !== 'trying' && b.progress === 0 && !isFinished(b)).length, icon: Book },
     { id: 'all' as Filter, name: 'All books', count: books.length, icon: Library },
     { id: 'analytics' as Filter, name: 'Analytics', count: 0, icon: BarChart3 },
   ];

@@ -306,6 +306,8 @@ export interface CloudReadingProgress {
   version: 1;
   bookId: string;
   progress: number;
+  /** Explicit and durable Finished status, separate from reading progress. */
+  completedAt?: number | null;
   currentChapter: string | null;
   currentChapterIndex: number | null;
   currentChapterNumber: number | null;
@@ -328,7 +330,8 @@ export function validateReadingProgress(value: unknown, bookId: string): CloudRe
       typeof raw.progress !== 'number' || !Number.isFinite(raw.progress) || raw.progress < 0 || raw.progress > 100 ||
       !optionalText(raw.currentChapter, 600) || !optionalText(raw.lastCfi, 4000) ||
       !optionalInteger(raw.currentChapterIndex) || !optionalInteger(raw.currentChapterNumber) ||
-      !optionalInteger(raw.lastOpenedAt) || !optionalInteger(raw.updatedAt) || raw.updatedAt === null) {
+      !optionalInteger(raw.lastOpenedAt) || !optionalInteger(raw.updatedAt) || raw.updatedAt === null ||
+      (raw.completedAt !== undefined && !optionalInteger(raw.completedAt))) {
     throw new Error('Invalid private reading progress fields.');
   }
   return raw as CloudReadingProgress;
@@ -336,7 +339,9 @@ export function validateReadingProgress(value: unknown, bookId: string): CloudRe
 
 export function applyCloudReadingProgress(book: LibraryBook, remote: CloudReadingProgress): LibraryBook {
   if (book.id !== remote.bookId || remote.updatedAt < (book.progressUpdatedAt ?? 0)) return book;
-  return { ...book, progress: remote.progress,
+  const remoteFinishedAt = remote.completedAt ?? (remote.progress >= 99.5 ? remote.updatedAt : 0);
+  const completedAt = Math.max(book.completedAt || 0, remoteFinishedAt || 0) || undefined;
+  return { ...book, progress: remote.progress, completedAt,
     currentChapter: remote.currentChapter ?? undefined,
     currentChapterIndex: remote.currentChapterIndex ?? undefined,
     currentChapterNumber: remote.currentChapterNumber ?? undefined,
@@ -356,6 +361,7 @@ export async function saveCloudReadingProgress(repo: string, bookId: string, ses
   await assertPrivateDataset(repo, session);
   const progress = validateReadingProgress({
     version: 1, bookId, progress: book.progress,
+    completedAt: book.completedAt ?? (book.progress >= 99.5 ? (book.progressUpdatedAt || Date.now()) : null),
     currentChapter: book.currentChapter ?? null,
     currentChapterIndex: book.currentChapterIndex ?? null,
     currentChapterNumber: book.currentChapterNumber ?? null,

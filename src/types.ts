@@ -46,6 +46,8 @@ export interface LibraryBook {
   lastOpenedAt?: number;
   lastCfi?: string;
   progress: number;
+  /** Persisted Finished-shelf marker, independent of current reading position. */
+  completedAt?: number;
   currentChapter?: string;
   currentChapterIndex?: number;
   /** Newest local progress edit; used to resolve cross-device updates. */

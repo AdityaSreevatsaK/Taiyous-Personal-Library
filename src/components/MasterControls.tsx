@@ -3,6 +3,7 @@ import { AlertTriangle, Check, LockKeyhole, Search, ShieldCheck, ShieldOff, Tras
 import type { LibraryBook, ReaderTheme } from '../types';
 import { normalizeTags } from '../lib/tags';
 import { ratingLabel } from '../lib/ratings';
+import { isFinished } from '../lib/reading-status';
 import { getOwnerStatus, ownerPost, type OwnerStatus } from '../lib/owner';
 import './master-controls.css';
 
@@ -79,7 +80,7 @@ function BookRow({ book, onCorrectMetadata, onMarkCompleted, onResetProgress,
         {duplicate && <small className="master-duplicate">Possible local/hosted duplicate, both preserved</small>}
       </td>
       <td>{book.cloud ? 'Private cloud' : 'This browser'}{book.progressUpdatedAt && book.pendingProgressSync ? <small>Progress awaiting sync</small> : null}</td>
-      <td>{book.progress >= 99.5 ? 'Finished' : book.progress > 0 ? 'Reading' : 'Not started'}
+      <td>{isFinished(book) ? 'Finished' : book.progress > 0 ? 'Reading' : 'Not started'}
         {book.progress > 0 && <small>{Math.round(book.progress)}% · {book.currentChapter || 'Position saved'}</small>}
       </td>
       <td>{book.personalRating ? book.personalRating + '/10 · ' + ratingLabel(book.personalRating) : 'Not rated'}</td>
@@ -157,7 +158,7 @@ function BookRow({ book, onCorrectMetadata, onMarkCompleted, onResetProgress,
       </div>
       <div className="master-reading-controls">
         <div><h3>Reading progress</h3><p>{book.progress > 0 ? Math.round(book.progress) + '% complete' : 'Not started'}{book.currentChapterNumber ? ' · Chapter ' + book.currentChapterNumber : ''}. Notes, ratings and the EPUB are unaffected by these actions.</p></div>
-        <button type="button" disabled={busy || book.progress >= 99.5}
+        <button type="button" disabled={busy || isFinished(book)}
           onClick={() => {
             if (window.confirm('Mark ' + book.title + ' as completed?')) {
               void run(() => onMarkCompleted(book.id), 'Marked as completed');

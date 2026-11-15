@@ -12,6 +12,7 @@ import type { CloudSession } from '../lib/cloud';
 import ChapterBrowser from './ChapterBrowser';
 import { bookTags, normalizeTags } from '../lib/tags';
 import { ratingLabel } from '../lib/ratings';
+import { isFinished } from '../lib/reading-status';
 import type { LibraryBook, ReaderTheme } from '../types';
 
 interface Props {
@@ -196,10 +197,10 @@ export default function BookDetails({ book, theme, onThemeChange, onBack, onRead
           <section className="details-card details-progress-card" aria-label="Reading progress"><div className="details-section-header"><div><span className="details-label">YOUR JOURNEY</span><h2>Reading progress</h2></div><Bookmark size={20} className="details-section-icon" /></div>
             <div className="details-percent">{Math.round(book.progress)}<span>%</span></div>
             <div className="details-progress-track"><i style={{ width: `${Math.max(0, Math.min(book.progress, 100))}%` }} /></div>
-            <div className="details-progress-status">{book.progress <= 0 ? 'Not started' : book.progress >= 99.5 ? 'Finished' : 'Currently reading'}</div>
+            <div className="details-progress-status">{isFinished(book) ? 'Finished' : book.progress <= 0 ? 'Not started' : 'Currently reading'}</div>
             <div className="details-location"><span>Last reading position</span><strong>{chapterText}</strong>{book.currentChapterNumber && <small>Chapter {book.currentChapterNumber}{book.chapterCount ? ` of ${book.chapterCount}` : ''}</small>}</div>
             <button type="button" className="details-resume" onClick={onRead}>{book.progress > 0 ? 'Resume at saved position' : 'Begin this novel'} <ArrowRight size={17} /></button>
-            {book.progress < 99.5 && <button type="button" className="details-mark-completed" disabled={markingCompleted}
+            {!isFinished(book) && <button type="button" className="details-mark-completed" disabled={markingCompleted}
               onClick={() => {
                 if (!window.confirm(`Mark “${book.title}” as completed? You can still reopen and read it afterwards.`)) return;
                 setMarkingCompleted(true); setFeedback(null);

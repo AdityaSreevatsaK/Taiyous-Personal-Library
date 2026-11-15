@@ -1,6 +1,7 @@
 import type { LibraryBook } from '../types';
 import type { BookCollection } from './collections';
 import { bookTags, tagCounts } from './tags';
+import { isFinished, isCurrentlyReading } from './reading-status';
 
 export interface HomeBookSelection {
   featured: LibraryBook | undefined;
@@ -31,7 +32,7 @@ const recentFirst = (a: LibraryBook, b: LibraryBook) => activity(b) - activity(a
  * imports inform the journal. No external recommendations or network calls.
  */
 export function selectHomeBooks(books: readonly LibraryBook[]): HomeBookSelection {
-  const active = books.filter(book => book.shelfStatus !== 'trying' && book.progress > 0 && book.progress < 99.5)
+  const active = books.filter(isCurrentlyReading)
     .sort((a, b) => (b.lastOpenedAt || b.progressUpdatedAt || 0) -
       (a.lastOpenedAt || a.progressUpdatedAt || 0) || recentFirst(a, b));
   const featured = active[0] ||
@@ -44,7 +45,7 @@ export function selectHomeBooks(books: readonly LibraryBook[]): HomeBookSelectio
   const score = (book: LibraryBook) => {
     if (book.shelfStatus === 'trying') return 50;
     if ((book.personalRating || 0) >= 8) return 40 + (book.personalRating || 0);
-    if (book.progress >= 99.5) return 30;
+    if (isFinished(book)) return 30;
     if (book.progress === 0) return 20;
     return 10;
   };
