@@ -22,6 +22,8 @@ jobs:
         run: npm run build
       - name: Validate production package privacy and OAuth metadata
         run: python scripts/check_deployment_package.py
+      - name: Stage the same security headers used for production
+        run: cp scripts/standalone-headers.txt dist/_headers
       - name: Check published OAuth client metadata
         run: |
           test -s dist/oauth-client.json
@@ -57,6 +59,18 @@ jobs:
           if (value.client_id !== 'https://taiyous-personal-library.pages.dev/oauth-client.json' ||
               value.redirect_uris?.[0] !== 'https://taiyous-personal-library.pages.dev/api/oauth/callback') {
             throw new Error('OAuth Client ID or redirect does not match the public metadata URL');
+          }
+          JS
+          curl --silent --show-error --fail --dump-header /tmp/taiyou-shell-headers --output /dev/null 'http://127.0.0.1:8789/'
+          node - <<'JS'
+          const fs = require('fs');
+          const headers = fs.readFileSync('/tmp/taiyou-shell-headers', 'utf8');
+          const policy = headers.match(/^content-security-policy:\\s*(.+)$/im)?.[1] || '';
+          if (!policy.includes("script-src 'self'") ||
+              !policy.includes("object-src 'none'") ||
+              !policy.includes("frame-ancestors 'none'") ||
+              /script-src[^;]*unsafe-(?:inline|eval)/.test(policy)) {
+            throw new Error('Cloudflare Pages did not apply the expected restrictive CSP');
           }
           JS
       - name: Prove the OAuth API fails closed without a session
