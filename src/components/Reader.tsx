@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import ePub from 'epubjs';
 import {
   ArrowLeft, BookOpen, Check, ChevronDown, ChevronLeft, ChevronRight, List, Minus,
@@ -9,6 +9,7 @@ import { THEME_OPTIONS, themeById } from '../lib/themes';
 import ThemeSwitcher from './ThemeSwitcher';
 import { approximateProgress, chapterIndexForHref, findChapter, firstRealChapterIndex, flattenToc, nextChapterHref, type NavigationNode, normalizeChapterHref } from '../lib/chapters';
 import { getBookFile } from '../lib/storage';
+import { virtualChapterWindow } from '../lib/chapter-virtual';
 
 interface Props {
   book: LibraryBook;
@@ -289,7 +290,7 @@ export default function Reader({ book, settings, onSettings, onBack, onNovelDeta
   // Navigate via table-of-contents targets, not page turns, so each new chapter
   // starts at the top instead of continuing inside a paginated chapter.
   const frontMatterOffset = firstRealChapterIndex(toc, book.chapterCount);
-  const chapters = toc.slice(frontMatterOffset);
+  const chapters = useMemo(() => toc.slice(frontMatterOffset), [toc, frontMatterOffset]);
   const currentChapterIndex = chapterIndexForHref(chapters, activeHref);
   const turn = useCallback(async (direction: 'next' | 'prev') => {
     if (!renditionRef.current || moving || loading) return;
@@ -359,13 +360,15 @@ export default function Reader({ book, settings, onSettings, onBack, onNovelDeta
   // Each row has a fixed height. Scroll ranges now reach the final chapter,
   // even for 7,000+ chapter books, while rendering at most 40 buttons.
   const CHAPTER_ROW_HEIGHT = 54;
-  const chapterMatches = chapterSearchQuery
-    ? chapters.map((item, index) => ({ item, index }))
-      .filter(({ item, index }) => item.label.toLocaleLowerCase().includes(chapterSearchQuery)
-        || String(index + 1) === chapterSearchQuery)
-    : chapters.map((item, index) => ({ item, index }));
-  const visibleStart = Math.max(0, Math.min(chapterScrollIndex, Math.max(0, chapterMatches.length - 40)));
-  const visibleEnd = Math.min(chapterMatches.length, visibleStart + 40);
+  const chapterMatches = useMemo(() => {
+    const all = chapters.map((item, index) => ({ item, index }));
+    return chapterSearchQuery
+      ? all.filter(({ item, index }) => item.label.toLocaleLowerCase().includes(chapterSearchQuery)
+          || String(index + 1) === chapterSearchQuery)
+      : all;
+  }, [chapters, chapterSearchQuery]);
+  const { from: visibleStart, to: visibleEnd } =
+    virtualChapterWindow(chapterMatches.length, chapterScrollIndex);
   const visibleChapterMatches = chapterMatches.slice(visibleStart, visibleEnd);
   useEffect(() => {
     if (!chapterPickerOpen) return;

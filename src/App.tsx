@@ -1169,7 +1169,8 @@ export default function App() {
     // Both moving a record to archivedBooks and removing it from the active
     // 'books' store happen in a single IndexedDB transaction.
     const count = await archiveStaleBookRecords(hostedIds);
-    setStaleCount(Math.max(0, local.length - cachedIds.length - hostedIds.length - count));
+    const afterArchive = await getBooks();
+    setStaleCount(staleMetadataCandidates(afterArchive, hostedIds, await getCachedEpubIds()).length);
     setCloudMessage(remote.books.length + ' current hosted novels. ' + count +
       ' historical browser-only records moved to a recoverable local archive.');
     return count;
