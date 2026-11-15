@@ -1,0 +1,32 @@
+# One-shot guarded production deployment after the independently verified PR #30.
+# Does not tag a version and does not touch the private novel dataset.
+name: "One-shot: deploy contrast and Finished fixes"
+on:
+  push:
+    branches: [master]
+    paths:
+      - .github/workflows/one-shot-deploy-plum-contrast-finished-20261115.yml
+permissions:
+  contents: read
+  actions: write
+jobs:
+  dispatch:
+    if: github.repository == 'AdityaSreevatsaK/Taiyous-Personal-Library' && github.ref == 'refs/heads/master'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      EXPECTED_SHA: ${{ github.sha }}
+    steps:
+      - name: Guard against stale master and dispatch
+        shell: bash
+        run: |
+          set -euo pipefail
+          current="$(gh api "repos/$GH_REPO/git/ref/heads/master" --jq '.object.sha')"
+          if [ "$current" != "$EXPECTED_SHA" ]; then
+            echo '::error::Master changed; no stale deployment allowed.'
+            exit 1
+          fi
+          gh workflow run deploy-standalone.yml --repo "$GH_REPO" --ref master -f publish=true
+          echo 'Requested guarded Cloudflare deployment of verified PR #30.' >> "$GITHUB_STEP_SUMMARY"
