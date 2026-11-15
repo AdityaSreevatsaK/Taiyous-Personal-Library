@@ -28,4 +28,4 @@ jobs:
             exit 1
           fi
           gh workflow run deploy-standalone.yml --repo "$GH_REPO" --ref master -f publish=true
-          echo 'Triggered guarded Cloudflare deployment after verified PR #23 cloud status and Settings contrast improvements. Private data unchanged and no v1.0 tag.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'Triggered guarded Cloudflare deployment after verified PR #24 reading, author and mobile-shelf improvements. Private data unchanged and no v1.0 tag.' >> "$GITHUB_STEP_SUMMARY"
