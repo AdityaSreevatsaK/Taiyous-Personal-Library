@@ -937,7 +937,10 @@ try {
         await adminPage.locator('.master-controls table').waitFor({state:'visible',timeout:15000});
         const manage = adminPage.getByRole('button', {name:'Manage novel'}).first();
         await manage.click();
-        if (await manage.getAttribute('aria-expanded') !== 'true') {
+        const expandedControl = adminPage.locator('.master-record-active').first()
+          .getByRole('button', {name:'Close controls'});
+        await expandedControl.waitFor();
+        if (await expandedControl.getAttribute('aria-expanded') !== 'true') {
           throw new Error('Master novel record did not expand accessibly');
         }
         for (const name of ['Title and author','Personal rating and notes','Tags','Synopsis','Reading progress']) {
