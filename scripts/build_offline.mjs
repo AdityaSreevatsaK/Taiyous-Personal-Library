@@ -84,8 +84,19 @@ self.addEventListener('fetch', event => {
   // requests fall through to the network, but are never cached or persisted.
   // Cross-origin private Hugging Face dataset requests are never intercepted.
   event.respondWith((async () => {
-    const cached = await caches.match(url.href, { ignoreSearch: true, ignoreVary: true });
-    if (cached) return cached;
+    // Read only from this version's verified shell cache. A global caches.match
+    // could return obsolete assets from unrelated caches or prior deployments.
+    // Never use ignoreSearch/ignoreVary for arbitrary URLs.
+    // Browsers mark asset requests as cache:'reload' after an offline page reload;
+    // bypassing this verified cache would make an otherwise complete offline
+    // shell fail. Cache storage is distinct from the HTTP cache and is safe here.
+    if (shellUrls.includes(url.href)) {
+      const cache = await caches.open(SHELL_CACHE);
+      // Match the precached canonical asset URL, not the browser's reload
+      // Request whose Accept/Vary headers may differ from install-time fetches.
+      const cached = await cache.match(url.href);
+      if (cached) return cached;
+    }
     return fetch(request);
   })());
 });
