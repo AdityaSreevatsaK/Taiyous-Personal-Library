@@ -325,7 +325,7 @@ export default function MasterControls({
           setBusy(true); setError(''); setMessage('');
           void onArchiveStale().then(count => setMessage(count + ' historical records archived safely. Their metadata and progress remain recoverable from the exported JSON and browser archive.'))
             .catch(reason => setError(errorMessage(reason))).finally(() => setBusy(false));
-        }}>Back up and archive {staleCount} stale records</button>
+        }} className="master-archive-button">Back up and archive {staleCount} stale records</button>
       </section>}
       <section className="master-panel" aria-labelledby="master-records-heading">
         <div className="master-record-heading"><div><h2 id="master-records-heading">Manage novel records</h2>
