@@ -7,7 +7,7 @@ import { ownerPost } from './lib/owner';
 import { extractEpubMetadata, prepareImport } from './lib/importer';
 import { normalizeTags } from './lib/tags';
 import { namedNovelUrl, parseLibraryRoute, resolveNovelRoute } from './lib/routes';
-import { libraryTagUrl } from './lib/library-routes';
+import { libraryAuthorUrl, libraryTagUrl } from './lib/library-routes';
 import { mapWithConcurrency, retryTransientRead } from './lib/network-pool';
 import { partitionLocalBackups } from './lib/local-backups';
 import { requestOfflineRetention } from './lib/offline';
@@ -743,6 +743,34 @@ export default function App() {
     return () => { cancelled = true; clearTimeout(handle); };
   }, [detailsId, readingId, cachedEpubIds]);
 
+  const markNovelCompleted = useCallback(async (bookId: string) => {
+    const current = booksRef.current.find(book => book.id === bookId);
+    if (!current) throw new Error('Novel no longer exists');
+    if (current.progress >= 99.5) return;
+    const updatedAt = Date.now();
+    const updated: LibraryBook = { ...current, progress:100, progressUpdatedAt:updatedAt,
+      pendingProgressSync:!!current.cloud, shelfStatus:undefined };
+    await updateBook(updated);
+    booksRef.current = booksRef.current.map(book => book.id === bookId ? updated : book);
+    setBooks(booksRef.current);
+    if (updated.cloud && cloudSession && cloudRepo) {
+      const entry = findCloudEntryForBook([...cloudEntries.current.values()], updated);
+      if (!entry) throw new Error('Marked as completed locally; remote novel is not listed for cloud sync.');
+      try {
+        await saveCloudReadingProgress(cloudRepo, entry.id, cloudSession, updated);
+        const latest = booksRef.current.find(book => book.id === bookId);
+        if (latest?.progressUpdatedAt === updatedAt) {
+          const synced = { ...latest, pendingProgressSync:false };
+          await updateBook(synced);
+          booksRef.current = booksRef.current.map(book => book.id === bookId ? synced : book);
+          setBooks(booksRef.current);
+        }
+      } catch (reason) {
+        throw new Error('Marked as completed on this device. Cloud progress will retry: ' + String(reason));
+      }
+    }
+  }, [cloudRepo, cloudSession]);
+
   const savePersonalTags = useCallback(async (bookId: string, tags: string[]) => {
     const current = booksRef.current.find(book => book.id === bookId);
     if (!current) return;
@@ -1064,6 +1092,8 @@ export default function App() {
         onSaveSummary={summary => savePersonalSummary(detailBook.id, summary)}
         onSaveReview={(rating, review) => savePersonalReview(detailBook.id, rating, review)}
         onSetTrial={(trying) => savePersonalReview(detailBook.id, detailBook.personalRating, detailBook.personalReview || '', trying ? 'trying' : 'regular')}
+        onMarkCompleted={() => markNovelCompleted(detailBook.id)}
+        onBrowseAuthor={author => { setGlobalSearch(''); setBrowseTag(''); setReadingId(null); setDetailsId(null); setStartChapterHref(null); navigate(libraryAuthorUrl(author)); }}
         onBrowseTag={tag => { setBrowseTag(tag); setGlobalSearch(''); setReadingId(null); setDetailsId(null); setStartChapterHref(null); navigate(libraryTagUrl(tag)); }} error={error} />
     ) : (
       <LibraryDashboard books={visibleLibraryBooks} localBackups={localBackups} theme={settings.theme}

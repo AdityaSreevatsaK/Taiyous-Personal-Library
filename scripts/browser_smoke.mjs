@@ -174,11 +174,24 @@ try {
     await page.locator('.app-shell.theme-sepia').waitFor({ state: 'visible' });
     // Local private analytics must be usable and switchable without a server.
     const nav = page.getByRole('navigation', { name: 'Library sections' });
+    const navigateShelf = async (name, filter) => {
+      if (viewport.width <= 700) {
+        if (['reading','trying','offline'].includes(filter)) {
+          await nav.locator('.mobile-shelf-nav').getByRole('button', {
+            name: filter === 'reading' ? 'Reading' : filter === 'trying' ? 'Trying' : 'Offline',
+          }).click();
+        } else {
+          await nav.getByRole('combobox', { name: 'More library shelves' }).selectOption(filter);
+        }
+      } else {
+        await nav.getByRole('button', { name }).click();
+      }
+    };
     await page.getByRole('button', { name: 'Advanced search' }).click();
     await page.waitForURL('**/advanced-search');
     await page.getByRole('button', { name: 'Back to shelf' }).click();
     await page.waitForURL('**/library');
-    await nav.getByRole('button', { name: 'Analytics' }).click();
+    await navigateShelf('Analytics', 'analytics');
     await page.waitForURL('**/analytics');
     await page.getByRole('heading', { name: 'Reading analytics' }).waitFor();
     await page.reload({ waitUntil: 'networkidle' });
@@ -190,7 +203,7 @@ try {
     if (await recordToggle.isChecked()) throw new Error('Analytics opt-out does not work');
     await recordToggle.check();
     await page.getByRole('button', { name: 'Clear analytics' }).waitFor();
-    await nav.getByRole('button', { name: /All books/ }).click();
+    await navigateShelf(/All books/, 'all');
     await page.waitForURL('**/library');
     for (const [name, path, heading] of [
       [/Trying out/, '/trying-out', /Trying out/],
@@ -199,7 +212,7 @@ try {
       [/Finished/, '/finished', /Your library/],
       [/Available offline/, '/offline', /Offline library/],
     ]) {
-      await nav.getByRole('button', { name }).click();
+      await navigateShelf(name, path === '/trying-out' ? 'trying' : path === '/currently-reading' ? 'reading' : path === '/to-be-read' ? 'unread' : path === '/finished' ? 'finished' : 'offline');
       await page.waitForURL('**' + path);
       await page.getByRole('heading', { name: heading }).first().waitFor();
     }
@@ -207,7 +220,7 @@ try {
     await page.waitForURL('**/finished');
     await page.goForward({ waitUntil: 'domcontentloaded' });
     await page.waitForURL('**/offline');
-    await nav.getByRole('button', { name: /All books/ }).click();
+    await navigateShelf(/All books/, 'all');
     await page.waitForURL('**/library');
 
     // Cloud connection must not dominate the bookshelf by default, but remain accessible.
@@ -291,7 +304,7 @@ try {
     await page.getByRole('button', { name: 'View details for Sample Library Book' }).waitFor();
     const catalogueCaption = await page.locator('.book-tile').first().evaluate(tile => ({
       title: getComputedStyle(tile.querySelector('.tile-title')).textAlign,
-      author: getComputedStyle(tile.querySelector('.tile-meta > p')).textAlign,
+      author: getComputedStyle(tile.querySelector('.tile-author-link')).textAlign,
       tags: getComputedStyle(tile.querySelector('.tile-tags')).justifyContent,
     }));
     if (catalogueCaption.title !== 'center' || catalogueCaption.author !== 'center' ||
@@ -302,10 +315,19 @@ try {
     if (await page.locator('.sort-field select').inputValue() !== 'title') {
       throw new Error('Complete catalogue must retain alphabetical sorting');
     }
+    await page.getByRole('button', { name: 'View novels by Test Author' }).click();
+    await page.waitForURL('**/authors/Test%20Author');
+    await page.getByRole('button', { name: 'View details for Sample Library Book' }).waitFor();
+    await page.reload({ waitUntil: 'networkidle' });
+    await page.getByRole('button', { name: 'View details for Sample Library Book' }).waitFor();
+    await page.getByRole('button', { name: 'All authors' }).click();
+    await page.waitForURL('**/library');
     await page.reload({ waitUntil: 'networkidle' });
     await page.waitForURL('**/library');
     await page.getByRole('button', { name: 'View details for Sample Library Book' }).waitFor();
-    await page.goBack({ waitUntil: 'domcontentloaded' });
+    // Author deep-link navigation adds a history entry. Explicit Home remains
+    // the stable way to return to the curated front page from any catalogue.
+    await page.getByRole('button', { name: "Taiyou's Personal Library home" }).click();
     await page.waitForURL('**/');
     await page.locator('.editorial-grand').waitFor();
     await page.getByRole('button', { name: 'Browse tag Fantasy' }).click();
@@ -449,7 +471,7 @@ try {
     } else {
       await libraryTitle.click();
     }
-    await page.getByRole('navigation', { name: 'Library sections' }).getByRole('button', { name: /Trying out/ }).click();
+    await navigateShelf(/Trying out/, 'trying');
     await page.getByRole('button', { name: 'View details for Sample Library Book' }).waitFor();
     await page.getByRole('button', { name: 'View details for Sample Library Book' }).click();
     await page.getByRole('button', { name: 'Move to regular library' }).click();
@@ -669,8 +691,7 @@ try {
     await page.getByRole('button', { name: /^(Start reading|Continue reading)$/ }).click();
     await page.getByRole('button', { name: 'Go to library home' }).click();
     await page.getByRole('navigation', { name: 'Library sections' }).waitFor();
-    await page.getByRole('navigation', { name: 'Library sections' })
-      .getByRole('button', { name: /All books/ }).click();
+    await navigateShelf(/All books/, 'all');
     await page.waitForURL('**/library');
     await page.locator('.book-rating-pill').getByText('8/10').waitFor();
     // Verify a true offline *reload* of the compiled app, then open/read the
@@ -725,7 +746,9 @@ try {
       await page.locator('.reader-page iframe').first().waitFor({ state: 'visible', timeout: 20000 });
       await page.getByRole('button', { name: 'Go to library home' }).click();
       await page.locator('nav[aria-label="Library sections"]').waitFor({ state: 'attached' });
-      await page.getByText('Available offline').first().waitFor();
+      await (viewport.width <= 700
+        ? page.locator('.mobile-shelf-nav').getByRole('button', { name: 'Offline' })
+        : page.getByText('Available offline').first()).waitFor();
     } finally {
       await page.context().setOffline(false);
     }
@@ -838,7 +861,7 @@ try {
             chipRows: chips.length === 0 ? 1 : new Set(chips.map(top => Math.round(top))).size,
             chipCount: chips.length,
             titleAlignment: getComputedStyle(card.querySelector('.tile-title')).textAlign,
-            authorAlignment: getComputedStyle(card.querySelector('.tile-meta > p')).textAlign,
+            authorAlignment: getComputedStyle(card.querySelector('.tile-author-link')).textAlign,
           };
         }));
         const firstRow = metrics.filter(item => Math.abs(item.cardTop - metrics[0].cardTop) < 2);

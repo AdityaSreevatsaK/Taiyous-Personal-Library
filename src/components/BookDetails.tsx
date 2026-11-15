@@ -35,10 +35,12 @@ interface Props {
   onSaveReview: (rating: number | undefined, review: string) => Promise<void>;
   onSetTrial: (trying: boolean) => Promise<void>;
   onBrowseTag: (tag: string) => void;
+  onBrowseAuthor: (author: string) => void;
+  onMarkCompleted: () => Promise<void>;
   error: string | null;
 }
 
-export default function BookDetails({ book, theme, onThemeChange, onBack, onRead, onDownloadEpub, isCachedOffline, onSaveOffline, onRemoveOffline, onDeleteLocal, onDownloadArchive, cloudConnected, cloudRepo, cloudSession, onReadChapter, onLoadChapters, onSaveTags, onSaveSummary, onSaveReview, onSetTrial, onBrowseTag, error }: Props) {
+export default function BookDetails({ book, theme, onThemeChange, onBack, onRead, onDownloadEpub, isCachedOffline, onSaveOffline, onRemoveOffline, onDeleteLocal, onDownloadArchive, cloudConnected, cloudRepo, cloudSession, onReadChapter, onLoadChapters, onSaveTags, onSaveSummary, onSaveReview, onSetTrial, onBrowseTag, onBrowseAuthor, onMarkCompleted, error }: Props) {
   const [tagInput, setTagInput] = useState('');
   const [tagDraft, setTagDraft] = useState<string[]>(() => book.personalTags || []);
   const [editingSummary, setEditingSummary] = useState(false);
@@ -47,6 +49,7 @@ export default function BookDetails({ book, theme, onThemeChange, onBack, onRead
   const [reviewDraft, setReviewDraft] = useState(book.personalReview || '');
   const [saving, setSaving] = useState(false);
   const [downloading, setDownloading] = useState(false);
+  const [markingCompleted, setMarkingCompleted] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
   const originalTags = book.sourceTags || [];
   const customTags = tagDraft;
@@ -144,7 +147,7 @@ export default function BookDetails({ book, theme, onThemeChange, onBack, onRead
           <div className="details-hero-heading">
             <span className="details-eyebrow"><BookOpen size={15} /> NOVEL DETAILS</span>
             <h1>{book.title}</h1>
-            <p className="details-byline">by <strong>{book.author}</strong></p>
+            <p className="details-byline">by <button type="button" className="details-author-link" onClick={() => onBrowseAuthor(book.author)} aria-label={`View novels by ${book.author}`}>{book.author}</button></p>
           </div>
           <div className="details-hero-facts">
             <div className="details-meta-row">
@@ -195,9 +198,17 @@ export default function BookDetails({ book, theme, onThemeChange, onBack, onRead
             <div className="details-progress-status">{book.progress <= 0 ? 'Not started' : book.progress >= 99.5 ? 'Finished' : 'Currently reading'}</div>
             <div className="details-location"><span>Last reading position</span><strong>{chapterText}</strong>{book.currentChapterNumber && <small>Chapter {book.currentChapterNumber}{book.chapterCount ? ` of ${book.chapterCount}` : ''}</small>}</div>
             <button type="button" className="details-resume" onClick={onRead}>{book.progress > 0 ? 'Resume at saved position' : 'Begin this novel'} <ArrowRight size={17} /></button>
+            {book.progress < 99.5 && <button type="button" className="details-mark-completed" disabled={markingCompleted}
+              onClick={() => {
+                if (!window.confirm(`Mark “${book.title}” as completed? You can still reopen and read it afterwards.`)) return;
+                setMarkingCompleted(true); setFeedback(null);
+                void onMarkCompleted().then(() => setFeedback('Novel marked as completed and moved to Finished.'))
+                  .catch(reason => setFeedback(String(reason)))
+                  .finally(() => setMarkingCompleted(false));
+              }}><Check size={15}/> {markingCompleted ? 'Saving…' : 'Mark as completed'}</button>}
           </section>
           <section className="details-card details-info-card"><div className="details-section-header"><div><span className="details-label">BOOK INFORMATION</span><h2>Details</h2></div><Info size={20} className="details-section-icon" /></div>
-            <dl><div><dt>Author</dt><dd>{book.author}</dd></div><div><dt>Chapters</dt><dd>{book.chapterCount ? book.chapterCount.toLocaleString() : 'Unknown'}</dd></div><div><dt>Language</dt><dd>{book.language?.toUpperCase() || 'Not supplied'}</dd></div>{book.status && <div><dt>Status</dt><dd>{book.status}</dd></div>}<div><dt>Personal tags</dt><dd>{customTags.length}</dd></div>{book.sourceUrl && <div><dt>Original source</dt><dd><a href={book.sourceUrl} target="_blank" rel="noopener noreferrer">Open original <ExternalLink size={13} /></a></dd></div>}</dl>
+            <dl><div><dt>Author</dt><dd><button type="button" className="details-info-author-link" onClick={() => onBrowseAuthor(book.author)} aria-label={`View novels by ${book.author}`}>{book.author}</button></dd></div><div><dt>Chapters</dt><dd>{book.chapterCount ? book.chapterCount.toLocaleString() : 'Unknown'}</dd></div><div><dt>Language</dt><dd>{book.language?.toUpperCase() || 'Not supplied'}</dd></div>{book.status && <div><dt>Status</dt><dd>{book.status}</dd></div>}<div><dt>Personal tags</dt><dd>{customTags.length}</dd></div>{book.sourceUrl && <div><dt>Original source</dt><dd><a href={book.sourceUrl} target="_blank" rel="noopener noreferrer">Open original <ExternalLink size={13} /></a></dd></div>}</dl>
           </section>
           <section className="details-card details-management-card" aria-label="Manage this novel">
             <div className="details-section-header"><div><span className="details-label">BOOK STORAGE</span><h2>Manage this novel</h2></div><LockKeyhole size={19} className="details-section-icon" /></div>

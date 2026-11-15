@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  libraryShelfUrl, libraryTagUrl, libraryCollectionUrl, parseLibraryViewPath,
+  libraryShelfUrl, libraryTagUrl, libraryCollectionUrl, libraryAuthorUrl, parseLibraryViewPath,
   type ShelfFilter,
 } from '../src/lib/library-routes';
 
@@ -11,16 +11,16 @@ describe('deep-linkable library sections', () => {
   ];
   it.each(shelves)('%s uses a stable address and can be loaded directly', (filter,path) => {
     expect(libraryShelfUrl(filter)).toBe(path);
-    expect(parseLibraryViewPath(path)).toEqual({filter,tag:'',collectionId:'',advanced:false});
-    expect(parseLibraryViewPath(path+'/' )).toEqual({filter,tag:'',collectionId:'',advanced:false});
+    expect(parseLibraryViewPath(path)).toEqual({filter,tag:'',author:'',collectionId:'',advanced:false});
+    expect(parseLibraryViewPath(path+'/' )).toEqual({filter,tag:'',author:'',collectionId:'',advanced:false});
   });
   it('reserves / for the curated home and /library for the complete catalogue', () => {
     expect(libraryShelfUrl('all')).toBe('/library');
-    expect(parseLibraryViewPath('/')).toEqual({filter:'all',tag:'',collectionId:'',advanced:false});
+    expect(parseLibraryViewPath('/')).toEqual({filter:'all',tag:'',author:'',collectionId:'',advanced:false});
   });
   it('makes advanced search addressable independently of normal shelves', () => {
     expect(parseLibraryViewPath('/advanced-search')).toEqual({
-      filter:'all',tag:'',collectionId:'',advanced:true,
+      filter:'all',tag:'',author:'',collectionId:'',advanced:true,
     });
   });
   it('preserves human-readable Unicode and spaced tags across reloads', () => {
@@ -37,6 +37,17 @@ describe('deep-linkable library sections', () => {
     });
     expect(libraryTagUrl('Fantasy','offline')).toBe('/tags/fantasy/shelf/offline');
   });
+  it('makes each author a shareable, reloadable catalogue view', () => {
+    for (const name of ['Cocooned Cow','Cheol Jonggeum','An Author & Co.','江南']) {
+      const url=libraryAuthorUrl(name);
+      expect(parseLibraryViewPath(url)).toEqual({
+        filter:'all',tag:'',author:name,collectionId:'',advanced:false,
+      });
+    }
+    expect(() => libraryAuthorUrl('')).toThrow();
+    expect(() => libraryAuthorUrl('Broken/Name')).toThrow();
+    expect(parseLibraryViewPath('/authors/%2Fetc')).toMatchObject({author:''});
+  });
   it('preserves immutable collection ID and chosen shelf', () => {
     const id='collection-20261114';
     expect(libraryCollectionUrl(id)).toBe('/collections/collection-20261114');
@@ -52,7 +63,7 @@ describe('deep-linkable library sections', () => {
       '/tags/%2Fadmin','/tags/%00evil','/tags/romance/shelf/analytics',
       '/tags/romance/shelf/missing','/collections/../../etc',
       '/collections/not-an-id/shelf/analytics','/analytics/private']) {
-      expect(parseLibraryViewPath(bad)).toMatchObject({filter:'all',tag:'',collectionId:''});
+      expect(parseLibraryViewPath(bad)).toMatchObject({filter:'all',tag:'',author:'',collectionId:''});
     }
     expect(() => libraryCollectionUrl('bad id')).toThrow();
     expect(() => libraryTagUrl('')).toThrow();
