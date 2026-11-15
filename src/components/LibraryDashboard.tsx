@@ -435,7 +435,7 @@ export default function LibraryDashboard({
             onBrowseTag={browseTag} /> : filter === 'analytics' ? <UsageDashboard books={books} /> : <>
 
           {showEditorialHome && <EditorialHome books={books} collections={collections}
-            onBrowseAll={() => goTo('all')} onBrowseCollection={browseCollection}
+            onBrowseAll={() => goTo('all')} onBrowseShelf={goTo} onBrowseCollection={browseCollection}
             onOpen={onOpen} onRead={onRead} onBrowseTag={browseTag}
             cover={(book, isFeatured) => <Cover book={book} variant={isFeatured ? 'feature' : 'normal'} cloudRepo={cloudRepo} cloudSession={cloudSession} />} />}
 
