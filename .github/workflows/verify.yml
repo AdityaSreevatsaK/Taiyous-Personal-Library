@@ -105,6 +105,7 @@ jobs:
           done
           node scripts/browser_smoke.mjs
       - name: Exercise real Pages CSP with the synthetic EPUB browser suite
+        timeout-minutes: 12
         shell: bash
         run: |
           npx --yes wrangler@4 pages dev dist --ip 127.0.0.1 --port 8790 --compatibility-date 2026-11-10 --compatibility-flags nodejs_compat > /tmp/taiyou-csp-pages.log 2>&1 &
