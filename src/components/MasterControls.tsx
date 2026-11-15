@@ -320,12 +320,12 @@ export default function MasterControls({
       {staleCount > 0 && <section className="master-panel" aria-labelledby="master-stale-heading">
         <h2 id="master-stale-heading">Historical browser records</h2>
         <p>{staleCount} old entries are absent from the verified cloud catalogue and have no EPUB saved here. They are hidden, but their annotations remain on this device.</p>
-        <button type="button" className="master-manage" disabled={busy} onClick={() => {
+        <button type="button" className="master-archive-button" disabled={busy} onClick={() => {
           if (!window.confirm('Export a JSON backup, then archive only records that are absent from the live private cloud catalogue and have no local EPUB? No EPUB or cloud data will be deleted.')) return;
           setBusy(true); setError(''); setMessage('');
           void onArchiveStale().then(count => setMessage(count + ' historical records archived safely. Their metadata and progress remain recoverable from the exported JSON and browser archive.'))
             .catch(reason => setError(errorMessage(reason))).finally(() => setBusy(false));
-        }} className="master-archive-button">Back up and archive {staleCount} stale records</button>
+        }}>Back up and archive {staleCount} stale records</button>
       </section>}
       <section className="master-panel" aria-labelledby="master-records-heading">
         <div className="master-record-heading"><div><h2 id="master-records-heading">Manage novel records</h2>

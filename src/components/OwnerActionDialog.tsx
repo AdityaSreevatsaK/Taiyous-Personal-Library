@@ -56,7 +56,7 @@ export default function OwnerActionDialog({ theme, request, onCancel, onConfirm,
       if (active) setStatus(value);
     }).catch(reason => { if (active) setError(String(reason instanceof Error ? reason.message : reason)); });
     return () => { active = false; };
-  }, [request.id, request.kind, initialBackupExported]);
+  }, [request.id, request.kind]);
   useEffect(() => {
     const close = (event: KeyboardEvent) => { if (event.key === 'Escape' && !busy) onCancel(); };
     document.addEventListener('keydown', close);
