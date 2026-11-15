@@ -213,3 +213,45 @@
   .app-shell .library-toast{top:72px;right:12px}
   .app-shell .offline-local-backup-row button{flex:1 1 110px}
 }
+
+/* Cloud connection contrast: consistent in sepia, light, ocean and dark palettes.
+   Connected means authenticated, never a theme-dependent decorative status. */
+.app-shell .topbar > .cloud-connect {
+  border:1px solid color-mix(in srgb,var(--text) 35%,var(--surface));
+  background:var(--surface);color:var(--text);
+}
+.app-shell .topbar .cloud-connect-head > span,
+.app-shell .topbar .cloud-connect-head > span > strong,
+.app-shell .topbar .cloud-connect-head > span > svg {
+  color:var(--text);opacity:1;
+}
+.app-shell .topbar .cloud-connect-head .connection-badge.is-connected {
+  background:#12442e;color:#f4fff8;border:1px solid #0c5535;
+  opacity:1;font-weight:800;font-size:12px;letter-spacing:.008em;
+  text-shadow:none;box-shadow:0 1px 3px #00000020;
+}
+.app-shell .topbar .cloud-connect-head .cloud-connected-dot {
+  background:#78f2a5;box-shadow:0 0 0 2px #78f2a52d;
+}
+.app-shell .topbar .cloud-connect-head > .secondary-button {
+  background:var(--text);color:var(--surface);
+  border:1px solid var(--text);font-weight:750;
+  opacity:1;min-height:35px;
+}
+.app-shell .topbar .cloud-connect-head > .secondary-button:hover {
+  background:var(--text);color:var(--surface);
+  filter:brightness(.87);
+}
+.app-shell .topbar .cloud-connect-head > .secondary-button:focus-visible {
+  outline:3px solid var(--accent,#678dc2);outline-offset:3px;
+}
+@media (max-width:700px){
+  .app-shell .topbar .cloud-connect-head .connection-badge.is-connected {
+    width:16px;height:16px;min-width:16px;min-height:16px;
+    padding:0;font-size:0;gap:0;justify-content:center;
+    border-color:#0c5535;background:#12442e;
+  }
+  .app-shell .topbar .cloud-connect-head .cloud-connected-dot {
+    width:8px;height:8px;flex:0 0 8px;
+  }
+}
