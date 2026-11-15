@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, useMemo, type ChangeEvent } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState, useMemo, type ChangeEvent } from 'react';
 import LibraryDashboard from './components/LibraryDashboard';
-import BookDetails from './components/BookDetails';
-import Reader from './components/Reader';
+// epub.js and the chapter catalogue are needed only after opening a novel.
+const BookDetails = lazy(() => import('./components/BookDetails'));
+const Reader = lazy(() => import('./components/Reader'));
 import OwnerActionDialog, { type OwnerRemovalRequest } from './components/OwnerActionDialog';
 import { ownerPost } from './lib/owner';
 import { extractEpubMetadata, prepareImport } from './lib/importer';
@@ -1113,7 +1114,7 @@ export default function App() {
   // scrolling never floods the browser history with hundreds of entries.
   const currentRoute = parseLibraryRoute(window.location.pathname);
   const requestedChapter = currentRoute.page === 'reader' ? currentRoute.chapter : undefined;
-  return <>
+  return <Suspense fallback={<main className={`library-bootstrap theme-${settings.theme}`} role="status" aria-live="polite"><strong>Opening your novel…</strong></main>}>
     {!libraryReady ? (
       <main className={`library-bootstrap theme-${settings.theme}`} role="status" aria-live="polite">
         <div className="library-bootstrap-mark" aria-hidden="true">✦</div>
@@ -1196,5 +1197,5 @@ export default function App() {
       onCancel={() => setOwnerRequest(null)} onConfirm={performOwnerAction} />}
     <input ref={filePicker} type="file" accept=".epub,.zip,application/epub+zip" multiple hidden
       onChange={pickerChanged} aria-label="Import EPUB or Novel ZIP" />
-  </>;
+  </Suspense>;
 }
