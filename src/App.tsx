@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ChangeEvent } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, useMemo, type ChangeEvent } from 'react';
 import LibraryDashboard from './components/LibraryDashboard';
 import BookDetails from './components/BookDetails';
 import Reader from './components/Reader';
@@ -9,6 +9,7 @@ import { normalizeTags } from './lib/tags';
 import { namedNovelUrl, parseLibraryRoute, resolveNovelRoute } from './lib/routes';
 import { libraryTagUrl } from './lib/library-routes';
 import { mapWithConcurrency, retryTransientRead } from './lib/network-pool';
+import { partitionLocalBackups } from './lib/local-backups';
 import { requestOfflineRetention } from './lib/offline';
 import { installUsageTracker } from './lib/usage-analytics';
 import { deleteBook, removeCachedEpub, getBookFile, getBooks, getCachedEpubIds, readSettings, saveBook, updateBook, writeSettings } from './lib/storage';
@@ -49,6 +50,11 @@ export default function App() {
   const [importing, setImporting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  // With an OAuth-backed catalogue, never render historical IndexedDB books
+  // before the authoritative hosted catalogue has been checked.
+  const [localLoaded, setLocalLoaded] = useState(false);
+  const [oauthChecked, setOauthChecked] = useState(!navigator.onLine);
+  const [initialCloudLoaded, setInitialCloudLoaded] = useState(false);
   const [storageError, setStorageError] = useState<string | null>(null);
   const [cloudSession, setCloudSession] = useState<CloudSession | null>(null);
   const [cloudRepo, setCloudRepo] = useState(readDatasetRepo);
@@ -155,6 +161,11 @@ export default function App() {
   }, []);
 
   useEffect(() => { booksRef.current = books; }, [books]);
+  useEffect(() => {
+    if (!notice) return;
+    const id = window.setTimeout(() => setNotice(null), 5000);
+    return () => window.clearTimeout(id);
+  }, [notice]);
   useEffect(() => { writeSettings(settings); }, [settings]);
   useEffect(() => {
     // Remove a short-lived OAuth session previously stored by older builds.
@@ -169,6 +180,8 @@ export default function App() {
       setCachedEpubIds(cachedIds);
     }).catch(() => {
       if (active) setStorageError('This browser cannot open your local library. Enable IndexedDB or use a normal browsing window.');
+    }).finally(() => {
+      if (active) setLocalLoaded(true);
     });
     return () => { active = false; };
   }, []);
@@ -179,12 +192,16 @@ export default function App() {
   useEffect(() => {
     let active = true;
     const connect = async () => {
-      const detected = await discoverHostedOAuthSession();
-      if (!active || !detected) return;
-      try { saveDatasetRepo(detected.repo); } catch { /* localStorage may be unavailable */ }
-      setCloudRepo(detected.repo);
-      setCloudSession(detected.session);
-      setCloudMessage('Private dataset connected through your Hugging Face login.');
+      try {
+        const detected = await discoverHostedOAuthSession();
+        if (!active || !detected) return;
+        try { saveDatasetRepo(detected.repo); } catch { /* localStorage may be unavailable */ }
+        setCloudRepo(detected.repo);
+        setCloudSession(detected.session);
+        setCloudMessage('Private dataset connected through your Hugging Face login.');
+      } finally {
+        if (active) setOauthChecked(true);
+      }
     };
     void connect();
     const onReconnect = () => { void connect(); };
@@ -248,6 +265,11 @@ export default function App() {
         reconcileCloudLibrary(catalog.books, local, cachedIds);
       verifiedCloudCatalogue.current = true;
       setCachedEpubIds(cachedIds);
+      // Publish the *reconciled* count immediately. Personal ratings/progress
+      // continue loading separately and must not block the page or show 181.
+      booksRef.current = merged;
+      setBooks(merged);
+      setInitialCloudLoaded(true);
       // Read personal annotations separately. A missing per-book file (404) is
       // normal for unreviewed novels. Never use the shared novel catalogue for
       // personal comments, and never erase local notes on a transient error.
@@ -333,6 +355,7 @@ export default function App() {
         setError('Private library requires recovery: ' + message);
       }
     } finally {
+      setInitialCloudLoaded(true);
       setCloudBusy(false);
       syncRef.current = false;
     }
@@ -986,13 +1009,21 @@ export default function App() {
   }
   const activeBook = books.find(book => book.id === readingId);
   const detailBook = books.find(book => book.id === detailsId);
+  const { library: visibleLibraryBooks, localBackups } = useMemo(() => partitionLocalBackups(books), [books]);
+  const libraryReady = localLoaded && oauthChecked && (!cloudSession || initialCloudLoaded);
   // A numeric reader deep link takes priority over any saved CFI position.
   // Current chapter changes are written with replaceState, so routine
   // scrolling never floods the browser history with hundreds of entries.
   const currentRoute = parseLibraryRoute(window.location.pathname);
   const requestedChapter = currentRoute.page === 'reader' ? currentRoute.chapter : undefined;
   return <>
-    {activeBook && !cachedEpubIds.includes(activeBook.id) ? (
+    {!libraryReady ? (
+      <main className={`library-bootstrap theme-${settings.theme}`} role="status" aria-live="polite">
+        <div className="library-bootstrap-mark" aria-hidden="true">✦</div>
+        <strong>Taiyou's Personal Library</strong>
+        <span>{cloudSession ? 'Checking your private catalogue…' : 'Opening your library…'}</span>
+      </main>
+    ) : activeBook && !cachedEpubIds.includes(activeBook.id) ? (
       <div className={`reader-route-loading theme-${settings.theme}`} role="status">
         {error || `Preparing “${activeBook.title}” for reading…`}
         <button type="button" onClick={goLibrary}>Return to library</button>
@@ -1035,7 +1066,7 @@ export default function App() {
         onSetTrial={(trying) => savePersonalReview(detailBook.id, detailBook.personalRating, detailBook.personalReview || '', trying ? 'trying' : 'regular')}
         onBrowseTag={tag => { setBrowseTag(tag); setGlobalSearch(''); setReadingId(null); setDetailsId(null); setStartChapterHref(null); navigate(libraryTagUrl(tag)); }} error={error} />
     ) : (
-      <LibraryDashboard books={books} theme={settings.theme}
+      <LibraryDashboard books={visibleLibraryBooks} localBackups={localBackups} theme={settings.theme}
         cachedEpubIds={cachedEpubIds} online={online} offlineShellReady={offlineShellReady}
         bulkOfflineProgress={bulkOfflineProgress} onCacheAllOffline={() => void saveAllOffline()}
         offlineRetention={offlineRetention}
@@ -1052,7 +1083,7 @@ export default function App() {
         onImportClick={() => filePicker.current?.click()}
         onFiles={files => void importFiles(files)} onOpen={showDetails}
         onRead={openBook} onRemoveOffline={requestRemoveOffline}
-        importing={importing || !!loadingBook} notice={notice} error={error} storageError={storageError}
+        importing={importing || !!loadingBook} notice={notice} onDismissNotice={() => setNotice(null)} error={error} storageError={storageError}
         cloudRepo={cloudRepo} cloudSession={cloudSession} cloudBusy={cloudBusy}
         cloudMessage={loadingBook ? `Opening ${loadingBook}…` : cloudMessage}
         syncProblem={lastSyncError}

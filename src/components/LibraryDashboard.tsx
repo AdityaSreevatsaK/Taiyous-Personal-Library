@@ -22,6 +22,8 @@ type Sort = 'recent' | 'title' | 'added';
 
 interface Props {
   books: LibraryBook[];
+  /** Unique-name legacy local EPUBs remain accessible, not silently deleted. */
+  localBackups: LibraryBook[];
   cachedEpubIds: string[];
   online: boolean;
   offlineShellReady: boolean;
@@ -50,6 +52,7 @@ interface Props {
   onRemoveOffline: (book: LibraryBook) => void;
   importing: boolean;
   notice: string | null;
+  onDismissNotice: () => void;
   error: string | null;
   storageError: string | null;
   cloudRepo: string;
@@ -105,10 +108,10 @@ export function Cover({ book, variant = 'normal', cloudRepo = '', cloudSession =
 }
 
 export default function LibraryDashboard({
-  books, cachedEpubIds, online, offlineShellReady, bulkOfflineProgress, onCacheAllOffline, offlineRetention, pendingReviewCount, pendingProgressCount, collectionsSyncPending,
+  books, localBackups, cachedEpubIds, online, offlineShellReady, bulkOfflineProgress, onCacheAllOffline, offlineRetention, pendingReviewCount, pendingProgressCount, collectionsSyncPending,
   collections, onCreateCollection, onRenameCollection, onDeleteCollection, onCollectionMembership,
   initialTag, libraryPath, onLibraryNavigate, globalSearch, onGlobalSearch, theme, onThemeChange, onImportClick, onFiles, onOpen, onRead, onRemoveOffline,
-  importing, notice, error, storageError, cloudRepo, cloudSession,
+  importing, notice, onDismissNotice, error, storageError, cloudRepo, cloudSession,
   cloudBusy, cloudMessage, syncProblem, onCloudRepo, onCloudLogin, onCloudLogout, onCloudRefresh, onCloudPublishCached,
 }: Props) {
   const [filter, setFilter] = useState<Filter>(() => parseLibraryViewPath(libraryPath).filter);
@@ -158,6 +161,22 @@ export default function LibraryDashboard({
       document.removeEventListener('keydown', closeEscape);
     };
   }, [showCloud]);
+  // All native navigation menus should dismiss on a click outside or Escape,
+  // without disturbing the menu's normal click and keyboard interaction.
+  useEffect(() => {
+    const closeMenus = (event: Event) => {
+      document.querySelectorAll<HTMLDetailsElement>('.primary-top-nav details.top-nav-menu[open]').forEach(menu => {
+        if (event.type === 'keydown' || !menu.contains(event.target as Node)) menu.open = false;
+      });
+    };
+    const onKey = (event: KeyboardEvent) => { if (event.key === 'Escape') closeMenus(event); };
+    document.addEventListener('pointerdown', closeMenus);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('pointerdown', closeMenus);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, []);
   const [datasetToken, setDatasetToken] = useState('');
   const [dragging, setDragging] = useState(false);
   const reading = books.filter((book) => book.shelfStatus !== 'trying' && book.progress > 0 && book.progress < 99.5);
@@ -342,7 +361,10 @@ export default function LibraryDashboard({
           </div>
         </nav>
         <div className="page-content">
-          {notice && <div className="alert success-alert" role="status"><CheckCircle2 size={17} />{notice}</div>}
+          {notice && <div className="library-toast" role="status">
+            <CheckCircle2 size={19} aria-hidden="true" /><span>{notice}</span>
+            <button type="button" aria-label="Dismiss notification" onClick={onDismissNotice}><X size={18}/></button>
+          </div>}
           {(error || storageError) && <div className="alert error-alert" role="alert">{error || storageError}</div>}
           {!showAdvanced && !showEditorialHome && filter !== 'analytics' && <div className="page-head page-head-compact">
             <div><div className="eyebrow"><span className="eyebrow-line" /> TAIYOU'S COLLECTION</div>
@@ -438,6 +460,19 @@ export default function LibraryDashboard({
               {book.progress > 0 ? <><div className="mini-progress" aria-hidden="true"><i style={{ width: `${Math.min(100, Math.max(0, book.progress))}%` }} /></div><span className="tile-progress-value">{Math.round(book.progress)}%</span></> :
                 <span className="unread-label">{book.shelfStatus === 'trying' ? 'TO SAMPLE' : 'NOT STARTED'}</span>}
               </div></div></article>)}</div> : <div className="no-results"><BookOpen size={27} /><h3>{filter === 'offline' ? 'No novels saved offline' : books.length ? 'No novels on this shelf' : 'Your library is waiting'}</h3><p>{filter === 'offline' ? 'While connected, choose Save offline on a novel to make it available here.' : books.length ? 'Try a different search or tag.' : 'Import a novel ZIP, then connect your private cloud dataset to use the same collection on other devices.'}</p>{!books.length && <button className="secondary-button" onClick={onImportClick}><Upload size={17} /> Choose a ZIP or EPUB</button>}</div>}
+            {filter === 'offline' && !globalMode && !selectedTag && localBackups.some(book => cachedEpubIds.includes(book.id)) &&
+              <details className="offline-local-backups">
+                <summary><BookOpen size={16}/> {localBackups.filter(book => cachedEpubIds.includes(book.id)).length} additional local EPUB {localBackups.filter(book => cachedEpubIds.includes(book.id)).length === 1 ? 'copy' : 'copies'} preserved
+                  <small>Kept separately because a hosted novel has the same title and author</small></summary>
+                <div className="offline-local-backup-list">
+                  {localBackups.filter(book => cachedEpubIds.includes(book.id)).map(book =>
+                    <div key={book.id} className="offline-local-backup-row">
+                      <div><strong>{book.title}</strong><span>Local-only backup · {book.author} · {Math.round(book.progress)}% read</span></div>
+                      <button type="button" onClick={() => onOpen(book)}>Open local copy</button>
+                      <button type="button" onClick={() => onRead(book)}>Read local copy</button>
+                    </div>)}
+                </div>
+              </details>}
             <div className="collection-footer"><span><CloudOff size={15} /> {cloudSession && cloudRepo ? 'Novel archives upload to your private dataset' : 'Novels imported locally until cloud is connected'}</span><span>{books.length} {books.length === 1 ? 'book' : 'books'} in your private collection</span></div>
           </section>}
           <button className="mobile-fab" onClick={onImportClick} aria-label="Add a novel"><Plus size={24} /></button>
