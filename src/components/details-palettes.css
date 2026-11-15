@@ -61,3 +61,48 @@
   border-color:var(--border);
 }
 .details-shell .details-progress-track i {background:var(--accent,#678dc2)}
+
+
+/* Novel details header: one functional home link and one theme control.
+ * The title and Start/Continue reading action already live in the hero. */
+.details-shell .details-topbar {
+  justify-content:space-between; gap:12px; min-width:0;
+}
+.details-shell .details-brand-link {
+  display:inline-flex; align-items:center; gap:11px;
+  flex:0 1 auto; min-width:0; padding:3px 5px;
+  border-radius:9px; color:var(--text); text-decoration:none;
+}
+.details-shell .details-brand-link:hover {
+  background:var(--pale);
+}
+.details-shell .details-brand-link:focus-visible {
+  outline:2px solid var(--accent,#678dc2); outline-offset:3px;
+}
+.details-shell .details-brand-link .taiyou-brand-mark {
+  flex:0 0 32px; object-fit:contain;
+}
+.details-shell .details-brand-wordmark {
+  min-width:0; font:500 clamp(14px,1.8vw,18px)/1.24 Georgia,serif;
+  letter-spacing:-.025em; overflow-wrap:normal;
+}
+.details-shell .details-brand-short { display:none; }
+.details-shell .details-top-controls {flex:0 0 auto; display:flex; align-items:center;}
+.details-shell .details-topbar .theme-menu-root {z-index:95}
+@media(max-width:700px){
+  .details-shell .details-topbar {padding:8px 13px; min-height:59px}
+  .details-shell .details-brand-link {gap:8px; padding:2px; flex:1 1 auto}
+  .details-shell .details-brand-wordmark {font-size:clamp(12px,3.6vw,16px)}
+  .details-shell .details-brand-link .taiyou-brand-mark {
+    width:29px!important;height:29px!important;flex-basis:29px;
+  }
+  .details-shell .details-top-controls {margin-left:auto}
+}
+@media(max-width:410px){
+  .details-shell .details-brand-full {display:none}
+  .details-shell .details-brand-short {display:inline}
+  .details-shell .details-topbar .theme-next-text {display:none}
+  .details-shell .details-topbar .theme-next-button {
+    padding:7px; gap:4px; min-width:37px; min-height:37px;
+  }
+}
