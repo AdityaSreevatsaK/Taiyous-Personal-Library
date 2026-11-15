@@ -343,5 +343,13 @@
 
 /* A declared coverPath is not proof that a cover image actually loaded.
    Never expose the decorative fallback as a genre/collection tile image. */
-.editorial-home .editorial-shelf-cover:not(:has(img.cover-art)) {display:none}
+/* Keep the candidate observable while artwork loads. display:none would deadlock
+   IntersectionObserver and permanently suppress genuine hosted covers. */
+.editorial-home .editorial-shelf-card {position:relative}
+.editorial-home .editorial-shelf-cover:not(:has(.cover-has-image)) {
+  position:absolute;left:14px;top:14px;opacity:0;pointer-events:none;
+}
+.editorial-home .editorial-shelf-cover:has(.cover-has-image) {
+  position:relative;opacity:1;transition:opacity .2s ease;
+}
 .editorial-home .editorial-shelf-details strong {display:block;min-width:0}

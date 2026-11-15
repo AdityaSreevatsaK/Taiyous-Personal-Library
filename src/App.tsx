@@ -13,6 +13,7 @@ import { partitionLocalBackups } from './lib/local-backups';
 import { requestOfflineRetention } from './lib/offline';
 import { installUsageTracker } from './lib/usage-analytics';
 import { deleteBook, removeCachedEpub, getBookFile, getBooks, getCachedEpubIds, readSettings, saveBook, updateBook, writeSettings } from './lib/storage';
+import { resetReadingProgress } from './lib/progress-admin';
 import {
   reconcileCloudLibrary, clearCloudSession, createCloudSession, discoverHostedOAuthSession, assertPrivateDataset,
   fetchCloudCatalog, fetchCloudEpub, deleteCloudNovel, hostedEpubExists, fetchCloudArchive, fetchCloudPersonalReview, findCloudEntryForBook, readDatasetRepo, saveDatasetRepo,
@@ -31,7 +32,7 @@ export default function App() {
     const icon = document.getElementById('taiyou-favicon') as HTMLLinkElement | null;
     if (!icon) return;
     const light = settings.theme === 'light' || settings.theme === 'ocean' || settings.theme === 'sepia';
-    icon.href = light ? '/branding/favicon-light.png' : '/branding/favicon-dark.png';
+    icon.href = light ? '/branding/favicon-transparent-light.svg' : '/branding/favicon-transparent-dark.svg';
   }, [settings.theme]);
 
   const [readingId, setReadingId] = useState<string | null>(() => {
@@ -1076,6 +1077,59 @@ export default function App() {
     setNotice('Updated title and author for “' + changed.title + '”. Original files and reading progress are unchanged.');
   }, [cloudRepo, cloudSession]);
 
+  const masterMarkCompleted = useCallback(async (id: string) => {
+    await ownerPost('verify');
+    await markNovelCompleted(id);
+  }, [markNovelCompleted]);
+
+  const masterResetProgress = useCallback(async (id: string) => {
+    await ownerPost('verify');
+    const current = booksRef.current.find(book => book.id === id);
+    if (!current) throw new Error('Novel no longer exists; refresh this page.');
+    const updated = resetReadingProgress(current);
+    await updateBook(updated);
+    booksRef.current = booksRef.current.map(book => book.id === id ? updated : book);
+    setBooks(booksRef.current);
+    if (updated.cloud && cloudRepo && cloudSession) {
+      const entry = findCloudEntryForBook([...cloudEntries.current.values()], updated);
+      if (!entry) throw new Error('Progress reset locally; cloud record unavailable. Synchronisation will retry.');
+      try {
+        await saveCloudReadingProgress(cloudRepo, entry.id, cloudSession, updated);
+        const latest = booksRef.current.find(book => book.id === id);
+        if (latest && latest.progressUpdatedAt === updated.progressUpdatedAt) {
+          const synced = { ...latest, pendingProgressSync: false };
+          await updateBook(synced);
+          booksRef.current = booksRef.current.map(book => book.id === id ? synced : book);
+          setBooks(booksRef.current);
+        }
+      } catch (reason) {
+        throw new Error('Progress reset safely on this device; cloud sync will retry: ' + String(reason));
+      }
+    }
+  }, [cloudRepo, cloudSession]);
+
+  const masterSaveTags = useCallback(async (id: string, tags: string[]) => {
+    await ownerPost('verify');
+    await savePersonalTags(id, tags);
+  }, [savePersonalTags]);
+
+  const masterSaveSummary = useCallback(async (id: string, summary: string) => {
+    await ownerPost('verify');
+    await savePersonalSummary(id, summary);
+  }, [savePersonalSummary]);
+
+  const masterSaveReview = useCallback(async (id: string, rating: number | undefined, notes: string) => {
+    await ownerPost('verify');
+    await savePersonalReview(id, rating, notes);
+  }, [savePersonalReview]);
+
+  const masterExportEpub = useCallback(async (id: string) => {
+    await ownerPost('verify');
+    const book = booksRef.current.find(book => book.id === id);
+    if (!book) throw new Error('Novel no longer exists; refresh this page.');
+    await downloadEpub(book);
+  }, [downloadEpub]);
+
   const masterClearOffline = useCallback(async (): Promise<{removed:number;kept:number}> => {
     await ownerPost('verify');
     if (cloudSession?.via !== 'oauth' || !cloudRepo || !navigator.onLine) {
@@ -1184,6 +1238,9 @@ export default function App() {
         onRead={openBook} onRemoveOffline={requestRemoveOffline}
         allBooks={books} onMasterClearOffline={masterClearOffline}
         onMasterSaveRating={masterSaveRating} onMasterCorrectMetadata={masterCorrectMetadata}
+        onMasterMarkCompleted={masterMarkCompleted} onMasterResetProgress={masterResetProgress}
+        onMasterSaveTags={masterSaveTags} onMasterSaveSummary={masterSaveSummary}
+        onMasterSaveReview={masterSaveReview} onMasterExportEpub={masterExportEpub}
         importing={importing || !!loadingBook} notice={notice} onDismissNotice={() => setNotice(null)} error={error} storageError={storageError}
         cloudRepo={cloudRepo} cloudSession={cloudSession} cloudBusy={cloudBusy}
         cloudMessage={loadingBook ? `Opening ${loadingBook}…` : cloudMessage}

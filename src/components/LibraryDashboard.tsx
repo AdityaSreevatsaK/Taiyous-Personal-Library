@@ -27,6 +27,12 @@ interface Props {
   onMasterClearOffline: () => Promise<{ removed:number; kept:number }>;
   onMasterSaveRating: (id:string, rating:number|undefined) => Promise<void>;
   onMasterCorrectMetadata: (id:string, title:string, author:string) => Promise<void>;
+  onMasterMarkCompleted: (id:string) => Promise<void>;
+  onMasterResetProgress: (id:string) => Promise<void>;
+  onMasterSaveTags: (id:string, tags:string[]) => Promise<void>;
+  onMasterSaveSummary: (id:string, summary:string) => Promise<void>;
+  onMasterSaveReview: (id:string, rating:number|undefined, notes:string) => Promise<void>;
+  onMasterExportEpub: (id:string) => Promise<void>;
   /** Unique-name legacy local EPUBs remain accessible, not silently deleted. */
   localBackups: LibraryBook[];
   cachedEpubIds: string[];
@@ -114,6 +120,8 @@ export function Cover({ book, variant = 'normal', cloudRepo = '', cloudSession =
 
 export default function LibraryDashboard({
   books, allBooks, onMasterClearOffline, onMasterSaveRating, onMasterCorrectMetadata,
+  onMasterMarkCompleted, onMasterResetProgress, onMasterSaveTags, onMasterSaveSummary,
+  onMasterSaveReview, onMasterExportEpub,
   localBackups, cachedEpubIds, online, offlineShellReady, bulkOfflineProgress, onCacheAllOffline, offlineRetention, pendingReviewCount, pendingProgressCount, collectionsSyncPending,
   collections, onCreateCollection, onRenameCollection, onDeleteCollection, onCollectionMembership,
   initialTag, libraryPath, onLibraryNavigate, globalSearch, onGlobalSearch, theme, onThemeChange, onImportClick, onFiles, onOpen, onRead, onRemoveOffline,
@@ -413,7 +421,10 @@ export default function LibraryDashboard({
           {(error || storageError) && <div className="alert error-alert" role="alert">{error || storageError}</div>}
           {isMasterControls && <MasterControls books={allBooks} cachedEpubIds={cachedEpubIds}
             theme={theme} onExit={() => goTo('all')} onClearOffline={onMasterClearOffline}
-            onSaveRating={onMasterSaveRating} onCorrectMetadata={onMasterCorrectMetadata}/>}
+            onSaveRating={onMasterSaveRating} onCorrectMetadata={onMasterCorrectMetadata}
+            onMarkCompleted={onMasterMarkCompleted} onResetProgress={onMasterResetProgress}
+            onSaveTags={onMasterSaveTags} onSaveSummary={onMasterSaveSummary}
+            onSaveReview={onMasterSaveReview} onExportEpub={onMasterExportEpub}/>}
 
           {!showAdvanced && !showEditorialHome && !isMasterControls && filter !== 'analytics' && (selectedTag || selectedAuthor) && <div className="page-head page-head-compact">
             <div><div className="eyebrow"><span className="eyebrow-line" /> TAIYOU'S COLLECTION</div>

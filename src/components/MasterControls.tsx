@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { AlertTriangle, Check, LockKeyhole, Search, ShieldCheck, ShieldOff, Trash2 } from 'lucide-react';
 import type { LibraryBook, ReaderTheme } from '../types';
+import { normalizeTags } from '../lib/tags';
 import { getOwnerStatus, ownerPost, type OwnerStatus } from '../lib/owner';
 import './master-controls.css';
 
@@ -12,75 +13,156 @@ interface Props {
   onClearOffline: () => Promise<{ removed: number; kept: number }>;
   onSaveRating: (id: string, rating: number | undefined) => Promise<void>;
   onCorrectMetadata: (id: string, title: string, author: string) => Promise<void>;
+  onMarkCompleted: (id: string) => Promise<void>;
+  onResetProgress: (id: string) => Promise<void>;
+  onSaveTags: (id: string, tags: string[]) => Promise<void>;
+  onSaveSummary: (id: string, summary: string) => Promise<void>;
+  onSaveReview: (id: string, rating: number | undefined, notes: string) => Promise<void>;
+  onExportEpub: (id: string) => Promise<void>;
 }
+type RowProps = Pick<Props, 'onSaveRating' | 'onCorrectMetadata' | 'onMarkCompleted' |
+  'onResetProgress' | 'onSaveTags' | 'onSaveSummary' | 'onSaveReview' | 'onExportEpub'> &
+  { book: LibraryBook; duplicate: boolean };
 
 function errorMessage(reason: unknown) {
   return reason instanceof Error ? reason.message : String(reason);
 }
 
-/** Edits are scoped to one immutable novel ID; no catalogue file is uploaded from the browser. */
-function BookRow({ book, onSaveRating, onCorrectMetadata }: Pick<Props,'onSaveRating'|'onCorrectMetadata'> & { book: LibraryBook }) {
+/** Each immutable record is managed independently. Edits never replace an EPUB. */
+function BookRow({ book, onCorrectMetadata, onMarkCompleted, onResetProgress,
+  onSaveTags, onSaveSummary, onSaveReview, onExportEpub, duplicate }: RowProps) {
+  const [expanded, setExpanded] = useState(false);
   const [title, setTitle] = useState(book.title);
   const [author, setAuthor] = useState(book.author);
   const [rating, setRating] = useState(book.personalRating?.toString() ?? '');
+  const [personalTags, setPersonalTags] = useState((book.personalTags || []).join(', '));
+  const [summary, setSummary] = useState(book.userDescription || book.description || '');
+  const [notes, setNotes] = useState(book.personalReview || '');
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState('');
   useEffect(() => {
     setTitle(book.title); setAuthor(book.author);
     setRating(book.personalRating?.toString() ?? '');
-  }, [book.id, book.title, book.author, book.personalRating]);
+    setPersonalTags((book.personalTags || []).join(', '));
+    setSummary(book.userDescription || book.description || '');
+    setNotes(book.personalReview || '');
+  }, [book.id, book.title, book.author, book.personalRating, book.personalTags,
+    book.userDescription, book.description, book.personalReview]);
 
-  async function saveRating() {
+  async function run(action: () => Promise<void>, success: string) {
     if (busy) return;
     setBusy(true); setResult('');
-    try {
-      await onSaveRating(book.id, rating ? Number(rating) : undefined);
-      setResult('Rating saved');
-    } catch (reason) { setResult(errorMessage(reason)); }
+    try { await action(); setResult(success); }
+    catch (reason) { setResult(errorMessage(reason)); }
     finally { setBusy(false); }
   }
-  async function saveMetadata() {
-    if (busy) return;
-    const nextTitle = title.trim().replace(/\s+/g, ' ');
-    const nextAuthor = author.trim().replace(/\s+/g, ' ');
-    if (!nextTitle || !nextAuthor) { setResult('Title and author are required'); return; }
-    if (!window.confirm('Correct the title/author for “' + book.title + '”? The original novel ID, EPUB, cover, notes and progress will not change.')) return;
-    setBusy(true); setResult('');
-    try {
-      await onCorrectMetadata(book.id, nextTitle, nextAuthor);
-      setResult('Metadata saved');
-    } catch (reason) { setResult(errorMessage(reason)); }
-    finally { setBusy(false); }
-  }
-  const changed = title.trim() !== book.title || author.trim() !== book.author;
-  return <tr>
-    <td>
-      <strong>{book.title}</strong>
-      <small title={book.id}>{book.cloud ? 'Hosted' : 'Local only'} · {book.id.slice(0,8)}…</small>
-    </td>
-    <td><input aria-label={'Correct title for ' + book.title} value={title}
-      onChange={event => setTitle(event.target.value)} maxLength={255}/></td>
-    <td><input aria-label={'Correct author for ' + book.title} value={author}
-      onChange={event => setAuthor(event.target.value)} maxLength={160}/></td>
-    <td>
-      <select aria-label={'Rating for ' + book.title} value={rating}
-        onChange={event => setRating(event.target.value)}>
-        <option value="">Unrated</option>
-        {Array.from({length:10}, (_,index)=>index+1).map(value=>
-          <option key={value} value={value}>{value}/10</option>)}
-      </select>
-    </td>
-    <td className="master-row-actions">
-      <button type="button" disabled={busy || rating === (book.personalRating?.toString() ?? '')}
-        onClick={() => void saveRating()}>Save rating</button>
-      <button type="button" disabled={busy || !changed} onClick={() => void saveMetadata()}>Correct metadata</button>
-      {result && <small role="status">{result}</small>}
-    </td>
-  </tr>;
+  const newTitle = title.trim().replace(/\s+/g, ' ');
+  const newAuthor = author.trim().replace(/\s+/g, ' ');
+  const metadataChanged = newTitle !== book.title || newAuthor !== book.author;
+  const tags = normalizeTags(personalTags);
+  const tagsChanged = JSON.stringify(tags) !== JSON.stringify(normalizeTags(book.personalTags || []));
+  const summaryChanged = summary.trim() !== (book.userDescription || book.description || '').trim();
+  const reviewChanged = notes !== (book.personalReview || '') || rating !== (book.personalRating?.toString() || '');
+  return <>
+    <tr className={expanded ? 'master-record-active' : ''}>
+      <td><strong>{book.title}</strong>
+        <small title={book.id}>{book.cloud ? 'Hosted' : 'Local only'} · {book.id}</small>
+        {duplicate && <small className="master-duplicate">Possible local/hosted duplicate, both preserved</small>}
+      </td>
+      <td>{book.cloud ? 'Private cloud' : 'This browser'}{book.progressUpdatedAt && book.pendingProgressSync ? <small>Progress awaiting sync</small> : null}</td>
+      <td>{book.progress >= 99.5 ? 'Finished' : book.progress > 0 ? 'Reading' : 'Not started'}
+        {book.progress > 0 && <small>{Math.round(book.progress)}% · {book.currentChapter || 'Position saved'}</small>}
+      </td>
+      <td>{book.personalRating ? book.personalRating + '/10' : 'Not rated'}</td>
+      <td><button type="button" className="master-manage" aria-expanded={expanded}
+        aria-controls={'master-edit-' + book.id} onClick={() => setExpanded(value => !value)}>
+        {expanded ? 'Close controls' : 'Manage novel'}
+      </button></td>
+    </tr>
+    {expanded && <tr className="master-expanded-row" id={'master-edit-' + book.id}><td colSpan={5}>
+      <div className="master-record-info">
+        <span><b>ID:</b> {book.id}</span>
+        <span><b>Chapters:</b> {book.chapterCount?.toLocaleString() || 'Unknown'}</span>
+        <span><b>Language:</b> {book.language || 'Unknown'}</span>
+        <span><b>Source status:</b> {book.status || 'Not supplied'}</span>
+        {book.sourceUrl && <a href={book.sourceUrl} target="_blank" rel="noopener noreferrer">Original source</a>}
+      </div>
+      {duplicate && <p className="master-duplicate-guidance">This title also exists under another novel ID. Compare the records and export EPUB copies before deciding whether either is redundant. No automatic deletion or merging is performed.</p>}
+      <div className="master-editor-grid">
+        <div className="master-editor-group">
+          <h3>Title and author</h3>
+          <label htmlFor={'master-title-' + book.id}>Correct title</label>
+          <input id={'master-title-' + book.id} value={title} maxLength={255} onChange={event => setTitle(event.target.value)} />
+          <label htmlFor={'master-author-' + book.id}>Correct author</label>
+          <input id={'master-author-' + book.id} value={author} maxLength={160} onChange={event => setAuthor(event.target.value)} />
+          <button type="button" disabled={busy || !metadataChanged || !newTitle || !newAuthor}
+            onClick={() => {
+              if (window.confirm('Correct title and author for ' + book.title + '? The immutable ID, EPUB and saved reading data will remain unchanged.')) {
+                void run(() => onCorrectMetadata(book.id, newTitle, newAuthor), 'Title and author saved');
+              }
+            }}>Save title and author</button>
+        </div>
+        <div className="master-editor-group">
+          <h3>Personal rating and notes</h3>
+          <label htmlFor={'master-rating-' + book.id}>Rating</label>
+          <select id={'master-rating-' + book.id} value={rating} onChange={event => setRating(event.target.value)}>
+            <option value="">Not rated</option>
+            {Array.from({ length: 10 }, (_, i) => i + 1).map(n => <option key={n} value={n}>{n}/10</option>)}
+          </select>
+          <label htmlFor={'master-notes-' + book.id}>Private reading notes</label>
+          <textarea id={'master-notes-' + book.id} rows={3} maxLength={10000} value={notes} onChange={event => setNotes(event.target.value)} />
+          <button type="button" disabled={busy || !reviewChanged}
+            onClick={() => void run(() => onSaveReview(book.id, rating ? Number(rating) : undefined, notes), 'Rating and notes saved')}>Save rating and notes</button>
+        </div>
+        <div className="master-editor-group">
+          <h3>Tags</h3>
+          <p>Imported genres: {(book.sourceTags || []).join(', ') || 'None'} (read only)</p>
+          <label htmlFor={'master-tags-' + book.id}>Personal tags (comma-separated)</label>
+          <textarea id={'master-tags-' + book.id} rows={3} maxLength={3000} value={personalTags} onChange={event => setPersonalTags(event.target.value)} />
+          <button type="button" disabled={busy || !tagsChanged}
+            onClick={() => {
+              if (window.confirm('Save personal tags for ' + book.title + '? Imported genres remain untouched.')) {
+                void run(() => onSaveTags(book.id, tags), 'Personal tags saved');
+              }
+            }}>Save personal tags</button>
+        </div>
+        <div className="master-editor-group">
+          <h3>Synopsis</h3>
+          <label htmlFor={'master-summary-' + book.id}>Personal synopsis override</label>
+          <textarea id={'master-summary-' + book.id} rows={5} maxLength={24000} value={summary} onChange={event => setSummary(event.target.value)} />
+          <p>Saved locally; the original imported synopsis is preserved.</p>
+          <button type="button" disabled={busy || !summaryChanged}
+            onClick={() => {
+              if (window.confirm('Save synopsis for ' + book.title + '?')) {
+                void run(() => onSaveSummary(book.id, summary), 'Synopsis saved locally');
+              }
+            }}>Save synopsis</button>
+        </div>
+      </div>
+      <div className="master-reading-controls">
+        <div><h3>Reading progress</h3><p>{book.progress > 0 ? Math.round(book.progress) + '% complete' : 'Not started'}{book.currentChapterNumber ? ' · Chapter ' + book.currentChapterNumber : ''}. Notes, ratings and the EPUB are unaffected by these actions.</p></div>
+        <button type="button" disabled={busy || book.progress >= 99.5}
+          onClick={() => {
+            if (window.confirm('Mark ' + book.title + ' as completed?')) {
+              void run(() => onMarkCompleted(book.id), 'Marked as completed');
+            }
+          }}>Mark as completed</button>
+        <button type="button" className="master-danger-outline" disabled={busy || (book.progress === 0 && !book.lastCfi && !book.currentChapter)}
+          onClick={() => {
+            if (!window.confirm('Reset the saved reading position for ' + book.title + '? This will synchronise a blank reading position to your private cloud when connected.')) return;
+            if (window.prompt('Type RESET PROGRESS to confirm') !== 'RESET PROGRESS') return;
+            void run(() => onResetProgress(book.id), 'Reading progress reset');
+          }}>Reset progress</button>
+        <button type="button" disabled={busy} onClick={() => void run(() => onExportEpub(book.id), 'EPUB export initiated')}>Export EPUB backup</button>
+      </div>
+      {result && <p className="master-result" role="status">{result}</p>}
+    </td></tr>}
+  </>;
 }
 
 export default function MasterControls({
   books, cachedEpubIds, theme, onExit, onClearOffline, onSaveRating, onCorrectMetadata,
+  onMarkCompleted, onResetProgress, onSaveTags, onSaveSummary, onSaveReview, onExportEpub,
 }: Props) {
   const [status, setStatus] = useState<OwnerStatus | null>(null);
   const [passphrase, setPassphrase] = useState('');
@@ -110,6 +192,21 @@ export default function MasterControls({
   const cached = books.filter(book => cachedEpubIds.includes(book.id));
   const hostedCached = cached.filter(book=>book.cloud).length;
   const localOnlyCached = cached.filter(book=>!book.cloud).length;
+  const duplicateKeys = useMemo(() => {
+    const keys = new Map<string, { hosted: boolean; local: boolean }>();
+    for (const book of books) {
+      const key = JSON.stringify([book.title.normalize('NFKC').trim().toLocaleLowerCase(),
+        book.author.normalize('NFKC').trim().toLocaleLowerCase()]);
+      const found = keys.get(key) || { hosted: false, local: false };
+      if (book.cloud) found.hosted = true; else found.local = true;
+      keys.set(key, found);
+    }
+    return new Set([...keys].filter(([, pair]) => pair.hosted && pair.local).map(([key]) => key));
+  }, [books]);
+  const isDuplicate = (book: LibraryBook) => duplicateKeys.has(JSON.stringify([
+    book.title.normalize('NFKC').trim().toLocaleLowerCase(),
+    book.author.normalize('NFKC').trim().toLocaleLowerCase(),
+  ]));
 
   async function unlock(event: FormEvent) {
     event.preventDefault(); if (busy) return;
@@ -180,15 +277,19 @@ export default function MasterControls({
         <small>Deletion affects EPUB files in this browser only, not your cloud library or reading progress. Each hosted backup is verified first.</small>
       </section>
       <section className="master-panel" aria-labelledby="master-records-heading">
-        <div className="master-record-heading"><div><h2 id="master-records-heading">Titles, authors and ratings</h2>
-          <p>Edits are saved per novel. Hosted title corrections require an Owner-authorised, revision-safe catalogue commit; no ebook files are replaced.</p></div>
+        <div className="master-record-heading"><div><h2 id="master-records-heading">Manage novel records</h2>
+          <p>Expand a novel to edit titles, authors, ratings, private notes, tags and progress. Hosted title corrections use an Owner-authorised, revision-safe catalogue commit; EPUBs remain unchanged.</p>
+          {duplicateKeys.size > 0 && <p className="master-duplicate-guidance">Potential local/hosted duplicates detected. Both IDs and EPUB copies remain preserved. Export and compare before considering removal.</p>}</div>
           <label className="master-search"><Search size={16}/><input aria-label="Search master records"
             value={search} placeholder="Search title, author or ID…" onChange={event=>{setSearch(event.target.value);setPage(0);}} /></label>
         </div>
         <div className="master-table-scroller">
-          <table><thead><tr><th>Novel</th><th>Correct title</th><th>Correct author</th><th>Rating</th><th>Actions</th></tr></thead>
-          <tbody>{onPage.map(book=><BookRow key={book.id} book={book}
-            onSaveRating={onSaveRating} onCorrectMetadata={onCorrectMetadata}/>)}</tbody></table>
+          <table><thead><tr><th>Novel</th><th>Storage</th><th>Reading</th><th>Rating</th><th>Actions</th></tr></thead>
+          <tbody>{onPage.map(book=><BookRow key={book.id} book={book} duplicate={isDuplicate(book)}
+            onSaveRating={onSaveRating} onCorrectMetadata={onCorrectMetadata}
+            onMarkCompleted={onMarkCompleted} onResetProgress={onResetProgress}
+            onSaveTags={onSaveTags} onSaveSummary={onSaveSummary}
+            onSaveReview={onSaveReview} onExportEpub={onExportEpub}/>)}</tbody></table>
         </div>
         {!list.length && <p>No matching records.</p>}
         <div className="master-pages">

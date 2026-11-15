@@ -15,6 +15,7 @@ export default function ChapterBrowser({ book, onReadChapter, isCachedOffline, o
   const [chapters, setChapters] = useState<ChapterItem[]>([]);
   const [loading, setLoading] = useState(isCachedOffline);
   const [preparing, setPreparing] = useState(false);
+  const attemptedBookRef = useRef<string | null>(null);
   const [nearViewport, setNearViewport] = useState(false);
   const sectionRef = useRef<HTMLElement>(null);
   const [error, setError] = useState<string | null>(null);
@@ -25,7 +26,6 @@ export default function ChapterBrowser({ book, onReadChapter, isCachedOffline, o
 
   useEffect(() => {
     setNearViewport(false);
-    if (!isCachedOffline) return;
     if (typeof IntersectionObserver === 'undefined') { setNearViewport(true); return; }
     const observer = new IntersectionObserver(entries => {
       if (entries.some(entry => entry.isIntersecting)) {
@@ -35,7 +35,7 @@ export default function ChapterBrowser({ book, onReadChapter, isCachedOffline, o
     }, { rootMargin: '280px' });
     if (sectionRef.current) observer.observe(sectionRef.current);
     return () => observer.disconnect();
-  }, [book.id, isCachedOffline]);
+  }, [book.id]);
 
   useEffect(() => {
     if (isCachedOffline && !nearViewport) return;
@@ -58,8 +58,21 @@ export default function ChapterBrowser({ book, onReadChapter, isCachedOffline, o
     return () => { active = false; };
   }, [book.id, isCachedOffline, nearViewport]); // Defer large EPUB parsing until chapters are near view.
 
+  // Automatically download the EPUB only when the chapter panel approaches the viewport.
+  // A failed fetch is not retried in a loop; the reader can retry explicitly.
+  useEffect(() => {
+    if (!nearViewport || isCachedOffline || attemptedBookRef.current === book.id) return;
+    attemptedBookRef.current = book.id;
+    setPreparing(true);
+    setError(null);
+    void onLoadChapters().catch((reason: unknown) => {
+      setError(`Unable to prepare chapters: ${reason instanceof Error ? reason.message : String(reason)}`);
+    }).finally(() => setPreparing(false));
+  }, [book.id, isCachedOffline, nearViewport, onLoadChapters]);
+
   async function prepareChapters() {
     if (preparing || isCachedOffline) return;
+    attemptedBookRef.current = book.id;
     setPreparing(true);
     setError(null);
     try {
@@ -93,11 +106,11 @@ export default function ChapterBrowser({ book, onReadChapter, isCachedOffline, o
       <div><span className="details-label">PICK UP ANYWHERE</span><h2 id="detail-chapters-heading">Chapters</h2></div>
       <List size={21} className="details-section-icon" aria-hidden="true" />
     </div>
-    {!isCachedOffline ? <div className="chapter-on-demand">
-        <button type="button" className="primary-button" disabled={preparing} onClick={() => void prepareChapters()}>
-          {preparing ? 'Preparing EPUB…' : 'Load chapter list'}
-        </button>
-        {error && <p className="chapter-error" role="alert">{error}</p>}
+    {!isCachedOffline ? <div className="chapter-on-demand" aria-live="polite">
+        {error ? <>
+          <p className="chapter-error" role="alert">{error}</p>
+          <button type="button" className="primary-button" disabled={preparing} onClick={() => void prepareChapters()}>Retry loading chapters</button>
+        </> : <p className="chapter-loading" role="status">{nearViewport ? 'Preparing chapter list from the EPUB…' : 'Chapter list loads automatically as you reach this section.'}</p>}
       </div>
       : !nearViewport ? <div className="chapter-loading">Chapter titles will load when you reach this section.</div>
       : loading ? <div className="chapter-loading" role="status">Loading chapter titles from your EPUB…</div>

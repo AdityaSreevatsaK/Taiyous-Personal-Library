@@ -113,7 +113,7 @@ try {
     if (!await sunLogo.evaluate(el => el instanceof HTMLImageElement && el.complete && el.naturalWidth > 0)) {
       throw new Error('Approved Sun logo did not load in the header');
     }
-    if (!(await page.locator('link#taiyou-favicon').getAttribute('href'))?.includes('favicon-light.png')) {
+    if (!(await page.locator('link#taiyou-favicon').getAttribute('href'))?.includes('favicon-transparent-light.svg')) {
       throw new Error('Favicon does not match current light reading theme');
     }
     // Six palette swatches change the entire app in ONE click, and persist.
@@ -160,7 +160,7 @@ try {
       }
       const expectedLogo = ['Sepia','Paper','Ocean'].includes(name) ? 'sun-light.webp' : 'sun-dark.webp';
       await page.locator('.taiyou-brand-mark[src$="' + expectedLogo + '"]').waitFor();
-      const expectedFavicon = ['Sepia','Paper','Ocean'].includes(name) ? 'favicon-light.png' : 'favicon-dark.png';
+      const expectedFavicon = ['Sepia','Paper','Ocean'].includes(name) ? 'favicon-transparent-light.svg' : 'favicon-transparent-dark.svg';
       if (!(await page.locator('link#taiyou-favicon').getAttribute('href'))?.includes(expectedFavicon)) {
         throw new Error('Favicon did not update with selected theme: ' + name);
       }
@@ -842,7 +842,10 @@ try {
         await fastPage.locator('.details-hero').getByRole('heading', { name: 'Cloud Metadata Only' }).waitFor();
         const detailLatencyMs = Date.now() - began;
         if (detailLatencyMs > 2800) throw new Error('Uncached details navigation regressed: ' + detailLatencyMs + ' ms');
-        await fastPage.getByRole('button', { name: 'Load chapter list' }).waitFor();
+        await fastPage.locator('.chapter-browser').waitFor();
+        if (await fastPage.getByRole('button', { name: 'Load chapter list' }).count()) {
+          throw new Error('Chapter list must be prepared automatically, not require a button');
+        }
         if (await fastPage.getByText(/Unable to open novel/).count()) {
           throw new Error('Details incorrectly required a downloaded EPUB');
         }
@@ -921,6 +924,37 @@ try {
         await fastPage.screenshot({path:`artifacts/design-screenshots/catalogue-tiles-${viewport.width}.png`,fullPage:true});
       } finally {
         await fastPage.close();
+      }
+      // Synthetic unlocked Owner session: prove expandable management controls
+      // render and remain keyboard-accessible. No privileged cloud mutation.
+      const adminPage = await context.newPage();
+      try {
+        await adminPage.route('**/api/owner?**', route => route.fulfill({
+          status:200,contentType:'application/json',
+          body:JSON.stringify({configured:true,unlocked:true,expiresAt:Date.now()+600000}),
+        }));
+        await adminPage.goto(baseUrl + '/master-controls', { waitUntil:'domcontentloaded' });
+        await adminPage.locator('.master-controls table').waitFor({state:'visible',timeout:15000});
+        const manage = adminPage.getByRole('button', {name:'Manage novel'}).first();
+        await manage.click();
+        const expandedControl = adminPage.locator('.master-record-active').first()
+          .getByRole('button', {name:'Close controls'});
+        await expandedControl.waitFor();
+        if (await expandedControl.getAttribute('aria-expanded') !== 'true') {
+          throw new Error('Master novel record did not expand accessibly');
+        }
+        for (const name of ['Title and author','Personal rating and notes','Tags','Synopsis','Reading progress']) {
+          await adminPage.getByRole('heading', {name,exact:true}).waitFor();
+        }
+        await adminPage.getByRole('button', {name:'Reset progress'}).waitFor();
+        await adminPage.getByRole('button', {name:'Mark as completed'}).waitFor();
+        await adminPage.getByRole('button', {name:'Export EPUB backup'}).waitFor();
+        await adminPage.getByRole('button', {name:'Close controls'}).click();
+        if (await adminPage.locator('.master-expanded-row').count()) {
+          throw new Error('Closing Master record failed to remove its edit panel');
+        }
+      } finally {
+        await adminPage.close();
         await context.close();
       }
     }
