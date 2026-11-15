@@ -449,3 +449,49 @@
 .app-shell .topbar .cloud-connect-head > .secondary-button:focus-visible {
   outline:3px solid #ddb676;outline-offset:3px;
 }
+
+/* One deliberate interaction language across the six reading palettes.
+   Non-primary surfaces tint towards legible ink on hover, rather than using
+   unrelated bright green, and keyboard focus remains visually separate. */
+.app-shell .top-nav-link:hover:not(.active),
+.app-shell .top-nav-menu>summary:hover,
+.app-shell .top-nav-dropdown-item:hover,
+.app-shell .filter-tabs button:hover,
+.app-shell .tag-filter:hover,
+.details-shell .details-tag-row .imported-tag:hover,
+.details-shell .details-tag-row .personal-tag:hover {
+  background:color-mix(in srgb,var(--text) 9%,var(--surface));
+  color:var(--text);
+}
+.app-shell .top-nav-link:hover:not(.active) {border-radius:7px 7px 0 0}
+.app-shell .top-nav-add:hover:not(:disabled) {
+  background:#514034;color:#fff9ee;border-color:#514034;opacity:1;
+}
+.app-shell .top-nav-add>svg,
+.app-shell .top-nav-menu>summary>svg,
+.app-shell .top-nav-master>svg,
+.app-shell .topbar .cloud-connect-head svg {
+  flex:none;vertical-align:middle;
+}
+.app-shell .top-nav-add,.app-shell .top-nav-master,
+.app-shell .top-nav-menu>summary {min-height:37px;box-sizing:border-box}
+.app-shell .top-nav-add,.app-shell .top-nav-master {border-radius:8px}
+.app-shell .top-nav-menu>summary {border-radius:8px}
+.app-shell .theme-swatches {min-height:37px;box-sizing:border-box}
+.details-shell .details-cover-wrap .cover-has-image,
+.editorial-home .editorial-art-book .cover-has-image,
+.editorial-home .editorial-continue-cover .cover-has-image,
+.editorial-home .editorial-shelf-cover .cover-has-image {
+  box-shadow:0 0 0 1px color-mix(in srgb,var(--accent) 35%,transparent),
+    0 0 25px 3px color-mix(in srgb,var(--accent) 21%,transparent),
+    0 14px 24px #00000024;
+}
+.details-shell .details-cover-wrap .cover-has-image:hover,
+.editorial-home .editorial-art-book:hover .cover-has-image {
+  box-shadow:0 0 0 2px color-mix(in srgb,var(--accent) 45%,transparent),
+    0 0 30px 5px color-mix(in srgb,var(--accent) 27%,transparent),
+    0 16px 27px #00000036;
+}
+@media(prefers-reduced-motion:reduce) {
+  .app-shell button,.details-shell button {transition:none!important}
+}
