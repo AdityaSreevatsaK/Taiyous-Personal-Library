@@ -32,7 +32,7 @@ export default function App() {
     const icon = document.getElementById('taiyou-favicon') as HTMLLinkElement | null;
     if (!icon) return;
     const light = settings.theme === 'light' || settings.theme === 'ocean' || settings.theme === 'sepia';
-    icon.href = light ? '/branding/favicon-light.png' : '/branding/favicon-dark.png';
+    icon.href = light ? '/branding/favicon-transparent-light.svg' : '/branding/favicon-transparent-dark.svg';
   }, [settings.theme]);
 
   const [readingId, setReadingId] = useState<string | null>(() => {

@@ -437,3 +437,15 @@
 .details-shell .details-tag-row .personal-tag {min-height:37px;display:inline-flex;align-items:center}
 .app-shell button:not(:disabled),.details-shell button:not(:disabled) {transition:background-color .15s ease,color .15s ease,border-color .15s ease,box-shadow .15s ease}
 .app-shell button:focus-visible,.details-shell button:focus-visible {outline:2px solid var(--accent);outline-offset:2px}
+
+/* Theme-independent header settings contrast. The prior dark palettes could
+   resolve --text and --surface to nearly identical light values. */
+.app-shell .topbar .cloud-connect-head > .secondary-button {
+  background:#352a22;color:#fff9ee;border-color:#352a22;
+}
+.app-shell .topbar .cloud-connect-head > .secondary-button:hover:not(:disabled) {
+  background:#4c3b30;color:#fffdf5;border-color:#4c3b30;filter:none;
+}
+.app-shell .topbar .cloud-connect-head > .secondary-button:focus-visible {
+  outline:3px solid #ddb676;outline-offset:3px;
+}

@@ -3,12 +3,23 @@ import { firstRealChapterIndex, flattenToc, type NavigationNode } from './chapte
 import { getBookFile } from './storage';
 import type { ChapterItem } from '../types';
 
+// Bound memory usage: retain parsed tables for at most three recently visited EPUBs.
+const chapterCache = new Map<string, ChapterItem[]>();
+const MAX_CACHED_CATALOGS = 3;
+
 /**
  * Read the TOC from a locally stored EPUB without opening the reader or
  * modifying its saved location. Existing imports need no migration.
  */
 export async function loadChapterCatalog(bookId: string, expectedCount?: number): Promise<ChapterItem[]> {
   const file = await getBookFile(bookId);
+  const key = `${bookId}:${file.size}:${expectedCount || 0}`;
+  const found = chapterCache.get(key);
+  if (found) {
+    chapterCache.delete(key);
+    chapterCache.set(key, found);
+    return found;
+  }
   const book: any = ePub(await file.arrayBuffer());
   try {
     await book.ready;
@@ -20,7 +31,14 @@ export async function loadChapterCatalog(bookId: string, expectedCount?: number)
       level: 0,
     }));
     const all = toc.length ? toc : spine;
-    return all.slice(firstRealChapterIndex(all, expectedCount));
+    const chapters = all.slice(firstRealChapterIndex(all, expectedCount));
+    chapterCache.set(key, chapters);
+    while (chapterCache.size > MAX_CACHED_CATALOGS) {
+      const oldest = chapterCache.keys().next().value;
+      if (oldest === undefined) break;
+      chapterCache.delete(oldest);
+    }
+    return chapters;
   } finally {
     // Close temporary EPUB resources. The actual book Blob remains in IndexedDB.
     try { book.destroy(); } catch { /* already released */ }

@@ -113,7 +113,7 @@ try {
     if (!await sunLogo.evaluate(el => el instanceof HTMLImageElement && el.complete && el.naturalWidth > 0)) {
       throw new Error('Approved Sun logo did not load in the header');
     }
-    if (!(await page.locator('link#taiyou-favicon').getAttribute('href'))?.includes('favicon-light.png')) {
+    if (!(await page.locator('link#taiyou-favicon').getAttribute('href'))?.includes('favicon-transparent-light.svg')) {
       throw new Error('Favicon does not match current light reading theme');
     }
     // Six palette swatches change the entire app in ONE click, and persist.
@@ -160,7 +160,7 @@ try {
       }
       const expectedLogo = ['Sepia','Paper','Ocean'].includes(name) ? 'sun-light.webp' : 'sun-dark.webp';
       await page.locator('.taiyou-brand-mark[src$="' + expectedLogo + '"]').waitFor();
-      const expectedFavicon = ['Sepia','Paper','Ocean'].includes(name) ? 'favicon-light.png' : 'favicon-dark.png';
+      const expectedFavicon = ['Sepia','Paper','Ocean'].includes(name) ? 'favicon-transparent-light.svg' : 'favicon-transparent-dark.svg';
       if (!(await page.locator('link#taiyou-favicon').getAttribute('href'))?.includes(expectedFavicon)) {
         throw new Error('Favicon did not update with selected theme: ' + name);
       }
