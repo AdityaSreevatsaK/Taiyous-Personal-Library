@@ -95,14 +95,19 @@ export default function EditorialHome({
         {continueReading.map(book => <article className="editorial-continue-card" key={book.id}>
           <button type="button" className="editorial-continue-cover" aria-label={'Reading desk cover for ' + book.title} onClick={() => onOpen(book)}>{cover(book)}</button>
           <div className="editorial-continue-copy">
-            <p className="editorial-eyebrow">CURRENTLY READING</p>
             <button type="button" className="editorial-book-title" onClick={() => onOpen(book)}>{book.title}</button>
-            <span>{book.currentChapter || book.author}</span>
-            <div className="editorial-rail-progress" aria-label={Math.round(book.progress) + '% complete'}><i style={{ width: book.progress + '%' }} /></div>
-            <button type="button" className="editorial-rail-read" onClick={() => onRead(book)}>
-              Resume · {Math.round(book.progress)}% <ArrowRight size={13}/>
-            </button>
+            <span className="editorial-continue-chapter">{book.currentChapterNumber
+              ? `Chapter ${book.currentChapterNumber.toLocaleString()}${book.chapterCount ? ` of ${book.chapterCount.toLocaleString()}` : ''}`
+              : book.currentChapter || 'Saved reading position'}
+              {book.chapterCount && !book.currentChapterNumber ? ` · ${book.chapterCount.toLocaleString()} chapters total` : ''}
+            </span>
+            <div className="editorial-rail-progress" aria-label={Math.round(book.progress) + '% complete'}>
+              <i style={{ width: Math.min(100,Math.max(0,book.progress)) + '%' }} />
+            </div>
           </div>
+          <button type="button" className="editorial-rail-read" onClick={() => onRead(book)}>
+            Resume · {Math.round(book.progress)}% <ArrowRight size={13}/>
+          </button>
         </article>)}
       </div>
     </section>}
