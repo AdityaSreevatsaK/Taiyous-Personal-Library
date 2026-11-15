@@ -3,8 +3,9 @@ import { fetchCloudCover, type CloudSession } from '../lib/cloud';
 import { cacheCover, getCachedCover } from '../lib/storage';
 import type { LibraryBook } from '../types';
 
-const objectUrls = new Map<string, string>();
-const inFlight = new Map<string, Promise<string | null>>();
+// Share pending cover downloads, not object URLs. Object URLs pin decoded images
+// in browser memory and must be released when the last rendering component exits.
+const inFlight = new Map<string, Promise<Blob | null>>();
 
 export function useCoverArt(book: LibraryBook, repo: string, session: CloudSession | null, enabled = true): string | null {
   const [url, setUrl] = useState<string | null>(null);
@@ -16,24 +17,34 @@ export function useCoverArt(book: LibraryBook, repo: string, session: CloudSessi
   }, []);
   useEffect(() => {
     let active = true;
+    let ownedUrl: string | null = null;
     setUrl(null);
     if (!book.coverPath || !enabled) return () => { active = false; };
-    const key = book.id + ':' + book.coverPath;
-    const task = inFlight.get(key) || (async () => {
-      if (objectUrls.has(key)) return objectUrls.get(key)!;
-      let cover = await getCachedCover(book.id).catch(() => null);
-      if (!cover && repo && session && navigator.onLine) {
-        cover = await fetchCloudCover(repo, book, session).catch(() => null);
-        if (cover) await cacheCover(book.id, cover).catch(() => {});
-      }
-      if (!cover) return null;
-      const address = URL.createObjectURL(cover);
-      objectUrls.set(key, address);
-      return address;
-    })().finally(() => inFlight.delete(key));
-    inFlight.set(key, task);
-    void task.then(value => { if (active) setUrl(value); });
-    return () => { active = false; };
+    const connection = !session ? 'anonymous' : session.via === 'oauth' ? 'oauth' : 'token';
+    const key = [book.id, book.coverPath, repo, connection].join(':');
+    let task = inFlight.get(key);
+    if (!task) {
+      task = (async () => {
+        let cover = await getCachedCover(book.id).catch(() => null);
+        if (!cover && repo && session && navigator.onLine) {
+          cover = await fetchCloudCover(repo, book, session).catch(() => null);
+          if (cover) await cacheCover(book.id, cover).catch(() => {});
+        }
+        return cover;
+      })().finally(() => { inFlight.delete(key); });
+      inFlight.set(key, task);
+    }
+    void task.then(cover => {
+      if (!active || !cover) return;
+      ownedUrl = URL.createObjectURL(cover);
+      setUrl(ownedUrl);
+    }).catch(() => {
+      // Keep the generated cover placeholder on unavailable/offline artwork.
+    });
+    return () => {
+      active = false;
+      if (ownedUrl) URL.revokeObjectURL(ownedUrl);
+    };
   }, [book.id, book.coverPath, repo, session?.via, session?.accessToken, enabled, connectionEpoch]);
   return url;
 }

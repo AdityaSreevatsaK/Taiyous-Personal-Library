@@ -50,7 +50,10 @@ self.addEventListener('install', event => {
 self.addEventListener('activate', event => {
   event.waitUntil((async () => {
     const keys = await caches.keys();
-    await Promise.all(keys.filter(key => key.startsWith('taiyou-shell-') && key !== SHELL_CACHE).map(key => caches.delete(key)));
+    // Keep the most recently installed, verified previous shell so already
+    // open tabs retain the old hashed assets when offline during an upgrade.
+    const older = keys.filter(key => key.startsWith('taiyou-shell-') && key !== SHELL_CACHE);
+    await Promise.all(older.slice(0, -1).map(key => caches.delete(key)));
     await self.clients.claim();
   })());
 });
@@ -92,10 +95,21 @@ self.addEventListener('fetch', event => {
     // shell fail. Cache storage is distinct from the HTTP cache and is safe here.
     if (shellUrls.includes(url.href)) {
       const cache = await caches.open(SHELL_CACHE);
-      // Match the precached canonical asset URL, not the browser's reload
-      // Request whose Accept/Vary headers may differ from install-time fetches.
+      // Match the exact precached asset URL; do not ignore search parameters.
       const cached = await cache.match(url.href);
       if (cached) return cached;
+    }
+    // A tab opened before this worker installed can still request an older
+    // hashed asset. Fallback only to a verified previous same-origin shell.
+    // The API, OAuth and cross-origin exclusions above remain authoritative.
+    if (url.pathname.startsWith('/assets/')) {
+      const older = (await caches.keys()).filter(key =>
+        key.startsWith('taiyou-shell-') && key !== SHELL_CACHE);
+      const previousKey = older.at(-1);
+      if (previousKey) {
+        const cached = await (await caches.open(previousKey)).match(url.href);
+        if (cached) return cached;
+      }
     }
     return fetch(request);
   })());
