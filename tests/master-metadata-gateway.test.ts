@@ -43,7 +43,7 @@ async function edit(cookie:string, updates:Record<string,unknown>={},
     method:'POST',headers:{Cookie:cookie,Origin:origin,
       'X-Taiyou-Request':marker,'Content-Type':'application/json'},
     body:JSON.stringify({id,expectedTitle:'Abe the Wizard',
-      title:'Abe the Wizard: Corrected',author:'Correct Writer',...updates}),
+      expectedAuthor:'Original Author',title:'Abe the Wizard: Corrected',author:'Correct Writer',...updates}),
   }),env });
 }
 function fakeDataset() {
@@ -94,7 +94,7 @@ describe('Master Controls owner-only catalogue metadata corrections',()=>{
     const own=await cookies();
     fakeDataset();
     for(const changes of [
-      {expectedTitle:'Older title'},{id:'0'.repeat(24)},
+      {expectedTitle:'Older title'},{expectedAuthor:'Stale Author'},{id:'0'.repeat(24)},
       {title:'Different Book',author:'Other Writer'},
       {title:''},{author:''},
     ]) {
