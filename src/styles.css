@@ -1488,3 +1488,25 @@ a.details-top-title:focus-visible { outline: 2px solid #8088ac; outline-offset: 
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap
 }
 .reader-chapter-picker-list .chapter-picker-spacer {flex:0 0 auto;width:1px;pointer-events:none}
+
+/* Backup is now an explicit step in the Owner deletion modal. */
+.owner-dialog .owner-backup-step {
+  padding:14px 15px;margin:12px 0 15px;
+  background:var(--pale);color:var(--text);
+  border:1px solid var(--border);border-left:3px solid var(--accent);
+  border-radius:9px;
+}
+.owner-dialog .owner-backup-step strong {display:block;font-size:13px}
+.owner-dialog .owner-backup-step p {
+  font-size:12px;line-height:1.55;color:var(--subtext);margin:7px 0 12px;
+}
+.owner-dialog .owner-backup-step .secondary-button {
+  margin:0;min-height:40px;
+  background:var(--text);border-color:var(--text);color:var(--surface);
+}
+.owner-dialog .owner-backup-step .secondary-button:hover:not(:disabled) {
+  background:color-mix(in srgb,var(--text) 80%,var(--accent));
+}
+.owner-dialog .owner-backup-step .owner-backup-ready {
+  font-weight:700;color:var(--text);margin:12px 0 0;
+}

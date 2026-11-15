@@ -353,3 +353,57 @@
   position:relative;opacity:1;transition:opacity .2s ease;
 }
 .editorial-home .editorial-shelf-details strong {display:block;min-width:0}
+
+/* Editorial index: deliberate, easily visible contrast rather than a pale
+   hover too close to the original parchment. Respect all six app palettes. */
+.editorial-home {
+  --journal-row-hover:#ead6b3;
+  --journal-row-stripe:#9d7843;
+}
+.theme-light .editorial-home {
+  --journal-row-hover:#e2ecf9;--journal-row-stripe:#476b9c;
+}
+.theme-ocean .editorial-home {
+  --journal-row-hover:#d1e7f7;--journal-row-stripe:#347eac;
+}
+.theme-dark .editorial-home {
+  --journal-row-hover:#3a485c;--journal-row-stripe:#a9c2e7;
+}
+.theme-midnight .editorial-home {
+  --journal-row-hover:#2c4769;--journal-row-stripe:#c5d7f1;
+}
+.theme-plum .editorial-home {
+  --journal-row-hover:#564063;--journal-row-stripe:#e2b3df;
+}
+.editorial-home .editorial-index-row {
+  transition:background-color .19s ease,box-shadow .19s ease;
+}
+.editorial-home .editorial-index-row:hover,
+.editorial-home .editorial-index-row:focus-visible {
+  background:var(--journal-row-hover);
+  box-shadow:inset 4px 0 0 var(--journal-row-stripe);
+  color:var(--text);
+}
+.editorial-home .editorial-index-row .editorial-index-name strong {
+  transition:transform .19s ease;
+}
+.editorial-home .editorial-index-row:hover .editorial-index-name strong,
+.editorial-home .editorial-index-row:focus-visible .editorial-index-name strong {
+  transform:translateX(5px);
+}
+.editorial-home .editorial-index-row:hover .editorial-index-name small,
+.editorial-home .editorial-index-row:hover .editorial-index-genre,
+.editorial-home .editorial-index-row:hover .editorial-index-state {
+  color:var(--text);
+}
+.editorial-home .editorial-text-link:hover,
+.editorial-home .editorial-index-more:hover {
+  background:var(--journal-row-hover);
+  box-shadow:0 0 0 5px var(--journal-row-hover);
+  color:var(--text);
+}
+@media(prefers-reduced-motion:reduce) {
+ .editorial-home .editorial-index-row,
+ .editorial-home .editorial-index-row .editorial-index-name strong {transition:none}
+ .editorial-home .editorial-index-row:hover .editorial-index-name strong {transform:none}
+}

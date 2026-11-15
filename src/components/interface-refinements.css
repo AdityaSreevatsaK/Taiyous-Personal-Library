@@ -531,3 +531,26 @@
    display:inline-flex;align-items:center;justify-content:center;padding:0 11px;
  }
 }
+
+/* The previous permanent #352a22 settings pill blended into Plum's #30273a
+   surface, and looked unrelated to the other five themes. Inverted semantic
+   tokens give strong contrast on both dark and light backgrounds. */
+.app-shell .topbar .cloud-connect-head > .secondary-button {
+  background:var(--text);border-color:var(--text);color:var(--surface);
+  font-weight:750;
+}
+.app-shell .topbar .cloud-connect-head > .secondary-button:hover:not(:disabled) {
+  background:color-mix(in srgb,var(--text) 78%,var(--accent));
+  border-color:var(--text);color:var(--surface);
+  filter:none;box-shadow:0 0 0 2px color-mix(in srgb,var(--accent) 35%,transparent);
+}
+.app-shell .topbar .cloud-connect-head > .secondary-button:focus-visible {
+  outline:3px solid var(--accent);outline-offset:3px;
+}
+
+/* Changing a palette must never animate through unreadable intermediate
+   combinations of foreground and background. Keep Settings solid immediately. */
+.app-shell .topbar .cloud-connect-head > .secondary-button,
+.app-shell .topbar .cloud-connect-head > .secondary-button:hover:not(:disabled) {
+  transition:none;
+}

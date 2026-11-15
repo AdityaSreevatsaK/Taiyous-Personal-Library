@@ -968,6 +968,14 @@ try {
               author:'Synthetic Writer',originalFileName:'bulk.epub',importedAt:1,
               progress:0,size:0});
           }
+          // Different immutable IDs, identical title and author, one hosted
+          // and one local-only. The test NEVER submits a destructive action.
+          for(const [id, cloud] of [
+            ['aaaaaaaaaaaaaaaaaaaaaaaa',false],
+            ['bbbbbbbbbbbbbbbbbbbbbbbb',true],
+          ]) tx.objectStore('books').put({id,cloud,title:'Shared Duplicate',
+            author:'Same Writer',originalFileName:'shared.epub',
+            importedAt:1,progress:2,size:1024});
           await new Promise((resolve,reject)=>{tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error)});
           db.close();
         });
@@ -986,6 +994,50 @@ try {
         await adminPage.waitForFunction(() =>
           document.querySelectorAll('.master-controls .master-manage').length>=65,{timeout:10000});
         console.log('Master lazy-loading passed: '+await adminPage.getByRole('button',{name:'Manage novel'}).count()+' records');
+        // Delete copy must OPEN a visible Owner dialogue, not report a hidden
+        // prerequisite under a collapsed book. No real files or data deleted.
+        const duplicateDelete = adminPage.getByRole('button',{name:'Delete copy…'}).first();
+        await duplicateDelete.click();
+        const confirmDialog = adminPage.getByRole('dialog',{name:/Remove local novel|Delete cloud-hosted novel/});
+        await confirmDialog.waitFor({timeout:10000});
+        await confirmDialog.getByRole('button',{name:'Export EPUB backup'}).waitFor();
+        await confirmDialog.getByLabel('Confirm title').fill('Shared Duplicate');
+        await confirmDialog.getByRole('checkbox').check();
+        const dangerous = confirmDialog.getByRole('button',{name:/Delete local novel|Delete novel from cloud/});
+        if(!(await dangerous.isDisabled())) throw new Error('Deletion must be blocked until EPUB export succeeds');
+        await confirmDialog.getByRole('button',{name:'Cancel',exact:true}).click();
+        if(await adminPage.getByRole('dialog').count()) throw new Error('Owner deletion modal failed to close');
+        // Also check the journal's Plum hover and a genuinely contrasting
+        // Settings capsule without altering stored theme preferences.
+        await adminPage.goto(baseUrl+'/',{waitUntil:'domcontentloaded'});
+        const journalRow=adminPage.locator('.editorial-index-row').first();
+        await journalRow.waitFor({state:'visible',timeout:12000});
+        await adminPage.evaluate(()=>{
+          const app=document.querySelector('.app-shell');
+          if(!app)throw new Error('App shell missing');
+          for(const name of ['theme-sepia','theme-light','theme-dark','theme-midnight','theme-ocean','theme-plum'])
+            app.classList.remove(name);
+          app.classList.add('theme-plum');
+        });
+        const before=await journalRow.evaluate(el=>getComputedStyle(el).backgroundColor);
+        await journalRow.hover();
+        await adminPage.waitForTimeout(240);
+        const after=await journalRow.evaluate(el=>getComputedStyle(el).backgroundColor);
+        if(before===after)throw new Error('Journal row hover has no contrasting visual state in Plum theme');
+        const settings=adminPage.getByRole('button',{name:'Settings',exact:true});
+        const contrast=await settings.evaluate(el=>{
+          const cs=getComputedStyle(el);
+          const rgb=color=>[...(color.match(/\d+(?:\.\d+)?/g)||[])].slice(0,3).map(Number);
+          const luminance=(color)=>{
+            const [r,g,b]=rgb(color).map(v=>{const s=v/255;return s<=0.04045?s/12.92:Math.pow((s+0.055)/1.055,2.4)});
+            return 0.2126*r+0.7152*g+0.0722*b;
+          };
+          const a=luminance(cs.color),b=luminance(cs.backgroundColor);
+          return (Math.max(a,b)+0.05)/(Math.min(a,b)+0.05);
+        });
+        if(contrast<4.5)throw new Error('Plum Settings button text contrast failed: '+contrast.toFixed(2)+':1');
+        console.log('Owner deletion preflight and Plum hover/contrast checks passed');
+
       } finally {
         await adminPage.close();
         await context.close();

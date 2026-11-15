@@ -107,3 +107,79 @@
 
 .master-record-actions{display:flex;flex-wrap:wrap;align-items:center;gap:7px}
 .master-record-actions .master-danger-outline{border-color:#a46b6b}
+
+/* Semantic, theme-safe Owner administration. Hard-coded brown-on-plum warning
+   text and unstyled native archive buttons previously failed contrast. */
+.master-controls {
+  --master-danger-ink:#903b47; --master-danger-fill:#873c47;
+  --master-notice-bg:color-mix(in srgb,var(--accent) 9%,var(--surface));
+}
+.master-controls.theme-dark,.master-controls.theme-midnight,.master-controls.theme-plum {
+  --master-danger-ink:#ffc1c9; --master-danger-fill:#853b50;
+  --master-notice-bg:color-mix(in srgb,var(--accent) 14%,var(--surface));
+}
+.master-controls .master-duplicate,
+.master-controls .master-duplicate-guidance {
+  color:var(--text)!important;
+}
+.master-controls td small.master-duplicate {
+  color:var(--subtext)!important;font-weight:650;line-height:1.5;
+}
+.master-controls .master-duplicate-guidance {
+  display:block;padding:13px 16px;border-radius:8px;
+  border:1px solid var(--border);border-left:3px solid var(--accent);
+  color:var(--text)!important;background:var(--master-notice-bg);
+}
+.master-controls .master-danger-outline,
+.master-controls td .master-danger-outline,
+.master-controls .master-record-actions .master-danger-outline {
+  background:transparent;border:1px solid var(--master-danger-ink);
+  color:var(--master-danger-ink);
+}
+.master-controls .master-danger-outline:hover:not(:disabled),
+.master-controls td .master-danger-outline:hover:not(:disabled) {
+  background:var(--master-danger-fill);border-color:var(--master-danger-fill);
+  color:#fff;filter:none;
+}
+.master-controls .master-warning {
+  background:var(--master-notice-bg);border-color:var(--accent);color:var(--text);
+}
+.master-controls .master-success {
+  background:color-mix(in srgb,#2e9668 17%,var(--surface));
+  border-color:color-mix(in srgb,#399d70 65%,var(--border));
+  color:var(--text);
+}
+.master-controls .master-panel > .master-archive-button {
+  display:inline-flex;align-items:center;justify-content:center;
+  padding:11px 17px;min-height:42px;max-width:100%;
+  background:var(--accent);color:var(--accent-ink);border:1px solid var(--accent);
+  border-radius:9px;font-size:12px;line-height:1.4;font-weight:750;
+  text-align:center;cursor:pointer;white-space:normal;
+  transition:background-color .17s ease,box-shadow .17s ease,transform .17s ease;
+}
+.master-controls .master-panel > .master-archive-button:hover:not(:disabled) {
+  background:color-mix(in srgb,var(--accent) 80%,var(--text));
+  border-color:var(--text);color:var(--accent-ink);
+  box-shadow:0 5px 18px color-mix(in srgb,var(--accent) 24%,transparent);
+  filter:none;transform:translateY(-1px);
+}
+.master-controls .master-row-notice {
+  display:block;flex:1 0 100%;max-width:270px;font-size:11px;
+  line-height:1.45;color:var(--text);overflow-wrap:anywhere;
+}
+.master-controls .master-row-notice.is-error,
+.master-controls .master-result.is-error {
+  color:var(--master-danger-ink);font-weight:700;
+}
+.master-controls .master-search input::placeholder { color:var(--subtext);opacity:1; }
+.master-controls tbody tr:not(.master-expanded-row):not(.master-lazy-trigger):hover {
+  background:color-mix(in srgb,var(--accent) 8%,var(--surface));
+}
+.master-controls tbody tr:not(.master-expanded-row):not(.master-lazy-trigger) {
+  transition:background-color .16s ease;
+}
+@media(prefers-reduced-motion:reduce) {
+ .master-controls .master-panel > .master-archive-button,
+ .master-controls tbody tr {transition:none}
+ .master-controls .master-panel > .master-archive-button:hover {transform:none}
+}

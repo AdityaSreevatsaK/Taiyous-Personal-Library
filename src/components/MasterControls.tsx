@@ -3,6 +3,7 @@ import { AlertTriangle, Check, LockKeyhole, Search, ShieldCheck, ShieldOff, Tras
 import type { LibraryBook, ReaderTheme } from '../types';
 import { normalizeTags } from '../lib/tags';
 import { ratingLabel } from '../lib/ratings';
+import { isFinished } from '../lib/reading-status';
 import { getOwnerStatus, ownerPost, type OwnerStatus } from '../lib/owner';
 import './master-controls.css';
 
@@ -44,6 +45,7 @@ function BookRow({ book, onCorrectMetadata, onMarkCompleted, onResetProgress,
   const [notes, setNotes] = useState(book.personalReview || '');
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState('');
+  const [resultError, setResultError] = useState(false);
   useEffect(() => {
     if (!result) return;
     const timeout = window.setTimeout(() => setResult(''), 8000);
@@ -60,9 +62,9 @@ function BookRow({ book, onCorrectMetadata, onMarkCompleted, onResetProgress,
 
   async function run(action: () => Promise<void>, success: string) {
     if (busy) return;
-    setBusy(true); setResult('');
+    setBusy(true); setResult(''); setResultError(false);
     try { await action(); setResult(success); }
-    catch (reason) { setResult(errorMessage(reason)); }
+    catch (reason) { setResultError(true); setResult(errorMessage(reason)); }
     finally { setBusy(false); }
   }
   const newTitle = title.trim().replace(/\s+/g, ' ');
@@ -79,7 +81,7 @@ function BookRow({ book, onCorrectMetadata, onMarkCompleted, onResetProgress,
         {duplicate && <small className="master-duplicate">Possible local/hosted duplicate, both preserved</small>}
       </td>
       <td>{book.cloud ? 'Private cloud' : 'This browser'}{book.progressUpdatedAt && book.pendingProgressSync ? <small>Progress awaiting sync</small> : null}</td>
-      <td>{book.progress >= 99.5 ? 'Finished' : book.progress > 0 ? 'Reading' : 'Not started'}
+      <td>{isFinished(book) ? 'Finished' : book.progress > 0 ? 'Reading' : 'Not started'}
         {book.progress > 0 && <small>{Math.round(book.progress)}% · {book.currentChapter || 'Position saved'}</small>}
       </td>
       <td>{book.personalRating ? book.personalRating + '/10 · ' + ratingLabel(book.personalRating) : 'Not rated'}</td>
@@ -89,10 +91,12 @@ function BookRow({ book, onCorrectMetadata, onMarkCompleted, onResetProgress,
           {expanded ? 'Close controls' : 'Manage novel'}
         </button>
         {duplicate && <button type="button" className="master-danger-outline"
-          disabled={busy} title="Requires exporting this exact EPUB first"
+          disabled={busy} title="Opens protected deletion with an EPUB backup step"
           onClick={() => void run(() => onDeleteNovel(book.id), 'Opening protected deletion confirmation')}>
           Delete copy…
         </button>}
+        {!expanded && result && <span className={'master-row-notice' + (resultError ? ' is-error' : '')}
+          role={resultError ? 'alert' : 'status'}>{result}</span>}
       </div></td>
     </tr>
     {expanded && <tr className="master-expanded-row" id={'master-edit-' + book.id}><td colSpan={5}>
@@ -157,7 +161,7 @@ function BookRow({ book, onCorrectMetadata, onMarkCompleted, onResetProgress,
       </div>
       <div className="master-reading-controls">
         <div><h3>Reading progress</h3><p>{book.progress > 0 ? Math.round(book.progress) + '% complete' : 'Not started'}{book.currentChapterNumber ? ' · Chapter ' + book.currentChapterNumber : ''}. Notes, ratings and the EPUB are unaffected by these actions.</p></div>
-        <button type="button" disabled={busy || book.progress >= 99.5}
+        <button type="button" disabled={busy || isFinished(book)}
           onClick={() => {
             if (window.confirm('Mark ' + book.title + ' as completed?')) {
               void run(() => onMarkCompleted(book.id), 'Marked as completed');
@@ -173,7 +177,8 @@ function BookRow({ book, onCorrectMetadata, onMarkCompleted, onResetProgress,
         <button type="button" className="master-danger-outline" disabled={busy}
           onClick={() => void run(() => onDeleteNovel(book.id), 'Opening protected deletion confirmation')}>Delete this copy…</button>
       </div>
-      {result && <p className="master-result" role="status">{result}</p>}
+      {result && <p className={'master-result' + (resultError ? ' is-error' : '')}
+        role={resultError ? 'alert' : 'status'}>{result}</p>}
     </td></tr>}
   </>;
 }
@@ -315,7 +320,7 @@ export default function MasterControls({
       {staleCount > 0 && <section className="master-panel" aria-labelledby="master-stale-heading">
         <h2 id="master-stale-heading">Historical browser records</h2>
         <p>{staleCount} old entries are absent from the verified cloud catalogue and have no EPUB saved here. They are hidden, but their annotations remain on this device.</p>
-        <button type="button" className="master-manage" disabled={busy} onClick={() => {
+        <button type="button" className="master-archive-button" disabled={busy} onClick={() => {
           if (!window.confirm('Export a JSON backup, then archive only records that are absent from the live private cloud catalogue and have no local EPUB? No EPUB or cloud data will be deleted.')) return;
           setBusy(true); setError(''); setMessage('');
           void onArchiveStale().then(count => setMessage(count + ' historical records archived safely. Their metadata and progress remain recoverable from the exported JSON and browser archive.'))
