@@ -307,6 +307,24 @@ try {
     await grand.waitFor({ state: 'visible' });
     await page.locator('.editorial-journal').waitFor({ state: 'visible' });
     await page.locator('.editorial-index-row').first().waitFor();
+    if (await page.getByText('Keep the story close.', {exact:true}).count()) {
+      throw new Error('Decorative sidebar quote must be removed');
+    }
+    // Sidebar stats are actual shelf navigation. Hover must visibly change the
+    // background, unlike the old transparent-white treatment.
+    const stat = page.locator('.editorial-margin-stats > button').first();
+    const statBefore = await stat.evaluate(el => getComputedStyle(el).backgroundColor);
+    await stat.hover();
+    await page.waitForTimeout(225);
+    const statAfter = await stat.evaluate(el => getComputedStyle(el).backgroundColor);
+    if (statBefore === statAfter) throw new Error('Reading-statistics hover has no contrasting background');
+    await page.evaluate(() => window.scrollTo({top:document.documentElement.scrollHeight,behavior:'instant'}));
+    await page.waitForFunction(() => window.scrollY > 420, {timeout:10000});
+    const backToTop = page.getByRole('button',{name:'Back to top'});
+    await backToTop.waitFor({state:'visible'});
+    await backToTop.click();
+    await page.waitForFunction(() => window.scrollY < 10, {timeout:10000});
+    if (await backToTop.count()) throw new Error('Back to top control did not disappear at page top');
     if (await page.locator('#library-full-catalogue, .book-grid').count()) {
       throw new Error('Homepage must NOT render the entire catalogue below the Literary Journal');
     }
@@ -374,6 +392,11 @@ try {
     // The existing detail action first resolves EPUB availability asynchronously.
     await page.waitForURL('**/novels/sample-library-book');
     await page.getByRole('heading', { name: 'Sample Library Book' }).waitFor();
+    const detailsOrder = await page.locator('.details-aside > .details-card').evaluateAll(nodes =>
+      nodes.map(node => [...node.classList].find(value => /details-(tags|review|management)-card/.test(value))).filter(Boolean));
+    if (detailsOrder.join(',') !== 'details-tags-card,details-review-card,details-management-card') {
+      throw new Error('Novel management order must be Tags, Comments, Manage: ' + detailsOrder.join(','));
+    }
     await page.getByRole('link', { name: "Taiyou's Personal Library home" }).click();
     await page.locator('.editorial-grand').waitFor({ state: 'visible' });
     // Dedicated advanced search must work with loaded novels on desktop and mobile.
