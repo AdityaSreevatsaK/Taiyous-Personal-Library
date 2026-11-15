@@ -207,10 +207,10 @@ try {
     await page.waitForURL('**/library');
     for (const [name, path, heading] of [
       [/Trying out/, '/trying-out', /Trying out/],
-      [/Currently reading/, '/currently-reading', /Your library/],
-      [/To be read/, '/to-be-read', /Your library/],
-      [/Finished/, '/finished', /Your library/],
-      [/Available offline/, '/offline', /Offline library/],
+      [/Currently reading/, '/currently-reading', /Currently reading/],
+      [/To be read/, '/to-be-read', /To be read/],
+      [/Finished/, '/finished', /Finished/],
+      [/Available offline/, '/offline', /Available offline/],
     ]) {
       await navigateShelf(name, path === '/trying-out' ? 'trying' : path === '/currently-reading' ? 'reading' : path === '/to-be-read' ? 'unread' : path === '/finished' ? 'finished' : 'offline');
       await page.waitForURL('**' + path);
