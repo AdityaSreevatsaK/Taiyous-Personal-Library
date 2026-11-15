@@ -547,3 +547,10 @@
 .app-shell .topbar .cloud-connect-head > .secondary-button:focus-visible {
   outline:3px solid var(--accent);outline-offset:3px;
 }
+
+/* Changing a palette must never animate through unreadable intermediate
+   combinations of foreground and background. Keep Settings solid immediately. */
+.app-shell .topbar .cloud-connect-head > .secondary-button,
+.app-shell .topbar .cloud-connect-head > .secondary-button:hover:not(:disabled) {
+  transition:none;
+}
