@@ -60,9 +60,9 @@
 .master-controls th:nth-child(5){width:24%}
 .master-controls td strong,.master-controls td small{display:block}
 .master-controls td small{font-size:10px;color:var(--subtext);margin-top:4px}
-.master-row-actions{display:flex;gap:5px;flex-wrap:wrap;min-width:0}
-.master-row-actions button{flex:1 1 auto;white-space:nowrap}
-.master-row-actions small{width:100%}
+.master-row-actions{min-width:0;white-space:normal}
+.master-row-actions button{display:inline-flex;white-space:nowrap;margin:3px 2px}
+.master-row-actions small{display:block;width:100%}
 .master-pages{display:flex;justify-content:flex-end;gap:8px;align-items:center;flex-wrap:wrap}
 .master-pages span{margin-right:auto;font-size:11px;color:var(--subtext)}
 @media(max-width:700px){
