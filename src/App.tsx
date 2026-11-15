@@ -1096,7 +1096,7 @@ export default function App() {
       try {
         await saveCloudReadingProgress(cloudRepo, entry.id, cloudSession, updated);
         const latest = booksRef.current.find(book => book.id === id);
-        if (latest?.progressUpdatedAt === updated.progressUpdatedAt) {
+        if (latest && latest.progressUpdatedAt === updated.progressUpdatedAt) {
           const synced = { ...latest, pendingProgressSync: false };
           await updateBook(synced);
           booksRef.current = booksRef.current.map(book => book.id === id ? synced : book);

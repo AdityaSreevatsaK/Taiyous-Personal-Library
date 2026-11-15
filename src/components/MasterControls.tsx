@@ -29,7 +29,7 @@ function errorMessage(reason: unknown) {
 }
 
 /** Each immutable record is managed independently. Edits never replace an EPUB. */
-function BookRow({ book, onSaveRating, onCorrectMetadata, onMarkCompleted, onResetProgress,
+function BookRow({ book, onCorrectMetadata, onMarkCompleted, onResetProgress,
   onSaveTags, onSaveSummary, onSaveReview, onExportEpub, duplicate }: RowProps) {
   const [expanded, setExpanded] = useState(false);
   const [title, setTitle] = useState(book.title);
