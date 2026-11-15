@@ -70,3 +70,31 @@
  .master-panel,.master-unlock{padding:15px}
  .master-controls{padding:10px 0 40px}
 }
+
+/* Compact records expand into independently editable, keyboard-accessible panels. */
+.master-controls th:nth-child(1){width:30%}
+.master-controls th:nth-child(2){width:15%}
+.master-controls th:nth-child(3){width:20%}
+.master-controls th:nth-child(4){width:12%}
+.master-controls th:nth-child(5){width:23%}
+.master-controls td:first-child{width:auto}
+.master-record-active{background:var(--pale)}
+.master-expanded-row td{background:var(--surface);padding:19px 14px 25px}
+.master-record-info{display:flex;gap:10px 18px;flex-wrap:wrap;font-size:11px;color:var(--subtext);margin-bottom:18px;overflow-wrap:anywhere}
+.master-record-info a{color:var(--text);text-decoration:underline}
+.master-editor-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.master-editor-group{border:1px solid var(--border);border-radius:10px;padding:15px;display:flex;flex-direction:column;gap:8px;min-width:0}
+.master-editor-group h3,.master-reading-controls h3{font:600 16px/1.3 Georgia,serif;margin:0 0 4px}
+.master-editor-group label{font-size:11px;font-weight:750}
+.master-controls .master-editor-group input,.master-controls .master-editor-group select,.master-controls .master-editor-group textarea{width:100%;max-width:100%;min-height:38px;padding:9px 11px;border:1px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text);font:12px/1.5 Inter,"Segoe UI",sans-serif}
+.master-controls .master-editor-group textarea{resize:vertical;min-height:72px}
+.master-editor-group p,.master-reading-controls p{font-size:11px;line-height:1.5;color:var(--subtext);margin:4px 0}
+.master-editor-group>button{align-self:flex-start;margin-top:auto}
+.master-reading-controls{margin-top:16px;padding:16px;border:1px solid var(--border);border-radius:10px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.master-reading-controls>div{flex:1 1 250px}
+.master-controls .master-danger-outline{border-color:#9d5153;color:#923d43;background:transparent}
+.master-controls .master-danger-outline:hover:not(:disabled){background:#79343c;color:#fff}
+.master-duplicate,.master-duplicate-guidance{color:#8b5135!important;font-weight:650}
+.master-duplicate-guidance{font-size:12px;background:var(--pale);padding:10px;border-radius:8px}
+.master-result{margin:12px 0 0;font-size:12px;overflow-wrap:anywhere}
+@media(max-width:800px){.master-editor-grid{grid-template-columns:1fr}.master-expanded-row td{padding:12px 8px}}
