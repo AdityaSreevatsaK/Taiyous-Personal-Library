@@ -1379,7 +1379,7 @@ a.details-top-title:focus-visible { outline: 2px solid #8088ac; outline-offset: 
   }
   .details-shell .details-progress-card .details-label,
   .details-shell .details-progress-card .details-section-icon {display:none}
-  .details-shell .details-progress-card h2 {
+  .details-shell .details-progress-card .details-section-header h2 {
     margin:0; font:500 17px/1.2 Georgia,serif; letter-spacing:0;
   }
   .details-shell .details-progress-card .details-percent {
