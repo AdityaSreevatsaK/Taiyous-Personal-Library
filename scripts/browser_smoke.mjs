@@ -203,14 +203,28 @@ try {
     if (await recordToggle.isChecked()) throw new Error('Analytics opt-out does not work');
     await recordToggle.check();
     await page.getByRole('button', { name: 'Clear analytics' }).waitFor();
+    const analyticsBars = await page.locator('.usage-chart-track').evaluateAll(items =>
+      items.map(item => {
+        const children = [...item.children];
+        return {
+          separate:children.length === 2 &&
+            children[0].classList.contains('usage-chart-app') &&
+            children[1].classList.contains('usage-chart-reading'),
+          colors:children.map(child=>getComputedStyle(child).backgroundColor),
+        };
+      }));
+    if (analyticsBars.length !== 14 || analyticsBars.some(item =>
+      !item.separate || item.colors[0] === item.colors[1])) {
+      throw new Error('Last 14 days must display two adjacent, differently coloured bars');
+    }
     await navigateShelf(/All books/, 'all');
     await page.waitForURL('**/library');
     for (const [name, path, heading] of [
       [/Trying out/, '/trying-out', /Trying out/],
-      [/Currently reading/, '/currently-reading', /Your library/],
-      [/To be read/, '/to-be-read', /Your library/],
-      [/Finished/, '/finished', /Your library/],
-      [/Available offline/, '/offline', /Offline library/],
+      [/Currently reading/, '/currently-reading', /Currently reading/],
+      [/To be read/, '/to-be-read', /To be read/],
+      [/Finished/, '/finished', /Finished/],
+      [/Available offline/, '/offline', /Available offline/],
     ]) {
       await navigateShelf(name, path === '/trying-out' ? 'trying' : path === '/currently-reading' ? 'reading' : path === '/to-be-read' ? 'unread' : path === '/finished' ? 'finished' : 'offline');
       await page.waitForURL('**' + path);
@@ -247,6 +261,16 @@ try {
     if (await page.locator('.empty-feature').count()) {
       throw new Error('Oversized empty-state hero must not obscure the bookshelf');
     }
+    // Direct access to Master Controls must never reveal record editing until
+    // Owner mode is authenticated by the production server.
+    await page.getByRole('button', { name: 'Open Master Controls' }).click();
+    await page.waitForURL('**/master-controls');
+    await page.getByRole('heading', { name: 'Master Controls' }).waitFor();
+    if (await page.locator('.master-controls table').count()) {
+      throw new Error('Master Controls exposed private management tools without Owner unlock');
+    }
+    await page.getByRole('button', { name: 'Back to library' }).click();
+    await page.waitForURL('**/library');
     // Seed a synthetic, local-only book so CI tests details without accessing the real dataset.
     await page.evaluate(async (epubData) => {
       const request = indexedDB.open('folio-personal-library-v1', 2);
@@ -291,6 +315,13 @@ try {
       throw new Error('Curated home exceeded its small, bounded selections');
     }
     await page.getByRole('button', { name: 'Browse tag Fantasy' }).waitFor();
+    if (await page.locator('.editorial-grand-ledger button').count() !== 4 ||
+        await page.locator('.editorial-margin-stats button').count() !== 4) {
+      throw new Error('Clickable reading counters, including Finished, must exist in both home summaries');
+    }
+    if (await page.locator('.editorial-shelf-card .cover').count()) {
+      throw new Error('Genre shelves may not display a fake cover when no real cover artwork exists');
+    }
     if (await page.getByText('GENRE & TAG', { exact: true }).count()) {
       throw new Error('Home genre cards must not repeat the redundant genre/tag caption');
     }
@@ -299,7 +330,7 @@ try {
     if (!(await grand.getByRole('heading', { name: /Where worlds unfold/ }).count())) {
       throw new Error('Grand Library title is absent');
     }
-    await page.getByRole('button', { name: /Browse all 1 novel/ }).click();
+    await page.locator('.editorial-browse-all').click();
     await page.waitForURL('**/library');
     await page.getByRole('button', { name: 'View details for Sample Library Book' }).waitFor();
     const catalogueCaption = await page.locator('.book-tile').first().evaluate(tile => ({
@@ -355,13 +386,13 @@ try {
     await page.getByRole('heading', { name: 'No matching books' }).waitFor();
     await page.getByRole('button', { name: 'Back to shelf' }).click();
     // Local EPUBs must be listed on the Offline tab without requiring a cloud token.
-    await page.locator('.filter-tabs').getByRole('button', { name: 'Offline' }).click();
+    await navigateShelf(/Available offline/, 'offline');
     await page.locator('.offline-management-bar').waitFor({ state: 'visible' });
     await page.getByRole('button', { name: 'View details for Sample Library Book' }).waitFor();
     if (await page.getByRole('button', { name: 'Remove offline EPUB for Sample Library Book' }).count()) {
       throw new Error('Must not allow removing the only local-only EPUB with no verified cloud copy');
     }
-    await page.locator('.filter-tabs').getByRole('button', { name: 'All', exact: true }).click();
+    await navigateShelf(/All books/, 'all');
     if (await page.locator('.offline-health').count()) throw new Error('Offline status shown outside Offline tab');
     await page.getByRole('button', { name: 'View details for Sample Library Book' }).click();
     await page.waitForURL('**/novels/sample-library-book');
@@ -764,7 +795,11 @@ try {
         const startup = await freshPage.goto(baseUrl + '/', { waitUntil: 'domcontentloaded', timeout: 20000 });
         if (!startup?.ok()) throw new Error('Offline cold launch returned HTTP ' + startup?.status());
         await freshPage.locator('.app-shell').waitFor({ state: 'visible', timeout: 10000 });
-        await freshPage.locator('.filter-tabs button.selected').getByText('Offline').waitFor();
+        if (viewport.width <= 700) {
+          await freshPage.locator('.mobile-shelf-nav button.selected').getByText('Offline').waitFor();
+        } else {
+          await freshPage.locator('.top-nav-link.active').getByText('Available offline').waitFor();
+        }
         await freshPage.getByRole('button', { name: 'View details for Sample Library Book' }).click();
         await freshPage.getByRole('button', { name: /^(Start|Continue) reading$/ }).click();
         await freshPage.locator('.reader-page iframe').first().waitFor({ state: 'visible', timeout: 20000 });
@@ -849,15 +884,22 @@ try {
         await fastPage.getByRole('button', { name:'View details for Long Cultivation: My Augmented Statuses Have Unlimited Duration' }).waitFor();
         await fastPage.locator('.tile-trying-status').waitFor();
         await fastPage.locator('.tile-progress-value').first().waitFor();
+        const fiveTagTile = fastPage.locator('.book-tile').filter({hasText:'Long Cultivation: My Augmented Statuses'});
+        if (await fiveTagTile.locator('.tile-tags button').count() !== 5 ||
+            await fastPage.getByText('NOT STARTED', {exact:true}).count()) {
+          throw new Error('Catalogue must show five tags and omit Not Started labels');
+        }
         const metrics = await fastPage.locator('.book-grid .book-tile').evaluateAll(cards => cards.map(card => {
           const box = card.getBoundingClientRect();
+          const cover = card.querySelector('.cover-button > .cover').getBoundingClientRect();
           const tags = card.querySelector('.tile-tags');
           const footer = card.querySelector('.tile-bottom');
           const chips = [...tags.children].map(chip => chip.getBoundingClientRect().top);
           const tagRect = tags.getBoundingClientRect();
           return {
-            cardTop: box.top, tagsTop: tagRect.top, tagsHeight: tagRect.height,
-            footerTop: footer.getBoundingClientRect().top,
+            cardTop: box.top, coverHeight:cover.height, coverRatio:cover.width/cover.height,
+            tagsTop: tagRect.top, tagsHeight: tagRect.height,
+            footerTop: getComputedStyle(footer).display === 'none' ? null : footer.getBoundingClientRect().top,
             chipRows: chips.length === 0 ? 1 : new Set(chips.map(top => Math.round(top))).size,
             chipCount: chips.length,
             titleAlignment: getComputedStyle(card.querySelector('.tile-title')).textAlign,
@@ -865,11 +907,15 @@ try {
           };
         }));
         const firstRow = metrics.filter(item => Math.abs(item.cardTop - metrics[0].cardTop) < 2);
+        const footerBaseline = firstRow.find(item => item.footerTop !== null)?.footerTop;
         if (firstRow.length < 2 ||
-            firstRow.some(item => Math.abs(item.tagsTop - firstRow[0].tagsTop) > 2 ||
-              Math.abs(item.footerTop - firstRow[0].footerTop) > 2 ||
-              item.tagsHeight > 26 || item.chipRows > 1 ||
-              item.chipCount > 3 || item.titleAlignment !== 'center' || item.authorAlignment !== 'center')) {
+            firstRow.some(item => Math.abs(item.coverHeight - firstRow[0].coverHeight) > 2 ||
+              Math.abs(item.coverRatio - 2/3) > .025 ||
+              Math.abs(item.tagsTop - firstRow[0].tagsTop) > 2 ||
+              (item.footerTop !== null && footerBaseline !== undefined &&
+                Math.abs(item.footerTop - footerBaseline) > 2) ||
+              item.tagsHeight > 80 || item.chipRows > 3 ||
+              item.chipCount > 6 || item.titleAlignment !== 'center' || item.authorAlignment !== 'center')) {
           throw new Error('Catalogue metadata rows no longer align: ' + JSON.stringify({ viewport, firstRow }));
         }
         await fastPage.screenshot({path:`artifacts/design-screenshots/catalogue-tiles-${viewport.width}.png`,fullPage:true});

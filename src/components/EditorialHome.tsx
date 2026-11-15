@@ -11,6 +11,7 @@ interface Props {
   collections: BookCollection[];
   onBrowseCollection: (id: string) => void;
   onBrowseAll: () => void;
+  onBrowseShelf: (shelf: 'reading' | 'trying' | 'finished') => void;
   onOpen: (book: LibraryBook) => void;
   onRead: (book: LibraryBook) => void;
   onBrowseTag: (tag: string) => void;
@@ -30,7 +31,7 @@ function readingStatus(book: LibraryBook): string {
  * no fictional fixtures, separate catalogue, or replacement of owner controls.
  */
 export default function EditorialHome({
-  books, collections, onBrowseCollection, onBrowseAll, onOpen, onRead, onBrowseTag, cover,
+  books, collections, onBrowseCollection, onBrowseAll, onBrowseShelf, onOpen, onRead, onBrowseTag, cover,
 }: Props) {
   const { featured, continueReading, journal } = useMemo(() => selectHomeBooks(books), [books]);
   const readingCount = useMemo(() =>
@@ -41,6 +42,7 @@ export default function EditorialHome({
   const shelves = useMemo(() => selectHomeShelves(books, collections, 4), [books, collections]);
   const commonTags = useMemo(() => tagCounts(books).slice(0, 5), [books]);
   const trialCount = books.filter(book => book.shelfStatus === 'trying').length;
+  const completedCount = books.filter(book => book.shelfStatus !== 'trying' && book.progress >= 99.5).length;
   if (!featured) return null;
 
   return <div className="editorial-home" aria-label="Your library front page">
@@ -80,16 +82,17 @@ export default function EditorialHome({
         </div>
       </div>
       <div className="editorial-grand-ledger" aria-label="Your library at a glance">
-        <span><b>{books.length}</b> novels on your shelves</span>
-        <span><b>{readingCount}</b> journeys in progress</span>
-        <span><b>{trialCount}</b> under consideration</span>
+        <button type="button" onClick={onBrowseAll} aria-label={`Browse all ${books.length} novels`}><b>{books.length}</b> novels on your shelves</button>
+        <button type="button" onClick={() => onBrowseShelf('reading')} aria-label={`View ${readingCount} novels currently reading`}><b>{readingCount}</b> journeys in progress</button>
+        <button type="button" onClick={() => onBrowseShelf('trying')} aria-label={`View ${trialCount} novels trying out`}><b>{trialCount}</b> under consideration</button>
+        <button type="button" onClick={() => onBrowseShelf('finished')} aria-label={`View ${completedCount} finished novels`}><b>{completedCount}</b> completed</button>
       </div>
     </section>
 
     {continueReading.length > 0 && <section className="editorial-continue" aria-label="Continue reading shelf">
       <div className="editorial-section-heading">
         <div><span className="editorial-eyebrow">01 / THE READING DESK</span><h2>Continue your journey</h2></div>
-        <span className="editorial-section-aside">Other novels in progress</span>
+        <span className="editorial-section-aside">All {readingCount} novels in progress</span>
       </div>
       <div className="editorial-continue-rail">
         {continueReading.map(book => <article className="editorial-continue-card" key={book.id}>
@@ -147,9 +150,10 @@ export default function EditorialHome({
           </section>
           <section className="editorial-margin-stats">
             <span className="editorial-eyebrow">YOUR READING RECORD</span>
-            <div><strong>{books.length}</strong><span>STORIES</span></div>
-            <div><strong>{readingCount}</strong><span>IN PROGRESS</span></div>
-            <div><strong>{trialCount}</strong><span>TRYING OUT</span></div>
+            <button type="button" onClick={onBrowseAll}><strong>{books.length}</strong><span>STORIES</span></button>
+            <button type="button" onClick={() => onBrowseShelf('reading')}><strong>{readingCount}</strong><span>IN PROGRESS</span></button>
+            <button type="button" onClick={() => onBrowseShelf('trying')}><strong>{trialCount}</strong><span>TRYING OUT</span></button>
+            <button type="button" onClick={() => onBrowseShelf('finished')}><strong>{completedCount}</strong><span>FINISHED</span></button>
           </section>
           {commonTags.length > 0 && <section className="editorial-margin-topics">
             <span className="editorial-eyebrow">EXPLORE THE SHELVES</span>
@@ -172,7 +176,7 @@ export default function EditorialHome({
           key={shelf.kind + ':' + shelf.id}
           onClick={() => shelf.kind === 'collection' ? onBrowseCollection(shelf.id) : onBrowseTag(shelf.id)}
           aria-label={`Browse ${shelf.kind} ${shelf.name}`}>
-          <span className="editorial-shelf-cover" aria-hidden="true">{cover(shelf.preview)}</span>
+          {shelf.preview.coverPath && <span className="editorial-shelf-cover" aria-hidden="true">{cover(shelf.preview)}</span>}
           <span className="editorial-shelf-details">
             <strong>{shelf.name}</strong>
             <small>{shelf.count} {shelf.count === 1 ? 'novel' : 'novels'}</small>

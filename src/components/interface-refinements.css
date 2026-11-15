@@ -350,3 +350,70 @@
     width:8px;height:8px;flex:0 0 8px;
   }
 }
+
+
+/* Uniform two-to-three cover tiles and practical 5-tag previews. */
+.app-shell .book-grid .cover-button {width:100%;aspect-ratio:2/3;overflow:visible}
+.app-shell .book-grid .cover-button > .cover {
+  width:100%;height:100%;min-height:0;aspect-ratio:2/3;box-sizing:border-box;
+}
+.app-shell .book-tile .tile-title-row {min-height:42px;height:42px}
+.app-shell .book-tile .tile-title {
+  font:650 clamp(13px,1vw,15px)/1.35 "Segoe UI",Inter,system-ui,sans-serif;
+  letter-spacing:-.012em;
+  max-height:42px;
+}
+.app-shell .book-tile .tile-tags {
+  height:76px;min-height:76px;max-height:76px;
+  flex-wrap:wrap;align-content:center;align-items:center;
+  gap:4px;margin:0 0 7px;overflow:hidden;
+}
+.app-shell .book-tile .tile-tags button,
+.app-shell .book-tile .tile-tags:has(> span) button {
+  max-width:47%;min-height:22px;padding:3px 5px;
+  font-size:10px;line-height:1.25;
+}
+.app-shell .book-tile .tile-tags span {min-height:22px;font-size:10px;padding:3px 5px}
+.app-shell .book-tile .tile-bottom:empty {display:none}
+.app-shell .book-tile .tile-meta {min-height:148px}
+@media(max-width:550px){
+  .app-shell .book-tile .tile-title {font-size:13px}
+  .app-shell .book-tile .tile-tags button {font-size:9px}
+}
+/* Novel details controls keep consistent height, icon sizing and radii. */
+@media(min-width:701px){
+  .details-shell .details-hero-actions > button {
+    min-height:49px;min-width:0;border-radius:9px;
+    font:700 13px/1.3 "Segoe UI",Inter,system-ui,sans-serif;
+    padding:12px 17px;gap:9px;
+  }
+  .details-shell .details-hero-actions > button > svg {
+    width:17px;height:17px;flex:0 0 17px;
+  }
+}
+.details-shell .chapter-page-actions {display:flex;align-items:center;gap:7px}
+.details-shell .chapter-page-actions button {min-height:40px}
+@media(max-width:700px){
+  .details-shell .chapter-paging {gap:12px}
+  .details-shell .chapter-paging > span {order:-1;width:100%;text-align:center}
+  .details-shell .chapter-page-actions {flex:1 1 auto;justify-content:center}
+  .details-shell .chapter-page-actions button {padding:8px;font-size:11px}
+}
+
+
+/* Easily discoverable but unobtrusive Owner tools navigation. */
+.app-shell .top-nav-master {
+  display:inline-flex;align-items:center;justify-content:center;gap:7px;
+  min-height:36px;padding:7px 9px;border-radius:7px;
+  background:var(--pale);color:var(--text);border:1px solid var(--border);
+  font-size:11px;font-weight:750;cursor:pointer;white-space:nowrap
+}
+.app-shell .top-nav-master:hover,
+.app-shell .top-nav-master[aria-current="page"] {
+  background:var(--surface-soft);border-color:var(--accent)
+}
+.app-shell .top-nav-master:focus-visible {outline:2px solid var(--accent);outline-offset:2px}
+@media(max-width:700px){
+  .app-shell .top-nav-master {min-width:36px;padding:7px}
+  .app-shell .top-nav-master span {display:none}
+}

@@ -303,6 +303,86 @@ async function deleteHostedNovel(request: Request, token: string, env: PagesCont
   }
 }
 
+
+/**
+ * Owner-only metadata correction. Commits only library.json against the exact
+ * revision inspected. IDs, novel files, paths and private notes are untouched.
+ */
+async function correctHostedMetadata(request: Request, token: string,
+    env: PagesContext['env'], session: import('../_lib/oauth').OAuthSession): Promise<Response> {
+  const url = new URL(request.url);
+  if (request.headers.get('Origin') !== url.origin ||
+      request.headers.get('X-Taiyou-Request') !== 'owner-edit-metadata' ||
+      !(await hasOwnerGrant(request, env, session))) {
+    return reject(403, 'A current Owner unlock and Hugging Face owner session are required');
+  }
+  if (!request.headers.get('Content-Type')?.startsWith('application/json') ||
+      Number(request.headers.get('Content-Length') || 0) > 2048) {
+    return reject(400, 'Invalid metadata correction request');
+  }
+  let id = '', expectedTitle = '', expectedAuthor = '', title = '', author = '';
+  try {
+    // Content-Length may be absent on chunked requests. Bound the parsed payload too.
+    const raw = await request.text();
+    if (raw.length > 2048) return reject(413, 'Metadata correction request is too large');
+    const body = JSON.parse(raw) as Record<string, unknown>;
+    if (typeof body.id !== 'string' || !/^[a-f0-9]{24}$/.test(body.id) ||
+        typeof body.expectedTitle !== 'string' ||
+        typeof body.expectedAuthor !== 'string' ||
+        typeof body.title !== 'string' || typeof body.author !== 'string') {
+      return reject(400, 'Invalid metadata fields');
+    }
+    id = body.id;
+    expectedTitle = body.expectedTitle;
+    expectedAuthor = body.expectedAuthor;
+    title = body.title.trim().replace(/\s+/g, ' ');
+    author = body.author.trim().replace(/\s+/g, ' ');
+    if (!title || title.length > 255 || !author || author.length > 160 ||
+        /[\u0000-\u001f\u007f]/.test(title + author)) {
+      return reject(400, 'Title or author is missing, too long or contains control characters');
+    }
+  } catch { return reject(400, 'Invalid metadata JSON'); }
+
+  let snapshot: Awaited<ReturnType<typeof readCatalogueSnapshot>>;
+  try { snapshot = await readCatalogueSnapshot(DATASET_REPO, token); }
+  catch (error) {
+    return error instanceof CatalogueSafetyError
+      ? reject(error.code, error.message) : reject(502, 'Could not validate the remote catalogue');
+  }
+  if (snapshot.isNew) return reject(409, 'The remote library catalogue is empty');
+  const target = snapshot.catalogue.books.find(book => book.id === id);
+  if (!target || target.metadata.title !== expectedTitle ||
+      String(target.metadata.author || 'Unknown') !== expectedAuthor || !verifiedNovelFolder(target)) {
+    return reject(409, 'Novel metadata changed or storage paths are invalid; refresh before editing');
+  }
+  if (snapshot.catalogue.books.some(book => book.id !== id &&
+      book.metadata.title.trim().toLowerCase() === title.toLowerCase() &&
+      String(book.metadata.author || '').trim().toLowerCase() === author.toLowerCase())) {
+    return reject(409, 'Another novel already uses that title and author; no change was made');
+  }
+  const revised = {
+    ...snapshot.catalogue, books: snapshot.catalogue.books.map(book =>
+      book.id === id ? { ...book, metadata: { ...book.metadata, title, author } } : book),
+  };
+  try { parseDatasetCatalogue(revised); }
+  catch { return reject(409, 'Corrected metadata failed catalogue validation'); }
+  if (title === target.metadata.title && author === target.metadata.author) {
+    return json({ saved:true, id, title, author, unchanged:true });
+  }
+  try {
+    await commit({
+      repo: { type:'dataset', name:DATASET_REPO }, accessToken:token,
+      parentCommit:snapshot.sha,
+      title:'Owner corrected metadata: ' + target.metadata.title.slice(0,65),
+      operations:[{ operation:'addOrUpdate', path:'data/library.json',
+        content:new Blob([JSON.stringify(revised,null,2) + '\n'], {type:'application/json'}) }],
+    });
+    return json({ saved:true, id, title, author });
+  } catch {
+    return reject(409, 'Catalogue changed during correction; refresh before retrying');
+  }
+}
+
 export async function onRequest({ request, env }: PagesContext): Promise<Response> {
   if (!productionOnly(request)) return reject(403, 'Private API restricted to production');
   if (!configured(env)) return reject(503, 'OAuth session encryption is not configured');
@@ -351,6 +431,9 @@ export async function onRequest({ request, env }: PagesContext): Promise<Respons
       }
     }
     return respond(await downloadFile(DATASET_REPO, path, token));
+  }
+  if (request.method === 'POST' && action === 'correct-metadata') {
+    return respond(await correctHostedMetadata(request, token, env, auth.session));
   }
   if (request.method === 'POST' && action === 'delete-novel') {
     return respond(await deleteHostedNovel(request, token, env, auth.session));

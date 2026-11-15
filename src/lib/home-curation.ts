@@ -37,7 +37,9 @@ export function selectHomeBooks(books: readonly LibraryBook[]): HomeBookSelectio
   const featured = active[0] ||
     [...books].filter(book => book.shelfStatus !== 'trying').sort(recentFirst)[0] ||
     [...books].sort(recentFirst)[0];
-  const continueReading = active.filter(book => book.id !== featured?.id).slice(0, 3);
+  // Include the featured novel too: the count and the reading desk must agree.
+  // Do not arbitrarily omit active titles when there are more than three.
+  const continueReading = active;
   const used = new Set([featured?.id, ...continueReading.map(book => book.id)]);
   const score = (book: LibraryBook) => {
     if (book.shelfStatus === 'trying') return 50;
@@ -74,7 +76,7 @@ export function selectHomeShelves(
   for (const collection of [...collections].filter(item => !item.deleted).sort((a, b) =>
     a.name.localeCompare(b.name))) {
     const members = collection.bookIds.map(id => byId.get(id))
-      .filter((book): book is LibraryBook => !!book).sort(recentFirst);
+      .filter((book): book is LibraryBook => !!book).sort((a,b)=>Number(!!b.coverPath)-Number(!!a.coverPath) || recentFirst(a,b));
     if (members.length) candidates.push({
       kind: 'collection', id: collection.id, name: collection.name, count: members.length, members,
     });
@@ -82,7 +84,7 @@ export function selectHomeShelves(
 
   for (const { tag } of tagCounts([...books])) {
     const members = books.filter(book => bookTags(book).some(value =>
-      value.toLocaleLowerCase() === tag.toLocaleLowerCase())).sort(recentFirst);
+      value.toLocaleLowerCase() === tag.toLocaleLowerCase())).sort((a,b)=>Number(!!b.coverPath)-Number(!!a.coverPath) || recentFirst(a,b));
     if (members.length) candidates.push({
       kind: 'tag', id: tag, name: tag, count: members.length, members,
     });

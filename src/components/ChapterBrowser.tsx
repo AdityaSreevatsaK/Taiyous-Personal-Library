@@ -93,9 +93,7 @@ export default function ChapterBrowser({ book, onReadChapter, isCachedOffline, o
       <div><span className="details-label">PICK UP ANYWHERE</span><h2 id="detail-chapters-heading">Chapters</h2></div>
       <List size={21} className="details-section-icon" aria-hidden="true" />
     </div>
-    <p className="details-help chapter-intro">Choose any chapter to begin reading there. Your new reading position is saved automatically.</p>
     {!isCachedOffline ? <div className="chapter-on-demand">
-        <p className="details-help">Chapter titles are available after downloading the EPUB. Opening details does not download the novel.</p>
         <button type="button" className="primary-button" disabled={preparing} onClick={() => void prepareChapters()}>
           {preparing ? 'Preparing EPUB…' : 'Load chapter list'}
         </button>
@@ -133,9 +131,15 @@ export default function ChapterBrowser({ book, onReadChapter, isCachedOffline, o
             {!filtered.length && <div className="chapter-no-results">No chapters match your search.</div>}
           </div>
           {filtered.length > CHAPTERS_PER_PAGE && <nav className="chapter-paging" aria-label="Chapter list pages">
-            <button type="button" disabled={page === 0} onClick={() => setPage(p => Math.max(0, p - 1))}><ChevronLeft size={16} /> Previous</button>
+            <div className="chapter-page-actions">
+              <button type="button" disabled={page === 0} onClick={() => setPage(0)}>First</button>
+              <button type="button" disabled={page === 0} onClick={() => setPage(p => Math.max(0, p - 1))}><ChevronLeft size={16} /> Previous</button>
+            </div>
             <span>Showing {(page * CHAPTERS_PER_PAGE + 1).toLocaleString()}–{Math.min(filtered.length, (page + 1) * CHAPTERS_PER_PAGE).toLocaleString()} of {filtered.length.toLocaleString()}</span>
-            <button type="button" disabled={page >= pageCount - 1} onClick={() => setPage(p => Math.min(pageCount - 1, p + 1))}>Next <ChevronRight size={16} /></button>
+            <div className="chapter-page-actions">
+              <button type="button" disabled={page >= pageCount - 1} onClick={() => setPage(p => Math.min(pageCount - 1, p + 1))}>Next <ChevronRight size={16} /></button>
+              <button type="button" disabled={page >= pageCount - 1} onClick={() => setPage(pageCount - 1)}>Last page <ChevronRight size={16}/></button>
+            </div>
           </nav>}
         </>}
   </section>;

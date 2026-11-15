@@ -1031,6 +1031,75 @@ export default function App() {
     setError(null);
   }, [cloudRepo, cloudSession, deleteCollection]);
 
+
+  // Master Controls uses the same short-lived, server-validated Owner grant
+  // used for whole-novel deletion. Never embed a password in client code.
+  const masterSaveRating = useCallback(async (id: string, rating: number | undefined) => {
+    await ownerPost('verify');
+    const current = booksRef.current.find(book => book.id === id);
+    if (!current) throw new Error('Novel no longer exists; refresh this page.');
+    await savePersonalReview(id, rating, current.personalReview || '');
+  }, [savePersonalReview]);
+
+  const masterCorrectMetadata = useCallback(async (id: string, title: string, author: string) => {
+    await ownerPost('verify');
+    const current = booksRef.current.find(book => book.id === id);
+    if (!current) throw new Error('Novel no longer exists; refresh this page.');
+    const cleanedTitle = title.normalize('NFKC').trim().replace(/\s+/g, ' ');
+    const cleanedAuthor = author.normalize('NFKC').trim().replace(/\s+/g, ' ');
+    if (!cleanedTitle || cleanedTitle.length > 255 || !cleanedAuthor || cleanedAuthor.length > 160) {
+      throw new Error('A valid title and author are required.');
+    }
+    if (current.cloud) {
+      if (!navigator.onLine || cloudSession?.via !== 'oauth' || !cloudRepo) {
+        throw new Error('Hosted metadata corrections require the online Hugging Face Owner session.');
+      }
+      const response = await fetch('/api/library?action=correct-metadata', {
+        method:'POST', credentials:'same-origin', cache:'no-store',
+        headers: { 'Content-Type':'application/json', 'X-Taiyou-Request':'owner-edit-metadata' },
+        body:JSON.stringify({id, expectedTitle:current.title, expectedAuthor:current.author,
+          title:cleanedTitle, author:cleanedAuthor}),
+      });
+      const outcome = await response.json().catch(() => ({})) as { error?: string; saved?: boolean };
+      if (!response.ok || outcome.saved !== true) {
+        throw new Error(outcome.error || 'Private metadata correction was not committed');
+      }
+      const entry = cloudEntries.current.get(id);
+      if (entry) cloudEntries.current.set(id, {
+        ...entry, metadata:{ ...entry.metadata, title:cleanedTitle, author:cleanedAuthor },
+      });
+    }
+    const changed: LibraryBook = { ...current, title:cleanedTitle, author:cleanedAuthor };
+    await updateBook(changed);
+    booksRef.current = booksRef.current.map(book => book.id === id ? changed : book);
+    setBooks(booksRef.current);
+    setNotice('Updated title and author for “' + changed.title + '”. Original files and reading progress are unchanged.');
+  }, [cloudRepo, cloudSession]);
+
+  const masterClearOffline = useCallback(async (): Promise<{removed:number;kept:number}> => {
+    await ownerPost('verify');
+    if (cloudSession?.via !== 'oauth' || !cloudRepo || !navigator.onLine) {
+      throw new Error('Connect your private Hugging Face library before bulk clearing downloads.');
+    }
+    const cachedIds = await getCachedEpubIds();
+    const results = await mapWithConcurrency(cachedIds, 4, async id => {
+      const book = booksRef.current.find(item => item.id === id);
+      // Never erase an unhosted or ambiguously mapped EPUB: it may be the only copy.
+      const entry = cloudEntries.current.get(id);
+      if (!book?.cloud || !entry || entry.id !== id) return false;
+      try {
+        if (!await hostedEpubExists(cloudRepo, entry, cloudSession)) return false;
+        await removeCachedEpub(id);
+        return true;
+      } catch { return false; }
+    });
+    setCachedEpubIds(await getCachedEpubIds());
+    const removed = results.filter(Boolean).length;
+    const kept = cachedIds.length - removed;
+    setNotice(removed + ' verified offline EPUBs removed. ' + kept + ' copies safely preserved.');
+    return {removed,kept};
+  }, [cloudRepo,cloudSession]);
+
   function pickerChanged(event: ChangeEvent<HTMLInputElement>) {
     if (event.target.files?.length) void importFiles(event.target.files);
     event.target.value = '';
@@ -1113,6 +1182,8 @@ export default function App() {
         onImportClick={() => filePicker.current?.click()}
         onFiles={files => void importFiles(files)} onOpen={showDetails}
         onRead={openBook} onRemoveOffline={requestRemoveOffline}
+        allBooks={books} onMasterClearOffline={masterClearOffline}
+        onMasterSaveRating={masterSaveRating} onMasterCorrectMetadata={masterCorrectMetadata}
         importing={importing || !!loadingBook} notice={notice} onDismissNotice={() => setNotice(null)} error={error} storageError={storageError}
         cloudRepo={cloudRepo} cloudSession={cloudSession} cloudBusy={cloudBusy}
         cloudMessage={loadingBook ? `Opening ${loadingBook}…` : cloudMessage}

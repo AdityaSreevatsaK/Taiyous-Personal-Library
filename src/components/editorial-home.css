@@ -295,3 +295,53 @@
   .editorial-home .editorial-art-book .cover-author{display:none}
   .editorial-home .editorial-art-book .cover-bottom{font-size:5px;letter-spacing:0}
 }
+
+
+/* Reading record links are interactive, not decorative totals. */
+.editorial-home .editorial-grand-ledger button {
+  display:inline-flex;align-items:baseline;gap:8px;min-width:0;
+  border:0;border-radius:5px;background:transparent;color:inherit;
+  padding:4px 6px;cursor:pointer;text-align:left;font:inherit;
+}
+.editorial-home .editorial-grand-ledger button b {
+  font:600 21px Georgia,serif;color:#f0dfb9;
+}
+.editorial-home .editorial-grand-ledger button:hover {
+  background:#f0dfb920;text-decoration:underline;text-underline-offset:3px;
+}
+.editorial-home .editorial-grand-ledger button:focus-visible,
+.editorial-home .editorial-margin-stats button:focus-visible {
+  outline:2px solid var(--accent,#87aad1);outline-offset:2px;
+}
+.editorial-home .editorial-margin-stats > button {
+  display:flex;align-items:baseline;justify-content:space-between;gap:10px;
+  width:100%;border:0;border-radius:6px;background:transparent;
+  color:var(--text);padding:9px 2px;text-align:left;cursor:pointer;
+}
+.editorial-home .editorial-margin-stats > button:hover {background:#ffffff24}
+.editorial-home .editorial-margin-stats > button strong {
+  font:500 35px Georgia,serif;
+}
+.editorial-home .editorial-margin-stats > button span {
+  font-size:10px;letter-spacing:.12em;color:var(--subtext);
+}
+@media(max-width:660px){
+  .editorial-home .editorial-grand-ledger{gap:6px 12px}
+  .editorial-home .editorial-grand-ledger button{font-size:10px}
+  .editorial-home .editorial-margin-stats>button {
+    flex-direction:column;align-items:start;gap:6px;
+  }
+  .editorial-home .editorial-margin-stats>button strong{font-size:28px}
+}
+/* No mock book covers for genre/collection shelves when no real art exists. */
+.editorial-home .editorial-shelf-card:not(:has(.editorial-shelf-cover)) {
+  padding-inline:20px;
+}
+.editorial-home .editorial-shelf-card:not(:has(.editorial-shelf-cover))
+ .editorial-shelf-details strong {font-size:20px}
+
+
+/* A declared coverPath is not proof that a cover image actually loaded.
+   Never expose the decorative fallback as a genre/collection tile image. */
+.editorial-home .editorial-shelf-cover:not(:has(img.cover-art)) {display:none}
+.editorial-home .editorial-shelf-details strong {display:block;min-width:0}
