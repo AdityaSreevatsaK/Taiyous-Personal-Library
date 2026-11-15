@@ -39,7 +39,7 @@ try {
     await page.locator('nav[aria-label="Library sections"]').waitFor();
     // Inject a synthetic novel into browser IndexedDB, not private HF storage.
     await page.evaluate(async epubData => {
-      const request=indexedDB.open('folio-personal-library-v1',2);
+      const request=indexedDB.open('folio-personal-library-v1',3);
       const db=await new Promise((resolve,reject)=>{
         request.onupgradeneeded=()=>{const d=request.result;
           for(const store of ['books','files','covers'])

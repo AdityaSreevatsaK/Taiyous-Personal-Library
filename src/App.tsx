@@ -12,7 +12,8 @@ import { mapWithConcurrency, retryTransientRead } from './lib/network-pool';
 import { partitionLocalBackups } from './lib/local-backups';
 import { requestOfflineRetention } from './lib/offline';
 import { installUsageTracker } from './lib/usage-analytics';
-import { deleteBook, removeCachedEpub, getBookFile, getBooks, getCachedEpubIds, readSettings, saveBook, updateBook, writeSettings } from './lib/storage';
+import { deleteBook, removeCachedEpub, getBookFile, getBooks, getCachedEpubIds, getArchivedBookRecords, archiveStaleBookRecords, readSettings, saveBook, updateBook, writeSettings } from './lib/storage';
+import { staleMetadataCandidates } from './lib/stale-archive';
 import { resetReadingProgress } from './lib/progress-admin';
 import {
   reconcileCloudLibrary, clearCloudSession, createCloudSession, discoverHostedOAuthSession, assertPrivateDataset,
@@ -61,6 +62,7 @@ export default function App() {
   const [cloudRepo, setCloudRepo] = useState(readDatasetRepo);
   const [cloudBusy, setCloudBusy] = useState(false);
   const [cloudMessage, setCloudMessage] = useState<string | null>(null);
+  const [staleCount, setStaleCount] = useState(0);
   const [lastSyncError, setLastSyncError] = useState<string | null>(null);
   const [offlineRetention, setOfflineRetention] = useState<'persistent' | 'best-effort' | 'unknown'>('unknown');
   const [ownerRequest, setOwnerRequest] = useState<OwnerRemovalRequest | null>(null);
@@ -265,6 +267,7 @@ export default function App() {
       const { books: merged, hiddenStaleEntries } =
         reconcileCloudLibrary(catalog.books, local, cachedIds);
       verifiedCloudCatalogue.current = true;
+      setStaleCount(hiddenStaleEntries);
       setCachedEpubIds(cachedIds);
       // Publish the *reconciled* count immediately. Personal ratings/progress
       // continue loading separately and must not block the page or show 181.
@@ -827,7 +830,7 @@ export default function App() {
     }
   }, [cloudRepo, cloudSession]);
 
-  const downloadFile = useCallback((blob: Blob, title: string, extension: 'epub' | 'zip') => {
+  const downloadFile = useCallback((blob: Blob, title: string, extension: 'epub' | 'zip' | 'json') => {
     const safeName = (title.replace(/[^\p{L}\p{N} ._()-]/gu, '_').trim() || 'novel').slice(0, 100);
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement('a');
@@ -1006,7 +1009,7 @@ export default function App() {
       setBooks(remaining);
       setCachedEpubIds(ids => ids.filter(id => id !== current.id));
       setDetailsId(id => id === current.id ? null : id);
-      navigate('/', true);
+      navigate(request.fromMaster ? '/master-controls' : '/', true);
       setNotice(`“${current.title}” removed from your private cloud library and this browser. Keep a backup for recovery.`);
       setError(null);
       return;
@@ -1020,7 +1023,7 @@ export default function App() {
       setBooks(remaining);
       setCachedEpubIds(ids => ids.filter(id => id !== current.id));
       setDetailsId(id => id === current.id ? null : id);
-      navigate('/', true);
+      navigate(request.fromMaster ? '/master-controls' : '/', true);
       setNotice(`Local novel “${current.title}” removed from this device only.`);
       setError(null);
       return;
@@ -1129,6 +1132,48 @@ export default function App() {
     if (!book) throw new Error('Novel no longer exists; refresh this page.');
     await downloadEpub(book);
   }, [downloadEpub]);
+
+  const masterDeleteNovel = useCallback(async (id: string) => {
+    await ownerPost('verify');
+    const book = booksRef.current.find(item => item.id === id);
+    if (!book) throw new Error('Novel no longer exists; refresh Master Controls.');
+    // The protected Owner dialog performs the separate typed-title and
+    // explicit saved-backup confirmation before any deletion is attempted.
+    setOwnerRequest({ kind: book.cloud ? 'hosted-novel' : 'local-novel',
+      id: book.id, title: book.title, fromMaster: true });
+  }, []);
+
+  const masterArchiveStale = useCallback(async (): Promise<number> => {
+    await ownerPost('verify');
+    if (!cloudRepo || cloudSession?.via !== 'oauth' || !navigator.onLine) {
+      throw new Error('Connect your private Hugging Face dataset first. Nothing was archived.');
+    }
+    // Never trust a stale UI count to decide which records may be archived.
+    const remote = await fetchCloudCatalog(validateDatasetRepo(cloudRepo), cloudSession);
+    const [local, cachedIds] = await Promise.all([getBooks(), getCachedEpubIds()]);
+    const hostedIds = remote.books.map(entry => entry.id);
+    const candidates = staleMetadataCandidates(local, hostedIds, cachedIds);
+    if (!candidates.length) { setStaleCount(0); return 0; }
+
+    // Export a human-readable recovery copy before archiving. This contains
+    // personal ratings, notes and reading progress, not EPUBs or OAuth tokens.
+    const existingArchive = await getArchivedBookRecords();
+    const recovery = {
+      version: 1, generatedAt: new Date().toISOString(),
+      description: 'Taiyou Personal Library browser metadata recovery (no EPUB files)',
+      previousArchive: existingArchive, newRecords: candidates,
+    };
+    downloadFile(new Blob([JSON.stringify(recovery, null, 2)], {
+      type: 'application/json',
+    }), 'Taiyous-Library-Stale-Metadata-Backup', 'json');
+    // Both moving a record to archivedBooks and removing it from the active
+    // 'books' store happen in a single IndexedDB transaction.
+    const count = await archiveStaleBookRecords(hostedIds);
+    setStaleCount(Math.max(0, local.length - cachedIds.length - hostedIds.length - count));
+    setCloudMessage(remote.books.length + ' current hosted novels. ' + count +
+      ' historical browser-only records moved to a recoverable local archive.');
+    return count;
+  }, [cloudRepo, cloudSession, downloadFile]);
 
   const masterClearOffline = useCallback(async (): Promise<{removed:number;kept:number}> => {
     await ownerPost('verify');
@@ -1241,6 +1286,8 @@ export default function App() {
         onMasterMarkCompleted={masterMarkCompleted} onMasterResetProgress={masterResetProgress}
         onMasterSaveTags={masterSaveTags} onMasterSaveSummary={masterSaveSummary}
         onMasterSaveReview={masterSaveReview} onMasterExportEpub={masterExportEpub}
+        onMasterDeleteNovel={masterDeleteNovel} staleCount={staleCount}
+        onMasterArchiveStale={masterArchiveStale}
         importing={importing || !!loadingBook} notice={notice} onDismissNotice={() => setNotice(null)} error={error} storageError={storageError}
         cloudRepo={cloudRepo} cloudSession={cloudSession} cloudBusy={cloudBusy}
         cloudMessage={loadingBook ? `Opening ${loadingBook}…` : cloudMessage}

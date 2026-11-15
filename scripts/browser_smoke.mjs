@@ -273,7 +273,7 @@ try {
     await page.waitForURL('**/library');
     // Seed a synthetic, local-only book so CI tests details without accessing the real dataset.
     await page.evaluate(async (epubData) => {
-      const request = indexedDB.open('folio-personal-library-v1', 2);
+      const request = indexedDB.open('folio-personal-library-v1', 3);
       const db = await new Promise((resolve, reject) => {
         request.onupgradeneeded = () => {
           const database = request.result;
@@ -816,7 +816,7 @@ try {
       try {
         await fastPage.goto(baseUrl + '/library', { waitUntil: 'networkidle' });
         await fastPage.evaluate(async () => {
-          const request = indexedDB.open('folio-personal-library-v1', 2);
+          const request = indexedDB.open('folio-personal-library-v1', 3);
           const db = await new Promise((resolve, reject) => {
             request.onsuccess = () => resolve(request.result);
             request.onerror = () => reject(request.error);
@@ -858,7 +858,7 @@ try {
         // that used to wrap '+N' to a second line, ratings and progress states.
         await fastPage.evaluate(async () => {
           const db = await new Promise((resolve, reject) => {
-            const request = indexedDB.open('folio-personal-library-v1', 2);
+            const request = indexedDB.open('folio-personal-library-v1', 3);
             request.onsuccess = () => resolve(request.result);
             request.onerror = () => reject(request.error);
           });

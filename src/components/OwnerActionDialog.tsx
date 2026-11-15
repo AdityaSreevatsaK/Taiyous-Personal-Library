@@ -7,6 +7,8 @@ export interface OwnerRemovalRequest {
   kind: 'local-novel' | 'hosted-novel' | 'collection';
   id: string;
   title: string;
+  /** Keep Master Controls open after deleting one explicitly selected copy. */
+  fromMaster?: boolean;
 }
 
 interface Props {
@@ -39,10 +41,11 @@ export default function OwnerActionDialog({ theme, request, onCancel, onConfirm 
   const [error, setError] = useState('');
   const [passphrase, setPassphrase] = useState('');
   const [titleEntry, setTitleEntry] = useState('');
+  const [backupConfirmed, setBackupConfirmed] = useState(false);
   const [busy, setBusy] = useState(false);
   useEffect(() => {
     let active = true;
-    setStatus(null); setError(''); setPassphrase(''); setTitleEntry('');
+    setStatus(null); setError(''); setPassphrase(''); setTitleEntry(''); setBackupConfirmed(false);
     void getOwnerStatus().then(value => {
       if (active) setStatus(value);
     }).catch(reason => { if (active) setError(String(reason instanceof Error ? reason.message : reason)); });
@@ -68,7 +71,8 @@ export default function OwnerActionDialog({ theme, request, onCancel, onConfirm 
 
   async function confirm(event: FormEvent) {
     event.preventDefault();
-    if (busy || !status?.unlocked || titleEntry !== request.title) return;
+    if (busy || !status?.unlocked || titleEntry !== request.title ||
+      (request.kind !== 'collection' && !backupConfirmed)) return;
     setBusy(true); setError('');
     try {
       // A fresh server check is required even when React remembers Owner mode.
@@ -109,9 +113,15 @@ export default function OwnerActionDialog({ theme, request, onCancel, onConfirm 
         <label htmlFor="taiyou-owner-title">Confirm title</label>
         <input id="taiyou-owner-title" type="text" value={titleEntry} autoComplete="off"
           onChange={event => setTitleEntry(event.target.value)} placeholder={request.title} />
+        {request.kind !== 'collection' && <label className="owner-backup-confirm">
+          <input type="checkbox" checked={backupConfirmed}
+            onChange={event => setBackupConfirmed(event.target.checked)} />
+          I have exported and checked the EPUB backup and saved any reading data I need.
+          This deletion is permanent for the selected copy.
+        </label>}
         <div className="owner-dialog-actions">
           <button className="secondary-button" type="button" onClick={onCancel} disabled={busy}>Cancel</button>
-          <button className="owner-danger-button" type="submit" disabled={busy || titleEntry !== request.title}>
+          <button className="owner-danger-button" type="submit" disabled={busy || titleEntry !== request.title || (request.kind !== 'collection' && !backupConfirmed)}>
             {busy ? 'Verifying…' : content.button}
           </button>
         </div>
