@@ -99,6 +99,33 @@ export async function archiveStaleBookRecords(hostedIds: readonly string[]): Pro
   return stale.length;
 }
 
+/** If the private dataset is later restored, return matching archived notes
+ * to the active records. Never overwrite a newer local record.
+ */
+export async function restoreReappearedArchivedRecords(hostedIds: readonly string[]): Promise<number> {
+  if (!hostedIds.length) return 0;
+  const transaction = (await db()).transaction(['books', 'archivedBooks'], 'readwrite');
+  const active = transaction.objectStore('books');
+  const archived = transaction.objectStore('archivedBooks');
+  let restored = 0;
+  for (const id of new Set(hostedIds)) {
+    const record = await archived.get(id);
+    if (!record) continue;
+    if (!(await active.get(id))) {
+      await active.put(record.book);
+      restored++;
+    }
+    // If this book has already reappeared locally, keep its newer active
+    // content and retain archived history as an independent recovery copy.
+    if (restored && !(await archived.get(id))) continue;
+    if (record && (await active.get(id))?.progressUpdatedAt === record.book.progressUpdatedAt) {
+      await archived.delete(id);
+    }
+  }
+  await transaction.done;
+  return restored;
+}
+
 /** Archived annotations are retained for recovery and can be exported as JSON. */
 export async function getArchivedBookRecords(): Promise<LibraryBook[]> {
   return (await (await db()).getAll('archivedBooks')).map(entry => entry.book);

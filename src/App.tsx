@@ -12,7 +12,7 @@ import { mapWithConcurrency, retryTransientRead } from './lib/network-pool';
 import { partitionLocalBackups } from './lib/local-backups';
 import { requestOfflineRetention } from './lib/offline';
 import { installUsageTracker } from './lib/usage-analytics';
-import { deleteBook, removeCachedEpub, getBookFile, getBooks, getCachedEpubIds, getArchivedBookRecords, archiveStaleBookRecords, readSettings, saveBook, updateBook, writeSettings } from './lib/storage';
+import { deleteBook, removeCachedEpub, getBookFile, getBooks, getCachedEpubIds, getArchivedBookRecords, archiveStaleBookRecords, restoreReappearedArchivedRecords, readSettings, saveBook, updateBook, writeSettings } from './lib/storage';
 import { staleMetadataCandidates } from './lib/stale-archive';
 import { resetReadingProgress } from './lib/progress-admin';
 import {
@@ -260,6 +260,9 @@ export default function App() {
     try {
       const catalog = await fetchCloudCatalog(validateDatasetRepo(repo), session);
       cloudEntries.current = new Map(catalog.books.map(entry => [entry.id, entry]));
+      // A previously removed dataset can be restored later. Recover archived
+      // annotations for exact immutable IDs before blending cloud metadata.
+      await restoreReappearedArchivedRecords(catalog.books.map(entry => entry.id));
       // The cloud catalogue is authoritative for hosted novels. Preserve actual
       // offline EPUBs, but hide old cloud metadata with no hosted file or cache.
       // This does not remove records, ratings, progress or EPUBs from IndexedDB.
