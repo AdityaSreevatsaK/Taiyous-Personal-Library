@@ -7,6 +7,7 @@ interface NovelDB extends DBSchema {
   books: { key: string; value: LibraryBook };
   files: { key: string; value: { id: string; epub: Blob } };
   covers: { key: string; value: { id: string; jpeg: Blob } };
+  archivedBooks: { key: string; value: { id: string; book: LibraryBook; archivedAt: number } };
 }
 
 const DB_NAME = 'folio-personal-library-v1';
@@ -14,12 +15,13 @@ let database: Promise<IDBPDatabase<NovelDB>> | null = null;
 
 function db(): Promise<IDBPDatabase<NovelDB>> {
   if (!database) {
-    database = openDB<NovelDB>(DB_NAME, 2, {
+    database = openDB<NovelDB>(DB_NAME, 3, {
       upgrade(upgradeDb) {
         // Upgrade the existing database in place. Do not delete EPUBs or notes.
         if (!upgradeDb.objectStoreNames.contains('books')) upgradeDb.createObjectStore('books', { keyPath: 'id' });
         if (!upgradeDb.objectStoreNames.contains('files')) upgradeDb.createObjectStore('files', { keyPath: 'id' });
         if (!upgradeDb.objectStoreNames.contains('covers')) upgradeDb.createObjectStore('covers', { keyPath: 'id' });
+        if (!upgradeDb.objectStoreNames.contains('archivedBooks')) upgradeDb.createObjectStore('archivedBooks', { keyPath: 'id' });
       },
     }).catch((error: unknown) => {
       database = null;
@@ -73,6 +75,68 @@ export async function updateBook(book: LibraryBook): Promise<void> {
  */
 export async function removeCachedEpub(id: string): Promise<void> {
   await (await db()).delete('files', id);
+}
+
+/** Move stale metadata into a recoverable browser archive in one IndexedDB
+ * transaction. Never touch EPUB files or cover blobs. The caller must supply
+ * a freshly verified authoritative hosted catalogue before invoking this.
+ */
+export async function archiveStaleBookRecords(hostedIds: readonly string[]): Promise<number> {
+  const transaction = (await db()).transaction(['books', 'files', 'archivedBooks'], 'readwrite');
+  const books = transaction.objectStore('books');
+  const archives = transaction.objectStore('archivedBooks');
+  const [records, epubIds] = await Promise.all([
+    books.getAll(), transaction.objectStore('files').getAllKeys(),
+  ]);
+  const hosted = new Set(hostedIds);
+  const cached = new Set(epubIds.map(String));
+  const stale = records.filter(record => !hosted.has(record.id) && !cached.has(record.id));
+  for (const record of stale) {
+    await archives.put({ id: record.id, book: record, archivedAt: Date.now() });
+    await books.delete(record.id);
+  }
+  await transaction.done;
+  return stale.length;
+}
+
+/** If the private dataset is later restored, return matching archived notes
+ * to the active records. Never overwrite a newer local record.
+ */
+export async function restoreReappearedArchivedRecords(hostedIds: readonly string[]): Promise<number> {
+  if (!hostedIds.length) return 0;
+  const transaction = (await db()).transaction(['books', 'archivedBooks'], 'readwrite');
+  const active = transaction.objectStore('books');
+  const archived = transaction.objectStore('archivedBooks');
+  let restored = 0;
+  for (const id of new Set(hostedIds)) {
+    const record = await archived.get(id);
+    if (!record) continue;
+    if (!(await active.get(id))) {
+      await active.put(record.book);
+      await archived.delete(id);
+      restored++;
+    }
+    // If an active book already exists, keep BOTH it and its archived
+    // recovery copy. Never discard a potentially newer local annotation.
+  }
+  await transaction.done;
+  return restored;
+}
+
+/** Make a durable local metadata/reading-state snapshot before the separately
+ * authorised whole-novel deletion; the EPUB must also be exported independently.
+ */
+export async function preserveNovelMetadataForDeletion(id: string): Promise<void> {
+  const transaction = (await db()).transaction(['books', 'archivedBooks'], 'readwrite');
+  const record = await transaction.objectStore('books').get(id);
+  if (!record) throw new Error('Novel no longer exists; deletion refused.');
+  await transaction.objectStore('archivedBooks').put({ id, book: record, archivedAt: Date.now() });
+  await transaction.done;
+}
+
+/** Archived annotations are retained for recovery and can be exported as JSON. */
+export async function getArchivedBookRecords(): Promise<LibraryBook[]> {
+  return (await (await db()).getAll('archivedBooks')).map(entry => entry.book);
 }
 
 export async function deleteBook(id: string): Promise<void> {

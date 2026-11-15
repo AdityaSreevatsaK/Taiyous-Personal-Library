@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { AlertTriangle, Check, LockKeyhole, Search, ShieldCheck, ShieldOff, Trash2 } from 'lucide-react';
 import type { LibraryBook, ReaderTheme } from '../types';
 import { normalizeTags } from '../lib/tags';
+import { ratingLabel } from '../lib/ratings';
 import { getOwnerStatus, ownerPost, type OwnerStatus } from '../lib/owner';
 import './master-controls.css';
 
@@ -19,9 +20,12 @@ interface Props {
   onSaveSummary: (id: string, summary: string) => Promise<void>;
   onSaveReview: (id: string, rating: number | undefined, notes: string) => Promise<void>;
   onExportEpub: (id: string) => Promise<void>;
+  onDeleteNovel: (id: string) => Promise<void>;
+  staleCount: number;
+  onArchiveStale: () => Promise<number>;
 }
 type RowProps = Pick<Props, 'onSaveRating' | 'onCorrectMetadata' | 'onMarkCompleted' |
-  'onResetProgress' | 'onSaveTags' | 'onSaveSummary' | 'onSaveReview' | 'onExportEpub'> &
+  'onResetProgress' | 'onSaveTags' | 'onSaveSummary' | 'onSaveReview' | 'onExportEpub' | 'onDeleteNovel'> &
   { book: LibraryBook; duplicate: boolean };
 
 function errorMessage(reason: unknown) {
@@ -30,7 +34,7 @@ function errorMessage(reason: unknown) {
 
 /** Each immutable record is managed independently. Edits never replace an EPUB. */
 function BookRow({ book, onCorrectMetadata, onMarkCompleted, onResetProgress,
-  onSaveTags, onSaveSummary, onSaveReview, onExportEpub, duplicate }: RowProps) {
+  onSaveTags, onSaveSummary, onSaveReview, onExportEpub, onDeleteNovel, duplicate }: RowProps) {
   const [expanded, setExpanded] = useState(false);
   const [title, setTitle] = useState(book.title);
   const [author, setAuthor] = useState(book.author);
@@ -40,6 +44,11 @@ function BookRow({ book, onCorrectMetadata, onMarkCompleted, onResetProgress,
   const [notes, setNotes] = useState(book.personalReview || '');
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState('');
+  useEffect(() => {
+    if (!result) return;
+    const timeout = window.setTimeout(() => setResult(''), 8000);
+    return () => window.clearTimeout(timeout);
+  }, [result]);
   useEffect(() => {
     setTitle(book.title); setAuthor(book.author);
     setRating(book.personalRating?.toString() ?? '');
@@ -73,11 +82,18 @@ function BookRow({ book, onCorrectMetadata, onMarkCompleted, onResetProgress,
       <td>{book.progress >= 99.5 ? 'Finished' : book.progress > 0 ? 'Reading' : 'Not started'}
         {book.progress > 0 && <small>{Math.round(book.progress)}% · {book.currentChapter || 'Position saved'}</small>}
       </td>
-      <td>{book.personalRating ? book.personalRating + '/10' : 'Not rated'}</td>
-      <td><button type="button" className="master-manage" aria-expanded={expanded}
-        aria-controls={'master-edit-' + book.id} onClick={() => setExpanded(value => !value)}>
-        {expanded ? 'Close controls' : 'Manage novel'}
-      </button></td>
+      <td>{book.personalRating ? book.personalRating + '/10 · ' + ratingLabel(book.personalRating) : 'Not rated'}</td>
+      <td><div className="master-record-actions">
+        <button type="button" className="master-manage" aria-expanded={expanded}
+          aria-controls={'master-edit-' + book.id} onClick={() => setExpanded(value => !value)}>
+          {expanded ? 'Close controls' : 'Manage novel'}
+        </button>
+        {duplicate && <button type="button" className="master-danger-outline"
+          disabled={busy} title="Requires exporting this exact EPUB first"
+          onClick={() => void run(() => onDeleteNovel(book.id), 'Opening protected deletion confirmation')}>
+          Delete copy…
+        </button>}
+      </div></td>
     </tr>
     {expanded && <tr className="master-expanded-row" id={'master-edit-' + book.id}><td colSpan={5}>
       <div className="master-record-info">
@@ -107,7 +123,7 @@ function BookRow({ book, onCorrectMetadata, onMarkCompleted, onResetProgress,
           <label htmlFor={'master-rating-' + book.id}>Rating</label>
           <select id={'master-rating-' + book.id} value={rating} onChange={event => setRating(event.target.value)}>
             <option value="">Not rated</option>
-            {Array.from({ length: 10 }, (_, i) => i + 1).map(n => <option key={n} value={n}>{n}/10</option>)}
+            {Array.from({ length: 10 }, (_, i) => i + 1).map(n => <option key={n} value={n}>{n}/10 · {ratingLabel(n)}</option>)}
           </select>
           <label htmlFor={'master-notes-' + book.id}>Private reading notes</label>
           <textarea id={'master-notes-' + book.id} rows={3} maxLength={10000} value={notes} onChange={event => setNotes(event.target.value)} />
@@ -153,7 +169,9 @@ function BookRow({ book, onCorrectMetadata, onMarkCompleted, onResetProgress,
             if (window.prompt('Type RESET PROGRESS to confirm') !== 'RESET PROGRESS') return;
             void run(() => onResetProgress(book.id), 'Reading progress reset');
           }}>Reset progress</button>
-        <button type="button" disabled={busy} onClick={() => void run(() => onExportEpub(book.id), 'EPUB export initiated')}>Export EPUB backup</button>
+        <button type="button" disabled={busy} onClick={() => void run(() => onExportEpub(book.id), 'EPUB export initiated; verify the download before deleting')}>Export EPUB backup</button>
+        <button type="button" className="master-danger-outline" disabled={busy}
+          onClick={() => void run(() => onDeleteNovel(book.id), 'Opening protected deletion confirmation')}>Delete this copy…</button>
       </div>
       {result && <p className="master-result" role="status">{result}</p>}
     </td></tr>}
@@ -163,6 +181,7 @@ function BookRow({ book, onCorrectMetadata, onMarkCompleted, onResetProgress,
 export default function MasterControls({
   books, cachedEpubIds, theme, onExit, onClearOffline, onSaveRating, onCorrectMetadata,
   onMarkCompleted, onResetProgress, onSaveTags, onSaveSummary, onSaveReview, onExportEpub,
+  onDeleteNovel, staleCount, onArchiveStale,
 }: Props) {
   const [status, setStatus] = useState<OwnerStatus | null>(null);
   const [passphrase, setPassphrase] = useState('');
@@ -170,7 +189,13 @@ export default function MasterControls({
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
   const [search, setSearch] = useState('');
-  const [page, setPage] = useState(0);
+  const [visibleCount, setVisibleCount] = useState(25);
+  const loadMoreRef = useRef<HTMLTableRowElement | null>(null);
+  useEffect(() => {
+    if (!message) return;
+    const timeout = window.setTimeout(() => setMessage(''), 8000);
+    return () => window.clearTimeout(timeout);
+  }, [message]);
   useEffect(() => {
     let active = true;
     void getOwnerStatus().then(value => { if (active) setStatus(value); })
@@ -185,10 +210,21 @@ export default function MasterControls({
   const list = useMemo(() => books.filter(book =>
     (book.title + ' ' + book.author + ' ' + book.id).toLocaleLowerCase().includes(search.trim().toLocaleLowerCase()))
     .sort((a,b)=>a.title.localeCompare(b.title, undefined, { numeric:true })), [books,search]);
-  const perPage = 25;
-  const pages = Math.max(1,Math.ceil(list.length/perPage));
-  const currentPage = Math.min(page,pages-1);
-  const onPage = list.slice(currentPage * perPage,(currentPage+1)*perPage);
+  // Render 25 records initially and add 25 when the reader reaches the 15th
+  // visible row. Unlike page buttons, no scroll-position reset is required.
+  const onPage = list.slice(0, visibleCount);
+  useEffect(() => {
+    const target = loadMoreRef.current;
+    if (!target || visibleCount >= list.length) return;
+    if (typeof IntersectionObserver === 'undefined') return;
+    const observer = new IntersectionObserver(entries => {
+      if (entries.some(entry => entry.isIntersecting)) {
+        setVisibleCount(previous => Math.min(list.length, previous + 25));
+      }
+    }, { rootMargin: '0px 0px 200px 0px' });
+    observer.observe(target);
+    return () => observer.disconnect();
+  }, [visibleCount, list.length, search, status?.unlocked]);
   const cached = books.filter(book => cachedEpubIds.includes(book.id));
   const hostedCached = cached.filter(book=>book.cloud).length;
   const localOnlyCached = cached.filter(book=>!book.cloud).length;
@@ -276,26 +312,40 @@ export default function MasterControls({
           onClick={()=>void clearSafeCache()}><Trash2 size={17}/> Remove verified offline downloads</button>
         <small>Deletion affects EPUB files in this browser only, not your cloud library or reading progress. Each hosted backup is verified first.</small>
       </section>
+      {staleCount > 0 && <section className="master-panel" aria-labelledby="master-stale-heading">
+        <h2 id="master-stale-heading">Historical browser records</h2>
+        <p>{staleCount} old entries are absent from the verified cloud catalogue and have no EPUB saved here. They are hidden, but their annotations remain on this device.</p>
+        <button type="button" className="master-manage" disabled={busy} onClick={() => {
+          if (!window.confirm('Export a JSON backup, then archive only records that are absent from the live private cloud catalogue and have no local EPUB? No EPUB or cloud data will be deleted.')) return;
+          setBusy(true); setError(''); setMessage('');
+          void onArchiveStale().then(count => setMessage(count + ' historical records archived safely. Their metadata and progress remain recoverable from the exported JSON and browser archive.'))
+            .catch(reason => setError(errorMessage(reason))).finally(() => setBusy(false));
+        }}>Back up and archive {staleCount} stale records</button>
+      </section>}
       <section className="master-panel" aria-labelledby="master-records-heading">
         <div className="master-record-heading"><div><h2 id="master-records-heading">Manage novel records</h2>
           <p>Expand a novel to edit titles, authors, ratings, private notes, tags and progress. Hosted title corrections use an Owner-authorised, revision-safe catalogue commit; EPUBs remain unchanged.</p>
           {duplicateKeys.size > 0 && <p className="master-duplicate-guidance">Potential local/hosted duplicates detected. Both IDs and EPUB copies remain preserved. Export and compare before considering removal.</p>}</div>
           <label className="master-search"><Search size={16}/><input aria-label="Search master records"
-            value={search} placeholder="Search title, author or ID…" onChange={event=>{setSearch(event.target.value);setPage(0);}} /></label>
+            value={search} placeholder="Search title, author or ID…" onChange={event=>{setSearch(event.target.value);setVisibleCount(25);}} /></label>
         </div>
         <div className="master-table-scroller">
           <table><thead><tr><th>Novel</th><th>Storage</th><th>Reading</th><th>Rating</th><th>Actions</th></tr></thead>
-          <tbody>{onPage.map(book=><BookRow key={book.id} book={book} duplicate={isDuplicate(book)}
-            onSaveRating={onSaveRating} onCorrectMetadata={onCorrectMetadata}
-            onMarkCompleted={onMarkCompleted} onResetProgress={onResetProgress}
-            onSaveTags={onSaveTags} onSaveSummary={onSaveSummary}
-            onSaveReview={onSaveReview} onExportEpub={onExportEpub}/>)}</tbody></table>
+          <tbody>{onPage.map((book, index) => <Fragment key={book.id}>
+            <BookRow book={book} duplicate={isDuplicate(book)}
+              onSaveRating={onSaveRating} onCorrectMetadata={onCorrectMetadata}
+              onMarkCompleted={onMarkCompleted} onResetProgress={onResetProgress}
+              onSaveTags={onSaveTags} onSaveSummary={onSaveSummary}
+              onSaveReview={onSaveReview} onExportEpub={onExportEpub}
+              onDeleteNovel={onDeleteNovel}/>
+            {index === Math.max(0, onPage.length - 11) && visibleCount < list.length &&
+              <tr className="master-lazy-trigger" ref={loadMoreRef} aria-hidden="true"><td colSpan={5} /></tr>}
+          </Fragment>)}</tbody></table>
         </div>
         {!list.length && <p>No matching records.</p>}
-        <div className="master-pages">
-          <span>Showing {list.length ? currentPage*perPage+1 : 0}–{Math.min(list.length,(currentPage+1)*perPage)} of {list.length} records</span>
-          <button type="button" disabled={!currentPage} onClick={()=>setPage(p=>Math.max(0,p-1))}>Previous</button>
-          <button type="button" disabled={currentPage>=pages-1} onClick={()=>setPage(p=>Math.min(pages-1,p+1))}>Next</button>
+        <div className="master-pages" role="status" aria-live="polite">
+          <span>Showing {onPage.length} of {list.length} records{onPage.length < list.length ? ' · More load as you scroll' : ''}</span>
+          {onPage.length < list.length && <button type="button" onClick={() => setVisibleCount(n => Math.min(list.length, n + 25))}>Load more</button>}
         </div>
       </section>
     </>}

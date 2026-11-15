@@ -16,7 +16,7 @@ export default function ChapterBrowser({ book, onReadChapter, isCachedOffline, o
   const [loading, setLoading] = useState(isCachedOffline);
   const [preparing, setPreparing] = useState(false);
   const attemptedBookRef = useRef<string | null>(null);
-  const [nearViewport, setNearViewport] = useState(false);
+  const [nearViewport, setNearViewport] = useState(true);
   const sectionRef = useRef<HTMLElement>(null);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
@@ -24,17 +24,11 @@ export default function ChapterBrowser({ book, onReadChapter, isCachedOffline, o
   const [page, setPage] = useState(0);
   const [invalidNumber, setInvalidNumber] = useState(false);
 
+  // Start preparing immediately on the novel details page. Waiting for a
+  // scroll intersection left users seeing a permanent on-demand placeholder.
   useEffect(() => {
-    setNearViewport(false);
-    if (typeof IntersectionObserver === 'undefined') { setNearViewport(true); return; }
-    const observer = new IntersectionObserver(entries => {
-      if (entries.some(entry => entry.isIntersecting)) {
-        setNearViewport(true);
-        observer.disconnect();
-      }
-    }, { rootMargin: '280px' });
-    if (sectionRef.current) observer.observe(sectionRef.current);
-    return () => observer.disconnect();
+    attemptedBookRef.current = null;
+    setNearViewport(true);
   }, [book.id]);
 
   useEffect(() => {
@@ -56,9 +50,9 @@ export default function ChapterBrowser({ book, onReadChapter, isCachedOffline, o
       setLoading(false);
     });
     return () => { active = false; };
-  }, [book.id, isCachedOffline, nearViewport]); // Defer large EPUB parsing until chapters are near view.
+  }, [book.id, isCachedOffline, nearViewport]); // Parse asynchronously, never block the details hero.
 
-  // Automatically download the EPUB only when the chapter panel approaches the viewport.
+  // Automatically download the EPUB when details open, without waiting for scroll.
   // A failed fetch is not retried in a loop; the reader can retry explicitly.
   useEffect(() => {
     if (!nearViewport || isCachedOffline || attemptedBookRef.current === book.id) return;
@@ -110,7 +104,7 @@ export default function ChapterBrowser({ book, onReadChapter, isCachedOffline, o
         {error ? <>
           <p className="chapter-error" role="alert">{error}</p>
           <button type="button" className="primary-button" disabled={preparing} onClick={() => void prepareChapters()}>Retry loading chapters</button>
-        </> : <p className="chapter-loading" role="status">{nearViewport ? 'Preparing chapter list from the EPUB…' : 'Chapter list loads automatically as you reach this section.'}</p>}
+        </> : <p className="chapter-loading" role="status">{nearViewport ? 'Preparing chapter list from the EPUB…' : 'Chapter list is loading in the background.'}</p>}
       </div>
       : !nearViewport ? <div className="chapter-loading">Chapter titles will load when you reach this section.</div>
       : loading ? <div className="chapter-loading" role="status">Loading chapter titles from your EPUB…</div>

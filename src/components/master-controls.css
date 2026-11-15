@@ -98,3 +98,12 @@
 .master-duplicate-guidance{font-size:12px;background:var(--pale);padding:10px;border-radius:8px}
 .master-result{margin:12px 0 0;font-size:12px;overflow-wrap:anywhere}
 @media(max-width:800px){.master-editor-grid{grid-template-columns:1fr}.master-expanded-row td{padding:12px 8px}}
+
+/* Keep the unlock card centred and let records stream into a natural scroll. */
+.master-unlock {margin:22px auto}
+.master-lazy-trigger td{height:1px!important;min-height:0;padding:0!important;border:0!important}
+.master-expanded-row .master-editor-group textarea{min-height:110px}
+.master-controls td .master-danger-outline{border-color:#b37570}
+
+.master-record-actions{display:flex;flex-wrap:wrap;align-items:center;gap:7px}
+.master-record-actions .master-danger-outline{border-color:#a46b6b}
