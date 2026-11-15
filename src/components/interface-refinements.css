@@ -364,7 +364,7 @@
   max-height:42px;
 }
 .app-shell .book-tile .tile-tags {
-  height:54px;min-height:54px;max-height:54px;
+  height:76px;min-height:76px;max-height:76px;
   flex-wrap:wrap;align-content:center;align-items:center;
   gap:4px;margin:0 0 7px;overflow:hidden;
 }
