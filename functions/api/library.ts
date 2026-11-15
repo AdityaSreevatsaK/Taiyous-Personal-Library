@@ -320,16 +320,21 @@ async function correctHostedMetadata(request: Request, token: string,
       Number(request.headers.get('Content-Length') || 0) > 2048) {
     return reject(400, 'Invalid metadata correction request');
   }
-  let id = '', expectedTitle = '', title = '', author = '';
+  let id = '', expectedTitle = '', expectedAuthor = '', title = '', author = '';
   try {
-    const body = await request.json() as Record<string, unknown>;
+    // Content-Length may be absent on chunked requests. Bound the parsed payload too.
+    const raw = await request.text();
+    if (raw.length > 2048) return reject(413, 'Metadata correction request is too large');
+    const body = JSON.parse(raw) as Record<string, unknown>;
     if (typeof body.id !== 'string' || !/^[a-f0-9]{24}$/.test(body.id) ||
         typeof body.expectedTitle !== 'string' ||
+        typeof body.expectedAuthor !== 'string' ||
         typeof body.title !== 'string' || typeof body.author !== 'string') {
       return reject(400, 'Invalid metadata fields');
     }
     id = body.id;
     expectedTitle = body.expectedTitle;
+    expectedAuthor = body.expectedAuthor;
     title = body.title.trim().replace(/\s+/g, ' ');
     author = body.author.trim().replace(/\s+/g, ' ');
     if (!title || title.length > 255 || !author || author.length > 160 ||
@@ -346,7 +351,8 @@ async function correctHostedMetadata(request: Request, token: string,
   }
   if (snapshot.isNew) return reject(409, 'The remote library catalogue is empty');
   const target = snapshot.catalogue.books.find(book => book.id === id);
-  if (!target || target.metadata.title !== expectedTitle || !verifiedNovelFolder(target)) {
+  if (!target || target.metadata.title !== expectedTitle ||
+      String(target.metadata.author || 'Unknown') !== expectedAuthor || !verifiedNovelFolder(target)) {
     return reject(409, 'Novel metadata changed or storage paths are invalid; refresh before editing');
   }
   if (snapshot.catalogue.books.some(book => book.id !== id &&
