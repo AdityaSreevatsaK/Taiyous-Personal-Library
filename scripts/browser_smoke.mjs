@@ -286,7 +286,7 @@ try {
     // The existing detail action first resolves EPUB availability asynchronously.
     await page.waitForURL('**/novels/sample-library-book');
     await page.getByRole('heading', { name: 'Sample Library Book' }).waitFor();
-    await page.getByRole('button', { name: 'My library' }).click();
+    await page.getByRole('link', { name: "Taiyou's Personal Library home" }).click();
     await page.locator('.editorial-grand').waitFor({ state: 'visible' });
     // Dedicated advanced search must work with loaded novels on desktop and mobile.
     await page.locator('.advanced-search-launch').click();
@@ -314,20 +314,32 @@ try {
     await page.goto(baseUrl + '/book/aaaaaaaaaaaaaaaaaaaaaaaa', { waitUntil: 'networkidle' });
     await page.getByRole('heading', { name: 'Sample Library Book' }).waitFor();
     await page.waitForURL('**/novels/sample-library-book');
-    const libraryTitle = page.locator('a.details-top-title');
+    const libraryTitle = page.getByRole('link', { name: "Taiyou's Personal Library home" });
     if (await libraryTitle.getAttribute('href') !== '/') {
-      throw new Error('Taiyou library title must be an actual hyperlink');
+      throw new Error('Sun wordmark must link to the Library homepage');
     }
-    if (viewport.width > 700 &&
-        !(await libraryTitle.evaluate(element => getComputedStyle(element).textDecorationLine))
-          .includes('underline')) {
-      throw new Error('Library home link must be visually identifiable without hovering');
+    if (await libraryTitle.locator('img.taiyou-brand-mark').count() !== 1 ||
+        await page.locator('.details-topbar .details-top-read, .details-topbar .details-back').count() !== 0) {
+      throw new Error('Details header must contain a Sun home link, no duplicate Back or Read action');
+    }
+    if (await page.locator('.details-top-controls button').count() !== 1 ||
+        await page.locator('.details-top-controls .theme-next-button').count() !== 1) {
+      throw new Error('The theme picker must be the sole right-hand header control');
+    }
+    const headerGeometry = await page.evaluate(() => {
+      const a = document.querySelector('.details-brand-link')?.getBoundingClientRect();
+      const b = document.querySelector('.details-top-controls')?.getBoundingClientRect();
+      return { separate:!!a && !!b && a.right < b.left,
+        visible:!!a && a.width >= 105 && a.height >= 25 };
+    });
+    if (!headerGeometry.separate || !headerGeometry.visible) {
+      throw new Error('Sun brand link and theme picker overlap: ' + JSON.stringify(headerGeometry));
     }
     await page.reload({ waitUntil: 'networkidle' });
     await page.getByRole('heading', { name: 'Sample Library Book' }).waitFor();
     if (viewport.width <= 700) {
       // The long brand link is hidden on narrow screens; use the visible home button.
-      await page.getByRole('button', { name: 'My library' }).click();
+      await page.getByRole('link', { name: "Taiyou's Personal Library home" }).click();
     } else {
       await libraryTitle.click();
     }
@@ -398,7 +410,7 @@ try {
     await page.getByRole('button', { name: 'Move to regular library' }).waitFor();
     if (viewport.width <= 700) {
       // The long brand link is hidden on narrow screens; use the visible home button.
-      await page.getByRole('button', { name: 'My library' }).click();
+      await page.getByRole('link', { name: "Taiyou's Personal Library home" }).click();
     } else {
       await libraryTitle.click();
     }
