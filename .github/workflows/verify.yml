@@ -104,8 +104,8 @@ jobs:
             sleep 1
           done
           node scripts/browser_smoke.mjs
-      - name: Exercise real Pages CSP with the synthetic EPUB browser suite
-        timeout-minutes: 12
+      - name: Exercise real Pages CSP with a focused synthetic EPUB browser smoke
+        timeout-minutes: 4
         shell: bash
         run: |
           npx --yes wrangler@4 pages dev dist --ip 127.0.0.1 --port 8790 --compatibility-date 2026-11-10 --compatibility-flags nodejs_compat > /tmp/taiyou-csp-pages.log 2>&1 &
@@ -120,7 +120,7 @@ jobs:
             tail -60 /tmp/taiyou-csp-pages.log
             exit 1
           fi
-          SMOKE_URL=http://127.0.0.1:8790 node scripts/browser_smoke.mjs
+          SMOKE_URL=http://127.0.0.1:8790 node scripts/csp_smoke.mjs
       - name: Publish synthetic-only design screenshots for review
         if: ${{ always() && github.event_name == 'pull_request' && startsWith(github.head_ref, 'design/') }}
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
