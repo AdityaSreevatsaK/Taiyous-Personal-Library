@@ -399,3 +399,21 @@
   .details-shell .chapter-page-actions {flex:1 1 auto;justify-content:center}
   .details-shell .chapter-page-actions button {padding:8px;font-size:11px}
 }
+
+
+/* Easily discoverable but unobtrusive Owner tools navigation. */
+.app-shell .top-nav-master {
+  display:inline-flex;align-items:center;justify-content:center;gap:7px;
+  min-height:36px;padding:7px 9px;border-radius:7px;
+  background:var(--pale);color:var(--text);border:1px solid var(--border);
+  font-size:11px;font-weight:750;cursor:pointer;white-space:nowrap
+}
+.app-shell .top-nav-master:hover,
+.app-shell .top-nav-master[aria-current="page"] {
+  background:var(--surface-soft);border-color:var(--accent)
+}
+.app-shell .top-nav-master:focus-visible {outline:2px solid var(--accent);outline-offset:2px}
+@media(max-width:700px){
+  .app-shell .top-nav-master {min-width:36px;padding:7px}
+  .app-shell .top-nav-master span {display:none}
+}
