@@ -114,6 +114,18 @@ jobs:
             sleep 1
           done
           node scripts/browser_smoke.mjs
+      - name: Browser-test the actual CSP-protected Cloudflare Pages app
+        shell: bash
+        run: |
+          cp scripts/standalone-headers.txt dist/_headers
+          npx --yes wrangler@4 pages dev dist --ip 127.0.0.1 --port 8791 --compatibility-date 2026-11-10 --compatibility-flags nodejs_compat > /tmp/taiyou-csp-browser.log 2>&1 &
+          server=$!
+          trap 'kill "$server" || true' EXIT
+          for i in $(seq 1 35); do
+            if curl --silent --fail http://127.0.0.1:8791/ > /dev/null; then break; fi
+            sleep 1
+          done
+          SMOKE_URL=http://127.0.0.1:8791 node scripts/browser_smoke.mjs
       - name: Publish synthetic-only design screenshots for review
         if: ${{ always() && github.event_name == 'pull_request' && startsWith(github.head_ref, 'design/') }}
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
