@@ -114,7 +114,7 @@ export async function readSession(request: Request, env: Bindings): Promise<OAut
 export async function hfWhoAmI(access: string): Promise<string | null> {
   try {
     const response = await fetch(AUTH_BASE + '/api/whoami-v2', {
-      headers: { Authorization: 'Bearer ' + access }, cache: 'no-store',
+      headers: { Authorization: 'Bearer ' + access }, cache: 'no-store', signal: AbortSignal.timeout(15_000),
     });
     if (!response.ok) return null;
     const data = await response.json() as { name?: string };
@@ -137,7 +137,7 @@ export async function requestToken(params: Record<string, string>): Promise<Toke
   const response = await fetch(AUTH_BASE + '/oauth/token', {
     method: 'POST', cache: 'no-store',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams(params),
+    body: new URLSearchParams(params), signal: AbortSignal.timeout(15_000),
   });
   if (!response.ok) return null;
   const result = await response.json() as Partial<TokenResponse>;
