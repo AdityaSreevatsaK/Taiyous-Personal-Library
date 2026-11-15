@@ -208,3 +208,90 @@
   .editorial-shelf-card{transition:none}
   .editorial-shelf-card:hover{transform:none}
 }
+
+
+/* A reading desk is a concise list, not another wall of cover cards. */
+.editorial-home .editorial-continue-rail {
+  display:grid;grid-template-columns:minmax(0,1fr);gap:0;
+  padding:0;overflow:visible;scroll-snap-type:none;
+  border:1px solid var(--border);border-radius:10px;
+  background:var(--surface);
+}
+.editorial-home .editorial-continue-card {
+  flex:none;display:grid;grid-template-columns:51px minmax(0,1fr) auto;
+  gap:15px;align-items:center;min-height:88px;padding:10px 16px;
+  border:0;border-bottom:1px solid var(--border);border-radius:0;
+  box-shadow:none;background:transparent;scroll-snap-align:none;
+}
+.editorial-home .editorial-continue-card:last-child{border-bottom:0}
+.editorial-home .editorial-continue-cover {
+  display:block;width:51px;height:71px;overflow:visible;align-self:center;
+}
+.editorial-home .editorial-continue-cover .cover {
+  width:49px;height:70px;min-width:0;aspect-ratio:7/10;
+  border-radius:3px 5px 5px 3px;padding:7px 5px 5px;
+  box-shadow:1px 3px 8px #0004;
+}
+.editorial-home .editorial-continue-cover .cover-heading {
+  font-size:8px;line-height:1.1;-webkit-line-clamp:4;letter-spacing:0;
+}
+.editorial-home .editorial-continue-cover .cover-author,
+.editorial-home .editorial-continue-cover .cover-bottom,
+.editorial-home .editorial-continue-cover .cover-ornament,
+.editorial-home .editorial-continue-cover .cover-lilies {display:none}
+.editorial-home .editorial-continue-copy {min-width:0;gap:5px}
+.editorial-home .editorial-continue-copy .editorial-book-title {
+  font:600 clamp(14px,1.4vw,17px)/1.3 Georgia,serif;overflow-wrap:anywhere;
+  text-align:left;margin:0;display:block
+}
+.editorial-home .editorial-continue-copy .editorial-continue-chapter {
+  font-size:12px;line-height:1.5;white-space:normal;
+  overflow:hidden;text-overflow:ellipsis;display:-webkit-box;
+  -webkit-line-clamp:2;-webkit-box-orient:vertical;margin:0
+}
+.editorial-home .editorial-continue-copy .editorial-rail-progress {
+  height:3px;width:min(180px,100%);margin:5px 0 0
+}
+.editorial-home .editorial-continue-card>.editorial-rail-read {
+  white-space:nowrap;display:inline-flex;gap:7px;align-items:center;
+  padding:10px 12px;border:1px solid var(--border);
+  border-radius:7px;background:var(--pale);color:var(--text);
+  font-size:12px;font-weight:700;cursor:pointer
+}
+.editorial-home .editorial-continue-card>.editorial-rail-read:hover {
+  border-color:var(--accent);filter:brightness(1.03)
+}
+/* Keep the complete blue placeholder cover inside its book-shaped frame
+   at normal (100%) browser zoom as well as reduced desktop widths. */
+.editorial-home .editorial-art-book .cover {
+  width:100%;height:auto;aspect-ratio:2/3;min-width:0;min-height:0;
+  padding:11% 8% 8%;box-sizing:border-box;overflow:hidden
+}
+.editorial-home .editorial-art-book .cover-heading {
+  font-size:clamp(9px,1.15vw,16px);line-height:1.11;
+  -webkit-line-clamp:4;overflow-wrap:anywhere;letter-spacing:0;
+}
+.editorial-home .editorial-art-book .cover-author {
+  font-size:clamp(7px,.65vw,10px);line-height:1.15;
+  margin:8px 0 auto;overflow-wrap:anywhere;
+  display:-webkit-box;-webkit-line-clamp:2;
+  -webkit-box-orient:vertical;overflow:hidden
+}
+.editorial-home .editorial-art-book .cover-bottom {
+  white-space:nowrap;letter-spacing:.35px;font-size:clamp(5px,.4vw,7px)
+}
+@media(max-width:660px){
+  .editorial-home .editorial-continue-card {
+    grid-template-columns:45px minmax(0,1fr);
+    gap:9px 12px;padding:11px 12px;
+  }
+  .editorial-home .editorial-continue-cover {width:45px;height:67px;grid-row:1/3}
+  .editorial-home .editorial-continue-cover .cover {width:44px;height:65px}
+  .editorial-home .editorial-continue-card>.editorial-rail-read{
+    grid-column:2;width:max-content;max-width:100%;padding:5px 8px;
+    font-size:11px
+  }
+  .editorial-home .editorial-art-book .cover-heading {font-size:clamp(8px,2.2vw,11px)}
+  .editorial-home .editorial-art-book .cover-author{display:none}
+  .editorial-home .editorial-art-book .cover-bottom{font-size:5px;letter-spacing:0}
+}
