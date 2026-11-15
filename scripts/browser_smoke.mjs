@@ -1005,10 +1005,7 @@ try {
         await confirmDialog.getByRole('checkbox').check();
         const dangerous = confirmDialog.getByRole('button',{name:/Delete local novel|Delete novel from cloud/});
         if(!(await dangerous.isDisabled())) throw new Error('Deletion must be blocked until EPUB export succeeds');
-        await confirmDialog.getByRole('button',{name:'Cancel, keep everything'}).count().then(async count => {
-          if(count) await confirmDialog.getByRole('button',{name:'Cancel, keep everything'}).click();
-          else await confirmDialog.getByRole('button',{name:'Cancel'}).click();
-        });
+        await confirmDialog.getByRole('button',{name:'Cancel',exact:true}).click();
         if(await adminPage.getByRole('dialog').count()) throw new Error('Owner deletion modal failed to close');
         // Also check the journal's Plum hover and a genuinely contrasting
         // Settings capsule without altering stored theme preferences.
