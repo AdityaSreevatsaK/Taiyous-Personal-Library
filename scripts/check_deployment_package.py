@@ -44,7 +44,7 @@ def validate():
         raise ValueError("Offline service worker missing expected app shell behaviour")
     if "caches.match(url.href" in shell or "ignoreVary: true" in shell or "ignoreSearch: true" in shell:
         raise ValueError("Offline service worker may serve stale or unverified cache entries")
-    if "shellUrls.includes(url.href)" not in shell or "cache.match(request)" not in shell:
+    if "shellUrls.includes(url.href)" not in shell or "cache.match(url.href)" not in shell:
         raise ValueError("Offline assets must be scoped to the current verified shell")
     files = [p for p in DIST.rglob("*") if p.is_file()]
     if not files:

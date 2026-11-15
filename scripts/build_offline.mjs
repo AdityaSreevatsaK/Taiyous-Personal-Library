@@ -92,7 +92,9 @@ self.addEventListener('fetch', event => {
     // shell fail. Cache storage is distinct from the HTTP cache and is safe here.
     if (shellUrls.includes(url.href)) {
       const cache = await caches.open(SHELL_CACHE);
-      const cached = await cache.match(request);
+      // Match the precached canonical asset URL, not the browser's reload
+      // Request whose Accept/Vary headers may differ from install-time fetches.
+      const cached = await cache.match(url.href);
       if (cached) return cached;
     }
     return fetch(request);
