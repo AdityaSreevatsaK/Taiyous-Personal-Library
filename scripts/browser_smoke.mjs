@@ -884,14 +884,21 @@ try {
         await fastPage.getByRole('button', { name:'View details for Long Cultivation: My Augmented Statuses Have Unlimited Duration' }).waitFor();
         await fastPage.locator('.tile-trying-status').waitFor();
         await fastPage.locator('.tile-progress-value').first().waitFor();
+        const fiveTagTile = fastPage.locator('.book-tile').filter({hasText:'Long Cultivation: My Augmented Statuses'});
+        if (await fiveTagTile.locator('.tile-tags button').count() !== 5 ||
+            await fastPage.getByText('NOT STARTED', {exact:true}).count()) {
+          throw new Error('Catalogue must show five tags and omit Not Started labels');
+        }
         const metrics = await fastPage.locator('.book-grid .book-tile').evaluateAll(cards => cards.map(card => {
           const box = card.getBoundingClientRect();
+          const cover = card.querySelector('.cover-button > .cover').getBoundingClientRect();
           const tags = card.querySelector('.tile-tags');
           const footer = card.querySelector('.tile-bottom');
           const chips = [...tags.children].map(chip => chip.getBoundingClientRect().top);
           const tagRect = tags.getBoundingClientRect();
           return {
-            cardTop: box.top, tagsTop: tagRect.top, tagsHeight: tagRect.height,
+            cardTop: box.top, coverHeight:cover.height, coverRatio:cover.width/cover.height,
+            tagsTop: tagRect.top, tagsHeight: tagRect.height,
             footerTop: getComputedStyle(footer).display === 'none' ? null : footer.getBoundingClientRect().top,
             chipRows: chips.length === 0 ? 1 : new Set(chips.map(top => Math.round(top))).size,
             chipCount: chips.length,
@@ -902,7 +909,9 @@ try {
         const firstRow = metrics.filter(item => Math.abs(item.cardTop - metrics[0].cardTop) < 2);
         const footerBaseline = firstRow.find(item => item.footerTop !== null)?.footerTop;
         if (firstRow.length < 2 ||
-            firstRow.some(item => Math.abs(item.tagsTop - firstRow[0].tagsTop) > 2 ||
+            firstRow.some(item => Math.abs(item.coverHeight - firstRow[0].coverHeight) > 2 ||
+              Math.abs(item.coverRatio - 2/3) > .025 ||
+              Math.abs(item.tagsTop - firstRow[0].tagsTop) > 2 ||
               (item.footerTop !== null && footerBaseline !== undefined &&
                 Math.abs(item.footerTop - footerBaseline) > 2) ||
               item.tagsHeight > 80 || item.chipRows > 3 ||
