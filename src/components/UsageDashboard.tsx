@@ -72,9 +72,8 @@ export default function UsageDashboard({ books }: { books: LibraryBook[] }) {
           {days.map(day => <div className="usage-chart-day" key={day.key}
               title={`${day.key}: App ${readableDuration(day.appMs)}, reading ${readableDuration(day.readingMs)}, offline ${readableDuration(day.offlineMs)}`}>
             <div className="usage-chart-track" role="img" aria-label={`${day.key}: ${readableDuration(day.appMs)} app, ${readableDuration(day.readingMs)} reading`}>
-              <div className="usage-chart-app" style={{height:`${Math.max(0,day.appMs/maxMs*100)}%`}}>
-                <div className="usage-chart-reading" style={{height:`${day.appMs?day.readingMs/day.appMs*100:0}%`}}/>
-              </div>
+              <div className="usage-chart-app" title="Active app time" style={{height:`${Math.max(0,day.appMs/maxMs*100)}%`}}/>
+              <div className="usage-chart-reading" title="Reading time" style={{height:`${Math.max(0,day.readingMs/maxMs*100)}%`}}/>
             </div><span>{day.date.toLocaleDateString(undefined,{weekday:'short'}).slice(0,2)}</span>
           </div>)}
         </div>
