@@ -842,7 +842,10 @@ try {
         await fastPage.locator('.details-hero').getByRole('heading', { name: 'Cloud Metadata Only' }).waitFor();
         const detailLatencyMs = Date.now() - began;
         if (detailLatencyMs > 2800) throw new Error('Uncached details navigation regressed: ' + detailLatencyMs + ' ms');
-        await fastPage.getByRole('button', { name: 'Load chapter list' }).waitFor();
+        await fastPage.locator('.chapter-browser').waitFor();
+        if (await fastPage.getByRole('button', { name: 'Load chapter list' }).count()) {
+          throw new Error('Chapter list must be prepared automatically, not require a button');
+        }
         if (await fastPage.getByText(/Unable to open novel/).count()) {
           throw new Error('Details incorrectly required a downloaded EPUB');
         }
