@@ -2,14 +2,14 @@
  * The original three choices keep their saved identifiers. Sepia remains default. */
 .theme-light {
   --bg:#f6f8fc; --surface:#ffffff; --border:#dce3ee;
-  --text:#26334a; --subtext:#69778d; --pale:#ecf2fa;
+  --text:#26334a; --subtext:#596a80; --pale:#ecf2fa;
   --surface-soft:#e8eef7; --reader-paper:#fffefa;
   --accent:#4a6c9b; --accent-ink:#ffffff;
   --shadow:0 16px 50px #142c4c0d;
 }
 .theme-sepia {
   --bg:#f1e9db; --surface:#faf2e5; --border:#e5d7c1;
-  --text:#403529; --subtext:#847665; --pale:#f2e6d2;
+  --text:#403529; --subtext:#6b5d4d; --pale:#f2e6d2;
   --surface-soft:#ebdec9; --reader-paper:#f4ead7;
   --accent:#6b6381; --accent-ink:#ffffff;
   --shadow:0 16px 50px #412c1513;
@@ -30,7 +30,7 @@
 }
 .theme-ocean {
   --bg:#e9f2fa; --surface:#f9fcff; --border:#cbdde9;
-  --text:#244464; --subtext:#55718e; --pale:#dcebf6;
+  --text:#244464; --subtext:#47627f; --pale:#dcebf6;
   --surface-soft:#d1e5f3; --reader-paper:#e8f3fb;
   --accent:#376e9c; --accent-ink:#ffffff;
   --shadow:0 16px 50px #173d6615;
