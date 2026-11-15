@@ -5,7 +5,7 @@ import Reader from './components/Reader';
 import OwnerActionDialog, { type OwnerRemovalRequest } from './components/OwnerActionDialog';
 import { ownerPost } from './lib/owner';
 import { extractEpubMetadata, prepareImport } from './lib/importer';
-import { normalizeTags } from './lib/tags';
+import { bookTags, normalisePersonalTags, tagCounts, tagKey } from './lib/tags';
 import { namedNovelUrl, parseLibraryRoute, resolveNovelRoute } from './lib/routes';
 import { libraryAuthorUrl, libraryTagUrl } from './lib/library-routes';
 import { mapWithConcurrency, retryTransientRead } from './lib/network-pool';
@@ -788,7 +788,11 @@ export default function App() {
   const savePersonalTags = useCallback(async (bookId: string, tags: string[]) => {
     const current = booksRef.current.find(book => book.id === bookId);
     if (!current) return;
-    const updated = { ...current, personalTags: normalizeTags(tags) };
+    const knownTags = booksRef.current.flatMap(bookTags);
+    const imported = new Set((current.sourceTags || []).map(tagKey));
+    const updated = { ...current,
+      personalTags: normalisePersonalTags(tags, knownTags)
+        .filter(tag => !imported.has(tagKey(tag))) };
     await updateBook(updated);
     booksRef.current = booksRef.current.map(book => book.id === bookId ? updated : book);
     setBooks(booksRef.current);
@@ -1259,7 +1263,7 @@ export default function App() {
         onBack={goLibrary}
         onNovelDetails={() => { setReadingId(null); setDetailsId(activeBook.id); setStartChapterHref(null); navigate(namedNovelUrl(activeBook, booksRef.current)); }} onProgress={recordProgress} />
     ) : detailBook ? (
-      <BookDetails book={detailBook} theme={settings.theme} onThemeChange={theme => setSettings(current => ({ ...current, theme }))}
+      <BookDetails book={detailBook} availableTags={tagCounts(books).map(({tag}) => tag)} theme={settings.theme} onThemeChange={theme => setSettings(current => ({ ...current, theme }))}
         onLoadChapters={() => loadChapterCatalog(detailBook.id, detailBook.chapterCount, async () => {
           try { return await getBookFile(detailBook.id); }
           catch { /* Preview can read a hosted EPUB without caching it. */ }
