@@ -15,7 +15,7 @@ function contrast(first: string, second: string): number {
 }
 function tokens(theme: string): Record<string, string> {
   const block = new RegExp('\\.theme-' + theme + ' \\{([^}]+)\\}').exec(css)?.[1] || '';
-  return Object.fromEntries([...block.matchAll(/(--[\\w-]+):\\s*(#[0-9a-fA-F]{6})/g)]
+  return Object.fromEntries([...block.matchAll(/(--[\w-]+):\s*(#[0-9a-fA-F]{6})/g)]
     .map(([, name, value]) => [name, value]));
 }
 
