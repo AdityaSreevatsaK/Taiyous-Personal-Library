@@ -41,3 +41,24 @@
 .usage-privacy-actions button:hover {border-color:var(--accent);}
 @media(max-width:900px) { .usage-metrics {grid-template-columns:repeat(2,minmax(0,1fr));} .usage-section-grid {grid-template-columns:1fr;} }
 @media(max-width:550px) { .usage-metric {padding:14px;} .usage-card {padding:15px;} .usage-chart {gap:4px;} .usage-header h1 {font-size:33px;} }
+
+
+/* Adjacent, distinctly coloured daily bars, both scaled to the same axis. */
+.usage-dashboard .usage-chart-track {
+  display:flex;flex-direction:row;align-items:flex-end;justify-content:center;
+  gap:clamp(2px,.4vw,6px);min-height:0;
+}
+.usage-dashboard .usage-chart-track > .usage-chart-app,
+.usage-dashboard .usage-chart-track > .usage-chart-reading {
+  display:block;flex:0 1 42%;width:42%;max-width:25px;min-width:2px;
+  border-radius:5px 5px 0 0;min-height:0;overflow:visible;opacity:1;
+}
+.usage-dashboard .usage-chart-track > .usage-chart-app {background:#64779c}
+.usage-dashboard .usage-chart-track > .usage-chart-reading {background:#b46dac}
+.usage-dashboard .usage-legend-app{background:#64779c}
+.usage-dashboard .usage-legend-reading{background:#b46dac}
+@media(max-width:550px) {
+  .usage-dashboard .usage-chart-track {gap:2px}
+  .usage-dashboard .usage-chart-track > .usage-chart-app,
+  .usage-dashboard .usage-chart-track > .usage-chart-reading{flex-basis:44%;width:44%}
+}
