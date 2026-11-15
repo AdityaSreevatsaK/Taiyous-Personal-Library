@@ -924,6 +924,34 @@ try {
         await fastPage.screenshot({path:`artifacts/design-screenshots/catalogue-tiles-${viewport.width}.png`,fullPage:true});
       } finally {
         await fastPage.close();
+      }
+      // Synthetic unlocked Owner session: prove expandable management controls
+      // render and remain keyboard-accessible. No privileged cloud mutation.
+      const adminPage = await context.newPage();
+      try {
+        await adminPage.route('**/api/owner?**', route => route.fulfill({
+          status:200,contentType:'application/json',
+          body:JSON.stringify({configured:true,unlocked:true,expiresAt:Date.now()+600000}),
+        }));
+        await adminPage.goto(baseUrl + '/master-controls', { waitUntil:'domcontentloaded' });
+        await adminPage.locator('.master-controls table').waitFor({state:'visible',timeout:15000});
+        const manage = adminPage.getByRole('button', {name:'Manage novel'}).first();
+        await manage.click();
+        if (await manage.getAttribute('aria-expanded') !== 'true') {
+          throw new Error('Master novel record did not expand accessibly');
+        }
+        for (const name of ['Title and author','Personal rating and notes','Tags','Synopsis','Reading progress']) {
+          await adminPage.getByRole('heading', {name,exact:true}).waitFor();
+        }
+        await adminPage.getByRole('button', {name:'Reset progress'}).waitFor();
+        await adminPage.getByRole('button', {name:'Mark as completed'}).waitFor();
+        await adminPage.getByRole('button', {name:'Export EPUB backup'}).waitFor();
+        await adminPage.getByRole('button', {name:'Close controls'}).click();
+        if (await adminPage.locator('.master-expanded-row').count()) {
+          throw new Error('Closing Master record failed to remove its edit panel');
+        }
+      } finally {
+        await adminPage.close();
         await context.close();
       }
     }
