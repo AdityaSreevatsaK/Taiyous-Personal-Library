@@ -691,8 +691,7 @@ try {
     await page.getByRole('button', { name: /^(Start reading|Continue reading)$/ }).click();
     await page.getByRole('button', { name: 'Go to library home' }).click();
     await page.getByRole('navigation', { name: 'Library sections' }).waitFor();
-    await page.getByRole('navigation', { name: 'Library sections' })
-      .getByRole('button', { name: /All books/ }).click();
+    await navigateShelf(/All books/, 'all');
     await page.waitForURL('**/library');
     await page.locator('.book-rating-pill').getByText('8/10').waitFor();
     // Verify a true offline *reload* of the compiled app, then open/read the
