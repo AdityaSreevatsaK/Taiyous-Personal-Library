@@ -123,6 +123,41 @@ try {
       const id = { Sepia: 'sepia', Paper: 'light', Charcoal: 'dark',
         Midnight: 'midnight', Ocean: 'ocean', Plum: 'plum' }[name];
       await page.locator('.app-shell.theme-' + id).waitFor({ state: 'visible' });
+      // Connection label and Settings must meet readable contrast in every
+      // theme. Simulate CSS state only, not a Hugging Face login.
+      const cloudContrast = await page.evaluate(() => {
+        const pill = document.querySelector('.topbar .cloud-connect-head .connection-badge');
+        const button = document.querySelector('.topbar .cloud-connect-head > .secondary-button');
+        if (!pill || !button) return null;
+        pill.classList.add('is-connected');
+        const dot = document.createElement('span');
+        dot.className = 'cloud-connected-dot';
+        pill.prepend(dot);
+        const rgb = color => (color.match(/[0-9.]+/g) || []).slice(0, 3).map(Number);
+        const luminance = color => rgb(color).map(value => {
+          const x = value / 255;
+          return x <= .04045 ? x / 12.92 : ((x + .055) / 1.055) ** 2.4;
+        }).reduce((sum, value, index) => sum + value * [.2126, .7152, .0722][index], 0);
+        const ratio = (a,b) => {
+          const x = luminance(a), y = luminance(b);
+          return (Math.max(x,y)+.05)/(Math.min(x,y)+.05);
+        };
+        const badgeStyle = getComputedStyle(pill), buttonStyle = getComputedStyle(button),
+          dotStyle = getComputedStyle(dot);
+        const metrics = {
+          badge:ratio(badgeStyle.color,badgeStyle.backgroundColor),
+          settings:ratio(buttonStyle.color,buttonStyle.backgroundColor),
+          dot:ratio(dotStyle.backgroundColor,badgeStyle.backgroundColor),
+        };
+        dot.remove();
+        pill.classList.remove('is-connected');
+        return metrics;
+      });
+      if (!cloudContrast || cloudContrast.settings < 4.5 ||
+          (viewport.width > 700 && cloudContrast.badge < 4.5) ||
+          cloudContrast.dot < 3) {
+        throw new Error('Cloud connection contrast fails in ' + name + ': ' + JSON.stringify(cloudContrast));
+      }
       const expectedLogo = ['Sepia','Paper','Ocean'].includes(name) ? 'sun-light.webp' : 'sun-dark.webp';
       await page.locator('.taiyou-brand-mark[src$="' + expectedLogo + '"]').waitFor();
       const expectedFavicon = ['Sepia','Paper','Ocean'].includes(name) ? 'favicon-light.png' : 'favicon-dark.png';
