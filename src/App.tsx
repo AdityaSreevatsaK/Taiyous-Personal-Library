@@ -1057,7 +1057,8 @@ export default function App() {
       const response = await fetch('/api/library?action=correct-metadata', {
         method:'POST', credentials:'same-origin', cache:'no-store',
         headers: { 'Content-Type':'application/json', 'X-Taiyou-Request':'owner-edit-metadata' },
-        body:JSON.stringify({id, expectedTitle:current.title, title:cleanedTitle, author:cleanedAuthor}),
+        body:JSON.stringify({id, expectedTitle:current.title, expectedAuthor:current.author,
+          title:cleanedTitle, author:cleanedAuthor}),
       });
       const outcome = await response.json().catch(() => ({})) as { error?: string; saved?: boolean };
       if (!response.ok || outcome.saved !== true) {
