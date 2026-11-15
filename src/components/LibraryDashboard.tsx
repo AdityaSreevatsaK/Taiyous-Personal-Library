@@ -333,8 +333,8 @@ export default function LibraryDashboard({
             <button type="button" className={`top-nav-link ${libraryPath === '/' && !globalMode ? 'active' : ''}`}
               aria-current={libraryPath === '/' && !globalMode ? 'page' : undefined}
               onClick={goHome}>Home</button>
-            {navEntries.map(({ id, name, count }) => <button type="button" key={id} className={`top-nav-link ${!showAdvanced && filter === id && !selectedTag && !selectedAuthor && !selectedCollectionId ? 'active' : ''}`}
-              aria-current={!showAdvanced && filter === id && !selectedTag && !selectedAuthor && !selectedCollectionId ? 'page' : undefined}
+            {navEntries.map(({ id, name, count }) => <button type="button" key={id} className={`top-nav-link ${!showAdvanced && !isMasterControls && filter === id && !selectedTag && !selectedAuthor && !selectedCollectionId ? 'active' : ''}`}
+              aria-current={!showAdvanced && !isMasterControls && filter === id && !selectedTag && !selectedAuthor && !selectedCollectionId ? 'page' : undefined}
               onClick={() => goTo(id)}><span>{name}</span>{id !== 'analytics' && <small>{count}</small>}</button>)}
           </div>
           <div className="mobile-shelf-nav" aria-label="Quick library shelves">
