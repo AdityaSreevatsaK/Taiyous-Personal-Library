@@ -50,7 +50,10 @@ self.addEventListener('install', event => {
 self.addEventListener('activate', event => {
   event.waitUntil((async () => {
     const keys = await caches.keys();
-    await Promise.all(keys.filter(key => key.startsWith('taiyou-shell-') && key !== SHELL_CACHE).map(key => caches.delete(key)));
+    // Keep the immediately previous shell for tabs still running the old build.
+    // A forced worker update must not strand those tabs offline mid-session.
+    const older = keys.filter(key => key.startsWith('taiyou-shell-') && key !== SHELL_CACHE);
+    await Promise.all(older.slice(0, -1).map(key => caches.delete(key)));
     await self.clients.claim();
   })());
 });
@@ -84,8 +87,16 @@ self.addEventListener('fetch', event => {
   // requests fall through to the network, but are never cached or persisted.
   // Cross-origin private Hugging Face dataset requests are never intercepted.
   event.respondWith((async () => {
-    const cached = await caches.match(url.href, { ignoreSearch: true, ignoreVary: true });
+    const current = await caches.open(SHELL_CACHE);
+    const cached = await current.match(url.href, { ignoreSearch: true });
     if (cached) return cached;
+    // A still-open tab can request an older hashed asset after an update.
+    // Only fall back to our own previous precache, never cache private APIs.
+    const previous = (await caches.keys()).filter(key => key.startsWith('taiyou-shell-') && key !== SHELL_CACHE);
+    for (const key of previous.reverse()) {
+      const oldAsset = await (await caches.open(key)).match(url.href, { ignoreSearch: true });
+      if (oldAsset) return oldAsset;
+    }
     return fetch(request);
   })());
 });
