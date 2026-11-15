@@ -100,6 +100,8 @@ export default function Reader({ book, settings, onSettings, onBack, onNovelDeta
   const [tocSearch, setTocSearch] = useState('');
   const [chapterPickerOpen, setChapterPickerOpen] = useState(false);
   const [chapterSearch, setChapterSearch] = useState('');
+  const pickerListRef = useRef<HTMLDivElement>(null);
+  const [chapterScrollIndex, setChapterScrollIndex] = useState(0);
   const [chapterNumber, setChapterNumber] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -353,19 +355,31 @@ export default function Reader({ book, settings, onSettings, onBack, onNovelDeta
 
   const displayedChapterIndex = currentChapterIndex + 1;
   const chapterSearchQuery = chapterSearch.trim().toLocaleLowerCase();
-  // EPUBs can have 4,000+ entries. Keep the DOM list bounded and provide
-  // both text search and direct numeric chapter navigation.
+  // Virtualise a *complete* chapter list rather than clipping at 60/80.
+  // Each row has a fixed height. Scroll ranges now reach the final chapter,
+  // even for 7,000+ chapter books, while rendering at most 40 buttons.
+  const CHAPTER_ROW_HEIGHT = 54;
   const chapterMatches = chapterSearchQuery
     ? chapters.map((item, index) => ({ item, index }))
-      .filter(({ item, index }) => item.label.toLocaleLowerCase().includes(chapterSearchQuery) || String(index + 1) === chapterSearchQuery)
-      .slice(0, 80)
-    : chapters.slice(Math.max(0, currentChapterIndex - 15), Math.min(chapters.length, Math.max(0, currentChapterIndex - 15) + 60))
-      .map((item, index) => ({ item, index: index + Math.max(0, currentChapterIndex - 15) }));
+      .filter(({ item, index }) => item.label.toLocaleLowerCase().includes(chapterSearchQuery)
+        || String(index + 1) === chapterSearchQuery)
+    : chapters.map((item, index) => ({ item, index }));
+  const visibleStart = Math.max(0, Math.min(chapterScrollIndex, Math.max(0, chapterMatches.length - 40)));
+  const visibleEnd = Math.min(chapterMatches.length, visibleStart + 40);
+  const visibleChapterMatches = chapterMatches.slice(visibleStart, visibleEnd);
+  useEffect(() => {
+    if (!chapterPickerOpen) return;
+    const target = chapterSearchQuery ? 0 : Math.max(0, currentChapterIndex - 4);
+    const offset = target * CHAPTER_ROW_HEIGHT;
+    if (pickerListRef.current) pickerListRef.current.scrollTop = offset;
+    setChapterScrollIndex(Math.max(0, target - 6));
+  }, [chapterPickerOpen, chapterSearchQuery, currentChapterIndex]);
   const chapterNumberIndex = Number(chapterNumber) - 1;
   const validChapterNumber = Number.isInteger(chapterNumberIndex) && chapterNumberIndex >= 0 && chapterNumberIndex < chapters.length;
   const openChapterPicker = () => {
     setPanel(null);
     setChapterSearch('');
+    setChapterScrollIndex(Math.max(0, currentChapterIndex - 10));
     setChapterNumber(String(Math.max(1, currentChapterIndex + 1)));
     setChapterPickerOpen(true);
   };
@@ -441,20 +455,22 @@ export default function Reader({ book, settings, onSettings, onBack, onNovelDeta
             <input type="search" aria-label="Search chapter titles" placeholder="Search chapters by title or number…"
               value={chapterSearch} onChange={event => setChapterSearch(event.target.value)} />
           </label>
-          <div className="reader-chapter-picker-list">
-            {chapterMatches.map(({ item, index }) => <button type="button" key={`${index}-${item.href}`}
+          <div className="reader-chapter-picker-list" ref={pickerListRef}
+            onScroll={event => setChapterScrollIndex(Math.max(0,
+              Math.floor(event.currentTarget.scrollTop / CHAPTER_ROW_HEIGHT) - 6))}>
+            <div className="chapter-picker-spacer" style={{ height: visibleStart * CHAPTER_ROW_HEIGHT }} aria-hidden="true" />
+            {visibleChapterMatches.map(({ item, index }) => <button type="button" key={`${index}-${item.href}`}
               className={index === currentChapterIndex ? 'chapter-picker-result active' : 'chapter-picker-result'}
               aria-current={index === currentChapterIndex ? 'true' : undefined}
-              disabled={moving} onClick={() => void jump(item.href)}>
+              title={item.label} disabled={moving} onClick={() => void jump(item.href)}>
               <span className="chapter-picker-number">{index + 1}</span><span>{item.label}</span>
               {index === currentChapterIndex && <Check size={15} />}
             </button>)}
+            <div className="chapter-picker-spacer" style={{ height: (chapterMatches.length - visibleEnd) * CHAPTER_ROW_HEIGHT }} aria-hidden="true" />
             {!chapterMatches.length && <p className="toc-no-results">No matching chapters.</p>}
           </div>
           <footer className="reader-chapter-picker-footnote">
-            {chapterSearchQuery
-              ? `Showing up to 80 matches. Use chapter number for direct navigation.`
-              : `Showing chapters near your current position. Search or enter a number to jump anywhere.`}
+            {`${chapterMatches.length.toLocaleString()} chapters ${chapterSearchQuery ? 'match your search' : 'available'}. Scroll freely or jump directly by number.`}
           </footer>
         </section>
       </div>}

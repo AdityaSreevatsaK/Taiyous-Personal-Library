@@ -1476,3 +1476,15 @@ a.details-top-title:focus-visible { outline: 2px solid #8088ac; outline-offset: 
   .details-shell .details-mobile-rating-controls select {min-width:83px}
   .details-shell .details-mobile-rating-controls .hero-rating-save {padding:8px}
 }
+
+/* Fixed-height virtual rows make the chapter picker's scrollbar represent
+   the entire EPUB, rather than a small window around the current page. */
+.reader-chapter-picker-list {gap:0;overflow-anchor:none}
+.reader-chapter-picker-list .chapter-picker-result {
+  box-sizing:border-box;height:54px;min-height:54px;max-height:54px;flex:0 0 54px;
+  overflow:hidden;white-space:nowrap
+}
+.reader-chapter-picker-list .chapter-picker-result span:nth-child(2){
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap
+}
+.reader-chapter-picker-list .chapter-picker-spacer {flex:0 0 auto;width:1px;pointer-events:none}

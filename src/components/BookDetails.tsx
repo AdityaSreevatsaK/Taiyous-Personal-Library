@@ -11,6 +11,7 @@ import './details-palettes.css';
 import type { CloudSession } from '../lib/cloud';
 import ChapterBrowser from './ChapterBrowser';
 import { bookTags, normalizeTags } from '../lib/tags';
+import { ratingLabel } from '../lib/ratings';
 import type { LibraryBook, ReaderTheme } from '../types';
 
 interface Props {
@@ -163,7 +164,7 @@ export default function BookDetails({ book, theme, onThemeChange, onBack, onRead
               <legend><Star size={15} /> My rating {book.personalRating ? `· ${book.personalRating}/10` : ''}</legend>
               <div className="hero-rating-choices">
                 {Array.from({ length: 10 }, (_, index) => index + 1).map(value =>
-                  <button key={value} type="button" className={ratingDraft === value ? 'hero-rating-choice selected' : 'hero-rating-choice'} onClick={() => setRatingDraft(value)} aria-label={`Rate ${value} out of 10`} aria-pressed={ratingDraft === value}>{value}</button>
+                  <button key={value} type="button" className={ratingDraft === value ? 'hero-rating-choice selected' : 'hero-rating-choice'} onClick={() => setRatingDraft(value)} aria-label={`Rate ${value} out of 10: ${ratingLabel(value)}`} title={ratingLabel(value)} aria-pressed={ratingDraft === value}>{value}</button>
                 )}
                 <button type="button" className="hero-rating-clear" onClick={() => setRatingDraft(undefined)} disabled={ratingDraft === undefined}>Clear</button>
               </div>

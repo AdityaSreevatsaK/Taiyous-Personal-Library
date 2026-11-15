@@ -495,3 +495,39 @@
 @media(prefers-reduced-motion:reduce) {
   .app-shell button,.details-shell button {transition:none!important}
 }
+
+/* Real cover halo belongs outside the cover artwork, not inside its
+   overflow-clipped image frame. Move the entire tile for a tactile hover. */
+.app-shell .book-grid .cover-button,
+.app-shell .editorial-home .editorial-art-book,
+.details-shell .details-cover-wrap {overflow:visible;isolation:isolate}
+.app-shell .book-grid .cover-button .cover,
+.app-shell .editorial-home .editorial-art-book .cover {
+  transition:transform .22s ease,filter .22s ease,box-shadow .22s ease;
+  filter:drop-shadow(0 0 6px var(--book-halo,rgba(140,140,160,.24)))
+         drop-shadow(0 10px 10px #00000025);
+}
+.app-shell .book-grid .cover-button:hover .cover,
+.app-shell .book-grid .cover-button:focus-visible .cover,
+.app-shell .editorial-home .editorial-art-book:hover .cover {
+  transform:translateY(-8px) scale(1.035);
+  filter:drop-shadow(0 0 13px var(--book-halo,rgba(140,140,160,.42)))
+         drop-shadow(0 16px 13px #00000038);
+}
+.app-shell .book-tile:hover {z-index:2;position:relative}
+.app-shell .book-grid .cover-button:focus-visible {outline-offset:4px}
+@media(prefers-reduced-motion:reduce){
+ .app-shell .book-grid .cover-button .cover,
+ .app-shell .editorial-home .editorial-art-book .cover {transition:none}
+ .app-shell .book-grid .cover-button:hover .cover,
+ .app-shell .editorial-home .editorial-art-book:hover .cover {transform:none}
+}
+/* Header connected and settings capsules use matching geometry and borders. */
+@media(min-width:701px) {
+ .app-shell .topbar .cloud-connect-head .connection-badge.is-connected,
+ .app-shell .topbar .cloud-connect-head > .secondary-button {
+   box-sizing:border-box;min-width:97px;height:37px;min-height:37px;
+   border-width:1px;border-style:solid;border-radius:999px;
+   display:inline-flex;align-items:center;justify-content:center;padding:0 11px;
+ }
+}
