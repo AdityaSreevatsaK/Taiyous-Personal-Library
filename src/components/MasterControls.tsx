@@ -45,6 +45,7 @@ function BookRow({ book, onCorrectMetadata, onMarkCompleted, onResetProgress,
   const [notes, setNotes] = useState(book.personalReview || '');
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState('');
+  const [resultError, setResultError] = useState(false);
   useEffect(() => {
     if (!result) return;
     const timeout = window.setTimeout(() => setResult(''), 8000);
@@ -61,9 +62,9 @@ function BookRow({ book, onCorrectMetadata, onMarkCompleted, onResetProgress,
 
   async function run(action: () => Promise<void>, success: string) {
     if (busy) return;
-    setBusy(true); setResult('');
+    setBusy(true); setResult(''); setResultError(false);
     try { await action(); setResult(success); }
-    catch (reason) { setResult(errorMessage(reason)); }
+    catch (reason) { setResultError(true); setResult(errorMessage(reason)); }
     finally { setBusy(false); }
   }
   const newTitle = title.trim().replace(/\s+/g, ' ');
@@ -90,10 +91,12 @@ function BookRow({ book, onCorrectMetadata, onMarkCompleted, onResetProgress,
           {expanded ? 'Close controls' : 'Manage novel'}
         </button>
         {duplicate && <button type="button" className="master-danger-outline"
-          disabled={busy} title="Requires exporting this exact EPUB first"
+          disabled={busy} title="Opens protected deletion with an EPUB backup step"
           onClick={() => void run(() => onDeleteNovel(book.id), 'Opening protected deletion confirmation')}>
           Delete copy…
         </button>}
+        {!expanded && result && <span className={'master-row-notice' + (resultError ? ' is-error' : '')}
+          role={resultError ? 'alert' : 'status'}>{result}</span>}
       </div></td>
     </tr>
     {expanded && <tr className="master-expanded-row" id={'master-edit-' + book.id}><td colSpan={5}>
@@ -174,7 +177,8 @@ function BookRow({ book, onCorrectMetadata, onMarkCompleted, onResetProgress,
         <button type="button" className="master-danger-outline" disabled={busy}
           onClick={() => void run(() => onDeleteNovel(book.id), 'Opening protected deletion confirmation')}>Delete this copy…</button>
       </div>
-      {result && <p className="master-result" role="status">{result}</p>}
+      {result && <p className={'master-result' + (resultError ? ' is-error' : '')}
+        role={resultError ? 'alert' : 'status'}>{result}</p>}
     </td></tr>}
   </>;
 }

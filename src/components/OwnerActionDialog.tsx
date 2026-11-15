@@ -16,6 +16,9 @@ interface Props {
   request: OwnerRemovalRequest;
   onCancel: () => void;
   onConfirm: (request: OwnerRemovalRequest) => Promise<void>;
+  /** Export only the immutable ID targeted by this confirmation. */
+  onExportBackup?: (id: string) => Promise<void>;
+  initialBackupExported?: boolean;
 }
 
 const messages: Record<OwnerRemovalRequest['kind'], { title: string; description: string; button: string }> = {
@@ -36,21 +39,24 @@ const messages: Record<OwnerRemovalRequest['kind'], { title: string; description
   },
 };
 
-export default function OwnerActionDialog({ theme, request, onCancel, onConfirm }: Props) {
+export default function OwnerActionDialog({ theme, request, onCancel, onConfirm, onExportBackup, initialBackupExported = false }: Props) {
   const [status, setStatus] = useState<OwnerStatus | null>(null);
   const [error, setError] = useState('');
   const [passphrase, setPassphrase] = useState('');
   const [titleEntry, setTitleEntry] = useState('');
   const [backupConfirmed, setBackupConfirmed] = useState(false);
+  const [backupExported, setBackupExported] = useState(initialBackupExported);
+  const [backupMessage, setBackupMessage] = useState('');
   const [busy, setBusy] = useState(false);
   useEffect(() => {
     let active = true;
-    setStatus(null); setError(''); setPassphrase(''); setTitleEntry(''); setBackupConfirmed(false);
+    setStatus(null); setError(''); setPassphrase(''); setTitleEntry('');
+    setBackupConfirmed(false); setBackupExported(initialBackupExported); setBackupMessage('');
     void getOwnerStatus().then(value => {
       if (active) setStatus(value);
     }).catch(reason => { if (active) setError(String(reason instanceof Error ? reason.message : reason)); });
     return () => { active = false; };
-  }, [request.id, request.kind]);
+  }, [request.id, request.kind, initialBackupExported]);
   useEffect(() => {
     const close = (event: KeyboardEvent) => { if (event.key === 'Escape' && !busy) onCancel(); };
     document.addEventListener('keydown', close);
@@ -72,7 +78,7 @@ export default function OwnerActionDialog({ theme, request, onCancel, onConfirm 
   async function confirm(event: FormEvent) {
     event.preventDefault();
     if (busy || !status?.unlocked || titleEntry !== request.title ||
-      (request.kind !== 'collection' && !backupConfirmed)) return;
+      (request.kind !== 'collection' && (!backupConfirmed || (request.fromMaster && !backupExported)))) return;
     setBusy(true); setError('');
     try {
       // A fresh server check is required even when React remembers Owner mode.
@@ -83,6 +89,18 @@ export default function OwnerActionDialog({ theme, request, onCancel, onConfirm 
       const message = reason instanceof Error ? reason.message : String(reason);
       setError(message);
       if (/expired|locked|owner mode/i.test(message)) setStatus(previous => previous ? { ...previous, unlocked: false } : null);
+    } finally { setBusy(false); }
+  }
+
+  async function exportBeforeDelete() {
+    if (!onExportBackup || busy || request.kind === 'collection') return;
+    setBusy(true); setError(''); setBackupMessage('');
+    try {
+      await onExportBackup(request.id);
+      setBackupExported(true);
+      setBackupMessage('EPUB download started. Verify the saved file before confirming deletion.');
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : String(reason));
     } finally { setBusy(false); }
   }
 
@@ -113,6 +131,15 @@ export default function OwnerActionDialog({ theme, request, onCancel, onConfirm 
         <label htmlFor="taiyou-owner-title">Confirm title</label>
         <input id="taiyou-owner-title" type="text" value={titleEntry} autoComplete="off"
           onChange={event => setTitleEntry(event.target.value)} placeholder={request.title} />
+        {request.fromMaster && request.kind !== 'collection' && <div className="owner-backup-step">
+          <strong>Step 1. Save this exact EPUB</strong>
+          <p>Export the selected novel before deleting it. Your other copies and private cloud data remain untouched until final confirmation.</p>
+          <button type="button" className="secondary-button" disabled={busy || !onExportBackup}
+            onClick={() => void exportBeforeDelete()}>
+            {busy ? 'Preparing backup…' : backupExported ? 'Export EPUB again' : 'Export EPUB backup'}
+          </button>
+          {backupMessage && <p role="status" className="owner-backup-ready">{backupMessage}</p>}
+        </div>}
         {request.kind !== 'collection' && <label className="owner-backup-confirm">
           <input type="checkbox" checked={backupConfirmed}
             onChange={event => setBackupConfirmed(event.target.checked)} />
@@ -121,7 +148,8 @@ export default function OwnerActionDialog({ theme, request, onCancel, onConfirm 
         </label>}
         <div className="owner-dialog-actions">
           <button className="secondary-button" type="button" onClick={onCancel} disabled={busy}>Cancel</button>
-          <button className="owner-danger-button" type="submit" disabled={busy || titleEntry !== request.title || (request.kind !== 'collection' && !backupConfirmed)}>
+          <button className="owner-danger-button" type="submit" disabled={busy || titleEntry !== request.title ||
+              (request.kind !== 'collection' && (!backupConfirmed || (request.fromMaster && !backupExported)))}>
             {busy ? 'Verifying…' : content.button}
           </button>
         </div>

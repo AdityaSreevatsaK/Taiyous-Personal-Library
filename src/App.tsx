@@ -1151,11 +1151,9 @@ export default function App() {
     await ownerPost('verify');
     const book = booksRef.current.find(item => item.id === id);
     if (!book) throw new Error('Novel no longer exists; refresh Master Controls.');
-    if (!masterExportedEpubs.current.has(id)) {
-      throw new Error('Export this exact novel’s EPUB backup first. Then confirm the downloaded file is safe before deleting.');
-    }
-    // The protected Owner dialog performs the separate typed-title and
-    // explicit saved-backup confirmation before any deletion is attempted.
+    // Open a VISIBLE, owner-authenticated dialog immediately. It enforces
+    // export of this exact immutable EPUB before a destructive operation;
+    // the old invisible precondition made Delete copy appear to do nothing.
     setOwnerRequest({ kind: book.cloud ? 'hosted-novel' : 'local-novel',
       id: book.id, title: book.title, fromMaster: true });
   }, []);
@@ -1315,6 +1313,8 @@ export default function App() {
         onCloudPublishCached={publishCachedNovels} />
     )}
     {ownerRequest && <OwnerActionDialog theme={settings.theme} request={ownerRequest}
+      initialBackupExported={ownerRequest.fromMaster === true && masterExportedEpubs.current.has(ownerRequest.id)}
+      onExportBackup={masterExportEpub}
       onCancel={() => setOwnerRequest(null)} onConfirm={performOwnerAction} />}
     <input ref={filePicker} type="file" accept=".epub,.zip,application/epub+zip" multiple hidden
       onChange={pickerChanged} aria-label="Import EPUB or Novel ZIP" />
