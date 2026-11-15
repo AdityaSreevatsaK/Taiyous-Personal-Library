@@ -3,6 +3,7 @@ export type ShelfFilter = 'all' | 'trying' | 'reading' | 'unread' | 'finished' |
 export interface LibraryView {
   filter: ShelfFilter;
   tag: string;
+  author: string;
   collectionId: string;
   advanced: boolean;
 }
@@ -27,6 +28,14 @@ export function libraryTagUrl(tag: string, filter: ShelfFilter = 'all'): string 
   return '/tags/' + encodeURIComponent(name) + (filter === 'all' ? '' : '/shelf/' + filter);
 }
 
+export function libraryAuthorUrl(author: string): string {
+  const name = author.normalize('NFKC').trim().replace(/\s+/g, ' ');
+  if (!name || name.length > 160 || /[\u0000-\u001f/\\]/.test(name) || name === '.' || name === '..') {
+    throw new Error('Invalid author name');
+  }
+  return '/authors/' + encodeURIComponent(name);
+}
+
 export function libraryCollectionUrl(id: string, filter: ShelfFilter = 'all'): string {
   if (!COLLECTION_ID.test(id)) throw new Error('Invalid collection identifier');
   if (!SCOPED_FILTERS.has(filter)) throw new Error('Invalid collection shelf');
@@ -35,20 +44,28 @@ export function libraryCollectionUrl(id: string, filter: ShelfFilter = 'all'): s
 
 export function parseLibraryViewPath(path: string): LibraryView {
   const ordinary = (filter: ShelfFilter = 'all', advanced = false): LibraryView =>
-    ({filter, tag:'', collectionId:'', advanced});
+    ({filter, tag:'', author:'', collectionId:'', advanced});
   const normal = path.length > 1 ? path.replace(/\/$/, '') : path;
   if (normal === '/') return ordinary('all'); // Curated Home, not the complete catalogue.
   if (normal === '/advanced-search') return ordinary('all', true);
   if (Object.prototype.hasOwnProperty.call(PATH_FILTERS,normal)) return ordinary(PATH_FILTERS[normal]);
+  const authorMatch = /^\/authors\/([^/]+)$/.exec(normal);
+  if (authorMatch) {
+    try {
+      const author = decodeURIComponent(authorMatch[1]).normalize('NFKC').trim();
+      if (!author || author.length > 160 || /[\u0000-\u001f/\\]/.test(author) || author === '.' || author === '..') return ordinary();
+      return { ...ordinary(), author };
+    } catch { return ordinary(); }
+  }
   const tagMatch = /^\/tags\/([^/]+)(?:\/shelf\/(all|trying|reading|unread|finished|offline))?$/.exec(normal);
   if (tagMatch) {
     try {
       const decoded = decodeURIComponent(tagMatch[1]);
       if (!decoded || decoded.length > 90 || /[\u0000-\u001f/\\]/.test(decoded) || decoded === '.' || decoded === '..') return ordinary();
-      return {filter:(tagMatch[2] || 'all') as ShelfFilter, tag:decoded, collectionId:'', advanced:false};
+      return {filter:(tagMatch[2] || 'all') as ShelfFilter, tag:decoded, author:'', collectionId:'', advanced:false};
     } catch { return ordinary(); }
   }
   const collectionMatch = /^\/collections\/([A-Za-z0-9_-]{8,100})(?:\/shelf\/(all|trying|reading|unread|finished|offline))?$/.exec(normal);
-  if (collectionMatch) return {filter:(collectionMatch[2] || 'all') as ShelfFilter, tag:'', collectionId:collectionMatch[1],advanced:false};
+  if (collectionMatch) return {filter:(collectionMatch[2] || 'all') as ShelfFilter, tag:'', author:'', collectionId:collectionMatch[1],advanced:false};
   return ordinary();
 }
