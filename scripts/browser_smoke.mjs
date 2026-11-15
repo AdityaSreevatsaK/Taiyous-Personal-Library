@@ -327,7 +327,7 @@ try {
     await page.getByRole('button', { name: 'View details for Sample Library Book' }).waitFor();
     // Author deep-link navigation adds a history entry. Explicit Home remains
     // the stable way to return to the curated front page from any catalogue.
-    await page.getByRole('button', { name: 'Home', exact: true }).click();
+    await page.getByRole('button', { name: "Taiyou's Personal Library home" }).click();
     await page.waitForURL('**/');
     await page.locator('.editorial-grand').waitFor();
     await page.getByRole('button', { name: 'Browse tag Fantasy' }).click();
