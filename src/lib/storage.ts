@@ -113,14 +113,11 @@ export async function restoreReappearedArchivedRecords(hostedIds: readonly strin
     if (!record) continue;
     if (!(await active.get(id))) {
       await active.put(record.book);
+      await archived.delete(id);
       restored++;
     }
-    // If this book has already reappeared locally, keep its newer active
-    // content and retain archived history as an independent recovery copy.
-    if (restored && !(await archived.get(id))) continue;
-    if (record && (await active.get(id))?.progressUpdatedAt === record.book.progressUpdatedAt) {
-      await archived.delete(id);
-    }
+    // If an active book already exists, keep BOTH it and its archived
+    // recovery copy. Never discard a potentially newer local annotation.
   }
   await transaction.done;
   return restored;
