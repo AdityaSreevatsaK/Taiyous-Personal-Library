@@ -7,7 +7,7 @@ const baseUrl = process.env.SMOKE_URL || 'http://127.0.0.1:8790';
 const zip = new JSZip();
 zip.file('mimetype', 'application/epub+zip', { compression: 'STORE' });
 zip.file('META-INF/container.xml', `<?xml version="1.0" encoding="UTF-8"?>
-<container version="1.0" xmlns="urn:oasis:nc:opendocument:xmlns:container"><rootfiles><rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/></rootfiles></container>`.replace('urn:oasis:nc:', 'urn:oasis:names:tc:'));
+<container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container"><rootfiles><rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/></rootfiles></container>`);
 zip.file('OEBPS/content.opf', `<?xml version="1.0" encoding="UTF-8"?>
 <package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="uid">
 <metadata xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:identifier id="uid">urn:taiyou:test:csp</dc:identifier><dc:title>CSP Smoke Novel</dc:title><dc:language>en</dc:language></metadata>
@@ -81,7 +81,7 @@ try {
   await page.waitForFunction(() => {
     const frame = document.querySelector('.reader-page iframe');
     return frame?.contentDocument?.body?.textContent?.includes('This chapter is visible under the CSP.');
-  }, { timeout: 20000 });
+  }, undefined, { timeout: 20000 });
   if (errors.length) throw new Error('Browser errors under CSP: ' + errors.join(' | '));
   await context.close();
   console.log('Cloudflare Pages CSP: shell, lazy reader chunk and EPUB iframe passed');
