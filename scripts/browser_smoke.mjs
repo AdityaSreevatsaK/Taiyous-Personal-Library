@@ -133,7 +133,7 @@ try {
         const dot = document.createElement('span');
         dot.className = 'cloud-connected-dot';
         pill.prepend(dot);
-        const rgb = color => (color.match(/[\\d.]+/g) || []).slice(0, 3).map(Number);
+        const rgb = color => (color.match(/[0-9.]+/g) || []).slice(0, 3).map(Number);
         const luminance = color => rgb(color).map(value => {
           const x = value / 255;
           return x <= .04045 ? x / 12.92 : ((x + .055) / 1.055) ** 2.4;
