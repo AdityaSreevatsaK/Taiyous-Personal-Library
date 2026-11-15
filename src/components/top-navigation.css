@@ -148,3 +148,6 @@
 @media(prefers-reduced-motion:reduce) {
  .app-shell .top-nav-link,.app-shell .top-nav-add { transition:none; }
 }
+
+/* Shelf labels and their numerical counts share the same readable size. */
+.app-shell .top-nav-link small {font-size:inherit;line-height:inherit}

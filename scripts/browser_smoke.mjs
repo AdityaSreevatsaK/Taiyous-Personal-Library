@@ -307,9 +307,13 @@ try {
     await grand.waitFor({ state: 'visible' });
     await page.locator('.editorial-journal').waitFor({ state: 'visible' });
     await page.locator('.editorial-index-row').first().waitFor();
-    if (await page.getByText('Keep the story close.', {exact:true}).count()) {
-      throw new Error('Decorative sidebar quote must be removed');
-    }
+    await page.getByText('Keep the story close.', {exact:true}).waitFor({state:'visible'});
+    await page.getByText('Make room for a different world. Your chapters, notes and reading history remain where you left them.', {exact:true}).waitFor({state:'visible'});
+    if(await page.locator('.top-nav-link').evaluateAll(nodes =>
+      nodes.some(node => {
+        const small=node.querySelector('small');
+        return small && getComputedStyle(node).fontSize !== getComputedStyle(small).fontSize;
+      }))) throw new Error('Top navigation count and label sizes must be consistent');
     // Sidebar stats are actual shelf navigation. Hover must visibly change the
     // background, unlike the old transparent-white treatment.
     const stat = page.locator('.editorial-margin-stats > button').first();
@@ -386,6 +390,9 @@ try {
     }
     await page.getByRole('button', { name: 'Show all novels' }).waitFor();
     await page.getByText('1 novel in this category').waitFor();
+    if (await page.locator('.filter-tabs').count()) {
+      throw new Error('Tag pages must not duplicate the main shelf navigation');
+    }
     await page.getByRole('button', { name: "Taiyou's Personal Library home" }).click();
     await page.waitForURL('**/');
     await page.getByRole('button', { name: 'Featured cover for Sample Library Book' }).click();
@@ -397,6 +404,18 @@ try {
     if (detailsOrder.join(',') !== 'details-tags-card,details-review-card,details-management-card') {
       throw new Error('Novel management order must be Tags, Comments, Manage: ' + detailsOrder.join(','));
     }
+    // Tag suggestions must reuse existing imported genres regardless of case.
+    const tagInput = page.getByRole('textbox', {name:'New personal tag'});
+    await tagInput.fill('fanta');
+    await page.getByRole('group',{name:'Suggested existing tags'})
+      .getByRole('button',{name:/Fantasy/}).waitFor();
+    const existing = page.getByRole('group',{name:'Suggested existing tags'})
+      .getByRole('button',{name:/Fantasy/});
+    if(!(await existing.isDisabled())) throw new Error('An existing imported genre must not be added twice');
+    // Unknown personal tags are normalised to Title Case before saving.
+    await tagInput.fill('sLOW bURN');
+    await page.getByRole('button',{name:'Add tag'}).click();
+    await page.getByRole('button',{name:'Browse novels tagged Slow Burn'}).waitFor();
     await page.getByRole('link', { name: "Taiyou's Personal Library home" }).click();
     await page.locator('.editorial-grand').waitFor({ state: 'visible' });
     // Dedicated advanced search must work with loaded novels on desktop and mobile.
@@ -607,6 +626,7 @@ try {
     await page.getByRole('combobox', { name: 'Add Sample Library Book to collection' }).selectOption({ label: 'Example Series' });
     await page.getByRole('button', { name: 'Open collection Example Series' }).click();
     await page.waitForURL(/\/collections\/[A-Za-z0-9_-]{8,100}$/);
+    if (await page.locator('.filter-tabs').count()) throw new Error('Collection pages must not duplicate main shelf navigation');
     const collectionUrl = new URL(page.url()).pathname;
     await page.getByRole('button', { name: 'View details for Sample Library Book' }).waitFor();
     await page.reload({ waitUntil: 'networkidle' });
