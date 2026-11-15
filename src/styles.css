@@ -1271,3 +1271,208 @@ a.details-top-title:focus-visible { outline: 2px solid #8088ac; outline-offset: 
   border-radius: 9px; padding: 10px 12px; margin: 10px 0;
   line-height: 1.5; font-size: 12px; color: var(--text); overflow-wrap: anywhere;
 }
+
+
+/* Mobile-first novel details refinement. Desktop and tablet layouts unchanged. */
+.details-mobile-rating,
+.details-download-archive-mobile { display:none; }
+@media (max-width:700px) {
+  .details-shell .details-layout { padding:12px 12px max(48px,env(safe-area-inset-bottom)); }
+  .details-shell .details-hero {
+    display:grid; grid-template-columns:102px minmax(0,1fr);
+    gap:12px 15px; align-items:start; padding:18px 15px;
+    border-radius:15px;
+  }
+  .details-shell .details-hero-content { display:contents; }
+  .details-shell .details-hero-heading {
+    grid-column:1 / -1; grid-row:1; text-align:center; min-width:0;
+  }
+  .details-shell .details-hero-heading .details-eyebrow {
+    justify-content:center; font-size:9px; letter-spacing:.15em;
+  }
+  .details-shell .details-hero h1 {
+    font-size:clamp(26px,6.8vw,38px); line-height:1.15;
+    margin:10px 0 8px; overflow-wrap:anywhere;
+    text-wrap:balance; text-align:center;
+  }
+  .details-shell .details-byline {
+    font-size:13px; text-align:center; margin:0; line-height:1.5;
+    overflow-wrap:anywhere;
+  }
+  .details-shell .details-cover-wrap {
+    grid-column:1; grid-row:2; width:102px; max-width:102px;
+    align-self:start; margin:0;
+  }
+  .details-shell .details-cover-wrap .cover-feature {
+    width:102px; height:auto; min-width:0; aspect-ratio:2/3;
+  }
+  .details-shell .details-hero-facts {
+    grid-column:2; grid-row:2; align-self:start;
+    display:flex; flex-direction:column; justify-content:center;
+    min-width:0; padding:3px 0;
+  }
+  .details-shell .details-meta-row {
+    display:flex; flex-direction:column; align-items:flex-start;
+    gap:7px; margin:0; font-size:11px;
+  }
+  .details-shell .details-meta-row span {display:inline-flex;gap:5px;min-width:0}
+  .details-shell .details-meta-row svg {width:13px;height:13px;flex:0 0 auto}
+  .details-shell .details-hero-tags {
+    grid-column:auto; display:flex; flex-wrap:wrap;
+    gap:5px; margin:10px 0 0; min-width:0;
+  }
+  .details-shell .details-hero-tags button {
+    font-size:9px; min-height:25px; padding:4px 7px;
+    max-width:100%; overflow:hidden; text-overflow:ellipsis;
+  }
+  .details-shell .details-hero-tags button:nth-child(n+4) {display:none}
+  .details-shell .hero-rating {display:none}
+  .details-shell .details-hero-actions {
+    grid-column:1 / -1; grid-row:3; display:grid;
+    grid-template-columns:minmax(0,1fr) minmax(0,1fr);
+    align-items:stretch; gap:9px; margin:7px 0 0;
+  }
+  .details-shell .details-hero-actions .details-start {
+    grid-column:1 / -1; grid-row:1;
+    width:100%; min-width:0; min-height:45px;
+    margin:0; padding:11px 14px;
+    justify-content:center; gap:10px;
+    font-size:13px; border-radius:9px;
+  }
+  .details-shell .details-hero-actions .details-trial-toggle {
+    grid-column:1; grid-row:2; min-width:0;
+    padding:10px 7px; font-size:11px; line-height:1.25;
+    min-height:43px;
+  }
+  .details-shell .details-hero-actions .details-download:not(.details-download-archive-header) {
+    grid-column:2; grid-row:2; width:100%; min-width:0;
+    min-height:43px; padding:10px 6px; font-size:11px;
+    line-height:1.25; gap:5px;
+  }
+  .details-shell .details-hero-actions .details-download-archive-header {display:none}
+
+  /* A single visual reading order across the original desktop columns. */
+  .details-shell .details-columns {
+    display:flex; flex-direction:column;
+    gap:12px; margin-top:12px; align-items:stretch;
+  }
+  .details-shell .details-aside,
+  .details-shell .details-main-column {display:contents}
+  .details-shell .details-card {padding:17px; border-radius:13px}
+  .details-shell .details-progress-card {order:1}
+  .details-shell .details-description {order:2}
+  .details-shell .details-mobile-rating {order:3}
+  .details-shell .chapter-browser {order:4}
+  .details-shell .details-info-card {order:5}
+  .details-shell .details-tags-card {order:6}
+  .details-shell .details-review-card {order:7}
+  .details-shell .details-management-card {order:8}
+
+  /* Reading progress becomes a slim status strip, not another full panel. */
+  .details-shell .details-progress-card {
+    display:grid; grid-template-columns:minmax(0,1fr) auto;
+    column-gap:12px; row-gap:7px; padding:12px 15px;
+    align-items:center;
+  }
+  .details-shell .details-progress-card .details-section-header {
+    grid-column:1; grid-row:1; margin:0; align-items:center;
+  }
+  .details-shell .details-progress-card .details-label,
+  .details-shell .details-progress-card .details-section-icon {display:none}
+  .details-shell .details-progress-card .details-section-header h2 {
+    margin:0; font:500 17px/1.2 Georgia,serif; letter-spacing:0;
+  }
+  .details-shell .details-progress-card .details-percent {
+    grid-column:2; grid-row:1; margin:0;
+    font:600 23px/1 Georgia,serif; letter-spacing:-.5px;
+  }
+  .details-shell .details-progress-card .details-percent span {
+    font-size:13px; letter-spacing:0;
+  }
+  .details-shell .details-progress-card .details-progress-track {
+    grid-column:1 / -1; grid-row:2; height:4px;
+  }
+  .details-shell .details-progress-card .details-progress-status,
+  .details-shell .details-progress-card .details-resume {display:none}
+  .details-shell .details-progress-card .details-location {
+    grid-column:1 / -1; grid-row:3; display:flex;
+    flex-direction:row; flex-wrap:wrap; align-items:baseline;
+    gap:3px 7px; padding:0; margin:0; border:0; min-width:0;
+    font-size:11px; line-height:1.5;
+  }
+  .details-shell .details-progress-card .details-location span {font-size:10px}
+  .details-shell .details-progress-card .details-location strong {
+    min-width:0; font:600 12px/1.4 Georgia,serif;
+    overflow-wrap:anywhere;
+  }
+  .details-shell .details-progress-card .details-location small {font-size:10px}
+
+  /* Native 1-10 control replaces the giant ten-button rating picker on phones. */
+  .details-shell .details-mobile-rating {
+    display:flex; flex-wrap:wrap; align-items:center;
+    justify-content:space-between; gap:10px;
+    padding:12px 15px;
+  }
+  .details-shell .details-mobile-rating-label {
+    display:inline-flex; gap:7px; align-items:center;
+    color:var(--text); font-size:12px; font-weight:750;
+  }
+  .details-shell .details-mobile-rating-label strong {
+    color:var(--subtext); font-size:11px;
+  }
+  .details-shell .details-mobile-rating-controls {
+    display:flex; align-items:center; gap:8px; min-width:0;
+  }
+  .details-shell .details-mobile-rating-controls select {
+    background:var(--bg); color:var(--text); border:1px solid var(--border);
+    border-radius:8px; padding:8px; min-width:93px;
+    font-size:12px; min-height:39px;
+  }
+  .details-shell .details-mobile-rating-controls .hero-rating-save {
+    min-height:39px; padding:8px 11px; border-radius:8px;
+    color:var(--accent-ink,#ffffff);background:var(--accent,#678dc2);
+    border-color:transparent;
+  }
+  .details-shell .details-mobile-rating-controls .hero-rating-save:hover {
+    filter:brightness(1.08); background:var(--accent,#678dc2);
+  }
+
+  .details-shell .details-card .details-section-header {margin-bottom:12px}
+  .details-shell .details-section-header h2 {font-size:23px}
+  .details-shell .details-progress-card .details-section-header {margin-bottom:0}
+  .details-shell .details-synopsis {font-size:15px;line-height:1.75}
+  .details-shell .details-management-actions {
+    display:grid; grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:9px; align-items:stretch;
+  }
+  .details-shell .details-management-actions .secondary-button,
+  .details-shell .details-management-actions .details-download-archive-mobile {
+    display:inline-flex; align-items:center;justify-content:center;
+    text-align:center;min-width:0;min-height:43px; margin:0;
+    padding:9px 8px; font-size:11px;gap:6px;
+  }
+  .details-shell .details-management-card .details-download-archive-mobile {
+    background:var(--pale); color:var(--text);
+    border:1px solid var(--border);
+  }
+  .details-shell .details-management-actions .details-delete-novel {
+    grid-column:1 / -1;justify-content:center;
+    min-height:42px;padding:10px; text-align:center;
+  }
+  .details-shell .details-management-actions .details-muted.small {
+    grid-column:1 / -1; font-size:11px;
+  }
+}
+@media(max-width:360px) {
+  .details-shell .details-hero {
+    grid-template-columns:82px minmax(0,1fr);gap:10px 12px;
+    padding:14px 12px;
+  }
+  .details-shell .details-cover-wrap,
+  .details-shell .details-cover-wrap .cover-feature {width:82px;max-width:82px}
+  .details-shell .details-hero h1 {font-size:25px}
+  .details-shell .details-meta-row {font-size:10px}
+  .details-shell .details-mobile-rating {gap:8px}
+  .details-shell .details-mobile-rating-controls select {min-width:83px}
+  .details-shell .details-mobile-rating-controls .hero-rating-save {padding:8px}
+}

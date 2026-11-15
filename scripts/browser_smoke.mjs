@@ -354,10 +354,16 @@ try {
     }
     await page.getByRole('button', { name: 'Cancel owner action' }).click();
     await page.getByRole('dialog', { name: 'Remove local novel' }).waitFor({ state: 'detached' });
-    await page.getByRole('button', { name: 'Rate 8 out of 10' }).click();
+    if (viewport.width <= 700) {
+      // A compact native 1-10 picker replaces ten cramped buttons on phones.
+      await page.getByRole('combobox', { name: 'Rate this novel' }).selectOption('8');
+    } else {
+      await page.getByRole('button', { name: 'Rate 8 out of 10' }).click();
+    }
     await page.getByRole('button', { name: 'Save rating' }).click();
     await page.getByText('Saved on this device. Connect your private cloud library to synchronise across devices.').waitFor();
-    await page.locator('.details-hero').getByText('8/10').waitFor();
+    await page.locator(viewport.width <= 700 ? '.details-mobile-rating' : '.details-hero')
+      .getByText('8/10').waitFor();
     // A real browser download should be offered in novel details, distinct from opening to read.
     const downloadStarted = page.waitForEvent('download');
     await page.getByRole('button', { name: 'Download EPUB' }).click();
@@ -401,6 +407,49 @@ try {
     await page.getByRole('button', { name: 'View details for Sample Library Book' }).click();
     await page.getByRole('button', { name: 'Move to regular library' }).click();
     await page.getByRole('button', { name: 'Add to Trying out' }).waitFor();
+    if (viewport.width <= 700) {
+      // Layout, not merely DOM order, must be reading-first on a narrow phone.
+      const design = await page.evaluate(() => {
+        const item = selector => document.querySelector(selector)?.getBoundingClientRect();
+        const selectors = [
+          '.details-hero', '.details-progress-card', '.details-description',
+          '.details-mobile-rating', '.chapter-browser', '.details-info-card',
+          '.details-tags-card', '.details-review-card', '.details-management-card',
+        ];
+        const boxes = selectors.map(item);
+        const hero = document.querySelector('.details-hero');
+        const title = item('.details-hero-heading');
+        const trial = item('.details-hero-actions .details-trial-toggle');
+        const epub = item('.details-hero-actions .details-download:not(.details-download-archive-header)');
+        const start = item('.details-hero-actions .details-start');
+        return {
+          selectors, tops:boxes.map(box => box?.top ?? null),
+          progressHeight:boxes[1]?.height, ratingHeight:boxes[3]?.height,
+          titleOffset:title && hero ? Math.abs(title.x + title.width / 2 -
+            (hero.getBoundingClientRect().x + hero.getBoundingClientRect().width / 2)) : null,
+          pairedActions:trial && epub && Math.abs(trial.top - epub.top) <= 2,
+          primaryAbove:start && trial && start.top < trial.top,
+          mobileRatingVisible:getComputedStyle(document.querySelector('.details-mobile-rating')).display !== 'none',
+          desktopRatingHidden:getComputedStyle(document.querySelector('.hero-rating')).display === 'none',
+          progressReadDuplicateHidden:getComputedStyle(document.querySelector('.details-resume')).display === 'none',
+        };
+      });
+      if (design.tops.some(top => top === null) ||
+          design.tops.some((top, i) => i && top <= design.tops[i-1]) ||
+          design.progressHeight > 150 || design.ratingHeight > 115 ||
+          design.titleOffset > 3 || !design.pairedActions || !design.primaryAbove ||
+          !design.mobileRatingVisible || !design.desktopRatingHidden ||
+          !design.progressReadDuplicateHidden) {
+        throw new Error('Mobile novel details order/spacing regressed: ' + JSON.stringify(design));
+      }
+      if (await page.locator('.details-download-archive-header').isVisible().catch(() => false)) {
+        throw new Error('Archive backup must be with novel management, not mobile primary reading actions');
+      }
+      await mkdir('artifacts/design-screenshots', { recursive:true });
+      await page.screenshot({path:'artifacts/design-screenshots/mobile-novel-details.png',fullPage:true});
+    } else if (await page.locator('.details-mobile-rating').isVisible()) {
+      throw new Error('Mobile-only rating strip leaked into the desktop details layout');
+    }
     const aside = await page.locator('.details-aside').boundingBox();
     const mainColumn = await page.locator('.details-main-column').boundingBox();
     if (viewport.width > 900 && (!aside || !mainColumn || aside.x >= mainColumn.x)) {
@@ -456,8 +505,9 @@ try {
     await page.getByRole('group', { name: 'Choose reading colour theme' })
       .getByRole('button', { name: 'Use Plum theme' }).click();
     await page.locator('.details-shell.theme-plum').waitFor();
-    await page.getByRole('button', { name: 'Begin this novel' }).hover();
-    const heroAction = await page.locator('.details-resume').evaluate(el => ({
+    if (viewport.width <= 700) await page.getByRole('button', { name: 'Start reading' }).hover();
+    else await page.getByRole('button', { name: 'Begin this novel' }).hover();
+    const heroAction = await page.locator(viewport.width <= 700 ? '.details-start' : '.details-resume').evaluate(el => ({
       background:getComputedStyle(el).backgroundColor,
       ink:getComputedStyle(el).color,
     }));

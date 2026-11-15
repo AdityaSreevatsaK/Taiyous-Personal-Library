@@ -99,6 +99,13 @@ export default function BookDetails({ book, theme, onThemeChange, onBack, onRead
     finally { setSaving(false); }
   }
 
+  function prepareArchive() {
+    if (!onDownloadArchive || downloading) return;
+    setDownloading(true); setFeedback(null);
+    void onDownloadArchive().catch(reason => setFeedback(`ZIP download failed: ${String(reason)}`))
+      .finally(() => setDownloading(false));
+  }
+
   async function saveReview(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (saving) return;
@@ -128,15 +135,19 @@ export default function BookDetails({ book, theme, onThemeChange, onBack, onRead
       <div className="details-hero" style={novelHeroStyle(book.id)}>
         <div className="details-cover-wrap"><Cover book={book} variant="feature" cloudRepo={cloudRepo} cloudSession={cloudSession} /></div>
         <div className="details-hero-content">
-          <span className="details-eyebrow"><BookOpen size={15} /> NOVEL DETAILS</span>
-          <h1>{book.title}</h1>
-          <p className="details-byline">by <strong>{book.author}</strong></p>
-          <div className="details-meta-row">
+          <div className="details-hero-heading">
+            <span className="details-eyebrow"><BookOpen size={15} /> NOVEL DETAILS</span>
+            <h1>{book.title}</h1>
+            <p className="details-byline">by <strong>{book.author}</strong></p>
+          </div>
+          <div className="details-hero-facts">
+            <div className="details-meta-row">
             <span><BookOpen size={16} /> {book.chapterCount ? `${book.chapterCount.toLocaleString()} chapters` : 'EPUB edition'}</span>
             {book.status && <span><Check size={16} /> {book.status}</span>}
             {book.language && <span>{book.language.toUpperCase()}</span>}
           </div>
-          {allTags.length > 0 && <div className="details-hero-tags" aria-label="Novel tags">{allTags.slice(0, 9).map((tag) => <button type="button" key={tag} onClick={() => onBrowseTag(tag)} aria-label={`Browse novels tagged ${tag}`}>{tag}</button>)}</div>}
+            {allTags.length > 0 && <div className="details-hero-tags" aria-label="Novel tags">{allTags.slice(0, 9).map((tag) => <button type="button" key={tag} onClick={() => onBrowseTag(tag)} aria-label={`Browse novels tagged ${tag}`}>{tag}</button>)}</div>}
+          </div>
           <form className="hero-rating" aria-label="Personal novel rating" onSubmit={(event) => void saveReview(event)}>
             <fieldset className="hero-rating-fieldset">
               <legend><Star size={15} /> My rating {book.personalRating ? `· ${book.personalRating}/10` : ''}</legend>
@@ -162,10 +173,7 @@ export default function BookDetails({ book, theme, onThemeChange, onBack, onRead
               setDownloading(true); setFeedback(null);
               void onDownloadEpub().catch(reason => setFeedback(`Download failed: ${String(reason)}`)).finally(() => setDownloading(false));
             }}><Download size={17} /> {downloading ? 'Preparing…' : 'Download EPUB'}</button>
-            {onDownloadArchive && <button type="button" className="details-download" disabled={downloading} onClick={() => {
-              setDownloading(true); setFeedback(null);
-              void onDownloadArchive().catch(reason => setFeedback(`ZIP download failed: ${String(reason)}`)).finally(() => setDownloading(false));
-            }}><Download size={17} /> Original ZIP</button>}
+            {onDownloadArchive && <button type="button" className="details-download details-download-archive-header" disabled={downloading} onClick={prepareArchive}><Download size={17} /> Original ZIP</button>}
           </div>
         </div>
       </div>
@@ -194,6 +202,7 @@ export default function BookDetails({ book, theme, onThemeChange, onBack, onRead
                   ? <button type="button" className="secondary-button" onClick={onRemoveOffline}><Download size={15} /> Remove offline EPUB</button>
                   : <span className="details-muted small">Local-only EPUB. Export a backup before removing this novel.</span>
                 : <button type="button" className="secondary-button" onClick={onSaveOffline}><Download size={15} /> Save for offline reading</button>}
+              {onDownloadArchive && <button type="button" className="details-download details-download-archive-mobile" disabled={downloading} onClick={prepareArchive}><Download size={15} /> Original ZIP backup</button>}
               <button type="button" className="details-delete-novel" onClick={onDeleteLocal}><Trash2 size={15} />
                  {book.cloud ? 'Delete novel from library (Owner mode)' : 'Remove local novel (Owner mode)'}
                </button>
@@ -211,6 +220,23 @@ export default function BookDetails({ book, theme, onThemeChange, onBack, onRead
           </section>
 
         </aside>
+        <section className="details-card details-mobile-rating" aria-label="Personal novel rating on mobile">
+          <div className="details-mobile-rating-label"><Star size={16} aria-hidden="true" />
+            <span>My rating</span>
+            {book.personalRating && <strong>{book.personalRating}/10</strong>}
+          </div>
+          <form className="details-mobile-rating-controls" onSubmit={(event) => void saveReview(event)}>
+            <label htmlFor="mobile-novel-rating" className="sr-only">Rate this novel</label>
+            <select id="mobile-novel-rating" aria-label="Rate this novel"
+              value={ratingDraft ?? ''} onChange={event =>
+                setRatingDraft(event.target.value ? Number(event.target.value) : undefined)}>
+              <option value="">Unrated</option>
+              {Array.from({ length: 10 }, (_, index) => index + 1).map(value =>
+                <option value={value} key={value}>{value} / 10</option>)}
+            </select>
+            <button type="submit" className="hero-rating-save" disabled={saving}>Save rating</button>
+          </form>
+        </section>
         <div className="details-main-column">
           <section className="details-card details-description" aria-labelledby="detail-summary-heading">
             <div className="details-section-header"><div><span className="details-label">ABOUT THE STORY</span><h2 id="detail-summary-heading">Synopsis</h2></div><button className="details-text-action" onClick={() => { if (editingSummary) setSummaryDraft(book.userDescription || book.description || ''); setEditingSummary(!editingSummary); }} type="button"><Pencil size={15} /> {editingSummary ? 'Cancel' : 'Edit summary'}</button></div>
@@ -221,7 +247,7 @@ export default function BookDetails({ book, theme, onThemeChange, onBack, onRead
 
           <ChapterBrowser book={book} onReadChapter={onReadChapter} isCachedOffline={isCachedOffline} onLoadChapters={onLoadChapters} />
 
-          <section className="details-card" aria-labelledby="detail-tags-heading">
+          <section className="details-card details-tags-card" aria-labelledby="detail-tags-heading">
             <div className="details-section-header"><div><span className="details-label">ORGANISE YOUR READING</span><h2 id="detail-tags-heading">Tags & genres</h2></div><Tag size={20} className="details-section-icon" /></div>
             <p className="details-help">Imported genres are taken from the EPUB or source metadata. Add your own tags to organise your library.</p>
             <h3 className="details-tags-label">Imported genres</h3>
