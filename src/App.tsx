@@ -1328,7 +1328,7 @@ export default function App() {
         onCloudLogout={signOutOfCloud} onCloudRefresh={() => void refreshCloud()}
         onCloudPublishCached={publishCachedNovels} />
     )}
-    <BackToTop theme={settings.theme} />
+    {!readingId && <BackToTop theme={settings.theme} />}
     {ownerRequest && <OwnerActionDialog theme={settings.theme} request={ownerRequest}
       initialBackupExported={ownerRequest.fromMaster === true && masterExportedEpubs.current.has(ownerRequest.id)}
       onExportBackup={masterExportEpub}

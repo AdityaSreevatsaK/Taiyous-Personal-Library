@@ -6,7 +6,7 @@ import type { ChapterItem, LibraryBook } from '../types';
 interface Props {
   book: LibraryBook;
   onReadChapter: (href: string) => void;
-  isCachedOffline: boolean;
+  // Chapter previews do not imply an EPUB is saved for offline reading.
   onLoadChapters: () => Promise<ChapterItem[]>;
 }
 

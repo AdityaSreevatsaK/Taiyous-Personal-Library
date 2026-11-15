@@ -284,7 +284,7 @@ export default function BookDetails({ book, theme, onThemeChange, onBack, onRead
                 : <p className="details-muted">No synopsis is present in this EPUB. You can add your own with <strong>Edit summary</strong>.</p>}
           </section>
 
-          <ChapterBrowser book={book} onReadChapter={onReadChapter} isCachedOffline={isCachedOffline} onLoadChapters={onLoadChapters} />
+          <ChapterBrowser book={book} onReadChapter={onReadChapter} onLoadChapters={onLoadChapters} />
 
 
         </div>
