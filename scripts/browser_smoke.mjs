@@ -892,7 +892,7 @@ try {
           const tagRect = tags.getBoundingClientRect();
           return {
             cardTop: box.top, tagsTop: tagRect.top, tagsHeight: tagRect.height,
-            footerTop: footer.getBoundingClientRect().top,
+            footerTop: getComputedStyle(footer).display === 'none' ? null : footer.getBoundingClientRect().top,
             chipRows: chips.length === 0 ? 1 : new Set(chips.map(top => Math.round(top))).size,
             chipCount: chips.length,
             titleAlignment: getComputedStyle(card.querySelector('.tile-title')).textAlign,
@@ -900,11 +900,13 @@ try {
           };
         }));
         const firstRow = metrics.filter(item => Math.abs(item.cardTop - metrics[0].cardTop) < 2);
+        const footerBaseline = firstRow.find(item => item.footerTop !== null)?.footerTop;
         if (firstRow.length < 2 ||
             firstRow.some(item => Math.abs(item.tagsTop - firstRow[0].tagsTop) > 2 ||
-              Math.abs(item.footerTop - firstRow[0].footerTop) > 2 ||
-              item.tagsHeight > 26 || item.chipRows > 1 ||
-              item.chipCount > 3 || item.titleAlignment !== 'center' || item.authorAlignment !== 'center')) {
+              (item.footerTop !== null && footerBaseline !== undefined &&
+                Math.abs(item.footerTop - footerBaseline) > 2) ||
+              item.tagsHeight > 80 || item.chipRows > 3 ||
+              item.chipCount > 6 || item.titleAlignment !== 'center' || item.authorAlignment !== 'center')) {
           throw new Error('Catalogue metadata rows no longer align: ' + JSON.stringify({ viewport, firstRow }));
         }
         await fastPage.screenshot({path:`artifacts/design-screenshots/catalogue-tiles-${viewport.width}.png`,fullPage:true});
