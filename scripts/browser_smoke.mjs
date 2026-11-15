@@ -307,9 +307,13 @@ try {
     await grand.waitFor({ state: 'visible' });
     await page.locator('.editorial-journal').waitFor({ state: 'visible' });
     await page.locator('.editorial-index-row').first().waitFor();
-    if (await page.getByText('Keep the story close.', {exact:true}).count()) {
-      throw new Error('Decorative sidebar quote must be removed');
-    }
+    await page.getByText('Keep the story close.', {exact:true}).waitFor({state:'visible'});
+    await page.getByText('Make room for a different world. Your chapters, notes and reading history remain where you left them.', {exact:true}).waitFor({state:'visible'});
+    if(await page.locator('.top-nav-link').evaluateAll(nodes =>
+      nodes.some(node => {
+        const small=node.querySelector('small');
+        return small && getComputedStyle(node).fontSize !== getComputedStyle(small).fontSize;
+      }))) throw new Error('Top navigation count and label sizes must be consistent');
     // Sidebar stats are actual shelf navigation. Hover must visibly change the
     // background, unlike the old transparent-white treatment.
     const stat = page.locator('.editorial-margin-stats > button').first();
