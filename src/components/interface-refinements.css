@@ -342,6 +342,11 @@
 }
 @media (max-width:700px){
   .app-shell .topbar .cloud-connect-head .connection-badge.is-connected {
+    width:16px;height:16px;min-width:16px;min-height:16px;
+    padding:0;font-size:0;gap:0;justify-content:center;
     border-color:#0c5535;background:#12442e;
+  }
+  .app-shell .topbar .cloud-connect-head .cloud-connected-dot {
+    width:8px;height:8px;flex:0 0 8px;
   }
 }
