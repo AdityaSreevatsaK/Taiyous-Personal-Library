@@ -471,7 +471,7 @@ try {
     } else {
       await libraryTitle.click();
     }
-    await page.getByRole('navigation', { name: 'Library sections' }).getByRole('button', { name: /Trying out/ }).click();
+    await navigateShelf(/Trying out/, 'trying');
     await page.getByRole('button', { name: 'View details for Sample Library Book' }).waitFor();
     await page.getByRole('button', { name: 'View details for Sample Library Book' }).click();
     await page.getByRole('button', { name: 'Move to regular library' }).click();
