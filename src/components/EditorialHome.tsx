@@ -143,12 +143,6 @@ export default function EditorialHome({
           {books.length > journal.length && <button type="button" className="editorial-index-more" onClick={onBrowseAll}>Explore all {books.length} novels <ArrowRight size={15}/></button>}
         </div>
         <aside className="editorial-margin" aria-label="Notes from your reading room">
-          <div className="editorial-margin-rule"><span>IN THE MARGINS</span><span>✦</span></div>
-          <section className="editorial-margin-note">
-            <span className="editorial-eyebrow">A NOTE FROM YOUR LIBRARY</span>
-            <h3>Keep the story close.</h3>
-            <p>Make room for a different world. Your chapters, notes and reading history remain where you left them.</p>
-          </section>
           <section className="editorial-margin-stats">
             <span className="editorial-eyebrow">YOUR READING RECORD</span>
             <button type="button" onClick={onBrowseAll}><strong>{books.length}</strong><span>STORIES</span></button>

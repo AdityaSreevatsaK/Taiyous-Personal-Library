@@ -1,0 +1,19 @@
+
+/* An unobtrusive but high-contrast return-to-top control across all themes. */
+.page-top-button {
+  position:fixed;right:max(18px,env(safe-area-inset-right));
+  bottom:max(18px,env(safe-area-inset-bottom));z-index:120;
+  display:grid;place-items:center;width:46px;height:46px;padding:0;
+  background:var(--accent);color:var(--accent-ink);
+  border:2px solid var(--surface);border-radius:50%;
+  box-shadow:0 5px 24px #00000045;cursor:pointer;
+  transition:transform .18s ease,box-shadow .18s ease;
+}
+.page-top-button:hover {transform:translateY(-4px);box-shadow:0 8px 28px #00000055}
+.page-top-button:focus-visible{outline:3px solid var(--text);outline-offset:3px}
+@media(max-width:700px){
+ .page-top-button{right:max(14px,env(safe-area-inset-right));
+   bottom:max(14px,env(safe-area-inset-bottom));width:43px;height:43px}
+}
+@media(prefers-reduced-motion:reduce){.page-top-button{transition:none}
+ .page-top-button:hover{transform:none}}

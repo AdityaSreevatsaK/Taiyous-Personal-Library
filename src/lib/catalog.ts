@@ -12,12 +12,15 @@ const MAX_CACHED_CATALOGS = 3;
  * Read the TOC from a locally stored EPUB without opening the reader or
  * modifying its saved location. Existing imports need no migration.
  */
-export async function loadChapterCatalog(bookId: string, expectedCount?: number): Promise<ChapterItem[]> {
+export async function loadChapterCatalog(bookId: string, expectedCount?: number,
+  resolveEpub?: () => Promise<Blob>): Promise<ChapterItem[]> {
   // Persisted index avoids repeatedly decompressing a large EPUB after page
   // reloads. EPUB files are still fetched only through authenticated storage.
   const stored = await readCachedChapterIndex(bookId, expectedCount).catch(() => null);
   if (stored?.length) return stored;
-  const file = await getBookFile(bookId);
+  // Previewing chapters may download into memory, but must not write to the
+  // persistent EPUB store or change the Available offline counter.
+  const file = resolveEpub ? await resolveEpub() : await getBookFile(bookId);
   const key = `${bookId}:${file.size}:${expectedCount || 0}`;
   const found = chapterCache.get(key);
   if (found) {

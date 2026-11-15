@@ -407,3 +407,9 @@
  .editorial-home .editorial-index-row .editorial-index-name strong {transition:none}
  .editorial-home .editorial-index-row:hover .editorial-index-name strong {transform:none}
 }
+
+/* Without the decorative quote, the sidebar begins with useful reading stats. */
+.editorial-home .editorial-margin-stats:first-child {padding-top:4px}
+.editorial-home .editorial-margin-stats > button:hover {
+  background:color-mix(in srgb,var(--text) 18%,var(--pale));
+}
