@@ -330,6 +330,27 @@ export default function LibraryDashboard({
               aria-current={!showAdvanced && filter === id && !selectedTag && !selectedAuthor && !selectedCollectionId ? 'page' : undefined}
               onClick={() => goTo(id)}><span>{name}</span>{id !== 'analytics' && <small>{count}</small>}</button>)}
           </div>
+          <div className="mobile-shelf-nav" aria-label="Quick library shelves">
+            <button type="button" className={filter === 'reading' && libraryPath !== '/' ? 'selected' : ''}
+              onClick={() => goTo('reading')}>Reading</button>
+            <button type="button" className={filter === 'trying' ? 'selected' : ''}
+              onClick={() => goTo('trying')}>Trying</button>
+            <button type="button" className={filter === 'offline' ? 'selected' : ''}
+              onClick={() => goTo('offline')}>Offline</button>
+            <label className="mobile-shelf-more">
+              <span className="sr-only">More library shelves</span>
+              <select aria-label="More library shelves"
+                value={['finished','unread','all','analytics'].includes(filter) && libraryPath !== '/' && !selectedTag && !selectedCollectionId && !selectedAuthor ? filter : ''}
+                onChange={event => goTo(event.target.value as Filter)}>
+                <option value="" disabled>More…</option>
+                <option value="finished">Finished</option>
+                <option value="unread">To be read</option>
+                <option value="all">All books</option>
+                <option value="analytics">Analytics</option>
+              </select>
+              <ChevronDown size={14} aria-hidden="true"/>
+            </label>
+          </div>
           <div className="top-nav-tools">
             <details className="top-nav-menu" aria-label="Novel tags">
               <summary><Hash size={15}/> Tags <ChevronDown size={13}/></summary>
