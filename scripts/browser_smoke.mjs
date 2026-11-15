@@ -203,6 +203,20 @@ try {
     if (await recordToggle.isChecked()) throw new Error('Analytics opt-out does not work');
     await recordToggle.check();
     await page.getByRole('button', { name: 'Clear analytics' }).waitFor();
+    const analyticsBars = await page.locator('.usage-chart-track').evaluateAll(items =>
+      items.map(item => {
+        const children = [...item.children];
+        return {
+          separate:children.length === 2 &&
+            children[0].classList.contains('usage-chart-app') &&
+            children[1].classList.contains('usage-chart-reading'),
+          colors:children.map(child=>getComputedStyle(child).backgroundColor),
+        };
+      }));
+    if (analyticsBars.length !== 14 || analyticsBars.some(item =>
+      !item.separate || item.colors[0] === item.colors[1])) {
+      throw new Error('Last 14 days must display two adjacent, differently coloured bars');
+    }
     await navigateShelf(/All books/, 'all');
     await page.waitForURL('**/library');
     for (const [name, path, heading] of [
@@ -247,6 +261,16 @@ try {
     if (await page.locator('.empty-feature').count()) {
       throw new Error('Oversized empty-state hero must not obscure the bookshelf');
     }
+    // Direct access to Master Controls must never reveal record editing until
+    // Owner mode is authenticated by the production server.
+    await page.getByRole('button', { name: 'Open Master Controls' }).click();
+    await page.waitForURL('**/master-controls');
+    await page.getByRole('heading', { name: 'Master Controls' }).waitFor();
+    if (await page.locator('.master-controls table').count()) {
+      throw new Error('Master Controls exposed private management tools without Owner unlock');
+    }
+    await page.getByRole('button', { name: 'Back to library' }).click();
+    await page.waitForURL('**/library');
     // Seed a synthetic, local-only book so CI tests details without accessing the real dataset.
     await page.evaluate(async (epubData) => {
       const request = indexedDB.open('folio-personal-library-v1', 2);
@@ -291,6 +315,13 @@ try {
       throw new Error('Curated home exceeded its small, bounded selections');
     }
     await page.getByRole('button', { name: 'Browse tag Fantasy' }).waitFor();
+    if (await page.locator('.editorial-grand-ledger button').count() !== 4 ||
+        await page.locator('.editorial-margin-stats button').count() !== 4) {
+      throw new Error('Clickable reading counters, including Finished, must exist in both home summaries');
+    }
+    if (await page.locator('.editorial-shelf-card .cover').count()) {
+      throw new Error('Genre shelves may not display a fake cover when no real cover artwork exists');
+    }
     if (await page.getByText('GENRE & TAG', { exact: true }).count()) {
       throw new Error('Home genre cards must not repeat the redundant genre/tag caption');
     }
@@ -299,7 +330,7 @@ try {
     if (!(await grand.getByRole('heading', { name: /Where worlds unfold/ }).count())) {
       throw new Error('Grand Library title is absent');
     }
-    await page.getByRole('button', { name: /Browse all 1 novel/ }).click();
+    await page.locator('.editorial-browse-all').click();
     await page.waitForURL('**/library');
     await page.getByRole('button', { name: 'View details for Sample Library Book' }).waitFor();
     const catalogueCaption = await page.locator('.book-tile').first().evaluate(tile => ({
