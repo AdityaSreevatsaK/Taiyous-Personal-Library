@@ -224,7 +224,7 @@ export default function MasterControls({
     }, { rootMargin: '0px 0px 200px 0px' });
     observer.observe(target);
     return () => observer.disconnect();
-  }, [visibleCount, list.length, search]);
+  }, [visibleCount, list.length, search, status?.unlocked]);
   const cached = books.filter(book => cachedEpubIds.includes(book.id));
   const hostedCached = cached.filter(book=>book.cloud).length;
   const localOnlyCached = cached.filter(book=>!book.cloud).length;
