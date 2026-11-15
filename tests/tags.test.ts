@@ -34,3 +34,19 @@ describe('tag and genre organisation', () => {
     expect(bookTags({})).toEqual([]);
   });
 });
+
+describe('library-wide personal tag suggestions', () => {
+  it('creates Title Case tags and reuses established labels case-insensitively', async () => {
+    const { normalisePersonalTags } = await import('../src/lib/tags');
+    expect(normalisePersonalTags(['sLoW bUrN', 'SCI-FI', 'slow burn'], ['Slow Burn', 'Sci-Fi']))
+      .toEqual(['Slow Burn', 'Sci-Fi']);
+    expect(normalisePersonalTags('original character, ROMANCE')).toEqual(['Original Character', 'Romance']);
+  });
+  it('suggests existing tags for case, prefixes and likely typos', async () => {
+    const { suggestExistingTags } = await import('../src/lib/tags');
+    expect(suggestExistingTags('rom', ['Romance', 'Adventure', 'romance'])).toEqual(['Romance']);
+    expect(suggestExistingTags('ROMANCE', ['Romance'])).toEqual(['Romance']);
+    expect(suggestExistingTags('romnace', ['Romance'])).toEqual(['Romance']);
+    expect(suggestExistingTags('adv', ['Adventure'])).toEqual(['Adventure']);
+  });
+});
