@@ -355,13 +355,13 @@ try {
     await page.getByRole('heading', { name: 'No matching books' }).waitFor();
     await page.getByRole('button', { name: 'Back to shelf' }).click();
     // Local EPUBs must be listed on the Offline tab without requiring a cloud token.
-    await page.locator('.filter-tabs').getByRole('button', { name: 'Offline' }).click();
+    await navigateShelf(/Available offline/, 'offline');
     await page.locator('.offline-management-bar').waitFor({ state: 'visible' });
     await page.getByRole('button', { name: 'View details for Sample Library Book' }).waitFor();
     if (await page.getByRole('button', { name: 'Remove offline EPUB for Sample Library Book' }).count()) {
       throw new Error('Must not allow removing the only local-only EPUB with no verified cloud copy');
     }
-    await page.locator('.filter-tabs').getByRole('button', { name: 'All', exact: true }).click();
+    await navigateShelf(/All books/, 'all');
     if (await page.locator('.offline-health').count()) throw new Error('Offline status shown outside Offline tab');
     await page.getByRole('button', { name: 'View details for Sample Library Book' }).click();
     await page.waitForURL('**/novels/sample-library-book');
@@ -764,7 +764,11 @@ try {
         const startup = await freshPage.goto(baseUrl + '/', { waitUntil: 'domcontentloaded', timeout: 20000 });
         if (!startup?.ok()) throw new Error('Offline cold launch returned HTTP ' + startup?.status());
         await freshPage.locator('.app-shell').waitFor({ state: 'visible', timeout: 10000 });
-        await freshPage.locator('.filter-tabs button.selected').getByText('Offline').waitFor();
+        if (viewport.width <= 700) {
+          await freshPage.locator('.mobile-shelf-nav button.selected').getByText('Offline').waitFor();
+        } else {
+          await freshPage.locator('.top-nav-link.active').getByText('Available offline').waitFor();
+        }
         await freshPage.getByRole('button', { name: 'View details for Sample Library Book' }).click();
         await freshPage.getByRole('button', { name: /^(Start|Continue) reading$/ }).click();
         await freshPage.locator('.reader-page iframe').first().waitFor({ state: 'visible', timeout: 20000 });
