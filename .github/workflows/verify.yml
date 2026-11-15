@@ -65,7 +65,7 @@ jobs:
           node - <<'JS'
           const fs = require('fs');
           const headers = fs.readFileSync('/tmp/taiyou-shell-headers', 'utf8');
-          const policy = headers.match(/^content-security-policy:\\s*(.+)$/im)?.[1] || '';
+          const policy = headers.match(/^content-security-policy:\s*(.+)$/im)?.[1] || '';
           if (!policy.includes("script-src 'self'") ||
               !policy.includes("object-src 'none'") ||
               !policy.includes("frame-ancestors 'none'") ||
