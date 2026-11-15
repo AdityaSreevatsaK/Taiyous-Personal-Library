@@ -1,10 +1,11 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import {
-  ArrowLeft, ArrowRight, BookOpen, Bookmark, Check, Download, ExternalLink, Hash,
+  ArrowRight, BookOpen, Bookmark, Check, Download, ExternalLink, Hash,
   Info, LockKeyhole, Pencil, Plus, Star, Tag, Trash2, X,
 } from 'lucide-react';
 import { Cover } from './LibraryDashboard';
 import ThemeSwitcher from './ThemeSwitcher';
+import BrandMark from './BrandMark';
 import { novelHeroStyle } from '../lib/novel-hero';
 import './details-palettes.css';
 import type { CloudSession } from '../lib/cloud';
@@ -122,14 +123,19 @@ export default function BookDetails({ book, theme, onThemeChange, onBack, onRead
 
   return <div className={`details-shell theme-${theme}`}>
     <header className="details-topbar">
-      <button className="details-back" type="button" onClick={onBack}><ArrowLeft size={18} /> <span>My library</span></button>
-      <a className="details-top-title" href="/" onClick={event => {
-        // Preserve actual hyperlink semantics (new tab, copy link, modifiers).
+      <a className="details-brand-link" href="/" aria-label="Taiyou's Personal Library home" onClick={event => {
+        // Preserve real link behaviour: middle-click, Ctrl/Cmd-click, and copy URL.
         if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
         event.preventDefault();
         onBack();
-      }} title="Return to Taiyou's Personal Library">Taiyou's Personal Library</a>
-      <div className="details-top-controls"><ThemeSwitcher compact value={theme} onChange={onThemeChange} /><button className="details-top-read" type="button" onClick={onRead}>Read <ArrowRight size={17} /></button></div>
+      }}>
+        <BrandMark size={32} theme={theme} />
+        <span className="details-brand-wordmark">
+          <span className="details-brand-full">Taiyou's Personal Library</span>
+          <span className="details-brand-short">Taiyou's Library</span>
+        </span>
+      </a>
+      <div className="details-top-controls"><ThemeSwitcher compact value={theme} onChange={onThemeChange} /></div>
     </header>
     <main className="details-layout">
       <div className="details-hero" style={novelHeroStyle(book.id)}>
