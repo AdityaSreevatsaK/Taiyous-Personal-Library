@@ -13,7 +13,7 @@ import ChapterBrowser from './ChapterBrowser';
 import { bookTags, normalizeTags } from '../lib/tags';
 import { ratingLabel } from '../lib/ratings';
 import { isFinished } from '../lib/reading-status';
-import type { LibraryBook, ReaderTheme } from '../types';
+import type { ChapterItem, LibraryBook, ReaderTheme } from '../types';
 
 interface Props {
   book: LibraryBook;
@@ -31,7 +31,7 @@ interface Props {
   cloudRepo: string;
   cloudSession: CloudSession | null;
   onReadChapter: (href: string) => void;
-  onLoadChapters: () => Promise<void>;
+  onLoadChapters: () => Promise<ChapterItem[]>;
   onSaveTags: (tags: string[]) => Promise<void>;
   onSaveSummary: (summary: string) => Promise<void>;
   onSaveReview: (rating: number | undefined, review: string) => Promise<void>;
@@ -212,6 +212,32 @@ export default function BookDetails({ book, theme, onThemeChange, onBack, onRead
           <section className="details-card details-info-card"><div className="details-section-header"><div><span className="details-label">BOOK INFORMATION</span><h2>Details</h2></div><Info size={20} className="details-section-icon" /></div>
             <dl><div><dt>Author</dt><dd><button type="button" className="details-info-author-link" onClick={() => onBrowseAuthor(book.author)} aria-label={`View novels by ${book.author}`}>{book.author}</button></dd></div><div><dt>Chapters</dt><dd>{book.chapterCount ? book.chapterCount.toLocaleString() : 'Unknown'}</dd></div><div><dt>Language</dt><dd>{book.language?.toUpperCase() || 'Not supplied'}</dd></div>{book.status && <div><dt>Status</dt><dd>{book.status}</dd></div>}<div><dt>Personal tags</dt><dd>{customTags.length}</dd></div>{book.sourceUrl && <div><dt>Original source</dt><dd><a href={book.sourceUrl} target="_blank" rel="noopener noreferrer">Open original <ExternalLink size={13} /></a></dd></div>}</dl>
           </section>
+          <section className="details-card details-tags-card" aria-labelledby="detail-tags-heading">
+            <div className="details-section-header"><div><span className="details-label">ORGANISE YOUR READING</span><h2 id="detail-tags-heading">Tags & genres</h2></div><Tag size={20} className="details-section-icon" /></div>
+            <p className="details-help">Browse all tags together. Imported genres are protected; personal tags can be added or removed.</p>
+            <div className="details-tag-row" aria-label="All novel tags">{editableTags.length ? editableTags.map((tag) => {
+              const imported = originalTags.some(value => value.toLocaleLowerCase() === tag.toLocaleLowerCase());
+              return imported
+                ? <button type="button" className="details-tag imported-tag" key={tag} onClick={() => onBrowseTag(tag)} title="Imported genre, preserved from original metadata" aria-label={`Browse imported genre ${tag}`}><Hash size={13} />{tag}</button>
+                : <span className="details-tag personal-tag" key={tag}><button className="tag-browse-button" type="button" onClick={() => onBrowseTag(tag)} aria-label={`Browse novels tagged ${tag}`}>{tag}</button><button type="button" disabled={saving} onClick={() => removeTag(tag)} title={`Remove personal tag ${tag}`} aria-label={`Remove personal tag ${tag}`}><X size={14}/></button></span>;
+            }) : <span className="details-muted small">No tags yet. Add one below.</span>}</div>
+            <form className="details-tag-form" onSubmit={(e) => void addTag(e)}><label htmlFor="new-novel-tag" className="sr-only">New personal tag</label><input id="new-novel-tag" value={tagInput} maxLength={45} onChange={(e) => setTagInput(e.target.value)} placeholder="e.g. Favourite, Cultivation, Slow burn..." /><button className="primary-button" type="submit" disabled={saving || !tagInput.trim() || customTags.length >= 50}><Plus size={18} /> Add tag</button></form>
+            <div className="tag-draft-actions">
+              <span>{tagsChanged ? 'Unsaved tag changes' : 'Your tags are saved'}</span>
+              {tagsChanged && <><button type="button" className="secondary-button" onClick={() => { setTagDraft(book.personalTags || []); setFeedback(null); }}>Discard changes</button>
+                <button type="button" className="primary-button" disabled={saving} onClick={() => void saveTags()}>Review & save tags</button></>}
+            </div>
+          </section>
+          <section className="details-card details-review-card" aria-labelledby="detail-review-heading">
+            <div className="details-section-header"><div><span className="details-label">YOUR PERSONAL IMPRESSIONS</span><h2 id="detail-review-heading">Comments & reading notes</h2></div><Star size={20} className="details-section-icon" /></div>
+            <p className="details-help">Capture your thoughts about this novel. When connected, your private ratings and comments are synchronised across devices without changing the shared novel catalogue.</p>
+            <form className="personal-review-form" onSubmit={(event) => void saveReview(event)}>
+              <label htmlFor="personal-review">My comments / reading notes</label>
+              <textarea id="personal-review" rows={5} maxLength={10000} value={reviewDraft} onChange={event => setReviewDraft(event.target.value)} placeholder="Memorable characters, plot points, or your thoughts..." />
+              <div className="personal-review-actions"><span>{cloudConnected && book.cloud ? 'Stored in your private cloud library' : 'Saved locally until cloud is connected'}</span><button type="submit" className="primary-button" disabled={saving}><Check size={16} /> Save comments</button></div>
+            </form>
+          </section>
+
           <section className="details-card details-management-card" aria-label="Manage this novel">
             <div className="details-section-header"><div><span className="details-label">BOOK STORAGE</span><h2>Manage this novel</h2></div><LockKeyhole size={19} className="details-section-icon" /></div>
             <p className="details-help">Offline downloads are stored only in this browser. Your private cloud data and reading progress are separate.</p>
@@ -232,16 +258,6 @@ export default function BookDetails({ book, theme, onThemeChange, onBack, onRead
             </div>
             {book.cloud && <p className="details-help">Protected deletion removes this novel's private cloud files, catalogue entry, reading position and notes. Download a backup first. Other novels are unaffected.</p>}
           </section>
-          <section className="details-card details-review-card" aria-labelledby="detail-review-heading">
-            <div className="details-section-header"><div><span className="details-label">YOUR PERSONAL IMPRESSIONS</span><h2 id="detail-review-heading">Comments & reading notes</h2></div><Star size={20} className="details-section-icon" /></div>
-            <p className="details-help">Capture your thoughts about this novel. When connected, your private ratings and comments are synchronised across devices without changing the shared novel catalogue.</p>
-            <form className="personal-review-form" onSubmit={(event) => void saveReview(event)}>
-              <label htmlFor="personal-review">My comments / reading notes</label>
-              <textarea id="personal-review" rows={5} maxLength={10000} value={reviewDraft} onChange={event => setReviewDraft(event.target.value)} placeholder="Memorable characters, plot points, or your thoughts..." />
-              <div className="personal-review-actions"><span>{cloudConnected && book.cloud ? 'Stored in your private cloud library' : 'Saved locally until cloud is connected'}</span><button type="submit" className="primary-button" disabled={saving}><Check size={16} /> Save comments</button></div>
-            </form>
-          </section>
-
         </aside>
         <section className="details-card details-mobile-rating" aria-label="Personal novel rating on mobile">
           <div className="details-mobile-rating-label"><Star size={16} aria-hidden="true" />
@@ -268,24 +284,9 @@ export default function BookDetails({ book, theme, onThemeChange, onBack, onRead
                 : <p className="details-muted">No synopsis is present in this EPUB. You can add your own with <strong>Edit summary</strong>.</p>}
           </section>
 
-          <ChapterBrowser book={book} onReadChapter={onReadChapter} isCachedOffline={isCachedOffline} onLoadChapters={onLoadChapters} />
+          <ChapterBrowser book={book} onReadChapter={onReadChapter} onLoadChapters={onLoadChapters} />
 
-          <section className="details-card details-tags-card" aria-labelledby="detail-tags-heading">
-            <div className="details-section-header"><div><span className="details-label">ORGANISE YOUR READING</span><h2 id="detail-tags-heading">Tags & genres</h2></div><Tag size={20} className="details-section-icon" /></div>
-            <p className="details-help">Browse all tags together. Imported genres are protected; personal tags can be added or removed.</p>
-            <div className="details-tag-row" aria-label="All novel tags">{editableTags.length ? editableTags.map((tag) => {
-              const imported = originalTags.some(value => value.toLocaleLowerCase() === tag.toLocaleLowerCase());
-              return imported
-                ? <button type="button" className="details-tag imported-tag" key={tag} onClick={() => onBrowseTag(tag)} title="Imported genre, preserved from original metadata" aria-label={`Browse imported genre ${tag}`}><Hash size={13} />{tag}</button>
-                : <span className="details-tag personal-tag" key={tag}><button className="tag-browse-button" type="button" onClick={() => onBrowseTag(tag)} aria-label={`Browse novels tagged ${tag}`}>{tag}</button><button type="button" disabled={saving} onClick={() => removeTag(tag)} title={`Remove personal tag ${tag}`} aria-label={`Remove personal tag ${tag}`}><X size={14}/></button></span>;
-            }) : <span className="details-muted small">No tags yet. Add one below.</span>}</div>
-            <form className="details-tag-form" onSubmit={(e) => void addTag(e)}><label htmlFor="new-novel-tag" className="sr-only">New personal tag</label><input id="new-novel-tag" value={tagInput} maxLength={45} onChange={(e) => setTagInput(e.target.value)} placeholder="e.g. Favourite, Cultivation, Slow burn..." /><button className="primary-button" type="submit" disabled={saving || !tagInput.trim() || customTags.length >= 50}><Plus size={18} /> Add tag</button></form>
-            <div className="tag-draft-actions">
-              <span>{tagsChanged ? 'Unsaved tag changes' : 'Your tags are saved'}</span>
-              {tagsChanged && <><button type="button" className="secondary-button" onClick={() => { setTagDraft(book.personalTags || []); setFeedback(null); }}>Discard changes</button>
-                <button type="button" className="primary-button" disabled={saving} onClick={() => void saveTags()}>Review & save tags</button></>}
-            </div>
-          </section>
+
         </div>
       </div>
     </main>

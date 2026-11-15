@@ -554,3 +554,56 @@
 .app-shell .topbar .cloud-connect-head > .secondary-button:hover:not(:disabled) {
   transition:none;
 }
+
+/* The halo is drawn OUTSIDE the clipped .cover artwork, on the interactive
+   wrapper, so actual JPEG covers get a visible edge glow at all times. */
+.app-shell .book-grid .cover-button {
+  position:relative; isolation:isolate; overflow:visible;
+  transition:transform .2s ease;
+}
+.app-shell .book-grid .cover-button::after {
+  content:""; position:absolute; inset:-3px; pointer-events:none;
+  border-radius:10px 16px 16px 10px;
+  box-shadow:0 0 0 2px color-mix(in srgb,var(--accent) 62%,transparent),
+    0 0 20px 5px color-mix(in srgb,var(--accent) 42%,transparent);
+  opacity:.85; transition:opacity .2s ease,box-shadow .2s ease,transform .2s ease;
+}
+.app-shell .book-grid .book-tile:hover .cover-button::after,
+.app-shell .book-grid .cover-button:focus-visible::after {
+  opacity:1;transform:scale(1.017);
+  box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 79%,transparent),
+    0 0 32px 10px color-mix(in srgb,var(--accent) 63%,transparent);
+}
+.app-shell .book-grid .book-tile:hover .cover-button {
+  transform:translateY(-6px) scale(1.025);
+}
+@media(prefers-reduced-motion:reduce){
+ .app-shell .book-grid .cover-button,
+ .app-shell .book-grid .cover-button::after {transition:none}
+ .app-shell .book-grid .book-tile:hover .cover-button {transform:none}
+}
+/* The details column now ends with Tags, Notes, then Manage. */
+.details-shell .details-aside .details-tags-card {width:100%;min-width:0}
+/* Readable interaction contrast on the home sidebar, not transparent-white. */
+.editorial-home .editorial-margin-stats > button,
+.editorial-home .editorial-margin-topics button {
+  transition:background-color .16s ease,box-shadow .16s ease,transform .16s ease;
+}
+.editorial-home .editorial-margin-stats > button:hover,
+.editorial-home .editorial-margin-stats > button:focus-visible {
+  background:color-mix(in srgb,var(--text) 18%,var(--pale));
+  box-shadow:inset 4px 0 0 var(--accent);
+  padding-inline:10px;
+}
+.editorial-home .editorial-margin-topics button:hover,
+.editorial-home .editorial-margin-topics button:focus-visible {
+  background:color-mix(in srgb,var(--text) 18%,var(--surface));
+  border-color:var(--accent);color:var(--text);
+  transform:translateY(-2px);
+  box-shadow:0 3px 10px color-mix(in srgb,var(--text) 15%,transparent);
+}
+@media(prefers-reduced-motion:reduce){
+ .editorial-home .editorial-margin-stats > button,
+ .editorial-home .editorial-margin-topics button {transition:none}
+ .editorial-home .editorial-margin-topics button:hover{transform:none}
+}

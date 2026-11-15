@@ -16,6 +16,9 @@ import { deleteBook, removeCachedEpub, getBookFile, getBooks, getCachedEpubIds, 
 import { staleMetadataCandidates } from './lib/stale-archive';
 import { resetReadingProgress } from './lib/progress-admin';
 import { withUpdatedReadingPosition } from './lib/reading-status';
+import { loadChapterCatalog } from './lib/catalog';
+import BackToTop from './components/BackToTop';
+import './components/back-to-top.css';
 import {
   reconcileCloudLibrary, clearCloudSession, createCloudSession, discoverHostedOAuthSession, assertPrivateDataset,
   fetchCloudCatalog, fetchCloudEpub, deleteCloudNovel, hostedEpubExists, fetchCloudArchive, fetchCloudPersonalReview, findCloudEntryForBook, readDatasetRepo, saveDatasetRepo,
@@ -1257,10 +1260,23 @@ export default function App() {
         onNovelDetails={() => { setReadingId(null); setDetailsId(activeBook.id); setStartChapterHref(null); navigate(namedNovelUrl(activeBook, booksRef.current)); }} onProgress={recordProgress} />
     ) : detailBook ? (
       <BookDetails book={detailBook} theme={settings.theme} onThemeChange={theme => setSettings(current => ({ ...current, theme }))}
-        onLoadChapters={async () => {
-          await ensureCached(detailBook);
-          setCachedEpubIds(ids => ids.includes(detailBook.id) ? ids : [...ids, detailBook.id]);
-        }}
+        onLoadChapters={() => loadChapterCatalog(detailBook.id, detailBook.chapterCount, async () => {
+          try { return await getBookFile(detailBook.id); }
+          catch { /* Preview can read a hosted EPUB without caching it. */ }
+          if (!detailBook.cloud || !cloudRepo || !cloudSession) {
+            throw new Error('Connect your private library to browse this EPUB’s chapters.');
+          }
+          let entry = findCloudEntryForBook([...cloudEntries.current.values()], detailBook);
+          if (!entry) {
+            const latest = await fetchCloudCatalog(validateDatasetRepo(cloudRepo), cloudSession);
+            cloudEntries.current = new Map(latest.books.map(item => [item.id, item]));
+            entry = findCloudEntryForBook(latest.books, detailBook);
+          }
+          if (!entry) throw new Error('Novel EPUB is missing from the verified private catalogue.');
+          // Deliberately omit saveBook(): only explicit offline/download/reader
+          // actions should persist the full EPUB in browser IndexedDB.
+          return fetchCloudEpub(cloudRepo, entry, cloudSession);
+        })}
         onBack={goLibrary} onRead={() => openBook(detailBook)}
         onReadChapter={href => openBook(detailBook, href)}
         onDownloadEpub={() => downloadEpub(detailBook)}
@@ -1312,6 +1328,7 @@ export default function App() {
         onCloudLogout={signOutOfCloud} onCloudRefresh={() => void refreshCloud()}
         onCloudPublishCached={publishCachedNovels} />
     )}
+    {!readingId && <BackToTop theme={settings.theme} />}
     {ownerRequest && <OwnerActionDialog theme={settings.theme} request={ownerRequest}
       initialBackupExported={ownerRequest.fromMaster === true && masterExportedEpubs.current.has(ownerRequest.id)}
       onExportBackup={masterExportEpub}
