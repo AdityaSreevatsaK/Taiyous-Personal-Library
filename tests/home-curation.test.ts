@@ -9,7 +9,7 @@ const book = (n: number, extra: Partial<LibraryBook> = {}): LibraryBook => ({
 });
 
 describe('curated private library homepage', () => {
-  it('features the most recently read regular novel and does not repeat it in other lists', () => {
+  it('features the most recent novel and lists all active books consistently', () => {
     const books = [
       book(1, { progress: 30, lastOpenedAt: 1000 }),
       book(2, { progress: 60, lastOpenedAt: 2000 }),
@@ -19,7 +19,7 @@ describe('curated private library homepage', () => {
     ];
     const chosen = selectHomeBooks(books);
     expect(chosen.featured?.id).toBe(books[1].id);
-    expect(chosen.continueReading.map(b => b.id)).toEqual([books[2].id, books[0].id]);
+    expect(chosen.continueReading.map(b => b.id)).toEqual([books[1].id, books[2].id, books[0].id]);
     expect(chosen.journal).toHaveLength(6);
     expect(chosen.journal[0].id).toBe(books[3].id);
     expect(new Set([chosen.featured!.id, ...chosen.continueReading.map(b => b.id),
