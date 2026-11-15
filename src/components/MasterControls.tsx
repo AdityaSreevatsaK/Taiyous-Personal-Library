@@ -1,7 +1,7 @@
 import { Fragment, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { AlertTriangle, Check, LockKeyhole, Search, ShieldCheck, ShieldOff, Trash2 } from 'lucide-react';
 import type { LibraryBook, ReaderTheme } from '../types';
-import { normalizeTags } from '../lib/tags';
+import { normalisePersonalTags, suggestExistingTags, tagCounts } from '../lib/tags';
 import { ratingLabel } from '../lib/ratings';
 import { isFinished } from '../lib/reading-status';
 import { getOwnerStatus, ownerPost, type OwnerStatus } from '../lib/owner';
@@ -27,7 +27,7 @@ interface Props {
 }
 type RowProps = Pick<Props, 'onSaveRating' | 'onCorrectMetadata' | 'onMarkCompleted' |
   'onResetProgress' | 'onSaveTags' | 'onSaveSummary' | 'onSaveReview' | 'onExportEpub' | 'onDeleteNovel'> &
-  { book: LibraryBook; duplicate: boolean };
+  { book: LibraryBook; duplicate: boolean; libraryTags: string[] };
 
 function errorMessage(reason: unknown) {
   return reason instanceof Error ? reason.message : String(reason);
@@ -35,7 +35,7 @@ function errorMessage(reason: unknown) {
 
 /** Each immutable record is managed independently. Edits never replace an EPUB. */
 function BookRow({ book, onCorrectMetadata, onMarkCompleted, onResetProgress,
-  onSaveTags, onSaveSummary, onSaveReview, onExportEpub, onDeleteNovel, duplicate }: RowProps) {
+  onSaveTags, onSaveSummary, onSaveReview, onExportEpub, onDeleteNovel, duplicate, libraryTags }: RowProps) {
   const [expanded, setExpanded] = useState(false);
   const [title, setTitle] = useState(book.title);
   const [author, setAuthor] = useState(book.author);
@@ -70,8 +70,10 @@ function BookRow({ book, onCorrectMetadata, onMarkCompleted, onResetProgress,
   const newTitle = title.trim().replace(/\s+/g, ' ');
   const newAuthor = author.trim().replace(/\s+/g, ' ');
   const metadataChanged = newTitle !== book.title || newAuthor !== book.author;
-  const tags = normalizeTags(personalTags);
-  const tagsChanged = JSON.stringify(tags) !== JSON.stringify(normalizeTags(book.personalTags || []));
+  const tags = normalisePersonalTags(personalTags, libraryTags);
+  const tagsChanged = JSON.stringify(tags) !== JSON.stringify(normalisePersonalTags(book.personalTags || [], libraryTags));
+  const lastTagToken = personalTags.split(/[,;|]/).at(-1)?.trim() || '';
+  const tagSuggestions = suggestExistingTags(lastTagToken, libraryTags);
   const summaryChanged = summary.trim() !== (book.userDescription || book.description || '').trim();
   const reviewChanged = notes !== (book.personalReview || '') || rating !== (book.personalRating?.toString() || '');
   return <>
@@ -139,6 +141,14 @@ function BookRow({ book, onCorrectMetadata, onMarkCompleted, onResetProgress,
           <p>Imported genres: {(book.sourceTags || []).join(', ') || 'None'} (read only)</p>
           <label htmlFor={'master-tags-' + book.id}>Personal tags (comma-separated)</label>
           <textarea id={'master-tags-' + book.id} rows={3} maxLength={3000} value={personalTags} onChange={event => setPersonalTags(event.target.value)} />
+          {tagSuggestions.length > 0 && <div className="master-tag-suggestions" role="group" aria-label="Existing tag suggestions">
+            <span>Use an existing tag</span>
+            <div>{tagSuggestions.map(label => <button type="button" key={label}
+              onClick={() => setPersonalTags(current => {
+                const i = Math.max(current.lastIndexOf(','), current.lastIndexOf(';'), current.lastIndexOf('|'));
+                return (i >= 0 ? current.slice(0, i + 1) + ' ' : '') + label;
+              })}>{label}</button>)}</div>
+          </div>}
           <button type="button" disabled={busy || !tagsChanged}
             onClick={() => {
               if (window.confirm('Save personal tags for ' + book.title + '? Imported genres remain untouched.')) {
@@ -212,6 +222,7 @@ export default function MasterControls({
     return () => { active = false; window.clearInterval(timer); };
   }, []);
 
+  const libraryTags = useMemo(() => tagCounts(books).map(({tag}) => tag), [books]);
   const list = useMemo(() => books.filter(book =>
     (book.title + ' ' + book.author + ' ' + book.id).toLocaleLowerCase().includes(search.trim().toLocaleLowerCase()))
     .sort((a,b)=>a.title.localeCompare(b.title, undefined, { numeric:true })), [books,search]);
@@ -337,7 +348,7 @@ export default function MasterControls({
         <div className="master-table-scroller">
           <table><thead><tr><th>Novel</th><th>Storage</th><th>Reading</th><th>Rating</th><th>Actions</th></tr></thead>
           <tbody>{onPage.map((book, index) => <Fragment key={book.id}>
-            <BookRow book={book} duplicate={isDuplicate(book)}
+            <BookRow book={book} libraryTags={libraryTags} duplicate={isDuplicate(book)}
               onSaveRating={onSaveRating} onCorrectMetadata={onCorrectMetadata}
               onMarkCompleted={onMarkCompleted} onResetProgress={onResetProgress}
               onSaveTags={onSaveTags} onSaveSummary={onSaveSummary}
