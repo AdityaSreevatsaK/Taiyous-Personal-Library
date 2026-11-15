@@ -12,7 +12,7 @@ import { mapWithConcurrency, retryTransientRead } from './lib/network-pool';
 import { partitionLocalBackups } from './lib/local-backups';
 import { requestOfflineRetention } from './lib/offline';
 import { installUsageTracker } from './lib/usage-analytics';
-import { deleteBook, removeCachedEpub, getBookFile, getBooks, getCachedEpubIds, getArchivedBookRecords, archiveStaleBookRecords, restoreReappearedArchivedRecords, readSettings, saveBook, updateBook, writeSettings } from './lib/storage';
+import { deleteBook, removeCachedEpub, getBookFile, getBooks, getCachedEpubIds, getArchivedBookRecords, archiveStaleBookRecords, restoreReappearedArchivedRecords, preserveNovelMetadataForDeletion, readSettings, saveBook, updateBook, writeSettings } from './lib/storage';
 import { staleMetadataCandidates } from './lib/stale-archive';
 import { resetReadingProgress } from './lib/progress-admin';
 import {
@@ -73,6 +73,9 @@ export default function App() {
   const [, setCachingId] = useState<string | null>(null);
   const [bulkOfflineProgress, setBulkOfflineProgress] = useState<{ done: number; total: number } | null>(null);
   const filePicker = useRef<HTMLInputElement | null>(null);
+  // A successful EPUB export is required IN THIS SESSION before Master
+  // Controls offers destructive deletion of that immutable novel ID.
+  const masterExportedEpubs = useRef(new Set<string>());
   const booksRef = useRef<LibraryBook[]>([]);
   const collectionsRef = useRef<BookCollection[]>(collections);
   const cloudEntries = useRef<Map<string, CloudEntry>>(new Map());
@@ -1004,6 +1007,9 @@ export default function App() {
       }
       // Server verifies the separate Owner cookie, current catalogue revision,
       // exact title and allowed storage paths before committing any deletion.
+      // Preserve the complete local rating, annotations and reading position
+      // before the irreversible server-side deletion.
+      await preserveNovelMetadataForDeletion(current.id);
       await deleteCloudNovel(current);
       await deleteBook(current.id);
       cloudEntries.current.delete(current.id);
@@ -1020,6 +1026,7 @@ export default function App() {
     if (request.kind === 'local-novel') {
       const current = booksRef.current.find(book => book.id === request.id);
       if (!current || current.cloud || current.title !== request.title) throw new Error('Local novel changed; deletion cancelled.');
+      await preserveNovelMetadataForDeletion(current.id);
       await deleteBook(current.id);
       const remaining = booksRef.current.filter(book => book.id !== current.id);
       booksRef.current = remaining;
@@ -1134,12 +1141,19 @@ export default function App() {
     const book = booksRef.current.find(book => book.id === id);
     if (!book) throw new Error('Novel no longer exists; refresh this page.');
     await downloadEpub(book);
+    // This records that the browser has initiated a full EPUB export, not
+    // merely that the cloud file exists. Owner must additionally confirm the
+    // download was saved successfully in the final deletion dialogue.
+    masterExportedEpubs.current.add(id);
   }, [downloadEpub]);
 
   const masterDeleteNovel = useCallback(async (id: string) => {
     await ownerPost('verify');
     const book = booksRef.current.find(item => item.id === id);
     if (!book) throw new Error('Novel no longer exists; refresh Master Controls.');
+    if (!masterExportedEpubs.current.has(id)) {
+      throw new Error('Export this exact novel’s EPUB backup first. Then confirm the downloaded file is safe before deleting.');
+    }
     // The protected Owner dialog performs the separate typed-title and
     // explicit saved-backup confirmation before any deletion is attempted.
     setOwnerRequest({ kind: book.cloud ? 'hosted-novel' : 'local-novel',

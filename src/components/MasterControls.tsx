@@ -83,10 +83,17 @@ function BookRow({ book, onCorrectMetadata, onMarkCompleted, onResetProgress,
         {book.progress > 0 && <small>{Math.round(book.progress)}% · {book.currentChapter || 'Position saved'}</small>}
       </td>
       <td>{book.personalRating ? book.personalRating + '/10 · ' + ratingLabel(book.personalRating) : 'Not rated'}</td>
-      <td><button type="button" className="master-manage" aria-expanded={expanded}
-        aria-controls={'master-edit-' + book.id} onClick={() => setExpanded(value => !value)}>
-        {expanded ? 'Close controls' : 'Manage novel'}
-      </button></td>
+      <td><div className="master-record-actions">
+        <button type="button" className="master-manage" aria-expanded={expanded}
+          aria-controls={'master-edit-' + book.id} onClick={() => setExpanded(value => !value)}>
+          {expanded ? 'Close controls' : 'Manage novel'}
+        </button>
+        {duplicate && <button type="button" className="master-danger-outline"
+          disabled={busy} title="Requires exporting this exact EPUB first"
+          onClick={() => void run(() => onDeleteNovel(book.id), 'Opening protected deletion confirmation')}>
+          Delete copy…
+        </button>}
+      </div></td>
     </tr>
     {expanded && <tr className="master-expanded-row" id={'master-edit-' + book.id}><td colSpan={5}>
       <div className="master-record-info">
@@ -162,7 +169,7 @@ function BookRow({ book, onCorrectMetadata, onMarkCompleted, onResetProgress,
             if (window.prompt('Type RESET PROGRESS to confirm') !== 'RESET PROGRESS') return;
             void run(() => onResetProgress(book.id), 'Reading progress reset');
           }}>Reset progress</button>
-        <button type="button" disabled={busy} onClick={() => void run(() => onExportEpub(book.id), 'EPUB export initiated')}>Export EPUB backup</button>
+        <button type="button" disabled={busy} onClick={() => void run(() => onExportEpub(book.id), 'EPUB export initiated; verify the download before deleting')}>Export EPUB backup</button>
         <button type="button" className="master-danger-outline" disabled={busy}
           onClick={() => void run(() => onDeleteNovel(book.id), 'Opening protected deletion confirmation')}>Delete this copy…</button>
       </div>

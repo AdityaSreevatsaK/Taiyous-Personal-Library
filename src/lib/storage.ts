@@ -123,6 +123,17 @@ export async function restoreReappearedArchivedRecords(hostedIds: readonly strin
   return restored;
 }
 
+/** Make a durable local metadata/reading-state snapshot before the separately
+ * authorised whole-novel deletion; the EPUB must also be exported independently.
+ */
+export async function preserveNovelMetadataForDeletion(id: string): Promise<void> {
+  const transaction = (await db()).transaction(['books', 'archivedBooks'], 'readwrite');
+  const record = await transaction.objectStore('books').get(id);
+  if (!record) throw new Error('Novel no longer exists; deletion refused.');
+  await transaction.objectStore('archivedBooks').put({ id, book: record, archivedAt: Date.now() });
+  await transaction.done;
+}
+
 /** Archived annotations are retained for recovery and can be exported as JSON. */
 export async function getArchivedBookRecords(): Promise<LibraryBook[]> {
   return (await (await db()).getAll('archivedBooks')).map(entry => entry.book);
