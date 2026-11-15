@@ -746,7 +746,9 @@ try {
       await page.locator('.reader-page iframe').first().waitFor({ state: 'visible', timeout: 20000 });
       await page.getByRole('button', { name: 'Go to library home' }).click();
       await page.locator('nav[aria-label="Library sections"]').waitFor({ state: 'attached' });
-      await page.getByText('Available offline').first().waitFor();
+      await (viewport.width <= 700
+        ? page.locator('.mobile-shelf-nav').getByRole('button', { name: 'Offline' })
+        : page.getByText('Available offline').first()).waitFor();
     } finally {
       await page.context().setOffline(false);
     }
