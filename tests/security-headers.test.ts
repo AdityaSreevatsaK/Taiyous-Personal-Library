@@ -19,7 +19,7 @@ describe('production Cloudflare Pages security headers', () => {
   it('permits only the required font provider, local book resources and HF APIs', () => {
     // epub.js injects reader CSS into EPUB iframes, so inline *styles* are
     // necessary; no inline JavaScript is permitted.
-    expect(csp).toContain("style-src 'self' 'unsafe-inline' https://fonts.googleapis.com");
+    expect(csp).toContain("style-src 'self' 'unsafe-inline' blob: https://fonts.googleapis.com");
     expect(csp).toContain("font-src 'self' https://fonts.gstatic.com");
     expect(csp).toContain("img-src 'self' blob: data:");
     expect(csp).toContain("connect-src 'self' https://huggingface.co");
