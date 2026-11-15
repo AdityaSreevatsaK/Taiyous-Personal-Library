@@ -953,6 +953,39 @@ try {
         if (await adminPage.locator('.master-expanded-row').count()) {
           throw new Error('Closing Master record failed to remove its edit panel');
         }
+        // Regression: 25 records first, then batches of 25 when item 15
+        // approaches the viewport. No next/previous pagination buttons.
+        await adminPage.evaluate(async () => {
+          const request=indexedDB.open('folio-personal-library-v1',3);
+          const db=await new Promise((resolve,reject)=>{
+            request.onsuccess=()=>resolve(request.result);
+            request.onerror=()=>reject(request.error);
+          });
+          const tx=db.transaction('books','readwrite');
+          for(let i=1;i<=65;i++){
+            const id=i.toString(16).padStart(24,'0');
+            tx.objectStore('books').put({id,title:'Bulk CI Novel '+String(i).padStart(3,'0'),
+              author:'Synthetic Writer',originalFileName:'bulk.epub',importedAt:1,
+              progress:0,size:0});
+          }
+          await new Promise((resolve,reject)=>{tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error)});
+          db.close();
+        });
+        await adminPage.reload({waitUntil:'domcontentloaded'});
+        await adminPage.locator('.master-controls table').waitFor();
+        let shown=await adminPage.getByRole('button',{name:'Manage novel'}).count();
+        if(shown!==25)throw new Error('Master must initially render 25 records, got '+shown);
+        if(await adminPage.locator('.master-pages').getByRole('button',{name:'Next'}).count())
+          throw new Error('Master must no longer require page navigation');
+        await adminPage.getByRole('button',{name:'Manage novel'}).nth(14).scrollIntoViewIfNeeded();
+        await adminPage.waitForFunction(() =>
+          document.querySelectorAll('.master-controls .master-manage').length>=50,{timeout:10000});
+        shown=await adminPage.getByRole('button',{name:'Manage novel'}).count();
+        if(shown<50)throw new Error('Master lazy-load did not fetch the next 25');
+        await adminPage.getByRole('button',{name:'Manage novel'}).nth(39).scrollIntoViewIfNeeded();
+        await adminPage.waitForFunction(() =>
+          document.querySelectorAll('.master-controls .master-manage').length>=65,{timeout:10000});
+        console.log('Master lazy-loading passed: '+await adminPage.getByRole('button',{name:'Manage novel'}).count()+' records');
       } finally {
         await adminPage.close();
         await context.close();
