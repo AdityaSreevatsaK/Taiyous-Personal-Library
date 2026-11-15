@@ -15,7 +15,7 @@ import type { LibraryBook, ReaderTheme } from '../types';
 import { bookTags, includesTag, tagCounts } from '../lib/tags';
 import type { CloudSession } from '../lib/cloud';
 import type { BookCollection } from '../lib/collections';
-import { libraryCollectionUrl, libraryShelfUrl, libraryTagUrl, parseLibraryViewPath, type ShelfFilter } from '../lib/library-routes';
+import { libraryAuthorUrl, libraryCollectionUrl, libraryShelfUrl, libraryTagUrl, parseLibraryViewPath, type ShelfFilter } from '../lib/library-routes';
 
 type Filter = ShelfFilter;
 type Sort = 'recent' | 'title' | 'added';
@@ -119,6 +119,7 @@ export default function LibraryDashboard({
   const [sort, setSort] = useState<Sort>('title');
   const [query, setQuery] = useState('');
   const [selectedTag, setSelectedTag] = useState(() => parseLibraryViewPath(libraryPath).tag || initialTag);
+  const [selectedAuthor, setSelectedAuthor] = useState(() => parseLibraryViewPath(libraryPath).author);
   const [selectedCollectionId, setSelectedCollectionId] = useState(() => parseLibraryViewPath(libraryPath).collectionId);
   // The address bar is authoritative. Back, Forward, pasted links and reloads
   // must restore exactly the same shelf, tag, collection or analytics view.
@@ -127,6 +128,7 @@ export default function LibraryDashboard({
     setFilter(view.filter);
     setShowAdvanced(view.advanced);
     setSelectedTag(view.tag);
+    setSelectedAuthor(view.author);
     setSelectedCollectionId(view.collectionId);
     setQuery('');
   }, [libraryPath]);
@@ -185,7 +187,7 @@ export default function LibraryDashboard({
 
   const globalMode = globalSearch.trim().length > 0;
   const selectedCollection = collections.find(c => c.id === selectedCollectionId);
-  const showEditorialHome = books.length > 0 && libraryPath === '/' && filter === 'all' && !selectedTag && !selectedCollectionId && !globalMode && !showAdvanced;
+  const showEditorialHome = books.length > 0 && libraryPath === '/' && filter === 'all' && !selectedTag && !selectedAuthor && !selectedCollectionId && !globalMode && !showAdvanced;
   const visible = useMemo(() => {
     const q = (globalMode ? globalSearch : query).trim().toLocaleLowerCase();
     return books.filter((book) => {
@@ -198,28 +200,37 @@ export default function LibraryDashboard({
         if (filter === 'finished' && book.progress < 99.5) return false;
         if (filter === 'unread' && book.progress > 0) return false;
         if (selectedTag && !includesTag(book, selectedTag)) return false;
+        if (selectedAuthor && book.author.normalize('NFKC').trim().toLocaleLowerCase() !== selectedAuthor.normalize('NFKC').trim().toLocaleLowerCase()) return false;
         if (selectedCollection && !selectedCollection.bookIds.includes(book.id)) return false;
       }
       return !q || `${book.title} ${book.author} ${bookTags(book).join(' ')}`.toLocaleLowerCase().includes(q);
-    }).sort((a, b) => globalMode || selectedTag || selectedCollection || sort === 'title'
+    }).sort((a, b) => globalMode || selectedTag || selectedAuthor || selectedCollection || sort === 'title'
       ? a.title.localeCompare(b.title, undefined, { sensitivity: 'base', numeric: true }) : sort === 'added' ? b.importedAt - a.importedAt
       : (b.lastOpenedAt ?? b.importedAt) - (a.lastOpenedAt ?? a.importedAt));
-  }, [books, filter, sort, query, selectedTag, selectedCollection, globalSearch, globalMode, cachedEpubIds]);
+  }, [books, filter, sort, query, selectedTag, selectedAuthor, selectedCollection, globalSearch, globalMode, cachedEpubIds]);
+  function browseAuthor(author: string) {
+    setShowAdvanced(false); setSelectedTag(''); setSelectedAuthor(author);
+    setSelectedCollectionId(''); setQuery(''); setFilter('all');
+    onGlobalSearch(''); onLibraryNavigate(libraryAuthorUrl(author));
+  }
   function browseTag(tag: string) {
     setShowAdvanced(false);
-    setSelectedTag(tag);
+    setSelectedTag(tag); setSelectedAuthor('');
     setSelectedCollectionId('');
     setQuery('');
     setFilter('all');
     onGlobalSearch('');
     onLibraryNavigate(tag ? libraryTagUrl(tag) : libraryShelfUrl('all'));
   }
+  function clearAuthor() {
+    setSelectedAuthor(''); setQuery(''); onLibraryNavigate(libraryShelfUrl('all'));
+  }
   function clearTag() {
     setSelectedTag(''); setQuery('');
     onLibraryNavigate(libraryShelfUrl('all'));
   }
   function browseCollection(id: string) {
-    setShowAdvanced(false); setSelectedCollectionId(id); setSelectedTag('');
+    setShowAdvanced(false); setSelectedCollectionId(id); setSelectedTag(''); setSelectedAuthor('');
     setFilter('all'); setQuery(''); onGlobalSearch('');
     onLibraryNavigate(libraryCollectionUrl(id));
   }
@@ -240,30 +251,31 @@ export default function LibraryDashboard({
   }
   function goHome() {
     setShowAdvanced(false); setFilter('all');
-    setSelectedTag(''); setSelectedCollectionId(''); setQuery('');
+    setSelectedTag(''); setSelectedAuthor(''); setSelectedCollectionId(''); setQuery('');
     onGlobalSearch(''); onLibraryNavigate('/');
   }
   function goTo(newFilter: Filter) {
     setShowAdvanced(false); setFilter(newFilter);
-    setSelectedTag(''); setSelectedCollectionId(''); setQuery('');
+    setSelectedTag(''); setSelectedAuthor(''); setSelectedCollectionId(''); setQuery('');
     onGlobalSearch(''); onLibraryNavigate(libraryShelfUrl(newFilter));
   }
   function scopeFilter(newFilter: Filter) {
     setFilter(newFilter);
     onGlobalSearch('');
-    if (selectedTag && newFilter !== 'analytics') onLibraryNavigate(libraryTagUrl(selectedTag, newFilter));
+    if (selectedAuthor) { setSelectedAuthor(''); onLibraryNavigate(libraryShelfUrl(newFilter)); }
+    else if (selectedTag && newFilter !== 'analytics') onLibraryNavigate(libraryTagUrl(selectedTag, newFilter));
     else if (selectedCollectionId && newFilter !== 'analytics') onLibraryNavigate(libraryCollectionUrl(selectedCollectionId, newFilter));
     else onLibraryNavigate(libraryShelfUrl(newFilter));
   }
 
 
   const navEntries = [
-    { id: 'all' as Filter, name: 'All books', count: books.length, icon: Library },
+    { id: 'reading' as Filter, name: 'Currently reading', count: reading.length, icon: BookOpen },
     { id: 'trying' as Filter, name: 'Trying out', count: books.filter(b => b.shelfStatus === 'trying').length, icon: Sparkles },
-     { id: 'reading' as Filter, name: 'Currently reading', count: reading.length, icon: BookOpen },
-    { id: 'unread' as Filter, name: 'To be read', count: books.filter((b) => b.shelfStatus !== 'trying' && b.progress === 0).length, icon: Book },
+    { id: 'offline' as Filter, name: 'Available offline', count: books.filter(b => cachedEpubIds.includes(b.id)).length, icon: Download },
     { id: 'finished' as Filter, name: 'Finished', count: finished.length, icon: CheckCircle2 },
-    { id: 'offline' as Filter, name: 'Available offline', count: cachedEpubIds.length, icon: Download },
+    { id: 'unread' as Filter, name: 'To be read', count: books.filter((b) => b.shelfStatus !== 'trying' && b.progress === 0).length, icon: Book },
+    { id: 'all' as Filter, name: 'All books', count: books.length, icon: Library },
     { id: 'analytics' as Filter, name: 'Analytics', count: 0, icon: BarChart3 },
   ];
 
@@ -314,9 +326,30 @@ export default function LibraryDashboard({
             <button type="button" className={`top-nav-link ${libraryPath === '/' && !globalMode ? 'active' : ''}`}
               aria-current={libraryPath === '/' && !globalMode ? 'page' : undefined}
               onClick={goHome}>Home</button>
-            {navEntries.map(({ id, name, count }) => <button type="button" key={id} className={`top-nav-link ${!showAdvanced && filter === id && !selectedTag && !selectedCollectionId ? 'active' : ''}`}
-              aria-current={!showAdvanced && filter === id && !selectedTag && !selectedCollectionId ? 'page' : undefined}
+            {navEntries.map(({ id, name, count }) => <button type="button" key={id} className={`top-nav-link ${!showAdvanced && filter === id && !selectedTag && !selectedAuthor && !selectedCollectionId ? 'active' : ''}`}
+              aria-current={!showAdvanced && filter === id && !selectedTag && !selectedAuthor && !selectedCollectionId ? 'page' : undefined}
               onClick={() => goTo(id)}><span>{name}</span>{id !== 'analytics' && <small>{count}</small>}</button>)}
+          </div>
+          <div className="mobile-shelf-nav" aria-label="Quick library shelves">
+            <button type="button" className={filter === 'reading' && libraryPath !== '/' ? 'selected' : ''}
+              onClick={() => goTo('reading')}>Reading</button>
+            <button type="button" className={filter === 'trying' ? 'selected' : ''}
+              onClick={() => goTo('trying')}>Trying</button>
+            <button type="button" className={filter === 'offline' ? 'selected' : ''}
+              onClick={() => goTo('offline')}>Offline</button>
+            <label className="mobile-shelf-more">
+              <span className="sr-only">More library shelves</span>
+              <select aria-label="More library shelves"
+                value={['finished','unread','all','analytics'].includes(filter) && libraryPath !== '/' && !selectedTag && !selectedCollectionId && !selectedAuthor ? filter : ''}
+                onChange={event => goTo(event.target.value as Filter)}>
+                <option value="" disabled>More…</option>
+                <option value="finished">Finished</option>
+                <option value="unread">To be read</option>
+                <option value="all">All books</option>
+                <option value="analytics">Analytics</option>
+              </select>
+              <ChevronDown size={14} aria-hidden="true"/>
+            </label>
           </div>
           <div className="top-nav-tools">
             <details className="top-nav-menu" aria-label="Novel tags">
@@ -368,11 +401,12 @@ export default function LibraryDashboard({
           {(error || storageError) && <div className="alert error-alert" role="alert">{error || storageError}</div>}
           {!showAdvanced && !showEditorialHome && filter !== 'analytics' && <div className="page-head page-head-compact">
             <div><div className="eyebrow"><span className="eyebrow-line" /> TAIYOU'S COLLECTION</div>
-              <h1>{filter === 'offline' ? 'Offline library' : filter === 'trying' ? 'Trying out' : selectedCollection ? selectedCollection.name : selectedTag ? displayTag : 'Your library'}<span className="serif-accent">.</span></h1>
-              <p>{selectedTag && !globalMode ? `${visible.length} ${visible.length === 1 ? 'novel' : 'novels'} in this category` : filter === 'offline' ? `${cachedEpubIds.length} downloaded for reading without a connection` : filter === 'trying' ? `${books.filter(b => b.shelfStatus === 'trying').length} novels to sample before deciding` : `${books.length} stories to explore, all in one place`}</p>
+              <h1>{filter === 'offline' ? 'Offline library' : filter === 'trying' ? 'Trying out' : selectedCollection ? selectedCollection.name : selectedTag ? displayTag : selectedAuthor ? selectedAuthor : 'Your library'}<span className="serif-accent">.</span></h1>
+              <p>{selectedAuthor && !globalMode ? `${visible.length} novels by ${selectedAuthor}` : selectedTag && !globalMode ? `${visible.length} ${visible.length === 1 ? 'novel' : 'novels'} in this category` : filter === 'offline' ? `${cachedEpubIds.length} downloaded for reading without a connection` : filter === 'trying' ? `${books.filter(b => b.shelfStatus === 'trying').length} novels to sample before deciding` : `${books.length} stories to explore, all in one place`}</p>
             </div>
             <div className="page-head-actions">
               {selectedTag && !globalMode && <button type="button" className="tag-clear-link" onClick={clearTag}>Show all novels <X size={13}/></button>}
+              {selectedAuthor && !globalMode && <button type="button" className="tag-clear-link" onClick={clearAuthor}>All authors <X size={13}/></button>}
               <button className="primary-button desktop-import" onClick={onImportClick} disabled={importing}><Plus size={18}/>{importing ? 'Importing…' : 'Add a novel'}</button>
             </div>
           </div>}
@@ -418,7 +452,7 @@ export default function LibraryDashboard({
             </section>
           )}
 
-          {!showEditorialHome && <section id="library-full-catalogue" className="library-section" aria-label="Book collection"><div className={`section-titlebar ${!globalMode && !selectedTag && !selectedCollection && (filter === 'all' || filter === 'offline') ? 'section-titlebar-quiet' : '' }`}><div><div className="section-overline">{globalMode ? 'ALL NOVELS' : selectedCollection ? 'YOUR COLLECTION' : selectedTag ? 'BROWSING TAG' : 'THE COLLECTION'}</div><h2>{globalMode ? 'Global search results' : selectedCollection ? selectedCollection.name : selectedTag ? 'Novels' : filter === 'all' ? 'All your stories' : navEntries.find((i) => i.id === filter)?.name}<span className="title-count">{visible.length}</span></h2></div><span className="library-description">A little world on every shelf</span></div>
+          {!showEditorialHome && <section id="library-full-catalogue" className="library-section" aria-label="Book collection"><div className={`section-titlebar ${!globalMode && !selectedTag && !selectedCollection && (filter === 'all' || filter === 'offline') ? 'section-titlebar-quiet' : '' }`}><div><div className="section-overline">{globalMode ? 'ALL NOVELS' : selectedCollection ? 'YOUR COLLECTION' : selectedTag ? 'BROWSING TAG' : selectedAuthor ? 'BROWSING AUTHOR' : 'THE COLLECTION'}</div><h2>{globalMode ? 'Global search results' : selectedCollection ? selectedCollection.name : selectedTag ? 'Novels' : selectedAuthor ? 'Books by ' + selectedAuthor : filter === 'all' ? 'All your stories' : navEntries.find((i) => i.id === filter)?.name}<span className="title-count">{visible.length}</span></h2></div><span className="library-description">A little world on every shelf</span></div>
             {selectedCollection && !globalMode && <div className="tag-collection-head collection-heading">
               <span><strong>{selectedCollection.name}</strong> · {visible.length} novels · Sorted A–Z</span>
               <div className="collection-actions">
@@ -431,9 +465,9 @@ export default function LibraryDashboard({
                 }}><Trash2 size={13} /> Delete</button>
                 <button type="button" onClick={clearCollection}>All novels <X size={13} /></button>
               </div>
-            </div>}<div className="library-toolbar"><div className="filter-tabs">{(['all', 'trying', 'reading', 'unread', 'finished', 'offline'] as Filter[]).map((name) => <button key={name} onClick={() => scopeFilter(name)} className={filter === name ? 'selected' : ''}>{name === 'all' ? 'All' : name === 'trying' ? 'Trying' : name === 'reading' ? 'Reading' : name === 'unread' ? 'Unread' : name === 'offline' ? 'Offline' : 'Finished'}</button>)}</div><div className="toolbar-right"><label className="tag-filter"><Tag size={16} /><select aria-label="Filter novels by tag" value={selectedTag} onChange={(e) => browseTag(e.target.value)}><option value="">All tags</option>{availableTags.map(({tag, count}) => <option key={tag} value={tag}>{tag} ({count})</option>)}</select><ChevronDown size={14} /></label><label className="search-field"><Search size={17} /><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={selectedCollection ? `Search ${selectedCollection.name}…` : selectedTag ? `Search ${displayTag} novels…` : "Search this shelf…"} aria-label="Search within current list" />{query && <button aria-label="Clear search" onClick={() => setQuery('')}><X size={14} /></button>}</label><label className="sort-field"><Settings2 size={16} /><select value={selectedTag || selectedCollection || globalMode ? 'title' : sort} disabled={!!selectedTag || !!selectedCollection || globalMode} onChange={(e) => setSort(e.target.value as Sort)} aria-label="Sort books"><option value="title">Title A–Z</option><option value="recent">Recent</option><option value="added">Date added</option></select><ChevronDown size={14} /></label></div></div>
+            </div>}<div className="library-toolbar"><div className="filter-tabs">{(['all', 'trying', 'reading', 'unread', 'finished', 'offline'] as Filter[]).map((name) => <button key={name} onClick={() => scopeFilter(name)} className={filter === name ? 'selected' : ''}>{name === 'all' ? 'All' : name === 'trying' ? 'Trying' : name === 'reading' ? 'Reading' : name === 'unread' ? 'Unread' : name === 'offline' ? 'Offline' : 'Finished'}</button>)}</div><div className="toolbar-right"><label className="tag-filter"><Tag size={16} /><select aria-label="Filter novels by tag" value={selectedTag} onChange={(e) => browseTag(e.target.value)}><option value="">All tags</option>{availableTags.map(({tag, count}) => <option key={tag} value={tag}>{tag} ({count})</option>)}</select><ChevronDown size={14} /></label><label className="search-field"><Search size={17} /><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={selectedCollection ? `Search ${selectedCollection.name}…` : selectedTag ? `Search ${displayTag} novels…` : "Search this shelf…"} aria-label="Search within current list" />{query && <button aria-label="Clear search" onClick={() => setQuery('')}><X size={14} /></button>}</label><label className="sort-field"><Settings2 size={16} /><select value={selectedTag || selectedAuthor || selectedCollection || globalMode ? 'title' : sort} disabled={!!selectedTag || !!selectedAuthor || !!selectedCollection || globalMode} onChange={(e) => setSort(e.target.value as Sort)} aria-label="Sort books"><option value="title">Title A–Z</option><option value="recent">Recent</option><option value="added">Date added</option></select><ChevronDown size={14} /></label></div></div>
 
-            {visible.length ? <div className="book-grid">{visible.map((book) => <article className="book-tile" key={book.id}><button className="cover-button" onClick={() => onOpen(book)} aria-label={`View details for ${book.title}`}><Cover book={book} cloudRepo={cloudRepo} cloudSession={cloudSession} /></button><div className="tile-meta"><div className="tile-title-row"><button className="tile-title" onClick={() => onOpen(book)} title={book.title}>{book.title}</button></div><p>{book.author}</p>{filter === 'offline' && cachedEpubIds.includes(book.id) && <div className="offline-tile-actions">
+            {visible.length ? <div className="book-grid">{visible.map((book) => <article className="book-tile" key={book.id}><button className="cover-button" onClick={() => onOpen(book)} aria-label={`View details for ${book.title}`}><Cover book={book} cloudRepo={cloudRepo} cloudSession={cloudSession} /></button><div className="tile-meta"><div className="tile-title-row"><button className="tile-title" onClick={() => onOpen(book)} title={book.title}>{book.title}</button></div><button type="button" className="tile-author-link" onClick={() => browseAuthor(book.author)} aria-label={`View novels by ${book.author}`}>{book.author}</button>{filter === 'offline' && cachedEpubIds.includes(book.id) && <div className="offline-tile-actions">
                 {book.cloud
                   ? <button type="button" className="offline-remove-button" onClick={() => onRemoveOffline(book)} aria-label={`Remove offline EPUB for ${book.title}`}>
                       <Trash2 size={14} /> Remove download
