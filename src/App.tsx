@@ -256,7 +256,7 @@ export default function App() {
     setCloudBusy(true);
     setCloudMessage(null);
     try {
-      const catalog = await fetchCloudCatalog(validateDatasetRepo(repo), session);
+      const catalog = await retryTransientRead(() => fetchCloudCatalog(validateDatasetRepo(repo), session));
       cloudEntries.current = new Map(catalog.books.map(entry => [entry.id, entry]));
       // The cloud catalogue is authoritative for hosted novels. Preserve actual
       // offline EPUBs, but hide old cloud metadata with no hosted file or cache.
@@ -325,7 +325,7 @@ export default function App() {
       let collectionsWarning = false;
       try {
         const localCollections = collectionsRef.current;
-        const hostedCollections = await fetchCloudCollections(repo, session);
+        const hostedCollections = await retryTransientRead(() => fetchCloudCollections(repo, session));
         const allCollections = mergeCollections(hostedCollections, localCollections);
         const needsPublish = allCollections.some(item => {
           const remote = hostedCollections.find(other => other.id === item.id);
