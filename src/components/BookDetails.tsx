@@ -10,13 +10,14 @@ import { novelHeroStyle } from '../lib/novel-hero';
 import './details-palettes.css';
 import type { CloudSession } from '../lib/cloud';
 import ChapterBrowser from './ChapterBrowser';
-import { bookTags, normalizeTags } from '../lib/tags';
+import { bookTags, normalisePersonalTags, suggestExistingTags, tagKey } from '../lib/tags';
 import { ratingLabel } from '../lib/ratings';
 import { isFinished } from '../lib/reading-status';
 import type { ChapterItem, LibraryBook, ReaderTheme } from '../types';
 
 interface Props {
   book: LibraryBook;
+  availableTags: string[];
   theme: ReaderTheme;
   onThemeChange: (theme: ReaderTheme) => void;
   onBack: () => void;
@@ -42,7 +43,7 @@ interface Props {
   error: string | null;
 }
 
-export default function BookDetails({ book, theme, onThemeChange, onBack, onRead, onDownloadEpub, isCachedOffline, onSaveOffline, onRemoveOffline, onDeleteLocal, onDownloadArchive, cloudConnected, cloudRepo, cloudSession, onReadChapter, onLoadChapters, onSaveTags, onSaveSummary, onSaveReview, onSetTrial, onBrowseTag, onBrowseAuthor, onMarkCompleted, error }: Props) {
+export default function BookDetails({ book, availableTags, theme, onThemeChange, onBack, onRead, onDownloadEpub, isCachedOffline, onSaveOffline, onRemoveOffline, onDeleteLocal, onDownloadArchive, cloudConnected, cloudRepo, cloudSession, onReadChapter, onLoadChapters, onSaveTags, onSaveSummary, onSaveReview, onSetTrial, onBrowseTag, onBrowseAuthor, onMarkCompleted, error }: Props) {
   const [tagInput, setTagInput] = useState('');
   const [tagDraft, setTagDraft] = useState<string[]>(() => book.personalTags || []);
   const [editingSummary, setEditingSummary] = useState(false);
@@ -57,6 +58,7 @@ export default function BookDetails({ book, theme, onThemeChange, onBack, onRead
   const customTags = tagDraft;
   const tagsChanged = JSON.stringify(tagDraft) !== JSON.stringify(book.personalTags || []);
   const allTags = bookTags(book);
+  const existingTagSuggestions = suggestExistingTags(tagInput, availableTags);
   const editableTags = bookTags({ sourceTags: originalTags, personalTags: tagDraft });
   const summary = book.userDescription || book.description;
   const chapterText = book.currentChapter || (book.progress ? 'Position saved' : 'Not started');
@@ -65,11 +67,10 @@ export default function BookDetails({ book, theme, onThemeChange, onBack, onRead
   useEffect(() => { setTagDraft(book.personalTags || []); setTagInput(''); }, [book.id, book.personalTags]);
   useEffect(() => { setRatingDraft(book.personalRating); setReviewDraft(book.personalReview || ''); }, [book.id, book.personalRating, book.personalReview]);
 
-  function addTag(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const tag = normalizeTags(tagInput)[0];
+  function addTagValue(value: string) {
+    const tag = normalisePersonalTags([value], availableTags)[0];
     if (!tag || saving) return;
-    if ([...originalTags, ...tagDraft].some(existing => existing.toLocaleLowerCase() === tag.toLocaleLowerCase())) {
+    if ([...originalTags, ...tagDraft].some(existing => tagKey(existing) === tagKey(tag))) {
       setFeedback('That tag is already on this novel.'); setTagInput(''); return;
     }
     if (tagDraft.length >= 50) { setFeedback('Maximum 50 personal tags.'); return; }
@@ -78,9 +79,14 @@ export default function BookDetails({ book, theme, onThemeChange, onBack, onRead
     setFeedback('Tag added to your draft. Save changes after you finish editing.');
   }
 
+  function addTag(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    addTagValue(tagInput);
+  }
+
   function removeTag(tag: string) {
     if (saving) return;
-    setTagDraft(current => current.filter(existing => existing.toLocaleLowerCase() !== tag.toLocaleLowerCase()));
+    setTagDraft(current => current.filter(existing => tagKey(existing) !== tagKey(tag)));
     setFeedback('Tag removed from your draft. Save changes after you finish editing.');
   }
 
@@ -216,12 +222,21 @@ export default function BookDetails({ book, theme, onThemeChange, onBack, onRead
             <div className="details-section-header"><div><span className="details-label">ORGANISE YOUR READING</span><h2 id="detail-tags-heading">Tags & genres</h2></div><Tag size={20} className="details-section-icon" /></div>
             <p className="details-help">Browse all tags together. Imported genres are protected; personal tags can be added or removed.</p>
             <div className="details-tag-row" aria-label="All novel tags">{editableTags.length ? editableTags.map((tag) => {
-              const imported = originalTags.some(value => value.toLocaleLowerCase() === tag.toLocaleLowerCase());
+              const imported = originalTags.some(value => tagKey(value) === tagKey(tag));
               return imported
                 ? <button type="button" className="details-tag imported-tag" key={tag} onClick={() => onBrowseTag(tag)} title="Imported genre, preserved from original metadata" aria-label={`Browse imported genre ${tag}`}><Hash size={13} />{tag}</button>
                 : <span className="details-tag personal-tag" key={tag}><button className="tag-browse-button" type="button" onClick={() => onBrowseTag(tag)} aria-label={`Browse novels tagged ${tag}`}>{tag}</button><button type="button" disabled={saving} onClick={() => removeTag(tag)} title={`Remove personal tag ${tag}`} aria-label={`Remove personal tag ${tag}`}><X size={14}/></button></span>;
             }) : <span className="details-muted small">No tags yet. Add one below.</span>}</div>
             <form className="details-tag-form" onSubmit={(e) => void addTag(e)}><label htmlFor="new-novel-tag" className="sr-only">New personal tag</label><input id="new-novel-tag" value={tagInput} maxLength={45} onChange={(e) => setTagInput(e.target.value)} placeholder="e.g. Favourite, Cultivation, Slow burn..." /><button className="primary-button" type="submit" disabled={saving || !tagInput.trim() || customTags.length >= 50}><Plus size={18} /> Add tag</button></form>
+            {existingTagSuggestions.length > 0 && <div className="details-tag-suggestions" role="group" aria-label="Suggested existing tags">
+              <span>Existing tags: select one to avoid duplicates</span>
+              <div>{existingTagSuggestions.map(candidate => {
+                const alreadyAdded = [...originalTags, ...tagDraft].some(label => tagKey(label) === tagKey(candidate));
+                return <button type="button" key={candidate} disabled={saving || alreadyAdded}
+                  title={alreadyAdded ? 'Already on this novel' : 'Add existing tag ' + candidate}
+                  onClick={() => addTagValue(candidate)}>{candidate}{alreadyAdded ? ' ✓' : ''}</button>;
+              })}</div>
+            </div>}
             <div className="tag-draft-actions">
               <span>{tagsChanged ? 'Unsaved tag changes' : 'Your tags are saved'}</span>
               {tagsChanged && <><button type="button" className="secondary-button" onClick={() => { setTagDraft(book.personalTags || []); setFeedback(null); }}>Discard changes</button>
