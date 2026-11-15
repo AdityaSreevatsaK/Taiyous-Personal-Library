@@ -84,8 +84,14 @@ self.addEventListener('fetch', event => {
   // requests fall through to the network, but are never cached or persisted.
   // Cross-origin private Hugging Face dataset requests are never intercepted.
   event.respondWith((async () => {
-    const cached = await caches.match(url.href, { ignoreSearch: true, ignoreVary: true });
-    if (cached) return cached;
+    // Read only from this version's verified shell cache. A global caches.match
+    // could return obsolete assets from unrelated caches or prior deployments.
+    // Never use ignoreSearch/ignoreVary for arbitrary URLs.
+    if (shellUrls.includes(url.href) && request.cache !== 'reload') {
+      const cache = await caches.open(SHELL_CACHE);
+      const cached = await cache.match(request);
+      if (cached) return cached;
+    }
     return fetch(request);
   })());
 });
