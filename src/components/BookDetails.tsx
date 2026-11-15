@@ -55,6 +55,7 @@ export default function BookDetails({ book, theme, onThemeChange, onBack, onRead
   const customTags = tagDraft;
   const tagsChanged = JSON.stringify(tagDraft) !== JSON.stringify(book.personalTags || []);
   const allTags = bookTags(book);
+  const editableTags = bookTags({ sourceTags: originalTags, personalTags: tagDraft });
   const summary = book.userDescription || book.description;
   const chapterText = book.currentChapter || (book.progress ? 'Position saved' : 'Not started');
 
@@ -182,7 +183,6 @@ export default function BookDetails({ book, theme, onThemeChange, onBack, onRead
               setDownloading(true); setFeedback(null);
               void onDownloadEpub().catch(reason => setFeedback(`Download failed: ${String(reason)}`)).finally(() => setDownloading(false));
             }}><Download size={17} /> {downloading ? 'Preparing…' : 'Download EPUB'}</button>
-            {onDownloadArchive && <button type="button" className="details-download details-download-archive-header" disabled={downloading} onClick={prepareArchive}><Download size={17} /> Original ZIP</button>}
           </div>
         </div>
       </div>
@@ -219,7 +219,11 @@ export default function BookDetails({ book, theme, onThemeChange, onBack, onRead
                   ? <button type="button" className="secondary-button" onClick={onRemoveOffline}><Download size={15} /> Remove offline EPUB</button>
                   : <span className="details-muted small">Local-only EPUB. Export a backup before removing this novel.</span>
                 : <button type="button" className="secondary-button" onClick={onSaveOffline}><Download size={15} /> Save for offline reading</button>}
-              {onDownloadArchive && <button type="button" className="details-download details-download-archive-mobile" disabled={downloading} onClick={prepareArchive}><Download size={15} /> Original ZIP backup</button>}
+              {onDownloadArchive && <details className="details-archive-tools">
+                <summary>Original ZIP backup (advanced)</summary>
+                <p className="details-help">This is the original uploaded archive. For normal reading and offline use, choose EPUB.</p>
+                <button type="button" className="secondary-button" disabled={downloading} onClick={prepareArchive}><Download size={15} /> Download original ZIP</button>
+              </details>}
               <button type="button" className="details-delete-novel" onClick={onDeleteLocal}><Trash2 size={15} />
                  {book.cloud ? 'Delete novel from library (Owner mode)' : 'Remove local novel (Owner mode)'}
                </button>
@@ -266,11 +270,13 @@ export default function BookDetails({ book, theme, onThemeChange, onBack, onRead
 
           <section className="details-card details-tags-card" aria-labelledby="detail-tags-heading">
             <div className="details-section-header"><div><span className="details-label">ORGANISE YOUR READING</span><h2 id="detail-tags-heading">Tags & genres</h2></div><Tag size={20} className="details-section-icon" /></div>
-            <p className="details-help">Imported genres are taken from the EPUB or source metadata. Add your own tags to organise your library.</p>
-            <h3 className="details-tags-label">Imported genres</h3>
-            <div className="details-tag-row">{originalTags.length ? originalTags.map((tag) => <button type="button" className="details-tag imported-tag" key={tag} onClick={() => onBrowseTag(tag)} aria-label={`Browse novels tagged ${tag}`}><Hash size={13} />{tag}</button>) : <span className="details-muted small">No imported genres found.</span>}</div>
-            <h3 className="details-tags-label">My tags</h3>
-            <div className="details-tag-row">{customTags.length ? customTags.map((tag) => <span className="details-tag personal-tag" key={tag}><button className="tag-browse-button" type="button" onClick={() => onBrowseTag(tag)} aria-label={`Browse novels tagged ${tag}`}>{tag}</button><button type="button" disabled={saving} onClick={() => void removeTag(tag)} title={`Remove ${tag}`} aria-label={`Remove tag ${tag}`}><X size={14} /></button></span>) : <span className="details-muted small">You haven't added any personal tags yet.</span>}</div>
+            <p className="details-help">Browse all tags together. Imported genres are protected; personal tags can be added or removed.</p>
+            <div className="details-tag-row" aria-label="All novel tags">{editableTags.length ? editableTags.map((tag) => {
+              const imported = originalTags.some(value => value.toLocaleLowerCase() === tag.toLocaleLowerCase());
+              return imported
+                ? <button type="button" className="details-tag imported-tag" key={tag} onClick={() => onBrowseTag(tag)} title="Imported genre, preserved from original metadata" aria-label={`Browse imported genre ${tag}`}><Hash size={13} />{tag}</button>
+                : <span className="details-tag personal-tag" key={tag}><button className="tag-browse-button" type="button" onClick={() => onBrowseTag(tag)} aria-label={`Browse novels tagged ${tag}`}>{tag}</button><button type="button" disabled={saving} onClick={() => removeTag(tag)} title={`Remove personal tag ${tag}`} aria-label={`Remove personal tag ${tag}`}><X size={14}/></button></span>;
+            }) : <span className="details-muted small">No tags yet. Add one below.</span>}</div>
             <form className="details-tag-form" onSubmit={(e) => void addTag(e)}><label htmlFor="new-novel-tag" className="sr-only">New personal tag</label><input id="new-novel-tag" value={tagInput} maxLength={45} onChange={(e) => setTagInput(e.target.value)} placeholder="e.g. Favourite, Cultivation, Slow burn..." /><button className="primary-button" type="submit" disabled={saving || !tagInput.trim() || customTags.length >= 50}><Plus size={18} /> Add tag</button></form>
             <div className="tag-draft-actions">
               <span>{tagsChanged ? 'Unsaved tag changes' : 'Your tags are saved'}</span>

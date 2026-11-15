@@ -97,12 +97,13 @@ export function Cover({ book, variant = 'normal', cloudRepo = '', cloudSession =
   }, [book.id, book.coverPath, visible]);
   const imageUrl = useCoverArt(book, cloudRepo, cloudSession, visible);
   const [failedImage, setFailedImage] = useState(false);
-  useEffect(() => setFailedImage(false), [book.id, book.coverPath]);
+  const [imageLoaded, setImageLoaded] = useState(false);
+  useEffect(() => { setFailedImage(false); setImageLoaded(false); }, [book.id, book.coverPath]);
   const visibleImage = failedImage ? null : imageUrl;
   const coverNumber = parseInt(book.id.slice(0, 2), 16) % 6;
   return (
-    <div ref={wrapper} className={`cover cover-${coverNumber} ${variant === 'feature' ? 'cover-feature' : ''} ${visibleImage ? 'cover-has-image' : ''}`} aria-hidden="true">
-      {visibleImage && <img className="cover-art" src={visibleImage} alt="" decoding="async" loading={variant === 'feature' ? 'eager' : 'lazy'} onError={() => setFailedImage(true)} />}
+    <div ref={wrapper} className={`cover cover-${coverNumber} ${variant === 'feature' ? 'cover-feature' : ''} ${visibleImage && imageLoaded ? 'cover-has-image' : ''}`} aria-hidden="true">
+      {visibleImage && <img className="cover-art" src={visibleImage} alt="" decoding="async" loading={variant === 'feature' ? 'eager' : 'lazy'} onLoad={() => setImageLoaded(true)} onError={() => { setFailedImage(true); setImageLoaded(false); }} style={{ opacity: imageLoaded ? 1 : 0 }} />}
       <div className="cover-ornament top-ornament">✦</div>
       <div className="cover-lilies"><span>❧</span></div>
       <div className="cover-heading">{book.title}</div>
@@ -454,19 +455,6 @@ export default function LibraryDashboard({
             onBrowseAll={() => goTo('all')} onBrowseShelf={goTo} onBrowseCollection={browseCollection}
             onOpen={onOpen} onRead={onRead} onBrowseTag={browseTag}
             cover={(book, isFeatured) => <Cover book={book} variant={isFeatured ? 'feature' : 'normal'} cloudRepo={cloudRepo} cloudSession={cloudSession} />} />}
-
-          {!showEditorialHome && !isMasterControls && !selectedTag && !selectedCollectionId && !globalMode && filter === 'all' && reading.length > 0 && featured && (
-            <section className="reading-resume-strip" aria-label="Continue reading">
-              <div className="reading-resume-icon"><BookOpen size={20}/></div>
-              <div className="reading-resume-info"><span>CONTINUE READING</span>
-                <button type="button" onClick={() => onOpen(featured)}>{featured.title}</button>
-                <small>{Math.round(featured.progress)}% completed{featured.currentChapter ? ` · ${featured.currentChapter}` : ''}</small>
-              </div>
-              <button className="reading-resume-continue" type="button" onClick={() => onRead(featured)}>
-                Open book <ArrowRight size={16}/>
-              </button>
-            </section>
-          )}
 
           {!showEditorialHome && !isMasterControls && <section id="library-full-catalogue" className="library-section" aria-label="Book collection"><div className="section-titlebar"><div><div className="section-overline">{globalMode ? 'ALL NOVELS' : selectedCollection ? 'YOUR COLLECTION' : selectedTag ? 'BROWSING TAG' : selectedAuthor ? 'BROWSING AUTHOR' : 'THE COLLECTION'}</div><h2>{globalMode ? 'Global search results' : selectedCollection ? selectedCollection.name : selectedTag ? 'Novels' : selectedAuthor ? 'Books by ' + selectedAuthor : filter === 'all' ? 'All your stories' : navEntries.find((i) => i.id === filter)?.name}<span className="title-count">{visible.length}</span></h2></div><span className="library-description">A little world on every shelf</span></div>
             {selectedCollection && !globalMode && <div className="tag-collection-head collection-heading">
