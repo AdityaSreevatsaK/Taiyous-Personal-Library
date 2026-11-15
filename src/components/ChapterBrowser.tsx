@@ -11,7 +11,7 @@ interface Props {
 }
 
 /** Chapter selection on the novel's details page (before entering the reader). */
-export default function ChapterBrowser({ book, onReadChapter, isCachedOffline, onLoadChapters }: Props) {
+export default function ChapterBrowser({ book, onReadChapter, onLoadChapters }: Props) {
   const [chapters, setChapters] = useState<ChapterItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [preparing, setPreparing] = useState(true);
@@ -80,7 +80,7 @@ export default function ChapterBrowser({ book, onReadChapter, isCachedOffline, o
     // Keeping the chapter list on the page preserves the saved location.
   }
 
-  return <section ref={sectionRef} className="details-card chapter-browser" aria-labelledby="detail-chapters-heading">
+  return <section className="details-card chapter-browser" aria-labelledby="detail-chapters-heading">
     <div className="details-section-header">
       <div><span className="details-label">PICK UP ANYWHERE</span><h2 id="detail-chapters-heading">Chapters</h2></div>
       <List size={21} className="details-section-icon" aria-hidden="true" />
