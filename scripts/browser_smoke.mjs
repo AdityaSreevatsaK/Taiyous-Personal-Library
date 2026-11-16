@@ -1148,8 +1148,9 @@ try {
           image:getComputedStyle(el).backgroundImage,
           colour:getComputedStyle(el).backgroundColor,
         }));
-        if (heroFallback.image !== 'none' || heroFallback.colour !== 'rgb(25, 29, 34)') {
-          throw new Error('Photo-only hero must have a neutral, non-gradient offline fallback: '+JSON.stringify(heroFallback));
+        if (!heroFallback.image.includes('radial-gradient') ||
+            await fastPage.locator('.details-hero-cover-backdrop').count()) {
+          throw new Error('Missing artwork must use a cover-free palette fallback: '+JSON.stringify(heroFallback));
         }
         console.log('Uncached novel details navigated without EPUB in ' + detailLatencyMs + ' ms');
 
