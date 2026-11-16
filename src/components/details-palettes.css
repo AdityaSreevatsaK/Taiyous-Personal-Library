@@ -376,3 +376,50 @@
 }
 /* The cover artwork is only considered present after the image loads. */
 .cover:not(.cover-has-image) .cover-art {visibility:hidden}
+
+
+/* Cover-led details: the ONLY photographic artwork is the novel's own
+ * previously uploaded cover. No scenery, synthetic jackets or external CDN.
+ * Missing/unreadable covers retain the stable six-colour editorial backdrop. */
+.details-shell .details-hero.details-hero-cover-led {
+  background:radial-gradient(ellipse at 83% 31%,
+    var(--novel-hero-glow,#365c85) 0%,
+    var(--novel-hero-mid,#243c5b) 52%,
+    var(--novel-hero-shadow,#14253f) 100%);
+  isolation:isolate;
+}
+.details-shell .details-hero .details-hero-cover-backdrop {
+  position:absolute;inset:0;width:100%;height:100%;
+  display:block;object-fit:cover;object-position:center 42%;
+  z-index:0;pointer-events:none;
+  opacity:1;filter:blur(28px) brightness(.79) saturate(1.18);
+  transform:scale(1.3);transform-origin:center;
+  mask-image:none;-webkit-mask-image:none;
+}
+.details-shell .details-hero.details-hero-cover-led:not(.cover-backdrop-ready) .details-hero-cover-backdrop {
+  opacity:0;
+}
+.details-shell .details-hero.details-hero-cover-led::before {
+  content:'';display:block;position:absolute;inset:0;z-index:1;
+  pointer-events:none;
+  background:linear-gradient(100deg,#091525df 0%,#0c182bc2 43%,#101a2e94 100%);
+}
+.details-shell .details-hero.details-hero-cover-led::after {
+  content:'';display:block;position:absolute;inset:0;z-index:1;
+  pointer-events:none;
+  background:repeating-radial-gradient(circle at 86% 37%,
+    transparent 0 68px,#e8d4aa12 69px 70px);
+  opacity:.6;
+}
+@media(max-width:700px) {
+  .details-shell .details-hero .details-hero-cover-backdrop {
+    filter:blur(23px) brightness(.72) saturate(1.1);
+    transform:scale(1.4);
+  }
+  .details-shell .details-hero.details-hero-cover-led::before {
+    background:linear-gradient(135deg,#071427e6,#09172ad2 64%,#0c1b2bc2);
+  }
+}
+@media(prefers-reduced-motion:no-preference) {
+  .details-shell .details-hero .details-hero-cover-backdrop {transition:opacity .22s ease}
+}
