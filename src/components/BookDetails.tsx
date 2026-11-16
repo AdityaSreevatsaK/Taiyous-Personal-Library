@@ -290,7 +290,7 @@ export default function BookDetails({ book, availableTags, theme, onThemeChange,
         <section className="details-card details-mobile-rating" aria-label="Personal novel rating on mobile">
           <div className="details-mobile-rating-label"><Star size={16} aria-hidden="true" />
             <span>My rating</span>
-            {book.personalRating && <strong>{book.personalRating}/10</strong>}
+            {ratingDraft != null && <strong aria-live="polite">{ratingDraft}/10 · {ratingLabel(ratingDraft)}</strong>}
           </div>
           <form className="details-mobile-rating-controls" onSubmit={(event) => void saveReview(event)}>
             <label htmlFor="mobile-novel-rating" className="sr-only">Rate this novel</label>
@@ -299,7 +299,7 @@ export default function BookDetails({ book, availableTags, theme, onThemeChange,
                 setRatingDraft(event.target.value ? Number(event.target.value) : undefined)}>
               <option value="">Unrated</option>
               {Array.from({ length: 10 }, (_, index) => index + 1).map(value =>
-                <option value={value} key={value}>{value} / 10</option>)}
+                <option value={value} key={value}>{value}/10 · {ratingLabel(value)}</option>)}
             </select>
             <button type="submit" className="hero-rating-save" disabled={saving}>Save rating</button>
           </form>
