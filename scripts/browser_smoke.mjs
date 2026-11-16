@@ -542,29 +542,20 @@ try {
       throw new Error('Advanced ZIP should be compact and full-width on mobile: '+
         JSON.stringify(backup));
     }
-    const naturePhoto = page.locator('.details-hero-backdrop');
-    await naturePhoto.waitFor({state:'visible'});
-    await page.waitForFunction(() => {
-      const img=document.querySelector('.details-hero-backdrop');
-      return img?.complete && img?.naturalWidth > 0;
-    });
-    const natureStyle=await naturePhoto.evaluate(el => ({
-      source:el.getAttribute('src'),
-      referrer:el.getAttribute('referrerpolicy'),
-      opacity:Number(getComputedStyle(el).opacity),
-      fit:getComputedStyle(el).objectFit,
-      filter:getComputedStyle(el).filter,
-      mask:getComputedStyle(el).maskImage,
-      webkitMask:getComputedStyle(el).webkitMaskImage,
-      background:getComputedStyle(el.parentElement).backgroundImage,
-      overlay:getComputedStyle(el.parentElement,'::before').content,
+    // The fixture intentionally has no cover. Details must remain beautiful
+    // without requesting unrelated stock landscapes or inventing a jacket.
+    const coverLedHero = page.locator('.details-hero-cover-led');
+    await coverLedHero.waitFor({state:'visible'});
+    if (await page.locator('.details-hero-cover-backdrop').count()) {
+      throw new Error('A novel without real cover artwork must not display a backdrop image');
+    }
+    const heroBackdropStyle=await coverLedHero.evaluate(el => ({
+      background:getComputedStyle(el).backgroundImage,
+      overlay:getComputedStyle(el,'::before').backgroundImage,
     }));
-    if(!natureStyle.source?.startsWith('https://images.unsplash.com/photo-') ||
-       natureStyle.referrer!=='no-referrer' || natureStyle.fit!=='cover' ||
-       natureStyle.opacity!==1 || natureStyle.filter!=='none' ||
-       natureStyle.mask!=='none' || natureStyle.webkitMask!=='none' ||
-       natureStyle.background!=='none' || natureStyle.overlay!=='none') {
-      throw new Error('The nature photo must be full-strength without wash, tint or mask: '+JSON.stringify(natureStyle));
+    if (!heroBackdropStyle.background.includes('radial-gradient') ||
+        !heroBackdropStyle.overlay.includes('linear-gradient')) {
+      throw new Error('Missing-cover details need a readable palette fallback: '+JSON.stringify(heroBackdropStyle));
     }
     // Desktop: no giant blackout over the entire book information area.
     // Mobile: grid children must have their OWN stacking context because the
@@ -613,8 +604,8 @@ try {
         title:getComputedStyle(hero.querySelector('h1')).color,
         author:getComputedStyle(hero.querySelector('.details-author-link')).color,
         chapters:getComputedStyle(meta).color,
-        photoOpacity:getComputedStyle(photo).opacity,
-        photoFilter:getComputedStyle(photo).filter,
+        photoOpacity:photo ? getComputedStyle(photo).opacity : 'absent',
+        photoFilter:photo ? getComputedStyle(photo).filter : 'absent',
       };
     });
     if(readability.wrapperAlpha!==0 || readability.headingAlpha<.50 ||
@@ -625,8 +616,9 @@ try {
        (readability.mobile && readability.wrapperDisplay!=='contents') ||
        [readability.title,readability.author,readability.chapters]
          .some(colour=>colour!=='rgb(255, 255, 255)') ||
-       readability.photoOpacity!=='1' || readability.photoFilter!=='none') {
-      throw new Error('Hero must show title and facts above photo without full blackout: '+JSON.stringify(readability));
+       (readability.photoOpacity!=='absent' && readability.photoOpacity!=='1') ||
+       (readability.photoFilter!=='absent' && !readability.photoFilter.includes('blur'))) {
+      throw new Error('Hero must keep title, facts and actions above cover-led artwork: '+JSON.stringify(readability));
     }
     const detailsOrder = await page.locator('.details-aside > .details-card').evaluateAll(nodes =>
       nodes.map(node => [...node.classList].find(value => /details-(tags|review|management)-card/.test(value))).filter(Boolean));
@@ -1156,8 +1148,9 @@ try {
           image:getComputedStyle(el).backgroundImage,
           colour:getComputedStyle(el).backgroundColor,
         }));
-        if (heroFallback.image !== 'none' || heroFallback.colour !== 'rgb(25, 29, 34)') {
-          throw new Error('Photo-only hero must have a neutral, non-gradient offline fallback: '+JSON.stringify(heroFallback));
+        if (!heroFallback.image.includes('radial-gradient') ||
+            await fastPage.locator('.details-hero-cover-backdrop').count()) {
+          throw new Error('Missing artwork must use a cover-free palette fallback: '+JSON.stringify(heroFallback));
         }
         console.log('Uncached novel details navigated without EPUB in ' + detailLatencyMs + ' ms');
 
