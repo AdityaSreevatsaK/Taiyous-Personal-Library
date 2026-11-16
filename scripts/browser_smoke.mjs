@@ -297,7 +297,7 @@ try {
       transaction.objectStore('books').put({
         id: 'aaaaaaaaaaaaaaaaaaaaaaaa', title: 'Sample Library Book', author: 'Test Author',
         originalFileName: 'sample.epub', importedAt: Date.now(),
-        progress: 0, size: 128, metadataScanned: true, sourceTags: ['Fantasy'],
+        progress: 0, size: 128, metadataScanned: true, sourceTags: ['Fantasy', 'Action', 'Adventure', 'Martial Arts', 'Romance'],
       });
       transaction.objectStore('files').put({ id: 'aaaaaaaaaaaaaaaaaaaaaaaa', epub: new Blob([new Uint8Array(epubData)], { type: 'application/epub+zip' }) });
       await new Promise((resolve, reject) => {
@@ -345,10 +345,50 @@ try {
         await page.locator('.editorial-shelf-card').count() > 4) {
       throw new Error('Curated home exceeded its small, bounded selections');
     }
-    await page.getByRole('button', { name: 'Browse tag Fantasy' }).waitFor();
+    await page.getByRole('button', { name: 'Browse tag Action' }).waitFor();
     if (await page.locator('.editorial-grand-ledger button').count() !== 4 ||
         await page.locator('.editorial-margin-stats button').count() !== 4) {
       throw new Error('Clickable reading counters, including Finished, must exist in both home summaries');
+    }
+    // One actual book cannot supply four DISTINCT shelf covers. Temporarily
+    // clone DOM cards to exercise the real responsive grid without adding
+    // invented catalogue records, then restore the original DOM.
+    const shelfGrid = page.locator('.editorial-shelf-grid');
+    await shelfGrid.waitFor();
+    await shelfGrid.evaluate(grid => {
+      const first = grid.querySelector('.editorial-shelf-card');
+      if (!first) throw new Error('Home shelf card is missing');
+      for (let i = grid.children.length; i < 4; i++) {
+        const clone = first.cloneNode(true);
+        clone.setAttribute('data-layout-fixture', 'true');
+        clone.querySelector('.editorial-shelf-details strong').textContent =
+          ['Action', 'Fantasy', 'Adventure', 'Martial Arts'][i];
+        grid.appendChild(clone);
+      }
+    });
+    const shelfGeometry = await shelfGrid.evaluate(grid => {
+      const cards = [...grid.querySelectorAll('.editorial-shelf-card')];
+      const bounds = cards.map(card => card.getBoundingClientRect());
+      const area = grid.getBoundingClientRect();
+      return {
+        mobile:matchMedia('(max-width:660px)').matches,
+        display:getComputedStyle(grid).display,
+        scrollWidth:grid.scrollWidth, clientWidth:grid.clientWidth,
+        inside:bounds.every(b => b.left>=area.left-1 && b.right<=area.right+1),
+        topAligned:Math.abs(bounds[0].top-bounds[1].top)<2 &&
+          Math.abs(bounds[2].top-bounds[3].top)<2,
+        twoRows:bounds[2].top>bounds[0].top+20,
+        columnAligned:Math.abs(bounds[0].left-bounds[2].left)<2 &&
+          Math.abs(bounds[1].left-bounds[3].left)<2,
+      };
+    });
+    await shelfGrid.locator('[data-layout-fixture="true"]').evaluateAll(nodes =>
+      nodes.forEach(node => node.remove()));
+    if (shelfGeometry.mobile && (shelfGeometry.display!=='grid' || !shelfGeometry.inside ||
+        shelfGeometry.scrollWidth>shelfGeometry.clientWidth+1 ||
+        !shelfGeometry.topAligned || !shelfGeometry.twoRows || !shelfGeometry.columnAligned)) {
+      throw new Error('All four mobile shelves must fit in 2x2 without horizontal scrolling: '+
+        JSON.stringify(shelfGeometry));
     }
     if (await page.locator('.editorial-shelf-card .cover').count()) {
       throw new Error('Genre shelves may not display a fake cover when no real cover artwork exists');
@@ -392,8 +432,8 @@ try {
     await page.getByRole('button', { name: "Taiyou's Personal Library home" }).click();
     await page.waitForURL('**/');
     await page.locator('.editorial-grand').waitFor();
-    await page.getByRole('button', { name: 'Browse tag Fantasy' }).click();
-    await page.waitForURL('**/tags/fantasy');
+    await page.getByRole('button', { name: 'Browse tag Action' }).click();
+    await page.waitForURL('**/tags/action');
     if (await page.locator('.tag-collection-head:not(.collection-heading)').count()) {
       throw new Error('Filtered tag page repeats the selected tag in an unnecessary full-width bar');
     }
@@ -408,6 +448,58 @@ try {
     // The existing detail action first resolves EPUB availability asynchronously.
     await page.waitForURL('**/novels/sample-library-book');
     await page.getByRole('heading', { name: 'Sample Library Book' }).waitFor();
+    // All imported genres must remain visible, even on narrow mobile widths.
+    // The old stylesheet hid everything after the first three tags.
+    const heroTags = page.locator('.details-hero .details-hero-tags button');
+    if (await heroTags.count()!==5) throw new Error('Hero must render all five imported genres');
+    for (const tag of ['Fantasy','Action','Adventure','Martial Arts','Romance']) {
+      const choice = heroTags.filter({hasText:tag});
+      if (await choice.count()!==1 || !(await choice.isVisible())) {
+        throw new Error('Hero tag hidden on mobile: '+tag);
+      }
+    }
+    if (viewport.width<=700) {
+      const regions=await page.evaluate(() => {
+        const rect = selector =>
+          document.querySelector('.details-hero '+selector).getBoundingClientRect();
+        return {
+          cover:rect('.details-cover-wrap'),meta:rect('.details-meta-row'),
+          tags:rect('.details-hero-tags'),actions:rect('.details-hero-actions'),
+          hero:document.querySelector('.details-hero').getBoundingClientRect(),
+          display:getComputedStyle(document.querySelector('.details-hero-facts')).display,
+        };
+      });
+      if (regions.display!=='contents' || regions.meta.left<regions.cover.right-2 ||
+          regions.tags.top<regions.cover.bottom-2 ||
+          regions.actions.top<regions.tags.bottom-2 ||
+          regions.tags.right>regions.hero.right+1) {
+        throw new Error('Mobile cover, facts, and all tags must align: '+JSON.stringify(regions));
+      }
+    }
+    // Validate the advanced ZIP disclosure styling even in the local EPUB
+    // fixture, where no original ZIP exists, using a transient test element.
+    const backup = await page.locator('.details-management-actions').evaluate(container => {
+      const existing=container.querySelector('.details-archive-tools');
+      const details=existing||document.createElement('details');
+      if (!existing) {
+        details.className='details-archive-tools';
+        const summary=document.createElement('summary');
+        summary.textContent='Original ZIP backup (advanced)';
+        details.append(summary);
+        container.append(details);
+      }
+      const summary=details.querySelector('summary');
+      const height=summary.getBoundingClientRect().height;
+      const fontSize=parseFloat(getComputedStyle(summary).fontSize);
+      const column=getComputedStyle(details).gridColumnStart;
+      if (!existing) details.remove();
+      return {height,fontSize,column};
+    });
+    if (backup.fontSize>13 || backup.height>52 ||
+        (viewport.width<=700 && backup.column!=='1')) {
+      throw new Error('Advanced ZIP should be compact and full-width on mobile: '+
+        JSON.stringify(backup));
+    }
     const naturePhoto = page.locator('.details-hero-backdrop');
     await naturePhoto.waitFor({state:'visible'});
     await page.waitForFunction(() => {

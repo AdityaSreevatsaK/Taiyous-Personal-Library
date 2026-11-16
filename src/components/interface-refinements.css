@@ -607,3 +607,43 @@
  .editorial-home .editorial-margin-topics button {transition:none}
  .editorial-home .editorial-margin-topics button:hover{transform:none}
 }
+
+/* Original ZIP is an advanced, secondary backup, not a second primary action. */
+.details-shell .details-management-actions .details-archive-tools {
+  box-sizing:border-box;width:100%;min-width:0;
+  margin:0;padding:2px 0 4px;border:0;
+}
+.details-shell .details-management-actions .details-archive-tools summary {
+  display:inline-flex;align-items:center;gap:7px;
+  width:auto;max-width:100%;min-height:32px;
+  padding:5px 2px;color:var(--subtext);
+  font-size:12px;line-height:1.4;font-weight:550;
+  white-space:normal;cursor:pointer;list-style:none;
+}
+.details-shell .details-management-actions .details-archive-tools summary::-webkit-details-marker {display:none}
+.details-shell .details-management-actions .details-archive-tools summary::before {
+  content:'▸';flex:0 0 auto;font-size:13px;
+}
+.details-shell .details-management-actions .details-archive-tools[open] summary::before {content:'▾'}
+.details-shell .details-management-actions .details-archive-tools summary:hover {
+  color:var(--text);text-decoration:underline;text-underline-offset:3px;
+}
+.details-shell .details-management-actions .details-archive-tools summary:focus-visible {
+  outline:2px solid var(--accent);outline-offset:2px;border-radius:4px;
+}
+.details-shell .details-management-actions .details-archive-tools .details-help {
+  margin:4px 0 7px;font-size:11px;line-height:1.5;
+}
+.details-shell .details-management-actions .details-archive-tools .secondary-button {
+  width:auto;max-width:100%;min-height:37px;
+  margin:0;padding:8px 11px;font-size:12px;
+}
+@media(max-width:700px) {
+  .details-shell .details-management-actions > .secondary-button,
+  .details-shell .details-management-actions > .details-archive-tools {
+    grid-column:1 / -1;justify-self:stretch;
+  }
+  .details-shell .details-management-actions > .secondary-button {
+    width:100%;min-height:43px;
+  }
+}
