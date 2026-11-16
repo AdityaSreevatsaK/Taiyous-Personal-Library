@@ -684,8 +684,33 @@ try {
     await page.getByRole('button', { name: 'Cancel owner action' }).click();
     await page.getByRole('dialog', { name: 'Remove local novel' }).waitFor({ state: 'detached' });
     if (viewport.width <= 700) {
-      // A compact native 1-10 picker replaces ten cramped buttons on phones.
-      await page.getByRole('combobox', { name: 'Rate this novel' }).selectOption('8');
+      // All ten mobile options show the same meaningful labels as desktop
+      // and Master Controls, rather than numbers only.
+      const mobileRating = page.getByRole('combobox', { name: 'Rate this novel' });
+      const labels = await mobileRating.locator('option').allTextContents();
+      const expectedLabels = [
+        'Unrated', '1/10 · Terrible', '2/10 · Very poor',
+        '3/10 · Poor', '4/10 · Below average', '5/10 · Average',
+        '6/10 · Decent', '7/10 · Good', '8/10 · Very good',
+        '9/10 · Excellent', '10/10 · Masterpiece',
+      ];
+      if (JSON.stringify(labels) !== JSON.stringify(expectedLabels)) {
+        throw new Error('The mobile rating picker has lost the descriptive rating labels: ' + JSON.stringify(labels));
+      }
+      await mobileRating.selectOption('8');
+      await page.locator('.details-mobile-rating-label').getByText('8/10 · Very good').waitFor();
+      const mobileRatingLayout = await page.locator('.details-mobile-rating').evaluate(element => {
+        const select = element.querySelector('select');
+        const button = element.querySelector('button[type="submit"]');
+        const area = element.getBoundingClientRect();
+        const selectRect = select.getBoundingClientRect();
+        const buttonRect = button.getBoundingClientRect();
+        return {selectWidth:selectRect.width, withinCard:selectRect.left>=area.left &&
+          buttonRect.right<=area.right+1, aligned:Math.abs(selectRect.top-buttonRect.top)<=2};
+      });
+      if (!mobileRatingLayout.withinCard || !mobileRatingLayout.aligned || mobileRatingLayout.selectWidth<115) {
+        throw new Error('The descriptive mobile rating picker is cramped or overflows: '+JSON.stringify(mobileRatingLayout));
+      }
     } else {
       await page.getByRole('button', { name: 'Rate 8 out of 10' }).click();
     }

@@ -1409,27 +1409,28 @@ a.details-top-title:focus-visible { outline: 2px solid #8088ac; outline-offset: 
 
   /* Native 1-10 control replaces the giant ten-button rating picker on phones. */
   .details-shell .details-mobile-rating {
-    display:flex; flex-wrap:wrap; align-items:center;
-    justify-content:space-between; gap:10px;
-    padding:12px 15px;
+    display:grid; grid-template-columns:minmax(0,1fr);
+    gap:8px; align-items:center; padding:12px 15px;
   }
   .details-shell .details-mobile-rating-label {
-    display:inline-flex; gap:7px; align-items:center;
-    color:var(--text); font-size:12px; font-weight:750;
+    display:flex; flex-wrap:wrap; gap:7px; align-items:center;
+    min-width:0; color:var(--text); font-size:12px; font-weight:750;
   }
   .details-shell .details-mobile-rating-label strong {
     color:var(--subtext); font-size:11px;
   }
   .details-shell .details-mobile-rating-controls {
-    display:flex; align-items:center; gap:8px; min-width:0;
+    display:grid; grid-template-columns:minmax(0,1fr) auto;
+    align-items:center; gap:8px; width:100%; min-width:0;
   }
   .details-shell .details-mobile-rating-controls select {
     background:var(--bg); color:var(--text); border:1px solid var(--border);
-    border-radius:8px; padding:8px; min-width:93px;
+    border-radius:8px; padding:8px; min-width:0; width:100%;
     font-size:12px; min-height:39px;
   }
   .details-shell .details-mobile-rating-controls .hero-rating-save {
     min-height:39px; padding:8px 11px; border-radius:8px;
+    white-space:nowrap;
     color:var(--accent-ink,#ffffff);background:var(--accent,#678dc2);
     border-color:transparent;
   }
@@ -1473,7 +1474,7 @@ a.details-top-title:focus-visible { outline: 2px solid #8088ac; outline-offset: 
   .details-shell .details-hero h1 {font-size:25px}
   .details-shell .details-meta-row {font-size:10px}
   .details-shell .details-mobile-rating {gap:8px}
-  .details-shell .details-mobile-rating-controls select {min-width:83px}
+  .details-shell .details-mobile-rating-controls select {min-width:0}
   .details-shell .details-mobile-rating-controls .hero-rating-save {padding:8px}
 }
 
