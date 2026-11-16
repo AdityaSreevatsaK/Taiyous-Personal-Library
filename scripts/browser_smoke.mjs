@@ -345,7 +345,7 @@ try {
         await page.locator('.editorial-shelf-card').count() > 4) {
       throw new Error('Curated home exceeded its small, bounded selections');
     }
-    await page.getByRole('button', { name: 'Browse tag Fantasy' }).waitFor();
+    await page.getByRole('button', { name: 'Browse tag Action' }).waitFor();
     if (await page.locator('.editorial-grand-ledger button').count() !== 4 ||
         await page.locator('.editorial-margin-stats button').count() !== 4) {
       throw new Error('Clickable reading counters, including Finished, must exist in both home summaries');
@@ -432,8 +432,8 @@ try {
     await page.getByRole('button', { name: "Taiyou's Personal Library home" }).click();
     await page.waitForURL('**/');
     await page.locator('.editorial-grand').waitFor();
-    await page.getByRole('button', { name: 'Browse tag Fantasy' }).click();
-    await page.waitForURL('**/tags/fantasy');
+    await page.getByRole('button', { name: 'Browse tag Action' }).click();
+    await page.waitForURL('**/tags/action');
     if (await page.locator('.tag-collection-head:not(.collection-heading)').count()) {
       throw new Error('Filtered tag page repeats the selected tag in an unnecessary full-width bar');
     }
