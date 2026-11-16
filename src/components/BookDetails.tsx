@@ -177,7 +177,7 @@ export default function BookDetails({ book, availableTags, theme, onThemeChange,
             {book.status && <span><Check size={16} /> {book.status}</span>}
             {book.language && <span>{book.language.toUpperCase()}</span>}
           </div>
-            {allTags.length > 0 && <div className="details-hero-tags" aria-label="Novel tags">{allTags.slice(0, 9).map((tag) => <button type="button" key={tag} onClick={() => onBrowseTag(tag)} aria-label={`Browse novels tagged ${tag}`}>{tag}</button>)}</div>}
+            {allTags.length > 0 && <div className="details-hero-tags" aria-label="Novel tags">{allTags.map((tag) => <button type="button" key={tag} onClick={() => onBrowseTag(tag)} aria-label={`Browse novels tagged ${tag}`}>{tag}</button>)}</div>}
           </div>
           <form className="hero-rating" aria-label="Personal novel rating" onSubmit={(event) => void saveReview(event)}>
             <fieldset className="hero-rating-fieldset">
