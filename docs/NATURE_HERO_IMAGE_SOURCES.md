@@ -10,10 +10,12 @@ shared pool; changing the novel title, theme or device does not change it.
 The photograph is the full-strength hero background on all screen sizes:
 100% opacity, no whole-hero colour overlay, no faded mask, no blur or
 darkening filter. To keep text readable even over bright snow or sky, the
-title, author, chapter information, tags and rating controls sit inside a
-neutral charcoal reading surface. On smaller screens separate matching
-surfaces follow the mobile reading layout. The landscape itself remains
-unaltered, and action buttons have their own contrasting backgrounds.
+title and author have one compact translucent neutral strip, while the chapter
+count, status and language share a second small strip. Tags, rating buttons
+and reading actions remain outside any large enclosing panel. On mobile the
+title and chapter details are explicitly stacked above the photograph so
+neither can be hidden by the image. The landscape stays at 100% opacity,
+unfiltered and visible around the small text strips.
 If the CDN is offline, blocked or unavailable, a neutral dark hero background
 remains without an image error icon.
 
