@@ -30,6 +30,15 @@ const browser = await chromium.launch({ headless: true });
 try {
   for (const viewport of [{ width: 1366, height: 768 }, { width: 390, height: 844 }]) {
     const context = await browser.newContext({ viewport });
+    // A deterministic, person-free landscape fixture avoids relying on an
+    // external CDN during CI while proving the real hero img element renders.
+    await context.route('https://images.unsplash.com/**', route => route.fulfill({
+      status:200,contentType:'image/svg+xml',body:
+        '<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="750">'+
+        '<rect width="1600" height="750" fill="#7899af"/>'+
+        '<path d="M0 610L330 220L630 650L1040 190L1600 660V750H0Z" fill="#344a6c"/>'+
+        '</svg>',
+    }));
     // Vite preview serves static assets only; the Pages Function is tested
     // separately. Simulate an unconfigured gateway so the legacy offline and
     // local-book fallback is exercised without spurious static-server 404s.
@@ -399,6 +408,23 @@ try {
     // The existing detail action first resolves EPUB availability asynchronously.
     await page.waitForURL('**/novels/sample-library-book');
     await page.getByRole('heading', { name: 'Sample Library Book' }).waitFor();
+    const naturePhoto = page.locator('.details-hero-backdrop');
+    await naturePhoto.waitFor({state:'visible'});
+    await page.waitForFunction(() => {
+      const img=document.querySelector('.details-hero-backdrop');
+      return img?.complete && img?.naturalWidth > 0;
+    });
+    const natureStyle=await naturePhoto.evaluate(el => ({
+      source:el.getAttribute('src'),
+      referrer:el.getAttribute('referrerpolicy'),
+      opacity:Number(getComputedStyle(el).opacity),
+      fit:getComputedStyle(el).objectFit,
+    }));
+    if(!natureStyle.source?.startsWith('https://images.unsplash.com/photo-') ||
+       natureStyle.referrer!=='no-referrer' || natureStyle.fit!=='cover' ||
+       natureStyle.opacity<=0 || natureStyle.opacity>.6) {
+      throw new Error('Shared nature background is not safely and subtly rendered: '+JSON.stringify(natureStyle));
+    }
     const detailsOrder = await page.locator('.details-aside > .details-card').evaluateAll(nodes =>
       nodes.map(node => [...node.classList].find(value => /details-(tags|review|management)-card/.test(value))).filter(Boolean));
     if (detailsOrder.join(',') !== 'details-tags-card,details-review-card,details-management-card') {

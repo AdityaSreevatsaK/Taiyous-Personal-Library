@@ -22,6 +22,15 @@ try {
     await context.route('**/api/owner?**', route => route.fulfill({
       status:200,contentType:'application/json',body:JSON.stringify({configured:false,unlocked:false}),
     }));
+    // A deterministic, person-free landscape fixture avoids relying on an
+    // external CDN during CI while proving the real hero img element renders.
+    await context.route('https://images.unsplash.com/**', route => route.fulfill({
+      status:200,contentType:'image/svg+xml',body:
+        '<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="750">'+
+        '<rect width="1600" height="750" fill="#7899af"/>'+
+        '<path d="M0 610L330 220L630 650L1040 190L1600 660V750H0Z" fill="#344a6c"/>'+
+        '</svg>',
+    }));
     const page = await context.newPage();
     const errors = [];
     page.on('pageerror', error => errors.push('JavaScript: '+error.message));
@@ -34,7 +43,10 @@ try {
     if (!response?.ok()) throw new Error('CSP app returned HTTP '+response?.status());
     const policy = response.headers()['content-security-policy'] || '';
     if (!policy.includes("script-src 'self'") || !policy.includes("object-src 'none'") ||
-        policy.includes("'unsafe-eval'")) throw new Error('CSP header is missing or insecure');
+        policy.includes("'unsafe-eval'") ||
+        !policy.includes('img-src') || !policy.includes('https://images.unsplash.com')) {
+      throw new Error('CSP header is missing, insecure or blocks vetted nature photos');
+    }
     await page.locator('.app-shell').waitFor({state:'visible',timeout:12000});
     await page.locator('nav[aria-label="Library sections"]').waitFor();
     // Inject a synthetic novel into browser IndexedDB, not private HF storage.
@@ -61,6 +73,11 @@ try {
     await page.getByRole('button',{name:'View details for CSP Test Novel'}).waitFor({timeout:15000});
     await page.getByRole('button',{name:'View details for CSP Test Novel'}).click();
     await page.getByRole('heading',{name:'CSP Test Novel'}).waitFor();
+    await page.locator('.details-hero-backdrop').waitFor({state:'visible'});
+    await page.waitForFunction(() => {
+      const img=document.querySelector('.details-hero-backdrop');
+      return img?.complete && img.naturalWidth > 0;
+    }, {timeout:12000});
     await page.getByRole('button',{name:/^(Start reading|Continue reading)$/}).click();
     await page.locator('.reader-page iframe').first().waitFor({state:'visible',timeout:20000});
     await page.waitForFunction(() => {
