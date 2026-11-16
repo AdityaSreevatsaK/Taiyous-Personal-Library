@@ -419,11 +419,18 @@ try {
       referrer:el.getAttribute('referrerpolicy'),
       opacity:Number(getComputedStyle(el).opacity),
       fit:getComputedStyle(el).objectFit,
+      filter:getComputedStyle(el).filter,
+      mask:getComputedStyle(el).maskImage,
+      webkitMask:getComputedStyle(el).webkitMaskImage,
+      background:getComputedStyle(el.parentElement).backgroundImage,
+      overlay:getComputedStyle(el.parentElement,'::before').content,
     }));
     if(!natureStyle.source?.startsWith('https://images.unsplash.com/photo-') ||
        natureStyle.referrer!=='no-referrer' || natureStyle.fit!=='cover' ||
-       natureStyle.opacity<=0 || natureStyle.opacity>.6) {
-      throw new Error('Shared nature background is not safely and subtly rendered: '+JSON.stringify(natureStyle));
+       natureStyle.opacity!==1 || natureStyle.filter!=='none' ||
+       natureStyle.mask!=='none' || natureStyle.webkitMask!=='none' ||
+       natureStyle.background!=='none' || natureStyle.overlay!=='none') {
+      throw new Error('The nature photo must be full-strength without wash, tint or mask: '+JSON.stringify(natureStyle));
     }
     const detailsOrder = await page.locator('.details-aside > .details-card').evaluateAll(nodes =>
       nodes.map(node => [...node.classList].find(value => /details-(tags|review|management)-card/.test(value))).filter(Boolean));
@@ -918,9 +925,13 @@ try {
         if (await fastPage.getByText(/Unable to open novel/).count()) {
           throw new Error('Details incorrectly required a downloaded EPUB');
         }
-        const colour = await fastPage.locator('.details-hero').evaluate(el =>
-          getComputedStyle(el).getPropertyValue('--novel-hero-shadow').trim());
-        if (!/^#[0-9a-f]{6}$/i.test(colour)) throw new Error('Novel hero colour is not derived from its immutable ID');
+        const heroFallback = await fastPage.locator('.details-hero').evaluate(el => ({
+          image:getComputedStyle(el).backgroundImage,
+          colour:getComputedStyle(el).backgroundColor,
+        }));
+        if (heroFallback.image !== 'none' || heroFallback.colour !== 'rgb(25, 29, 34)') {
+          throw new Error('Photo-only hero must have a neutral, non-gradient offline fallback: '+JSON.stringify(heroFallback));
+        }
         console.log('Uncached novel details navigated without EPUB in ' + detailLatencyMs + ' ms');
 
         // Reproduce the owner's varied card heights: long/short titles, tags

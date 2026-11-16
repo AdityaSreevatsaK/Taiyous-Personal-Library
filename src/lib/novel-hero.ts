@@ -34,7 +34,7 @@ export function novelHeroStyle(id: string): CSSProperties {
 }
 
 /**
- * Eight curated, people-free nature photographs, reused across the entire
+ * Twelve curated, people-free nature photographs, reused across the entire
  * library. Sources are genuine Unsplash images, NOT generated illustrations.
  * The public Unsplash CDN is the only external image domain added to CSP.
  * Every image has the same licence; attribution is documented separately.
@@ -100,24 +100,66 @@ export const NOVEL_HERO_BACKDROPS = [
     source: 'https://unsplash.com/photos/starry-night-sky-over-mountains-and-a-lake-8W9nKu1PLu4',
     position: 'center 52%',
   },
+  {
+    name: 'Cherry blossoms by a tranquil lake',
+    photoId: 'photo-1775924545566-235b85032b57',
+    photographer: 'Ryuta',
+    source: 'https://unsplash.com/photos/cherry-blossoms-line-a-tranquil-lake-under-a-clear-sky-jUyd5DMnalg',
+    position: 'center 48%',
+  },
+  {
+    name: 'Northern lights above snowy mountains',
+    photoId: 'photo-1780678839895-5db70630e0ff',
+    photographer: 'Rafael Peier',
+    source: 'https://unsplash.com/photos/northern-lights-illuminate-a-starry-sky-over-snowy-mountains-XXX2uavaR38',
+    position: 'center 49%',
+  },
+  {
+    name: 'Sunset over desert dunes',
+    photoId: 'photo-1542810242-fdbf6379237b',
+    photographer: 'Francesco Ungaro',
+    source: 'https://unsplash.com/photos/the-sun-is-setting-over-a-desert-with-sand-dunes-tSR133k8Diw',
+    position: 'center 50%',
+  },
+  {
+    name: 'Atlantic cliffs and sunset waves',
+    photoId: 'photo-1783358915097-314018b882e2',
+    photographer: 'Ivan Rohovchenko',
+    source: 'https://unsplash.com/photos/ocean-waves-crash-against-rugged-coastal-cliffs-at-sunset-IQJEiVUBeZs',
+    position: 'center 50%',
+  },
 ] as const;
 
 export function novelHeroBackdrop(id: string) {
-  // Independent salted FNV-1a for the nature pool. A novel always receives
-  // the same picture on any device; many books share each photo.
-  let hash = 2166136261;
-  for (const char of 'nature:' + id.toLowerCase()) {
-    hash ^= char.charCodeAt(0);
-    hash = Math.imul(hash, 16777619);
+  // Keep the original eight assignments stable when extending the pool.
+  // Only novels explicitly assigned to the new extension change their image.
+  const hashText = (text: string) => {
+    let hash = 2166136261;
+    for (const char of text) {
+      hash ^= char.charCodeAt(0);
+      hash = Math.imul(hash, 16777619);
+    }
+    return hash >>> 0;
+  };
+  const normalisedId = id.toLowerCase();
+  const originalIndex = hashText('nature:' + normalisedId) % 8;
+  const extraCount = NOVEL_HERO_BACKDROPS.length - 8;
+  if (extraCount > 0) {
+    const extraHash = hashText('nature-extra-v2:' + normalisedId);
+    // One third of novels use the four new landscapes; otherwise keep the
+    // exact backdrop already associated with the book.
+    if (extraHash % 3 === 0) {
+      return NOVEL_HERO_BACKDROPS[8 + (Math.floor(extraHash / 3) % extraCount)];
+    }
   }
-  return NOVEL_HERO_BACKDROPS[(hash >>> 0) % NOVEL_HERO_BACKDROPS.length];
+  return NOVEL_HERO_BACKDROPS[originalIndex];
 }
 
 export function novelHeroBackdropUrl(photoId: string, width: 840 | 1500 = 1500): string {
   // Known fixed Unsplash photo ID only. Reject arbitrary URLs/user input.
-  if (!/^photo-\d{13}-[0-9a-f]{12}$/.test(photoId) ||
+  if (!/^photo-\d{10,13}-[0-9a-f]{12}$/.test(photoId) ||
       !NOVEL_HERO_BACKDROPS.some(item => item.photoId === photoId)) {
     throw new Error('Unrecognised nature backdrop');
   }
-  return `https://images.unsplash.com/${photoId}?auto=format&fit=crop&w=${width}&q=72`;
+  return `https://images.unsplash.com/${photoId}?auto=format&fit=crop&w=${width}&q=80`;
 }
