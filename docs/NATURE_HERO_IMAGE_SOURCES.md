@@ -2,7 +2,10 @@
 
 ## Visual direction
 
-Twelve genuine landscape photographs reused across the complete library.
+Twelve genuine landscape and night-sky photographs reused across the complete library.
+This revision replaces four visually busy forest/waterfall images with atmospheric
+mountain mist and star-field scenes. All are genuine Unsplash photographs with
+source and photographer attribution, not generated artwork.
 No faces, fictional characters, portraits, or novel-specific stock searches.
 Each novel's immutable ID deterministically chooses one photograph from the
 shared pool; changing the novel title, theme or device does not change it.
@@ -28,11 +31,11 @@ provided here. Source: https://unsplash.com/license
 | Mood | Photographer | Source |
 | --- | --- | --- |
 | Twilight mountain mist | 志远 杨 | https://unsplash.com/photos/misty-mountains-shrouded-in-blue-twilight-fog-kzH-sVU5pqs |
-| Misty evergreen valley | Roberto Shumski | https://unsplash.com/photos/misty-forest-valley-with-mountains-in-background-oYEGPZebzGw |
-| Bamboo forest | olivia kim | https://unsplash.com/photos/a-dense-bamboo-forest-with-tall-green-stalks-MAavXSIBLkc |
-| Mossy woodland waterfall | Evgeni Tcherkasski | https://unsplash.com/photos/waterfall-cascading-down-mossy-rocks-in-a-lush-forest-4I12DYcs0tc |
+| Dramatic mountain silhouettes in fog | Filip Kvasnak | https://unsplash.com/photos/misty-mountains-shrouded-in-dark-clouds-at-dawn-tvJX2DTeCiQ |
+| Dark highland mist | Viktoriia Ananeva | https://unsplash.com/photos/dark-moody-mountains-shrouded-in-mist-N47Pk5QhRfw |
+| Milky Way above remote mountains | Ashwini Chaudhary | https://unsplash.com/photos/starry-night-sky-over-mountains-z-u4kAj3JeY |
 | Dawn over a quiet lake | Jonny Gios | https://unsplash.com/photos/misty-lake-reflects-sunlit-mountains-at-dawn-cpAxb1E57zE |
-| Sunbeams in an autumn forest | Pascal Debrunner | https://unsplash.com/photos/sunlight-streams-through-a-foggy-forest-with-autumn-leaves-U-eRC8Q5iEY |
+| Celestial night over the Dolomites | Marek Piwnicki | https://unsplash.com/photos/snowy-mountains-under-a-starry-night-sky-SumjjLhysZM |
 | Snowy mountains at dusk | Chris Weiher | https://unsplash.com/photos/snow-capped-mountains-reflected-in-a-lake-at-sunset-3epCdVoYCds |
 | Stars above a mountain lake | Dhaivat Shah | https://unsplash.com/photos/starry-night-sky-over-mountains-and-a-lake-8W9nKu1PLu4 |
 | Cherry blossoms by a tranquil lake | Ryuta | https://unsplash.com/photos/cherry-blossoms-line-a-tranquil-lake-under-a-clear-sky-jUyd5DMnalg |
@@ -56,5 +59,6 @@ provided here. Source: https://unsplash.com/license
   no broken-image icon and do not prevent reading or navigating novels.
 - Sources and pool size are changed only in
   `src/lib/novel-hero.ts`. No cloud catalogue changes are required.
-- To avoid reshuffling previous assignments, the original eight slots are
-  kept stable; roughly one in three books selects from the four new photos.
+- To avoid reshuffling assignments, the original eight slot indices remain
+  stable; roughly one in three books selects from slots 9–12. Four earlier
+  slots now contain the more atmospheric photographs listed above.

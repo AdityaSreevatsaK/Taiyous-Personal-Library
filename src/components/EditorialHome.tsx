@@ -37,9 +37,16 @@ export default function EditorialHome({
   const { featured, continueReading, journal } = useMemo(() => selectHomeBooks(books), [books]);
   const readingCount = useMemo(() =>
     books.filter(isCurrentlyReading).length, [books]);
-  const displayBooks = useMemo(() =>
-    featured ? [featured, ...journal.filter(book => book.id !== featured.id).slice(0, 2)] : [],
-    [featured, journal]);
+  // The floating gallery shows only candidate books with stored cover paths.
+  // Each candidate remains hidden until its genuine image has loaded.
+  const displayBooks = useMemo(() => {
+    const seen = new Set<string>();
+    return [featured, ...journal, ...books].filter((book): book is LibraryBook => {
+      if (!book?.coverPath || seen.has(book.id)) return false;
+      seen.add(book.id);
+      return true;
+    }).slice(0, 3);
+  }, [featured, journal, books]);
   const shelves = useMemo(() => selectHomeShelves(books, collections, 4), [books, collections]);
   const commonTags = useMemo(() => tagCounts(books).slice(0, 5), [books]);
   const trialCount = books.filter(book => book.shelfStatus === 'trying').length;

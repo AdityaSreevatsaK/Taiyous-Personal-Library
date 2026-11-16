@@ -1,0 +1,15 @@
+/* A quiet site credit on desktop and mobile, outside the immersive reader. */
+.app-shell .site-credit-footer,
+.details-shell .site-credit-footer {
+  display:flex;flex-wrap:wrap;justify-content:center;align-items:center;
+  gap:6px 10px;max-width:1400px;margin:20px auto 0;
+  padding:20px 15px max(25px,env(safe-area-inset-bottom));
+  border-top:1px solid var(--border);
+  color:var(--subtext);font:500 11px/1.5 Inter,"Segoe UI",sans-serif;
+  text-align:center;letter-spacing:.01em;
+}
+@media(max-width:700px) {
+  .app-shell .site-credit-footer,.details-shell .site-credit-footer {
+    margin-top:14px;padding:17px 18px 30px;font-size:10px;
+  }
+}

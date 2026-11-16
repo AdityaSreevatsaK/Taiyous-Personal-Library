@@ -151,3 +151,19 @@
 
 /* Shelf labels and their numerical counts share the same readable size. */
 .app-shell .top-nav-link small {font-size:inherit;line-height:inherit}
+
+/* On phones a 260px dropdown anchored to the tiny Tags button clipped its
+ * left side off-screen, hiding all tag names and leaving only counts visible.
+ * Position both menus relative to the FULL navigation strip instead. */
+@media(max-width:800px) {
+  .app-shell .primary-top-nav {position:relative}
+  .app-shell .top-nav-menu {position:static}
+  .app-shell .top-nav-dropdown {
+    position:absolute;left:12px;right:12px;top:calc(100% + 2px);
+    width:auto;max-width:none;min-width:0;
+    max-height:min(62dvh,520px);overflow-y:auto;overflow-x:hidden;
+    z-index:110;
+  }
+  .app-shell .top-nav-dropdown-item span {overflow-wrap:anywhere;min-width:0}
+  .app-shell .top-nav-dropdown-item small {flex:0 0 auto}
+}

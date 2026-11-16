@@ -353,3 +353,26 @@
     grid-column:1 / -1;grid-row:4;margin:3px 0 0;
   }
 }
+
+/* No fabricated jacket artwork. Missing/private covers use a deliberately
+ * neutral availability indicator; real covers retain their image rendering. */
+.cover.cover-missing-artwork {
+  display:grid;place-items:center;
+  padding:10px;box-sizing:border-box;overflow:hidden;
+  background:var(--pale);color:var(--subtext);
+  border:1px solid var(--border);
+  box-shadow:0 4px 12px #00000020;
+}
+.cover.cover-missing-artwork::before,
+.cover.cover-missing-artwork::after {content:none}
+.cover .cover-unavailable {
+  display:flex;flex-direction:column;align-items:center;
+  justify-content:center;gap:7px;min-width:0;width:100%;
+  color:var(--subtext);text-align:center;
+}
+.cover .cover-unavailable small {
+  font:500 10px/1.35 Inter,"Segoe UI",sans-serif;
+  letter-spacing:0;overflow-wrap:anywhere;
+}
+/* The cover artwork is only considered present after the image loads. */
+.cover:not(.cover-has-image) .cover-art {visibility:hidden}

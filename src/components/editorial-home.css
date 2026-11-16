@@ -451,3 +451,28 @@
     align-self:flex-end;margin-top:auto;
   }
 }
+
+/* Small screens: present the shelf heading and explanatory line as a single
+ * left-aligned editorial block instead of two independently wrapped columns. */
+@media(max-width:660px) {
+  .editorial-home .editorial-shelves > .editorial-section-heading {
+    display:flex;flex-direction:column;align-items:flex-start;
+    justify-content:flex-start;gap:6px;margin-bottom:17px;
+  }
+  .editorial-home .editorial-shelves .editorial-section-aside {
+    display:block;max-width:100%;font-size:12px;
+    line-height:1.45;text-align:left;
+  }
+}
+/* Floating cover gallery: never represent a decorative placeholder as a
+ * real book jacket. Wait until the private artwork has actually decoded. */
+.editorial-home .editorial-art-book:not(:has(.cover-has-image)) {
+  visibility:hidden;pointer-events:none;
+}
+.editorial-home .editorial-grand-gallery:not(:has(.cover-has-image))::after {
+  content:'The stories are waiting';
+  display:block;position:absolute;top:50%;left:50%;width:max-content;
+  max-width:95%;transform:translate(-50%,-50%);
+  font:italic 18px/1.4 Georgia,serif;color:#e0cfacb8;
+  text-align:center;letter-spacing:.035em;
+}

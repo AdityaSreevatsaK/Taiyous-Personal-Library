@@ -7,8 +7,9 @@ import UsageDashboard from './UsageDashboard';
 import MasterControls from './MasterControls';
 import './top-navigation.css';
 import { useCoverArt } from './useCoverArt';
+import './site-footer.css';
 import {
-  ArrowRight, BarChart3, Book, BookOpen, CheckCircle2, ChevronDown, CloudOff, Download, WifiOff,
+  BarChart3, Book, BookOpen, CheckCircle2, ChevronDown, CloudOff, Download, WifiOff,
   Hash, Library, LockKeyhole, Pencil, Plus, Search, Settings2,
   Sparkles, Star, Tag, Trash2, Upload, X, Cloud, RefreshCw, LogIn, LogOut,
 } from 'lucide-react';
@@ -107,17 +108,14 @@ export function Cover({ book, variant = 'normal', cloudRepo = '', cloudSession =
   }, [book.id, book.coverPath, visible]);
   const imageUrl = useCoverArt(book, cloudRepo, cloudSession, visible);
   const [failedImage, setFailedImage] = useState(false);
-  useEffect(() => setFailedImage(false), [book.id, book.coverPath]);
+  const [imageLoaded, setImageLoaded] = useState(false);
+  useEffect(() => { setFailedImage(false); setImageLoaded(false); }, [book.id, book.coverPath, imageUrl]);
   const visibleImage = failedImage ? null : imageUrl;
-  const coverNumber = parseInt(book.id.slice(0, 2), 16) % 6;
+  const hasRealArtwork = Boolean(visibleImage && imageLoaded);
   return (
-    <div ref={wrapper} className={`cover cover-${coverNumber} ${variant === 'feature' ? 'cover-feature' : ''} ${visibleImage ? 'cover-has-image' : ''}`} aria-hidden="true">
-      {visibleImage && <img className="cover-art" src={visibleImage} alt="" decoding="async" loading={variant === 'feature' ? 'eager' : 'lazy'} onError={() => setFailedImage(true)} />}
-      <div className="cover-ornament top-ornament">✦</div>
-      <div className="cover-lilies"><span>❧</span></div>
-      <div className="cover-heading">{book.title}</div>
-      <div className="cover-author">{book.author}</div>
-      <div className="cover-bottom"><span>TAIYOU'S LIBRARY</span><span>✦</span></div>
+    <div ref={wrapper} className={`cover ${variant === 'feature' ? 'cover-feature' : ''} ${hasRealArtwork ? 'cover-has-image' : 'cover-missing-artwork'}`} aria-hidden="true">
+      {visibleImage && <img className="cover-art" src={visibleImage} alt="" decoding="async" loading={variant === 'feature' ? 'eager' : 'lazy'} onLoad={() => setImageLoaded(true)} onError={() => { setFailedImage(true); setImageLoaded(false); }} />}
+      {!hasRealArtwork && <span className="cover-unavailable"><BookOpen size={24} strokeWidth={1.5}/><small>Cover unavailable</small></span>}
     </div>
   );
 }
@@ -202,7 +200,6 @@ export default function LibraryDashboard({
   const [dragging, setDragging] = useState(false);
   const reading = books.filter(isCurrentlyReading);
   const finished = books.filter((book) => book.shelfStatus !== 'trying' && isFinished(book));
-  const featured = [...reading].sort((a, b) => (b.lastOpenedAt || 0) - (a.lastOpenedAt || 0))[0] || books[0];
 
   const globalMode = globalSearch.trim().length > 0;
   const selectedCollection = collections.find(c => c.id === selectedCollectionId);
@@ -462,19 +459,6 @@ export default function LibraryDashboard({
             onOpen={onOpen} onRead={onRead} onBrowseTag={browseTag}
             cover={(book, isFeatured) => <Cover book={book} variant={isFeatured ? 'feature' : 'normal'} cloudRepo={cloudRepo} cloudSession={cloudSession} />} />}
 
-          {!showEditorialHome && !isMasterControls && !selectedTag && !selectedCollectionId && !globalMode && filter === 'all' && reading.length > 0 && featured && (
-            <section className="reading-resume-strip" aria-label="Continue reading">
-              <div className="reading-resume-icon"><BookOpen size={20}/></div>
-              <div className="reading-resume-info"><span>CONTINUE READING</span>
-                <button type="button" onClick={() => onOpen(featured)}>{featured.title}</button>
-                <small>{Math.round(featured.progress)}% completed{featured.currentChapter ? ` · ${featured.currentChapter}` : ''}</small>
-              </div>
-              <button className="reading-resume-continue" type="button" onClick={() => onRead(featured)}>
-                Open book <ArrowRight size={16}/>
-              </button>
-            </section>
-          )}
-
           {!showEditorialHome && !isMasterControls && <section id="library-full-catalogue" className="library-section" aria-label="Book collection"><div className="section-titlebar"><div><div className="section-overline">{globalMode ? 'ALL NOVELS' : selectedCollection ? 'YOUR COLLECTION' : selectedTag ? 'BROWSING TAG' : selectedAuthor ? 'BROWSING AUTHOR' : 'THE COLLECTION'}</div><h2>{globalMode ? 'Global search results' : selectedCollection ? selectedCollection.name : selectedTag ? 'Novels' : selectedAuthor ? 'Books by ' + selectedAuthor : filter === 'all' ? 'All your stories' : navEntries.find((i) => i.id === filter)?.name}<span className="title-count">{visible.length}</span></h2></div><span className="library-description">A little world on every shelf</span></div>
             {selectedCollection && !globalMode && <div className="tag-collection-head collection-heading">
               <span><strong>{selectedCollection.name}</strong> · {visible.length} novels · Sorted A–Z</span>
@@ -534,6 +518,7 @@ export default function LibraryDashboard({
           <button className="mobile-fab" onClick={onImportClick} aria-label="Add a novel"><Plus size={24} /></button>
           </>)}
         </div>
+        <footer className="site-credit-footer">© {new Date().getFullYear()} Taiyou's Personal Library <span aria-hidden="true">·</span> Created by Taiyou</footer>
       </main>
     </div>
   );

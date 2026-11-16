@@ -346,6 +346,27 @@ try {
       throw new Error('Curated home exceeded its small, bounded selections');
     }
     await page.getByRole('button', { name: 'Browse tag Action' }).waitFor();
+    // Tags and their counts must BOTH fit in the mobile viewport. Previously
+    // the absolute menu opened to the left of the small header Tags button.
+    const tagsMenu = page.locator('.top-nav-menu[aria-label="Novel tags"]');
+    await tagsMenu.locator('summary').click();
+    const tagMenuRect = await tagsMenu.locator('.top-nav-dropdown').evaluate(panel => {
+      const b = panel.getBoundingClientRect();
+      const item = panel.querySelector('.top-nav-dropdown-item');
+      const label = item?.querySelector('span')?.getBoundingClientRect();
+      const count = item?.querySelector('small')?.getBoundingClientRect();
+      return { left:b.left,right:b.right,viewport:innerWidth,
+        labelLeft:label?.left,labelRight:label?.right,
+        countLeft:count?.left,countRight:count?.right };
+    });
+    if(tagMenuRect.left<0 || tagMenuRect.right>tagMenuRect.viewport+1 ||
+       tagMenuRect.labelLeft<tagMenuRect.left ||
+       tagMenuRect.labelRight>tagMenuRect.right ||
+       tagMenuRect.countLeft<tagMenuRect.left ||
+       tagMenuRect.countRight>tagMenuRect.right) {
+      throw new Error('The Tags dropdown is clipped off-screen: '+JSON.stringify(tagMenuRect));
+    }
+    await tagsMenu.locator('summary').click();
     if (await page.locator('.editorial-grand-ledger button').count() !== 4 ||
         await page.locator('.editorial-margin-stats button').count() !== 4) {
       throw new Error('Clickable reading counters, including Finished, must exist in both home summaries');
@@ -393,6 +414,19 @@ try {
     if (await page.locator('.editorial-shelf-card .cover').count()) {
       throw new Error('Genre shelves may not display a fake cover when no real cover artwork exists');
     }
+    if (await page.locator('.editorial-art-book').count()) {
+      throw new Error('Home hero may show only candidate novels that have a genuine coverPath');
+    }
+    await page.locator('.site-credit-footer').getByText(/Created by Taiyou/).waitFor();
+    const shelfHeading = await page.locator('.editorial-shelves > .editorial-section-heading').evaluate(header => {
+      const title=header.querySelector('h2').getBoundingClientRect();
+      const aside=header.querySelector('.editorial-section-aside').getBoundingClientRect();
+      return {mobile:matchMedia('(max-width:660px)').matches,title,aside};
+    });
+    if (shelfHeading.mobile && (shelfHeading.aside.top < shelfHeading.title.bottom-1 ||
+        Math.abs(shelfHeading.aside.left-shelfHeading.title.left)>2)) {
+      throw new Error('The shelf explanation must align underneath its heading on mobile: '+JSON.stringify(shelfHeading));
+    }
     if (await page.getByText('GENRE & TAG', { exact: true }).count()) {
       throw new Error('Home genre cards must not repeat the redundant genre/tag caption');
     }
@@ -414,6 +448,9 @@ try {
       throw new Error('Novel names, authors and tags must be centred below the cover: ' + JSON.stringify(catalogueCaption));
     }
     if (await page.locator('.editorial-journal').count()) throw new Error('Journal must not duplicate on the catalogue page');
+    if (await page.locator('.reading-resume-strip').count()) {
+      throw new Error('The All Books page duplicates the dedicated Continue Reading shelf');
+    }
     if (await page.locator('.sort-field select').inputValue() !== 'title') {
       throw new Error('Complete catalogue must retain alphabetical sorting');
     }
@@ -444,10 +481,15 @@ try {
     }
     await page.getByRole('button', { name: "Taiyou's Personal Library home" }).click();
     await page.waitForURL('**/');
-    await page.getByRole('button', { name: 'Featured cover for Sample Library Book' }).click();
+    await page.getByRole('button', { name: 'Explore this novel' }).click();
     // The existing detail action first resolves EPUB availability asynchronously.
     await page.waitForURL('**/novels/sample-library-book');
     await page.getByRole('heading', { name: 'Sample Library Book' }).waitFor();
+    await page.locator('.site-credit-footer').getByText(/Created by Taiyou/).waitFor();
+    const readingPosition = await page.locator('.details-progress-card .details-location').innerText();
+    if (/Under The Starry Night|Exploded\?|Chapter 1\s*-/i.test(readingPosition)) {
+      throw new Error('Compact reading progress must not repeat full EPUB chapter titles');
+    }
     // All imported genres must remain visible, even on narrow mobile widths.
     // The old stylesheet hid everything after the first three tags.
     const heroTags = page.locator('.details-hero .details-hero-tags button');
