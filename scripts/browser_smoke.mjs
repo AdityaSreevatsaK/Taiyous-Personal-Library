@@ -925,9 +925,13 @@ try {
         if (await fastPage.getByText(/Unable to open novel/).count()) {
           throw new Error('Details incorrectly required a downloaded EPUB');
         }
-        const colour = await fastPage.locator('.details-hero').evaluate(el =>
-          getComputedStyle(el).getPropertyValue('--novel-hero-shadow').trim());
-        if (!/^#[0-9a-f]{6}$/i.test(colour)) throw new Error('Novel hero colour is not derived from its immutable ID');
+        const heroFallback = await fastPage.locator('.details-hero').evaluate(el => ({
+          image:getComputedStyle(el).backgroundImage,
+          colour:getComputedStyle(el).backgroundColor,
+        }));
+        if (heroFallback.image !== 'none' || heroFallback.colour !== 'rgb(25, 29, 34)') {
+          throw new Error('Photo-only hero must have a neutral, non-gradient offline fallback: '+JSON.stringify(heroFallback));
+        }
         console.log('Uncached novel details navigated without EPUB in ' + detailLatencyMs + ' ms');
 
         // Reproduce the owner's varied card heights: long/short titles, tags
