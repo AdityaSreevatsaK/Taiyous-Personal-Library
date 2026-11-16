@@ -39,7 +39,7 @@ export function useCoverArt(book: LibraryBook, repo: string, session: CloudSessi
       ownedUrl = URL.createObjectURL(cover);
       setUrl(ownedUrl);
     }).catch(() => {
-      // Keep the generated cover placeholder on unavailable/offline artwork.
+      // Keep a neutral unavailable-cover indicator, never invented jacket art.
     });
     return () => {
       active = false;

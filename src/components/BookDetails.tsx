@@ -12,6 +12,7 @@ import type { CloudSession } from '../lib/cloud';
 import ChapterBrowser from './ChapterBrowser';
 import { bookTags, normalisePersonalTags, suggestExistingTags, tagKey } from '../lib/tags';
 import { ratingLabel } from '../lib/ratings';
+import './site-footer.css';
 import { isFinished } from '../lib/reading-status';
 import type { ChapterItem, LibraryBook, ReaderTheme } from '../types';
 
@@ -61,7 +62,11 @@ export default function BookDetails({ book, availableTags, theme, onThemeChange,
   const existingTagSuggestions = suggestExistingTags(tagInput, availableTags);
   const editableTags = bookTags({ sourceTags: originalTags, personalTags: tagDraft });
   const summary = book.userDescription || book.description;
-  const chapterText = book.currentChapter || (book.progress ? 'Position saved' : 'Not started');
+  // Show a compact, language-neutral position instead of a possibly long
+  // EPUB chapter title. Chapter names remain available in chapter navigation.
+  const chapterText = book.currentChapterNumber
+    ? `${book.currentChapterNumber.toLocaleString()} / ${book.chapterCount ? book.chapterCount.toLocaleString() : '?'}`
+    : book.progress > 0 ? 'Position saved' : isFinished(book) ? 'Finished' : 'Not started';
 
   useEffect(() => { setSummaryDraft(book.userDescription || book.description || ''); }, [book.id, book.userDescription, book.description]);
   useEffect(() => { setTagDraft(book.personalTags || []); setTagInput(''); }, [book.id, book.personalTags]);
@@ -217,7 +222,7 @@ export default function BookDetails({ book, availableTags, theme, onThemeChange,
             <div className="details-percent">{Math.round(book.progress)}<span>%</span></div>
             <div className="details-progress-track"><i style={{ width: `${Math.max(0, Math.min(book.progress, 100))}%` }} /></div>
             <div className="details-progress-status">{isFinished(book) ? 'Finished' : book.progress <= 0 ? 'Not started' : 'Currently reading'}</div>
-            <div className="details-location"><span>Last reading position</span><strong>{chapterText}</strong>{book.currentChapterNumber && <small>Chapter {book.currentChapterNumber}{book.chapterCount ? ` of ${book.chapterCount}` : ''}</small>}</div>
+            <div className="details-location"><span>{book.currentChapterNumber ? 'Chapter' : 'Last reading position'}</span><strong>{chapterText}</strong></div>
             <button type="button" className="details-resume" onClick={onRead}>{book.progress > 0 ? 'Resume at saved position' : 'Begin this novel'} <ArrowRight size={17} /></button>
             {!isFinished(book) && <button type="button" className="details-mark-completed" disabled={markingCompleted}
               onClick={() => {
@@ -318,5 +323,6 @@ export default function BookDetails({ book, availableTags, theme, onThemeChange,
         </div>
       </div>
     </main>
+    <footer className="site-credit-footer">© {new Date().getFullYear()} Taiyou's Personal Library <span aria-hidden="true">·</span> Created by Taiyou</footer>
   </div>;
 }
