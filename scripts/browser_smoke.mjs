@@ -465,7 +465,7 @@ try {
         return {
           cover:rect('.details-cover-wrap'),meta:rect('.details-meta-row'),
           tags:rect('.details-hero-tags'),actions:rect('.details-hero-actions'),
-          hero:rect('.details-hero'),
+          hero:document.querySelector('.details-hero').getBoundingClientRect(),
           display:getComputedStyle(document.querySelector('.details-hero-facts')).display,
         };
       });
