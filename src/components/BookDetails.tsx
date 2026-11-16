@@ -6,7 +6,7 @@ import {
 import { Cover } from './LibraryDashboard';
 import ThemeSwitcher from './ThemeSwitcher';
 import BrandMark from './BrandMark';
-import { novelHeroStyle } from '../lib/novel-hero';
+import { novelHeroBackdrop, novelHeroBackdropUrl, novelHeroStyle } from '../lib/novel-hero';
 import './details-palettes.css';
 import type { CloudSession } from '../lib/cloud';
 import ChapterBrowser from './ChapterBrowser';
@@ -133,6 +133,9 @@ export default function BookDetails({ book, availableTags, theme, onThemeChange,
     } finally { setSaving(false); }
   }
 
+  const backdrop = novelHeroBackdrop(book.id);
+  const [failedBackdropId, setFailedBackdropId] = useState<string | null>(null);
+
   return <div className={`details-shell theme-${theme}`}>
     <header className="details-topbar">
       <a className="details-brand-link" href="/" aria-label="Taiyou's Personal Library home" onClick={event => {
@@ -151,6 +154,16 @@ export default function BookDetails({ book, availableTags, theme, onThemeChange,
     </header>
     <main className="details-layout">
       <div className="details-hero" style={novelHeroStyle(book.id)}>
+        {failedBackdropId !== book.id && <img
+          className="details-hero-backdrop"
+          src={novelHeroBackdropUrl(backdrop.photoId)}
+          srcSet={`${novelHeroBackdropUrl(backdrop.photoId, 840)} 840w, ${novelHeroBackdropUrl(backdrop.photoId, 1500)} 1500w`}
+          sizes="(max-width: 700px) 100vw, 1200px"
+          alt="" aria-hidden="true" loading="lazy" decoding="async"
+          draggable={false} referrerPolicy="no-referrer"
+          style={{ objectPosition: backdrop.position }}
+          onError={() => setFailedBackdropId(book.id)}
+        />}
         <div className="details-cover-wrap"><Cover book={book} variant="feature" cloudRepo={cloudRepo} cloudSession={cloudSession} /></div>
         <div className="details-hero-content">
           <div className="details-hero-heading">
