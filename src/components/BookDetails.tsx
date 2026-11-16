@@ -6,7 +6,7 @@ import {
 import { Cover } from './LibraryDashboard';
 import ThemeSwitcher from './ThemeSwitcher';
 import BrandMark from './BrandMark';
-import { novelHeroBackdrop, novelHeroBackdropUrl, novelHeroStyle } from '../lib/novel-hero';
+import { novelHeroBackdrop, novelHeroBackdropUrl } from '../lib/novel-hero';
 import './details-palettes.css';
 import type { CloudSession } from '../lib/cloud';
 import ChapterBrowser from './ChapterBrowser';
@@ -153,13 +153,13 @@ export default function BookDetails({ book, availableTags, theme, onThemeChange,
       <div className="details-top-controls"><ThemeSwitcher compact value={theme} onChange={onThemeChange} /></div>
     </header>
     <main className="details-layout">
-      <div className="details-hero" style={novelHeroStyle(book.id)}>
+      <div className="details-hero">
         {failedBackdropId !== book.id && <img
           className="details-hero-backdrop"
           src={novelHeroBackdropUrl(backdrop.photoId)}
           srcSet={`${novelHeroBackdropUrl(backdrop.photoId, 840)} 840w, ${novelHeroBackdropUrl(backdrop.photoId, 1500)} 1500w`}
           sizes="(max-width: 700px) 100vw, 1200px"
-          alt="" aria-hidden="true" loading="lazy" decoding="async"
+          alt="" aria-hidden="true" loading="eager" fetchPriority="high" decoding="async"
           draggable={false} referrerPolicy="no-referrer"
           style={{ objectPosition: backdrop.position }}
           onError={() => setFailedBackdropId(book.id)}
