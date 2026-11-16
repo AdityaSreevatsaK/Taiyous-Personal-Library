@@ -9,7 +9,7 @@ import './top-navigation.css';
 import { useCoverArt } from './useCoverArt';
 import './site-footer.css';
 import {
-  ArrowRight, BarChart3, Book, BookOpen, CheckCircle2, ChevronDown, CloudOff, Download, WifiOff,
+  BarChart3, Book, BookOpen, CheckCircle2, ChevronDown, CloudOff, Download, WifiOff,
   Hash, Library, LockKeyhole, Pencil, Plus, Search, Settings2,
   Sparkles, Star, Tag, Trash2, Upload, X, Cloud, RefreshCw, LogIn, LogOut,
 } from 'lucide-react';
@@ -200,7 +200,6 @@ export default function LibraryDashboard({
   const [dragging, setDragging] = useState(false);
   const reading = books.filter(isCurrentlyReading);
   const finished = books.filter((book) => book.shelfStatus !== 'trying' && isFinished(book));
-  const featured = [...reading].sort((a, b) => (b.lastOpenedAt || 0) - (a.lastOpenedAt || 0))[0] || books[0];
 
   const globalMode = globalSearch.trim().length > 0;
   const selectedCollection = collections.find(c => c.id === selectedCollectionId);
