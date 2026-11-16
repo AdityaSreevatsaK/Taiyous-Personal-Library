@@ -34,8 +34,8 @@ export function novelHeroStyle(id: string): CSSProperties {
 }
 
 /**
- * Twelve curated, people-free nature photographs, reused across the entire
- * library. Sources are genuine Unsplash images, NOT generated illustrations.
+ * Twelve curated, people-free landscapes and celestial night-sky photographs,
+ * reused across the entire library. Sources are genuine Unsplash images, NOT generated illustrations.
  * The public Unsplash CDN is the only external image domain added to CSP.
  * Every image has the same licence; attribution is documented separately.
  *
@@ -52,25 +52,25 @@ export const NOVEL_HERO_BACKDROPS = [
     position: 'center 50%',
   },
   {
-    name: 'Misty evergreen valley',
-    photoId: 'photo-1765871319901-0aaafe3f1a2a',
-    photographer: 'Roberto Shumski',
-    source: 'https://unsplash.com/photos/misty-forest-valley-with-mountains-in-background-oYEGPZebzGw',
-    position: 'center 44%',
-  },
-  {
-    name: 'Bamboo forest',
-    photoId: 'photo-1761623418974-c1288110d084',
-    photographer: 'olivia kim',
-    source: 'https://unsplash.com/photos/a-dense-bamboo-forest-with-tall-green-stalks-MAavXSIBLkc',
+    name: 'Dramatic mountain silhouettes in fog',
+    photoId: 'photo-1768684160371-566aadb7785e',
+    photographer: 'Filip Kvasnak',
+    source: 'https://unsplash.com/photos/misty-mountains-shrouded-in-dark-clouds-at-dawn-tvJX2DTeCiQ',
     position: 'center 50%',
   },
   {
-    name: 'Mossy woodland waterfall',
-    photoId: 'photo-1760532812860-649039fc2665',
-    photographer: 'Evgeni Tcherkasski',
-    source: 'https://unsplash.com/photos/waterfall-cascading-down-mossy-rocks-in-a-lush-forest-4I12DYcs0tc',
-    position: 'center 54%',
+    name: 'Dark highland mist',
+    photoId: 'photo-1762878099418-e174fcea0957',
+    photographer: 'Viktoriia Ananeva',
+    source: 'https://unsplash.com/photos/dark-moody-mountains-shrouded-in-mist-N47Pk5QhRfw',
+    position: 'center 52%',
+  },
+  {
+    name: 'Milky Way above remote mountains',
+    photoId: 'photo-1788238025184-0fc6fb3ca330',
+    photographer: 'Ashwini Chaudhary',
+    source: 'https://unsplash.com/photos/starry-night-sky-over-mountains-z-u4kAj3JeY',
+    position: 'center 47%',
   },
   {
     name: 'Dawn over a quiet lake',
@@ -80,11 +80,11 @@ export const NOVEL_HERO_BACKDROPS = [
     position: 'center 48%',
   },
   {
-    name: 'Sunbeams in an autumn forest',
-    photoId: 'photo-1762755126280-6d8a4f9d1115',
-    photographer: 'Pascal Debrunner',
-    source: 'https://unsplash.com/photos/sunlight-streams-through-a-foggy-forest-with-autumn-leaves-U-eRC8Q5iEY',
-    position: 'center 50%',
+    name: 'Celestial night over the Dolomites',
+    photoId: 'photo-1765476608471-c30c09564def',
+    photographer: 'Marek Piwnicki',
+    source: 'https://unsplash.com/photos/snowy-mountains-under-a-starry-night-sky-SumjjLhysZM',
+    position: 'center 48%',
   },
   {
     name: 'Snowy mountains at dusk',
