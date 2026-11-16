@@ -51,7 +51,7 @@ describe('private novel cover images', () => {
     expect(blob?.size).toBe(fakeJpeg.length);
     expect(fetcher).toHaveBeenCalledTimes(1);
   });
-  it('keeps the generated fallback for no image, incorrect path or non-JPEG content', async () => {
+  it('keeps the neutral missing-cover state for no image, incorrect path or non-JPEG content', async () => {
     expect(await fetchCloudCover(repo, book, session)).toBeNull();
     expect(await fetchCloudCover(repo, { id, coverPath: 'data/novels/' + id + '/evil.svg' }, session)).toBeNull();
     vi.stubGlobal('fetch', async () => new Response(new Blob(['not-an-image'], { type: 'image/jpeg' })));
