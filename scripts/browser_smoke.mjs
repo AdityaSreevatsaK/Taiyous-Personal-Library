@@ -432,6 +432,34 @@ try {
        natureStyle.background!=='none' || natureStyle.overlay!=='none') {
       throw new Error('The nature photo must be full-strength without wash, tint or mask: '+JSON.stringify(natureStyle));
     }
+    // Bright photographs must not wash out white text. Only text regions
+    // receive neutral translucent surfaces; the photo itself stays untouched.
+    const readability = await page.evaluate(() => {
+      const mobile = matchMedia('(max-width:700px)').matches;
+      const selectors = mobile
+        ? ['.details-hero-heading', '.details-hero-facts']
+        : ['.details-hero-content'];
+      const regions = selectors.map(selector => {
+        const element = document.querySelector('.details-hero ' + selector);
+        if (!element) return {selector, alpha:0, background:'missing'};
+        const background = getComputedStyle(element).backgroundColor;
+        const rgba = /^rgba\([^,]+,[^,]+,[^,]+,\s*([\d.]+)\)$/.exec(background);
+        return {selector, alpha:rgba ? Number(rgba[1]) : 0, background};
+      });
+      return {
+        regions,
+        title:getComputedStyle(document.querySelector('.details-hero h1')).color,
+        author:getComputedStyle(document.querySelector('.details-author-link')).color,
+        facts:getComputedStyle(document.querySelector('.details-meta-row')).color,
+        imageOpacity:getComputedStyle(document.querySelector('.details-hero-backdrop')).opacity,
+        imageFilter:getComputedStyle(document.querySelector('.details-hero-backdrop')).filter,
+      };
+    });
+    if (readability.regions.some(region => region.alpha < .78 || region.alpha > .9) ||
+        [readability.title, readability.author, readability.facts].some(colour => colour !== 'rgb(255, 255, 255)') ||
+        readability.imageOpacity !== '1' || readability.imageFilter !== 'none') {
+      throw new Error('Hero text is not legible on bright photographs: '+JSON.stringify(readability));
+    }
     const detailsOrder = await page.locator('.details-aside > .details-card').evaluateAll(nodes =>
       nodes.map(node => [...node.classList].find(value => /details-(tags|review|management)-card/.test(value))).filter(Boolean));
     if (detailsOrder.join(',') !== 'details-tags-card,details-review-card,details-management-card') {
