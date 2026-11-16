@@ -453,6 +453,11 @@ try {
       const inFrontOfImage=element => {
         const box=element.getBoundingClientRect();
         if(box.width===0 || box.height===0)return false;
+        // Mobile actions may be below the first viewport. Their positioned
+        // stacking context must still be above the decorative image.
+        const style=getComputedStyle(element);
+        if(Number(style.zIndex)<2) return false;
+        if(box.top>=innerHeight || box.bottom<=0) return true;
         const x=Math.min(innerWidth-1,Math.max(1,box.left+box.width/2));
         const y=Math.min(innerHeight-1,Math.max(1,box.top+box.height/2));
         const stack=document.elementsFromPoint(x,y);
