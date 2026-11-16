@@ -432,33 +432,67 @@ try {
        natureStyle.background!=='none' || natureStyle.overlay!=='none') {
       throw new Error('The nature photo must be full-strength without wash, tint or mask: '+JSON.stringify(natureStyle));
     }
-    // Bright photographs must not wash out white text. Only text regions
-    // receive neutral translucent surfaces; the photo itself stays untouched.
+    // Desktop: no giant blackout over the entire book information area.
+    // Mobile: grid children must have their OWN stacking context because the
+    // flattened display:contents parent does not create one; otherwise the
+    // photo paints above the title, chapter facts and buttons.
     const readability = await page.evaluate(() => {
-      const mobile = matchMedia('(max-width:700px)').matches;
-      const selectors = mobile
-        ? ['.details-hero-heading', '.details-hero-facts']
-        : ['.details-hero-content'];
-      const regions = selectors.map(selector => {
-        const element = document.querySelector('.details-hero ' + selector);
-        if (!element) return {selector, alpha:0, background:'missing'};
-        const background = getComputedStyle(element).backgroundColor;
-        const rgba = /^rgba\([^,]+,[^,]+,[^,]+,\s*([\d.]+)\)$/.exec(background);
-        return {selector, alpha:rgba ? Number(rgba[1]) : 0, background};
-      });
+      const hero=document.querySelector('.details-hero');
+      const photo=hero.querySelector('.details-hero-backdrop');
+      const wrapper=hero.querySelector('.details-hero-content');
+      const heading=hero.querySelector('.details-hero-heading');
+      const facts=hero.querySelector('.details-hero-facts');
+      const meta=hero.querySelector('.details-meta-row');
+      const actions=hero.querySelector('.details-hero-actions');
+      const cover=hero.querySelector('.details-cover-wrap');
+      const backgroundAlpha = element => {
+        const value=getComputedStyle(element).backgroundColor;
+        const rgba=/^rgba\([^,]+,[^,]+,[^,]+,\s*([\d.]+)\)$/.exec(value);
+        return rgba ? Number(rgba[1]) : (value === 'rgba(0, 0, 0, 0)' ? 0 : 1);
+      };
+      const inFrontOfImage=element => {
+        const box=element.getBoundingClientRect();
+        if(box.width===0 || box.height===0)return false;
+        // Mobile actions may be below the first viewport. Their positioned
+        // stacking context must still be above the decorative image.
+        const style=getComputedStyle(element);
+        if(Number(style.zIndex)<2) return false;
+        if(box.top>=innerHeight || box.bottom<=0) return true;
+        const x=Math.min(innerWidth-1,Math.max(1,box.left+box.width/2));
+        const y=Math.min(innerHeight-1,Math.max(1,box.top+box.height/2));
+        const stack=document.elementsFromPoint(x,y);
+        const elIndex=stack.findIndex(node => node===element||element.contains(node));
+        const photoIndex=stack.indexOf(photo);
+        return elIndex>=0 && (photoIndex<0 || elIndex<photoIndex);
+      };
       return {
-        regions,
-        title:getComputedStyle(document.querySelector('.details-hero h1')).color,
-        author:getComputedStyle(document.querySelector('.details-author-link')).color,
-        facts:getComputedStyle(document.querySelector('.details-meta-row')).color,
-        imageOpacity:getComputedStyle(document.querySelector('.details-hero-backdrop')).opacity,
-        imageFilter:getComputedStyle(document.querySelector('.details-hero-backdrop')).filter,
+        mobile:matchMedia('(max-width:700px)').matches,
+        wrapperDisplay:getComputedStyle(wrapper).display,
+        wrapperAlpha:backgroundAlpha(wrapper),
+        headingAlpha:backgroundAlpha(heading),
+        headingVisible:inFrontOfImage(heading),
+        factsAlpha:backgroundAlpha(facts),
+        metaAlpha:backgroundAlpha(meta),
+        factsVisible:inFrontOfImage(meta),
+        actionsVisible:inFrontOfImage(actions),
+        coverVisible:inFrontOfImage(cover),
+        title:getComputedStyle(hero.querySelector('h1')).color,
+        author:getComputedStyle(hero.querySelector('.details-author-link')).color,
+        chapters:getComputedStyle(meta).color,
+        photoOpacity:getComputedStyle(photo).opacity,
+        photoFilter:getComputedStyle(photo).filter,
       };
     });
-    if (readability.regions.some(region => region.alpha < .78 || region.alpha > .9) ||
-        [readability.title, readability.author, readability.facts].some(colour => colour !== 'rgb(255, 255, 255)') ||
-        readability.imageOpacity !== '1' || readability.imageFilter !== 'none') {
-      throw new Error('Hero text is not legible on bright photographs: '+JSON.stringify(readability));
+    if(readability.wrapperAlpha!==0 || readability.headingAlpha<.50 ||
+       readability.headingAlpha>.70 || readability.factsAlpha!==0 ||
+       readability.metaAlpha<.50 || readability.metaAlpha>.70 ||
+       !readability.headingVisible || !readability.factsVisible ||
+       !readability.actionsVisible || !readability.coverVisible ||
+       (readability.mobile && readability.wrapperDisplay!=='contents') ||
+       [readability.title,readability.author,readability.chapters]
+         .some(colour=>colour!=='rgb(255, 255, 255)') ||
+       readability.photoOpacity!=='1' || readability.photoFilter!=='none') {
+      throw new Error('Hero must show title and facts above photo without full blackout: '+JSON.stringify(readability));
     }
     const detailsOrder = await page.locator('.details-aside > .details-card').evaluateAll(nodes =>
       nodes.map(node => [...node.classList].find(value => /details-(tags|review|management)-card/.test(value))).filter(Boolean));
