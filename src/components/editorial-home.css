@@ -413,3 +413,41 @@
 .editorial-home .editorial-margin-stats > button:hover {
   background:color-mix(in srgb,var(--text) 18%,var(--pale));
 }
+
+/* On mobile show the four curated genres as two complete rows.
+ * Real covers remain optional; no horizontal scrolling or clipped tiles.
+ */
+@media(max-width:660px) {
+  .editorial-home .editorial-shelf-grid {
+    display:grid;grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:10px;width:100%;min-width:0;padding:3px 0 10px;
+    overflow:visible;scroll-snap-type:none;
+  }
+  .editorial-home .editorial-shelf-card {
+    display:flex;flex:initial;flex-direction:column;
+    align-items:stretch;justify-content:flex-start;
+    width:100%;min-width:0;min-height:166px;
+    padding:11px;gap:7px;border-radius:9px;
+    scroll-snap-align:none;overflow-wrap:anywhere;
+  }
+  .editorial-home .editorial-shelf-card:not(:has(.editorial-shelf-cover)) {
+    padding:12px;
+  }
+  .editorial-home .editorial-shelf-cover {
+    flex:0 0 auto;align-self:flex-start;width:49px;min-width:0;
+  }
+  .editorial-home .editorial-shelf-cover .cover {
+    width:49px;min-width:0;height:74px;
+  }
+  .editorial-home .editorial-shelf-details {
+    flex:1;gap:4px;width:100%;min-width:0;
+  }
+  .editorial-home .editorial-shelf-details strong,
+  .editorial-home .editorial-shelf-card:not(:has(.editorial-shelf-cover)) .editorial-shelf-details strong {
+    font-size:15px;line-height:1.25;
+  }
+  .editorial-home .editorial-shelf-details small {font-size:11px}
+  .editorial-home .editorial-shelf-card > svg {
+    align-self:flex-end;margin-top:auto;
+  }
+}
