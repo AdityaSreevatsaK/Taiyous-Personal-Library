@@ -56,7 +56,7 @@ describe('shared nature photography hero backgrounds', () => {
       expect(item.source).toMatch(/^https:\/\/unsplash\.com\/photos\//);
       expect(item.photographer.length).toBeGreaterThan(0);
       expect(novelHeroBackdropUrl(item.photoId)).toMatch(
-        /^https:\/\/images\.unsplash\.com\/photo-\d{13}-[a-f0-9]{12}\?auto=format&fit=crop&w=1500&q=80$/);
+        /^https:\/\/images\.unsplash\.com\/photo-\d{10,13}-[a-f0-9]{12}\?auto=format&fit=crop&w=1500&q=80$/);
       expect(item.name).not.toMatch(/portrait|character|person|face|couple|heroine|protagonist/i);
     }
     expect(() => novelHeroBackdropUrl('https://external-site.example/private')).toThrow();

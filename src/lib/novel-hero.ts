@@ -157,7 +157,7 @@ export function novelHeroBackdrop(id: string) {
 
 export function novelHeroBackdropUrl(photoId: string, width: 840 | 1500 = 1500): string {
   // Known fixed Unsplash photo ID only. Reject arbitrary URLs/user input.
-  if (!/^photo-\d{13}-[0-9a-f]{12}$/.test(photoId) ||
+  if (!/^photo-\d{10,13}-[0-9a-f]{12}$/.test(photoId) ||
       !NOVEL_HERO_BACKDROPS.some(item => item.photoId === photoId)) {
     throw new Error('Unrecognised nature backdrop');
   }
