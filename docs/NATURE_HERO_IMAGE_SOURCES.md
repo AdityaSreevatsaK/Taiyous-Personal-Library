@@ -8,10 +8,14 @@ Each novel's immutable ID deterministically chooses one photograph from the
 shared pool; changing the novel title, theme or device does not change it.
 
 The photograph is the full-strength hero background on all screen sizes:
-100% opacity, no colour overlay, no faded mask, no blur or darkening filter.
-The heading uses strong text shadows for legibility, while individual controls
-have contrasting backgrounds. If the CDN is offline, blocked or unavailable,
-the neutral dark hero background remains, without an image error icon.
+100% opacity, no whole-hero colour overlay, no faded mask, no blur or
+darkening filter. To keep text readable even over bright snow or sky, the
+title, author, chapter information, tags and rating controls sit inside a
+neutral charcoal reading surface. On smaller screens separate matching
+surfaces follow the mobile reading layout. The landscape itself remains
+unaltered, and action buttons have their own contrasting backgrounds.
+If the CDN is offline, blocked or unavailable, a neutral dark hero background
+remains without an image error icon.
 
 ## Image sources and credits
 

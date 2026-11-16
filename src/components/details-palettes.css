@@ -216,3 +216,56 @@
     mask-image:none;-webkit-mask-image:none;
   }
 }
+
+/* Hero legibility: keep the nature photograph untouched at full strength.
+ * Only the information itself sits on a neutral charcoal reading surface.
+ * Avoid a whole-hero tint: mountains, trees and sky stay bright elsewhere.
+ */
+.details-shell .details-hero .details-hero-content {
+  box-sizing:border-box;
+  width:100%;max-width:760px;
+  padding:clamp(19px,2.25vw,29px);
+  border:1px solid rgba(255,255,255,.30);
+  border-radius:17px;
+  background:rgba(8,14,22,.80);
+  box-shadow:0 12px 32px rgba(0,0,0,.26);
+  color:#fff;
+}
+.details-shell .details-hero .details-hero-content .details-eyebrow,
+.details-shell .details-hero .details-hero-content .details-byline,
+.details-shell .details-hero .details-hero-content .details-author-link,
+.details-shell .details-hero .details-hero-content .details-meta-row,
+.details-shell .details-hero .details-hero-content .hero-rating-fieldset legend,
+.details-shell .details-hero .details-hero-content .hero-rating-clear {
+  color:#fff;
+}
+.details-shell .details-hero .details-author-link:hover {
+  text-decoration-thickness:2px;
+  text-underline-offset:4px;
+}
+@media(max-width:700px) {
+  /* Mobile uses display:contents for its desktop text wrapper. Provide
+   * separate matching surfaces for the title and for the chapter/tags facts;
+   * the actions already have their own opaque, high-contrast buttons. */
+  .details-shell .details-hero .details-hero-content {
+    width:auto;max-width:none;display:contents;
+    padding:0;border:0;background:transparent;box-shadow:none;
+  }
+  .details-shell .details-hero .details-hero-heading,
+  .details-shell .details-hero .details-hero-facts {
+    box-sizing:border-box;
+    padding:12px;
+    border:1px solid rgba(255,255,255,.30);
+    border-radius:12px;
+    background:rgba(8,14,22,.84);
+    box-shadow:0 5px 20px rgba(0,0,0,.23);
+    color:#fff;
+  }
+  .details-shell .details-hero .details-hero-facts {
+    padding:11px 10px;
+  }
+}
+@media(max-width:360px) {
+  .details-shell .details-hero .details-hero-heading {padding:11px 9px}
+  .details-shell .details-hero .details-hero-facts {padding:9px 8px}
+}
