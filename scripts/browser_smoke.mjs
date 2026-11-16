@@ -716,8 +716,14 @@ try {
     }
     await page.getByRole('button', { name: 'Save rating' }).click();
     await page.getByText('Saved on this device. Connect your private cloud library to synchronise across devices.').waitFor();
-    await page.locator(viewport.width <= 700 ? '.details-mobile-rating' : '.details-hero')
-      .getByText('8/10').waitFor();
+    if (viewport.width <= 700) {
+      // Scope to the visible selected-rating preview, not a second matching
+      // text node inside the native option list.
+      await page.locator('.details-mobile-rating-label strong')
+        .getByText('8/10 · Very good', {exact:true}).waitFor();
+    } else {
+      await page.locator('.details-hero').getByText('8/10').waitFor();
+    }
     // A real browser download should be offered in novel details, distinct from opening to read.
     const downloadStarted = page.waitForEvent('download');
     await page.getByRole('button', { name: 'Download EPUB' }).click();
