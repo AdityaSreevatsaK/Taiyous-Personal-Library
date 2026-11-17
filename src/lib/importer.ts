@@ -164,7 +164,18 @@ export async function prepareImport(file: File): Promise<ImportedBook> {
   if (!bytes.byteLength || bytes.byteLength > MAX_EPUB_BYTES) throw new Error(`${file.name}: EPUB is empty or exceeds 120 MB.`);
 
   const details = await extractEpubMetadata(bytes);
-  const hash = await crypto.subtle.digest('SHA-256', bytes);
+  // TypeScript 5.9 requires a concrete ArrayBuffer. Reuse the original
+  // backing store when it covers the full EPUB; copy only for sliced/shared
+  // buffers, avoiding an extra 120 MB allocation on ordinary large imports.
+  let digestBuffer: ArrayBuffer;
+  if (bytes.buffer instanceof ArrayBuffer &&
+      bytes.byteOffset === 0 && bytes.byteLength === bytes.buffer.byteLength) {
+    digestBuffer = bytes.buffer;
+  } else {
+    digestBuffer = new ArrayBuffer(bytes.byteLength);
+    new Uint8Array(digestBuffer).set(bytes);
+  }
+  const hash = await crypto.subtle.digest('SHA-256', digestBuffer);
   const id = Array.from(new Uint8Array(hash), (b) => b.toString(16).padStart(2, '0')).join('').slice(0, 24);
   const now = Date.now();
   const epub = new Blob([new Uint8Array(bytes)], { type: 'application/epub+zip' });
