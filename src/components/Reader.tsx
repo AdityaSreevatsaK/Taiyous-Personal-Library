@@ -4,7 +4,7 @@ import {
   ArrowLeft, BookOpen, Check, ChevronDown, ChevronLeft, ChevronRight, List, Minus,
   PanelRightClose, Plus, Search, Settings2, SlidersHorizontal, Type, X,
 } from 'lucide-react';
-import { DEFAULT_SETTINGS, type ChapterItem, type LibraryBook, type ReaderSettings } from '../types';
+import { readerDefaultsForViewport, type ChapterItem, type LibraryBook, type ReaderSettings } from '../types';
 import { THEME_OPTIONS, themeById } from '../lib/themes';
 import ThemeSwitcher from './ThemeSwitcher';
 import QuickNavigation from './QuickNavigation';
@@ -108,7 +108,6 @@ export default function Reader({ book, settings, onSettings, onBack, collections
   const [chapterSearch, setChapterSearch] = useState('');
   const pickerListRef = useRef<HTMLDivElement>(null);
   const [chapterScrollIndex, setChapterScrollIndex] = useState(0);
-  const [chapterNumber, setChapterNumber] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [moving, setMoving] = useState(false);
@@ -361,16 +360,16 @@ export default function Reader({ book, settings, onSettings, onBack, collections
   }
 
   const displayedChapterIndex = currentChapterIndex + 1;
-  const chapterSearchQuery = chapterSearch.trim().toLocaleLowerCase();
+  const chapterSearchQuery = chapterSearch.trim();
   // Virtualise a *complete* chapter list rather than clipping at 60/80.
   // Each row has a fixed height. Scroll ranges now reach the final chapter,
   // even for 7,000+ chapter books, while rendering at most 40 buttons.
   const CHAPTER_ROW_HEIGHT = 54;
   const chapterMatches = useMemo(() => {
     const all = chapters.map((item, index) => ({ item, index }));
+    // Search by chapter number alone; no title matching or network calls.
     return chapterSearchQuery
-      ? all.filter(({ item, index }) => item.label.toLocaleLowerCase().includes(chapterSearchQuery)
-          || String(index + 1) === chapterSearchQuery)
+      ? all.filter(({ index }) => index + 1 === Number(chapterSearchQuery))
       : all;
   }, [chapters, chapterSearchQuery]);
   const { from: visibleStart, to: visibleEnd } =
@@ -383,13 +382,13 @@ export default function Reader({ book, settings, onSettings, onBack, collections
     if (pickerListRef.current) pickerListRef.current.scrollTop = offset;
     setChapterScrollIndex(Math.max(0, target - 6));
   }, [chapterPickerOpen, chapterSearchQuery, currentChapterIndex]);
-  const chapterNumberIndex = Number(chapterNumber) - 1;
-  const validChapterNumber = Number.isInteger(chapterNumberIndex) && chapterNumberIndex >= 0 && chapterNumberIndex < chapters.length;
+  const searchedChapterIndex = Number(chapterSearchQuery) - 1;
+  const validSearchedChapter = !!chapterSearchQuery && Number.isSafeInteger(searchedChapterIndex) &&
+    searchedChapterIndex >= 0 && searchedChapterIndex < chapters.length;
   const openChapterPicker = () => {
     setPanel(null);
     setChapterSearch('');
     setChapterScrollIndex(Math.max(0, currentChapterIndex - 10));
-    setChapterNumber(String(Math.max(1, currentChapterIndex + 1)));
     setChapterPickerOpen(true);
   };
   const displayedChapterCount = chapters.length || book.chapterCount || toc.length;
@@ -410,7 +409,7 @@ export default function Reader({ book, settings, onSettings, onBack, collections
         </div>
         <QuickNavigation compact collections={collections} onNavigate={onBrowseLibrary} />
         <nav className="reader-head-right" aria-label="Reader controls">
-          <button className={`icon-button ${panel === 'toc' ? 'reader-active' : ''}`} onClick={() => setPanel(panel === 'toc' ? null : 'toc')} title="Table of contents" aria-label="Table of contents"><List size={20} /></button>
+          <button className={`icon-button reader-toc-toggle ${panel === 'toc' ? 'reader-active' : ''}`} onClick={() => setPanel(panel === 'toc' ? null : 'toc')} title="Table of contents" aria-label="Table of contents"><List size={20} /></button>
           <ThemeSwitcher compact value={settings.theme} onChange={theme => change({ theme })} />
            <button className={`icon-button ${panel === 'settings' ? 'reader-active' : ''}`} onClick={() => setPanel(panel === 'settings' ? null : 'settings')} title="Reading preferences" aria-label="Reading preferences"><Settings2 size={19} /></button>
         </nav>
@@ -447,24 +446,24 @@ export default function Reader({ book, settings, onSettings, onBack, collections
         <section className="reader-chapter-picker" role="dialog" aria-modal="true" aria-label="Choose chapter"
           onKeyDown={event => { if (event.key === 'Escape') { event.stopPropagation(); setChapterPickerOpen(false); } }}>
           <header className="reader-chapter-picker-header">
-            <div><span className="section-overline">CHAPTER NAVIGATION</span><h2>Jump to a chapter</h2>
+            <div>
+              <h2>Chapter navigation</h2>
               <p>{chapters.length.toLocaleString()} chapters · Current: {currentChapterIndex >= 0 ? displayedChapterIndex : 'Not started'}</p>
             </div>
-            <button type="button" className="icon-button" aria-label="Close chapter picker" onClick={() => setChapterPickerOpen(false)}><X size={20} /></button>
+            <button type="button" className="icon-button" aria-label="Close chapter picker"
+              onClick={() => setChapterPickerOpen(false)}><X size={20} /></button>
           </header>
-          <form className="reader-chapter-number" onSubmit={event => {
+          <form className="reader-chapter-number-search" onSubmit={event => {
             event.preventDefault();
-            if (validChapterNumber) void jump(chapters[chapterNumberIndex].href);
+            if (validSearchedChapter) void jump(chapters[searchedChapterIndex].href);
           }}>
-            <label htmlFor="reader-chapter-number-input">Go to chapter number</label>
-            <div><input id="reader-chapter-number-input" type="number" min={1} max={chapters.length} step={1}
-              aria-label="Chapter number" value={chapterNumber} onChange={event => setChapterNumber(event.target.value)} />
-              <button type="submit" className="primary-button" disabled={!validChapterNumber || moving}>Go</button></div>
+            <label htmlFor="reader-chapter-search-input" className="sr-only">Search chapter number</label>
+            <Search size={17} aria-hidden="true" />
+            <input id="reader-chapter-search-input" type="search" inputMode="numeric"
+              pattern="[0-9]*" autoComplete="off" aria-label="Search chapter number"
+              placeholder="Search by chapter number…"
+              value={chapterSearch} onChange={event => setChapterSearch(event.target.value.replace(/\D/g, ''))} />
           </form>
-          <label className="reader-chapter-search"><Search size={17} />
-            <input type="search" aria-label="Search chapter titles" placeholder="Search chapters by title or number…"
-              value={chapterSearch} onChange={event => setChapterSearch(event.target.value)} />
-          </label>
           <div className="reader-chapter-picker-list" ref={pickerListRef}
             onScroll={event => setChapterScrollIndex(Math.max(0,
               Math.floor(event.currentTarget.scrollTop / CHAPTER_ROW_HEIGHT) - 6))}>
@@ -477,11 +476,8 @@ export default function Reader({ book, settings, onSettings, onBack, collections
               {index === currentChapterIndex && <Check size={15} />}
             </button>)}
             <div className="chapter-picker-spacer" style={{ height: (chapterMatches.length - visibleEnd) * CHAPTER_ROW_HEIGHT }} aria-hidden="true" />
-            {!chapterMatches.length && <p className="toc-no-results">No matching chapters.</p>}
+            {!chapterMatches.length && <p className="toc-no-results">No chapter matches that number.</p>}
           </div>
-          <footer className="reader-chapter-picker-footnote">
-            {`${chapterMatches.length.toLocaleString()} chapters ${chapterSearchQuery ? 'match your search' : 'available'}. Scroll freely or jump directly by number.`}
-          </footer>
         </section>
       </div>}
 
@@ -491,7 +487,7 @@ export default function Reader({ book, settings, onSettings, onBack, collections
   onClick={() => change({ theme: option.id })}>
   <span className="theme-dot" style={{ background: option.swatch }} aria-hidden="true" />
   <span>{option.name}</span>{settings.theme === option.id && <Check size={14} />}
-</button>)}</div></div><div className="setting-group"><label className="setting-label" htmlFor="font-family-select">FONT FAMILY</label><div className="styled-select"><Type size={18} /><select id="font-family-select" value={settings.font} onChange={(e) => change({ font: e.target.value as ReaderSettings['font'] })}><option value="literary">Literata · Recommended</option><option value="georgia">Georgia · Familiar serif</option><option value="classic">Palatino · Classic serif</option><option value="sans">Inter · Modern sans</option><option value="clear">Atkinson · High legibility</option></select><ChevronRight size={17} /></div></div><div className="setting-group"><label className="setting-label">FONT SIZE</label><div className="font-stepper"><button onClick={() => change({ fontSize: Math.max(75, settings.fontSize - 10) })} aria-label="Decrease font size"><Minus size={19} /></button><span><Type size={20} />{settings.fontSize}%</span><button onClick={() => change({ fontSize: Math.min(170, settings.fontSize + 10) })} aria-label="Increase font size"><Plus size={19} /></button></div></div><div className="setting-group"><div className="setting-row"><label className="setting-label" htmlFor="line-height">LINE SPACING</label><span>{settings.lineHeight.toFixed(2)}×</span></div><input id="line-height" type="range" min="1.3" max="2.2" step="0.05" value={settings.lineHeight} onChange={(e) => change({ lineHeight: Number(e.target.value) })} /></div><div className="setting-group"><div className="setting-row"><span className="setting-label">READING WIDTH</span><span>{settings.readingWidth === 0 ? 'Full screen' : `${settings.readingWidth}px`}</span></div><div className="width-options" role="group" aria-label="Reading width"><button type="button" className={`width-choice ${settings.readingWidth === 760 ? 'selected' : ''}`} onClick={() => change({ readingWidth: 760 })} aria-pressed={settings.readingWidth === 760}>Comfortable</button><button type="button" className={`width-choice ${settings.readingWidth === 1280 ? 'selected' : ''}`} onClick={() => change({ readingWidth: 1280 })} aria-pressed={settings.readingWidth === 1280}>Wide</button><button type="button" className={`width-choice ${settings.readingWidth === 0 ? 'selected' : ''}`} onClick={() => change({ readingWidth: 0 })} aria-pressed={settings.readingWidth === 0}>Full width</button></div><label htmlFor="page-width" className="width-custom-label">Or customise maximum width</label><input id="page-width" type="range" min="520" max="1600" step="20" value={settings.readingWidth === 0 ? 1600 : settings.readingWidth} onChange={(e) => change({ readingWidth: Number(e.target.value) })} aria-label="Custom reading width in pixels" /><p className="setting-help">Full width uses almost the entire screen while retaining small edge margins. Your preference is saved automatically.</p></div><div className="settings-note"><SlidersHorizontal size={17} />Your preferences are saved automatically on this device.</div><button className="reset-settings" onClick={() => onSettings({ ...DEFAULT_SETTINGS })}>Reset to defaults <PanelRightClose size={16} /></button></div>}</aside></>}
+</button>)}</div></div><div className="setting-group"><label className="setting-label" htmlFor="font-family-select">FONT FAMILY</label><div className="styled-select"><Type size={18} /><select id="font-family-select" value={settings.font} onChange={(e) => change({ font: e.target.value as ReaderSettings['font'] })}><option value="literary">Literata · Recommended</option><option value="georgia">Georgia · Familiar serif</option><option value="classic">Palatino · Classic serif</option><option value="sans">Inter · Modern sans</option><option value="clear">Atkinson · High legibility</option></select><ChevronRight size={17} /></div></div><div className="setting-group"><label className="setting-label">FONT SIZE</label><div className="font-stepper"><button onClick={() => change({ fontSize: Math.max(75, settings.fontSize - 10) })} aria-label="Decrease font size"><Minus size={19} /></button><span><Type size={20} />{settings.fontSize}%</span><button onClick={() => change({ fontSize: Math.min(170, settings.fontSize + 10) })} aria-label="Increase font size"><Plus size={19} /></button></div></div><div className="setting-group"><div className="setting-row"><label className="setting-label" htmlFor="line-height">LINE SPACING</label><span>{settings.lineHeight.toFixed(2)}×</span></div><input id="line-height" type="range" min="1.3" max="2.2" step="0.05" value={settings.lineHeight} onChange={(e) => change({ lineHeight: Number(e.target.value) })} /></div><div className="setting-group"><div className="setting-row"><span className="setting-label">READING WIDTH</span><span>{settings.readingWidth === 0 ? 'Full screen' : `${settings.readingWidth}px`}</span></div><div className="width-options" role="group" aria-label="Reading width"><button type="button" className={`width-choice ${settings.readingWidth === 760 ? 'selected' : ''}`} onClick={() => change({ readingWidth: 760 })} aria-pressed={settings.readingWidth === 760}>Comfortable</button><button type="button" className={`width-choice ${settings.readingWidth === 1280 ? 'selected' : ''}`} onClick={() => change({ readingWidth: 1280 })} aria-pressed={settings.readingWidth === 1280}>Wide</button><button type="button" className={`width-choice ${settings.readingWidth === 0 ? 'selected' : ''}`} onClick={() => change({ readingWidth: 0 })} aria-pressed={settings.readingWidth === 0}>Full width</button></div><label htmlFor="page-width" className="width-custom-label">Or customise maximum width</label><input id="page-width" type="range" min="520" max="1600" step="20" value={settings.readingWidth === 0 ? 1600 : settings.readingWidth} onChange={(e) => change({ readingWidth: Number(e.target.value) })} aria-label="Custom reading width in pixels" /><p className="setting-help">Full width uses almost the entire screen while retaining small edge margins. Your preference is saved automatically.</p></div><div className="settings-note"><SlidersHorizontal size={17} />Your preferences are saved automatically on this device.</div><button className="reset-settings" onClick={() => onSettings(readerDefaultsForViewport(window.matchMedia('(max-width: 700px)').matches))}>Reset to defaults <PanelRightClose size={16} /></button></div>}</aside></>}
     </div>
   );
 }
