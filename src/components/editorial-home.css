@@ -460,3 +460,57 @@
 /* The three floating books keep their jacket silhouette even when the real
  * covers have not yet loaded. Generated designs are clearly library editions. */
 .editorial-home .editorial-art-book {visibility:visible;pointer-events:auto}
+
+
+/* Curated front-page artwork must be genuine: the carousel excludes synthetic
+ * jackets and only reveals a cover after its private image has decoded.
+ * Other pages retain their attractive generated fallback designs. */
+.editorial-home .editorial-grand-gallery .editorial-art-book-pending,
+.editorial-home .editorial-grand-gallery .editorial-art-book:not(:has(.cover-has-image)) {
+  visibility:hidden;pointer-events:none;
+}
+.editorial-home .editorial-grand-gallery .editorial-art-book:not(.editorial-art-book-pending):has(.cover-has-image) {
+  visibility:visible;pointer-events:auto;
+}
+.editorial-home .editorial-grand-gallery .editorial-art-book-pending .cover {
+  filter:none;
+}
+.editorial-home .editorial-grand-gallery .editorial-art-book-pending:hover {
+  scale:1;
+}
+
+/* The reading record is real navigation, not four decorative totals.
+ * Mobile receives two rows of proper, tactile, clearly tappable cards. */
+.editorial-home .editorial-margin-stats > button .editorial-stat-arrow {
+  flex:0 0 auto;opacity:.64;margin-left:auto;
+}
+@media(max-width:660px) {
+  .editorial-home .editorial-margin-stats {
+    display:grid;grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:11px;align-items:stretch;
+  }
+  .editorial-home .editorial-margin-stats > .editorial-eyebrow {grid-column:1 / -1}
+  .editorial-home .editorial-margin-stats > button {
+    position:relative;min-width:0;min-height:92px;
+    display:flex;flex-direction:column;align-items:flex-start;
+    justify-content:center;gap:9px;
+    border:1px solid var(--border);border-radius:10px;
+    padding:12px 13px;
+    background:var(--surface);color:var(--text);
+    box-shadow:0 3px 9px #0000000d;
+    text-align:left;cursor:pointer;
+  }
+  .editorial-home .editorial-margin-stats > button strong {
+    font:500 clamp(29px,7vw,36px)/1 Georgia,serif;
+  }
+  .editorial-home .editorial-margin-stats > button span {
+    font-size:10px;letter-spacing:.085em;line-height:1.35;
+  }
+  .editorial-home .editorial-margin-stats > button .editorial-stat-arrow {
+    position:absolute;top:13px;right:12px;width:16px;height:16px;
+    opacity:.72;
+  }
+  .editorial-home .editorial-margin-stats > button:active {
+    transform:translateY(1px);
+  }
+}
