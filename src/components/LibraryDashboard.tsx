@@ -16,6 +16,8 @@ import {
 } from 'lucide-react';
 import type { LibraryBook, ReaderTheme } from '../types';
 import { isFinished, isCurrentlyReading } from '../lib/reading-status';
+import { openNovelInCurrentTab } from '../lib/novel-links';
+import { namedNovelUrl } from '../lib/routes';
 import { bookTags, includesTag, tagCounts } from '../lib/tags';
 import type { CloudSession } from '../lib/cloud';
 import type { BookCollection } from '../lib/collections';
@@ -488,7 +490,15 @@ export default function LibraryDashboard({
               </div>
             </div>}<div className="library-toolbar"><div className="toolbar-right"><label className="tag-filter"><Tag size={16} /><select aria-label="Filter novels by tag" value={selectedTag} onChange={(e) => browseTag(e.target.value)}><option value="">All tags</option>{availableTags.map(({tag, count}) => <option key={tag} value={tag}>{tag} ({count})</option>)}</select><ChevronDown size={14} /></label><label className="search-field"><Search size={17} /><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={selectedCollection ? `Search ${selectedCollection.name}…` : selectedTag ? `Search ${displayTag} novels…` : "Search this shelf…"} aria-label="Search within current list" />{query && <button aria-label="Clear search" onClick={() => setQuery('')}><X size={14} /></button>}</label><label className="sort-field"><Settings2 size={16} /><select value={selectedTag || selectedAuthor || selectedCollection || globalMode ? 'title' : sort} disabled={!!selectedTag || !!selectedAuthor || !!selectedCollection || globalMode} onChange={(e) => setSort(e.target.value as Sort)} aria-label="Sort books"><option value="title">Title A–Z</option><option value="recent">Recent</option><option value="added">Date added</option></select><ChevronDown size={14} /></label></div></div>
 
-            {visible.length ? <div className="book-grid">{visible.map((book) => <article className="book-tile" key={book.id}><button className="cover-button" onClick={() => onOpen(book)} aria-label={`View details for ${book.title}`}><Cover book={book} cloudRepo={cloudRepo} cloudSession={cloudSession} /></button><div className="tile-meta"><div className="tile-title-row"><button className="tile-title" onClick={() => onOpen(book)} title={book.title}>{book.title}</button></div><button type="button" className="tile-author-link" onClick={() => browseAuthor(book.author)} aria-label={`View novels by ${book.author}`}>{book.author}</button>{filter === 'offline' && cachedEpubIds.includes(book.id) && <div className="offline-tile-actions">
+            {visible.length ? <div className="book-grid">{visible.map((book) => <article className="book-tile" key={book.id}><a className="cover-button" href={namedNovelUrl(book, books)}
+                  onClick={event => openNovelInCurrentTab(event, () => onOpen(book))}
+                  title={book.title} aria-label={`View details for ${book.title}`}>
+                  <Cover book={book} cloudRepo={cloudRepo} cloudSession={cloudSession} />
+                  <span className="cover-hover-title" aria-hidden="true">{book.title}</span>
+                </a><div className="tile-meta"><div className="tile-title-row"><a className="tile-title"
+                  href={namedNovelUrl(book, books)}
+                  onClick={event => openNovelInCurrentTab(event, () => onOpen(book))}
+                  title={book.title}>{book.title}</a></div><button type="button" className="tile-author-link" onClick={() => browseAuthor(book.author)} aria-label={`View novels by ${book.author}`}>{book.author}</button>{filter === 'offline' && cachedEpubIds.includes(book.id) && <div className="offline-tile-actions">
                 {book.cloud
                   ? <button type="button" className="offline-remove-button" onClick={() => onRemoveOffline(book)} aria-label={`Remove offline EPUB for ${book.title}`}>
                       <Trash2 size={14} /> Remove download
