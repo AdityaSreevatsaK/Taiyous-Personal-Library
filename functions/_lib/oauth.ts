@@ -31,6 +31,8 @@ export interface TokenResponse {
 export const privateHeaders = {
   'Cache-Control': 'no-store, private',
   'X-Content-Type-Options': 'nosniff',
+  // Pages _headers applies only to static assets, not Pages Functions.
+  'Strict-Transport-Security': 'max-age=31536000',
   'Referrer-Policy': 'no-referrer',
 };
 
