@@ -171,9 +171,8 @@ export default function LibraryDashboard({
   useEffect(() => {
     if (!online && libraryPath === '/') onLibraryNavigate(libraryShelfUrl('offline'));
   }, [online, libraryPath, onLibraryNavigate]);
-  useEffect(() => {
-    if (selectedCollectionId && !collections.some(item => item.id === selectedCollectionId)) setSelectedCollectionId('');
-  }, [collections, selectedCollectionId]);
+  // Preserve deep-linked collections while the private dataset is loading.
+  // Clearing the ID here breaks new tabs on devices without a local snapshot.
   const [creatingCollection, setCreatingCollection] = useState(false);
   const [newCollectionName, setNewCollectionName] = useState('');
   const [newCollectionParent, setNewCollectionParent] = useState('');
@@ -460,6 +459,10 @@ export default function LibraryDashboard({
             onSaveReview={onMasterSaveReview} onExportEpub={onMasterExportEpub}
             onDeleteNovel={onMasterDeleteNovel} staleCount={staleCount} onArchiveStale={onMasterArchiveStale}/>}
 
+          {selectedCollectionId && !selectedCollection && !isMasterControls && !showAdvanced &&
+            <p className="collection-unavailable" role="status">
+              This collection is not on this device yet. Refresh cloud or choose another collection.
+            </p>}
           {!showAdvanced && !showEditorialHome && !isMasterControls && filter !== 'analytics' && (selectedTag || selectedAuthor) && <div className="page-head page-head-compact">
             <div><div className="eyebrow"><span className="eyebrow-line" /> TAIYOU'S COLLECTION</div>
               <h1>{filter === 'offline' ? 'Offline library' : filter === 'trying' ? 'Trying out' : selectedCollection ? selectedCollection.name : selectedTag ? displayTag : selectedAuthor ? selectedAuthor : 'Your library'}<span className="serif-accent">.</span></h1>
