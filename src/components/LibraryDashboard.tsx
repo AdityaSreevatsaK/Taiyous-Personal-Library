@@ -476,7 +476,7 @@ export default function LibraryDashboard({
               aria-current={libraryPath === '/' && !globalMode ? 'page' : undefined}
               onClick={event => openInternalLinkInCurrentTab(event, goHome)}>Home</a>
             {navEntries.map(({ id, name, count }) => <a href={libraryShelfUrl(id)} key={id} className={`top-nav-link ${!globalMode && !showAdvanced && !isMasterControls && libraryPath === libraryShelfUrl(id) && !selectedTag && !selectedAuthor && !selectedCollectionId ? 'active' : ''}`}
-              aria-current={!showAdvanced && !isMasterControls && filter === id && !selectedTag && !selectedAuthor && !selectedCollectionId ? 'page' : undefined}
+              aria-current={!globalMode && !showAdvanced && !isMasterControls && libraryPath === libraryShelfUrl(id) && !selectedTag && !selectedAuthor && !selectedCollectionId ? 'page' : undefined}
               onClick={event => openInternalLinkInCurrentTab(event, () => goTo(id))}><span>{name}</span>{id !== 'analytics' && <small>{count}</small>}</a>)}
           </div>
           <div className="mobile-shelf-nav" aria-label="Quick library shelves">
