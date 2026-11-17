@@ -29,7 +29,9 @@ zip.file('OEBPS/nav.xhtml',
 zip.file('OEBPS/chapter.xhtml',
   '<html xmlns="http://www.w3.org/1999/xhtml"><head>'+
   '<title>Security fixture</title></head><body>'+
-  '<h2>Chapter 1</h2><p>Safe chapter text remains readable.</p>'+
+  '<h2>Chapter 1</h2><p>Safe chapter text remains readable.</p>'+ 
+  '<a id="dangerous-link" href="javascript:alert(1)">Unsafe link</a>'+ 
+  '<a id="safe-link" href="chapter.xhtml#section-2">Valid chapter link</a>'+ 
   '<script>document.documentElement.setAttribute("data-injected-script","yes")</script>'+
   '<img src="data:image/png;base64,invalid" '+
   'onerror="document.documentElement.setAttribute(&quot;data-injected-event&quot;,&quot;yes&quot;)" />'+
@@ -95,11 +97,14 @@ try {
         loaded:doc?.body?.textContent?.includes('Safe chapter text remains readable.'),
         script:doc?.documentElement?.getAttribute('data-injected-script'),
         handler:doc?.documentElement?.getAttribute('data-injected-event'),
+        dangerous:doc?.getElementById('dangerous-link')?.getAttribute('href'),
+        safe:doc?.getElementById('safe-link')?.getAttribute('href'),
       };
     });
     if (!safety.loaded || safety.sandbox===null ||
         safety.sandbox?.split(/\s+/).includes('allow-scripts') ||
-        safety.script || safety.handler) {
+        safety.script || safety.handler || safety.dangerous !== null ||
+        safety.safe !== 'chapter.xhtml#section-2') {
       throw new Error('Untrusted EPUB executed active content or lost sandbox: '+
         JSON.stringify(safety));
     }
