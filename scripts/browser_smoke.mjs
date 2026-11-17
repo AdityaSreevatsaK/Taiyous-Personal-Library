@@ -329,8 +329,30 @@ try {
     const statBefore = await stat.evaluate(el => getComputedStyle(el).backgroundColor);
     await stat.hover();
     await page.waitForTimeout(225);
-    const statAfter = await stat.evaluate(el => getComputedStyle(el).backgroundColor);
-    if (statBefore === statAfter) throw new Error('Reading-statistics hover has no contrasting background');
+    const statsHover = await stat.evaluate(el => ({
+      background:getComputedStyle(el).backgroundColor,
+      stripe:getComputedStyle(el).boxShadow,
+      text:getComputedStyle(el.querySelector('span')).color,
+    }));
+    if (statBefore === statsHover.background) {
+      throw new Error('Reading-statistics hover has no contrasting background');
+    }
+    // The reading-record controls on the right must use the SAME background,
+    // inset accent stripe, and secondary text contrast as rows on the left.
+    const journalEntry = page.locator('.editorial-index-row').first();
+    await journalEntry.hover();
+    await page.waitForTimeout(225);
+    const journalHover = await journalEntry.evaluate(el => ({
+      background:getComputedStyle(el).backgroundColor,
+      stripe:getComputedStyle(el).boxShadow,
+      text:getComputedStyle(el.querySelector('.editorial-index-name small')).color,
+    }));
+    if (statsHover.background !== journalHover.background ||
+        statsHover.stripe !== journalHover.stripe ||
+        statsHover.text !== journalHover.text) {
+      throw new Error('Reading-record contrast must match the journal on this theme: '+
+        JSON.stringify({statsHover,journalHover}));
+    }
     await page.evaluate(() => window.scrollTo({top:document.documentElement.scrollHeight,behavior:'instant'}));
     await page.waitForFunction(() => window.scrollY > 420, {timeout:10000});
     const backToTop = page.getByRole('button',{name:'Back to top'});
