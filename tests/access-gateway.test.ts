@@ -121,6 +121,20 @@ describe('HF OAuth private dataset gateway', () => {
     expect(res.headers.get('Location')).toContain('invalid_callback');
     expect(mock).not.toHaveBeenCalled();
   });
+  it('rejects denied OAuth consent without exchanging any code or issuing a session', async () => {
+    const login = await oauth({ request: new Request(origin + '/api/oauth/login'), env });
+    const state = new URL(login.headers.get('Location')!).searchParams.get('state');
+    const flow = cookieFrom(login, FLOW_COOKIE);
+    const { mock } = fakeHf('hf_oauth_unused_token');
+    const result = await oauth({ request: new Request(origin +
+      '/api/oauth/callback?error=access_denied&state=' + state, {
+        headers: { Cookie: flow },
+      }), env });
+    expect(result.status).toBe(303);
+    expect(result.headers.get('Location')).toContain('oauth_error=invalid_callback');
+    expect(cookieFrom(result, SESSION_COOKIE)).toBe('');
+    expect(mock).not.toHaveBeenCalled();
+  });
   it('only issues a session for the verified dataset owner', async () => {
     const login = await oauth({ request: new Request(origin + '/api/oauth/login'), env });
     const state = new URL(login.headers.get('Location')!).searchParams.get('state');
