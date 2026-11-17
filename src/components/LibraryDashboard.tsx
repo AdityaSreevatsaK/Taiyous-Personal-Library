@@ -403,25 +403,37 @@ export default function LibraryDashboard({
               <summary><Library size={15}/> Collections <ChevronDown size={13}/></summary>
               <div className="top-nav-dropdown" role="group" aria-label="Manage collections">
                 <strong className="top-nav-caption">YOUR COLLECTIONS</strong>
-                {collections.map(collection => <a href={libraryCollectionUrl(collection.id)} key={collection.id} className="top-nav-dropdown-item"
-                    aria-label={`Open collection ${collection.name}`} onClick={event => openInternalLinkInCurrentTab(event, () => {
-                      event.currentTarget.closest('details')?.removeAttribute('open'); browseCollection(collection.id);
-                    })}><span>{collection.name}</span><small>{collection.bookIds.length}</small></a>)}
+                {collectionItems.map(({collection, depth, path}) => <a href={libraryCollectionUrl(collection.id)} key={collection.id}
+                  className="top-nav-dropdown-item" style={{paddingInlineStart: 8 + depth * 17}}
+                  title={path} aria-label={`Open collection ${collection.name}`}
+                  onClick={event => openInternalLinkInCurrentTab(event, () => {
+                    event.currentTarget.closest('details')?.removeAttribute('open'); browseCollection(collection.id);
+                  })}><span>{depth > 0 ? '↳ ' : ''}{collection.name}</span><small>{collection.bookIds.length}</small></a>)}
                 {collections.length === 0 && <p className="top-nav-empty">No collections yet</p>}
                 <button type="button" className="top-nav-new-collection" aria-label="Create collection"
                   onClick={() => setCreatingCollection(value => !value)}><Plus size={14}/> New collection</button>
                 {creatingCollection && <form className="top-nav-collection-form" onSubmit={event => {
                   event.preventDefault();
                   if (!newCollectionName.trim()) return;
-                  void onCreateCollection(newCollectionName).then(() => {
-                    setNewCollectionName(''); setCreatingCollection(false);
-                  });
+                  setCollectionError(null);
+                  void onCreateCollection(newCollectionName, newCollectionParent || undefined).then(() => {
+                    setNewCollectionName(''); setNewCollectionParent(''); setCreatingCollection(false);
+                  }).catch(reason => setCollectionError(String(reason)));
                 }}>
                   <label htmlFor="collection-name-input">Collection name</label>
                   <input id="collection-name-input" maxLength={90} value={newCollectionName}
                     onChange={event => setNewCollectionName(event.target.value)} placeholder="e.g. Favourite series" required />
+                  <label htmlFor="collection-new-parent">Inside collection</label>
+                  <select id="collection-new-parent" aria-label="Parent collection for new collection"
+                    value={newCollectionParent} onChange={event => setNewCollectionParent(event.target.value)}>
+                    <option value="">Top level (no parent)</option>
+                    {collectionItems.map(({collection, depth}) => <option key={collection.id} value={collection.id}>
+                      {'  '.repeat(depth)}{collection.name}
+                    </option>)}
+                  </select>
                   <button type="submit" aria-label="Save new collection"><CheckCircle2 size={17}/> Save</button>
                 </form>}
+                {collectionError && <p className="collection-form-error" role="alert">{collectionError}</p>}
               </div>
             </details>
             <a href="/master-controls" className="top-nav-master" aria-label="Open Master Controls"
