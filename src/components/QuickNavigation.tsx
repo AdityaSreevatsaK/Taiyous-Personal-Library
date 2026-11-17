@@ -79,6 +79,7 @@ export default function QuickNavigation({ collections, onNavigate, compact = fal
     <details className="quick-nav-mobile" onToggle={event => setExpanded(event.currentTarget.open)}>
       <summary aria-label="Open library navigation"><Library size={17}/><span>Library</span><ChevronDown size={13}/></summary>
       {expanded && <div className="quick-nav-popover" role="group" aria-label="Library shortcuts">
+        <a href="/" onClick={event => openInternalLinkInCurrentTab(event, () => open('/'))}>Home</a>
         <a href={readingPath} onClick={event => openInternalLinkInCurrentTab(event, () => open(readingPath))}>Currently reading</a>
         <a href={allPath} onClick={event => openInternalLinkInCurrentTab(event, () => open(allPath))}>All novels</a>
         <a href="/advanced-search" onClick={event => openInternalLinkInCurrentTab(event, () => open('/advanced-search'))}><Search size={15}/> Search library</a>

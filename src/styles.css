@@ -1614,3 +1614,107 @@ html::-webkit-scrollbar-thumb:hover { background: var(--library-scroll-hover); }
 .rating-tone-10 svg, .details-shell .hero-rating-fieldset legend .rating-star.rating-tone-10 {
   filter:drop-shadow(0 0 2px #e4a92a88);
 }
+
+
+/* The reader chapter chooser prioritises the scrollable list. Search accepts
+   numeric chapter indices only, and Enter opens the matching chapter. */
+.reader-chapter-picker { min-height:0; gap:10px; }
+.reader-chapter-picker-header { align-items:center; }
+.reader-chapter-picker-header h2 {
+  margin:0; font:700 16px/1.3 "Segoe UI",Inter,system-ui,sans-serif;
+}
+.reader-chapter-picker-header p { margin:3px 0 0; font-size:11px; }
+.reader-chapter-number-search {
+  display:flex;align-items:center;gap:9px;
+  min-height:42px;padding:0 12px;
+  border:1px solid var(--border);border-radius:9px;
+  background:var(--bg);color:var(--subtext);
+}
+.reader-chapter-number-search:focus-within {
+  outline:2px solid var(--accent);outline-offset:2px;
+}
+.reader-chapter-number-search svg {flex:0 0 auto;}
+.reader-chapter-number-search input {
+  display:block;width:100%;min-width:0;min-height:40px;padding:7px 0;
+  border:0;outline:0;background:transparent;color:var(--text);
+  font-size:13px;font-variant-numeric:tabular-nums;
+}
+.reader-chapter-picker-list {flex:1 1 auto;min-height:90px;max-height:55dvh;}
+@media (max-width:700px) {
+  /* Controls get the first row, novel title/progress their own second row.
+     This eliminates icons overprinting a long book title at phone widths. */
+  .reader-shell .reader-header {
+    box-sizing:border-box;display:grid;
+    grid-template-columns:auto minmax(0,1fr) auto;
+    grid-template-rows:42px minmax(24px,auto);
+    align-content:center;align-items:center;column-gap:7px;row-gap:0;
+    height:76px;min-height:76px;flex:0 0 76px;
+    padding:2px max(8px,env(safe-area-inset-right,0px)) 5px max(8px,env(safe-area-inset-left,0px));
+  }
+  .reader-shell .reader-head-left {
+    grid-column:1;grid-row:1;display:flex;align-items:center;
+    justify-self:start;gap:0;min-width:0;flex:none;
+  }
+  .reader-shell .reader-header .reader-back {
+    display:inline-grid;place-items:center;flex:none;
+    width:40px;min-width:40px;height:42px;
+  }
+  .reader-shell .reader-header .reader-home-link {display:none;}
+  .reader-shell .reader-header .reader-divider {display:none;}
+  .reader-shell .reader-header .quick-nav {
+    grid-column:2;grid-row:1;justify-self:start;align-self:center;
+    width:auto;min-width:0;flex:none;
+  }
+  .reader-shell .reader-head-right {
+    grid-column:3;grid-row:1;justify-self:end;align-self:center;
+    display:flex;align-items:center;gap:2px;flex:none;min-width:0;
+  }
+  /* Table of contents is already available through the bottom chapter picker. */
+  .reader-shell .reader-head-right .reader-toc-toggle {display:none;}
+  .reader-shell .reader-head-center {
+    grid-column:1/-1;grid-row:2;
+    box-sizing:border-box;width:100%;min-width:0;max-width:100%;
+    justify-self:center;align-self:center;display:flex;
+    align-items:center;text-align:center;gap:0;padding:0 8px;
+  }
+  .reader-shell .reader-novel-link {
+    display:block;box-sizing:border-box;width:100%;max-width:100%;min-width:0;
+    padding:0 3px;line-height:1.35;font-size:11px;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  }
+  .reader-shell .reader-head-center small {
+    display:block;width:100%;font-size:10px;line-height:1.2;overflow:hidden;
+    text-overflow:ellipsis;white-space:nowrap;
+  }
+  .reader-shell .reader-header .reader-header-progress {grid-column:1/-1;}
+  /* Full-height modal makes the chapter list the dominant scrolling surface. */
+  .reader-shell .reader-chapter-picker-shade {padding:9px;}
+  .reader-shell .reader-chapter-picker {
+    box-sizing:border-box;width:100%;max-width:550px;
+    height:calc(100dvh - 18px);max-height:calc(100dvh - 18px);
+    padding:14px 12px;gap:10px;border-radius:14px;
+  }
+  .reader-shell .reader-chapter-picker-header h2 {font-size:16px;}
+  .reader-shell .reader-chapter-picker-header p {font-size:10px;}
+  .reader-shell .reader-chapter-number-search {min-height:40px;}
+  .reader-shell .reader-chapter-picker-list {
+    flex:1 1 auto;min-height:0;max-height:none;
+    overflow-y:auto;-webkit-overflow-scrolling:touch;
+  }
+  .reader-shell .reader-chapter-picker-list .chapter-picker-result {
+    padding:8px 9px;gap:6px;
+  }
+  .reader-shell .reader-chapter-picker-list .chapter-picker-number {
+    width:30px;flex:0 0 30px;
+  }
+}
+@media (max-width:360px) {
+  .reader-shell .reader-header {column-gap:3px;}
+  .reader-shell .reader-header .icon-button {min-width:38px;width:38px;}
+  .reader-shell .reader-header .reader-back {width:38px;min-width:38px;}
+}
+@media (max-height:520px) and (orientation:landscape) {
+  .reader-shell .reader-header {
+    grid-template-rows:38px 22px;height:66px;min-height:66px;flex-basis:66px;
+  }
+}
