@@ -76,3 +76,15 @@ export const DEFAULT_SETTINGS: ReaderSettings = {
   // 0 means full available width, with small responsive side gutters.
   readingWidth: 0,
 };
+
+/** Mobile first-run and reset defaults. Explicit saved preferences always win. */
+export const MOBILE_DEFAULT_SETTINGS: ReaderSettings = {
+  ...DEFAULT_SETTINGS,
+  font: 'sans',
+  fontSize: 105,
+};
+
+export function readerDefaultsForViewport(narrow: boolean): ReaderSettings {
+  return { ...(narrow ? MOBILE_DEFAULT_SETTINGS : DEFAULT_SETTINGS) };
+}
+
