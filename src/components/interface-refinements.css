@@ -591,9 +591,14 @@
 }
 .editorial-home .editorial-margin-stats > button:hover,
 .editorial-home .editorial-margin-stats > button:focus-visible {
-  background:color-mix(in srgb,var(--text) 18%,var(--pale));
-  box-shadow:inset 4px 0 0 var(--accent);
-  padding-inline:10px;
+  background:var(--journal-row-hover);
+  box-shadow:inset 4px 0 0 var(--journal-row-stripe);
+  color:var(--text);
+}
+/* Match the journal's legible secondary-label contrast without moving content. */
+.editorial-home .editorial-margin-stats > button:hover span,
+.editorial-home .editorial-margin-stats > button:focus-visible span {
+  color:var(--text);
 }
 .editorial-home .editorial-margin-topics button:hover,
 .editorial-home .editorial-margin-topics button:focus-visible {
