@@ -22,8 +22,15 @@ try {
     await context.route('**/api/owner?**', route => route.fulfill({
       status:200,contentType:'application/json',body:JSON.stringify({configured:false,unlocked:false}),
     }));
-    // No novel hero image should trigger a third-party stock photo request.
-    await context.route('https://images.unsplash.com/**', route => route.abort());
+    // Simulate a licensed public photo without network dependencies. No
+    // private catalogue or title is sent in the URL or request body.
+    await context.route('https://images.unsplash.com/**', route => route.fulfill({
+      status:200,contentType:'image/svg+xml',body:
+        '<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="750">'+
+        '<rect width="1600" height="750" fill="#4d587d"/>'+
+        '<path d="M0 650L470 185L820 620L1270 130L1600 580V750H0Z" fill="#242b50"/>'+
+        '</svg>',
+    }));
     const page = await context.newPage();
     const errors = [];
     page.on('pageerror', error => errors.push('JavaScript: '+error.message));
@@ -38,8 +45,8 @@ try {
     if (!policy.includes("script-src 'self'") || !policy.includes("object-src 'none'") ||
         policy.includes("'unsafe-eval'") ||
         !policy.includes("img-src 'self' blob: data:") ||
-        policy.includes('images.unsplash.com')) {
-      throw new Error('CSP header must restrict cover images to safe local sources');
+        !policy.includes('https://images.unsplash.com')) {
+      throw new Error('CSP header must allow local covers and vetted photos only');
     }
     await page.locator('.app-shell').waitFor({state:'visible',timeout:12000});
     await page.locator('nav[aria-label="Library sections"]').waitFor();
@@ -80,16 +87,16 @@ try {
     await page.getByRole('button',{name:'View details for CSP Test Novel'}).waitFor({timeout:15000});
     await page.getByRole('button',{name:'View details for CSP Test Novel'}).click();
     await page.getByRole('heading',{name:'CSP Test Novel'}).waitFor();
-    await page.locator('.details-hero-cover-backdrop').waitFor({state:'visible'});
+    await page.locator('.details-hero-backdrop').waitFor({state:'visible'});
     await page.waitForFunction(() => {
-      const img=document.querySelector('.details-hero-cover-backdrop');
-      return Boolean(img?.complete && img.naturalWidth > 0 &&
-        img.src.startsWith('blob:') &&
-        getComputedStyle(img).filter.includes('blur') &&
-        img.parentElement?.classList.contains('cover-backdrop-ready'));
+      const photo=document.querySelector('.details-hero-backdrop');
+      const cover=document.querySelector('.details-cover-wrap .cover-has-image .cover-art');
+      return Boolean(photo?.complete && photo.naturalWidth > 0 &&
+        photo.src.startsWith('https://images.unsplash.com/photo-') &&
+        cover?.complete && cover.naturalWidth > 0 && cover.src.startsWith('blob:'));
     }, null, {timeout:12000});
-    if (await page.locator('.details-hero-cover-backdrop').count() !== 1) {
-      throw new Error('The novel hero must use exactly its own cached cover');
+    if (await page.locator('.details-cover-wrap .cover-generated-artwork').count()) {
+      throw new Error('Stored real novel covers must outrank generated jackets');
     }
     await page.getByRole('button',{name:/^(Start reading|Continue reading)$/}).click();
     await page.locator('.reader-page iframe').first().waitFor({state:'visible',timeout:20000});
