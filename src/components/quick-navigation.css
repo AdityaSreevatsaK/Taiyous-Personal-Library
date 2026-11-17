@@ -1,0 +1,31 @@
+.quick-nav {display:flex;align-items:center;justify-content:center;min-width:0;color:var(--text)}
+.quick-nav-primary {display:flex;align-items:center;justify-content:center;gap:clamp(7px,1.2vw,22px)}
+.quick-nav a,.quick-nav summary {color:var(--text);font-size:12px;font-weight:600;text-decoration:none;white-space:nowrap;cursor:pointer}
+.quick-nav-primary>a {display:inline-flex;align-items:center;gap:6px;padding:9px 2px}
+.quick-nav a:hover,.quick-nav summary:hover {color:var(--accent,#a37e51)}
+.quick-nav details {position:relative}
+.quick-nav summary {list-style:none;display:flex;align-items:center;gap:6px;padding:10px 9px;border-radius:7px}
+.quick-nav summary::-webkit-details-marker {display:none}
+.quick-nav details[open]>summary {background:var(--pale)}
+.quick-nav-popover {position:absolute;right:0;top:calc(100% + 8px);z-index:1000;display:flex;flex-direction:column;gap:2px;min-width:245px;max-width:min(330px,90vw);max-height:min(65dvh,530px);padding:12px;background:var(--surface);color:var(--text);border:1px solid var(--border);border-radius:10px;box-shadow:0 14px 40px #0003;overflow:auto}
+.quick-nav-popover strong {font:750 10px/1.4 sans-serif;letter-spacing:.11em;color:var(--subtext);margin:7px 9px}
+.quick-nav-popover a {display:flex;align-items:center;gap:7px;border-radius:6px;padding:10px 12px;white-space:normal;overflow-wrap:anywhere}
+.quick-nav-popover a:hover {background:var(--pale)}
+.quick-nav-collection-link span {min-width:0;flex:1}
+.quick-nav-collection-link small {color:var(--subtext);font-size:10px}
+.quick-nav-empty {font-size:12px;color:var(--subtext);padding:8px;margin:0}
+.quick-nav-mobile {display:none}
+.quick-nav :is(a,summary):focus-visible {outline:2px solid var(--accent,#96734a);outline-offset:3px}
+.details-topbar .quick-nav {flex:1 1 auto}
+.reader-header .quick-nav {flex:0 0 auto}
+.quick-nav--compact .quick-nav-primary {display:none}
+.quick-nav--compact .quick-nav-mobile {display:block}
+@media (max-width:1080px) {
+  .quick-nav-primary {display:none}
+  .quick-nav-mobile {display:block}
+}
+@media (max-width:550px) {
+  .quick-nav-mobile summary span {display:none}
+  .quick-nav-mobile summary {padding:9px 6px}
+  .reader-header .quick-nav {order:2}
+}
