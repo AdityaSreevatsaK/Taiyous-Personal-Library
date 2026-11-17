@@ -48,7 +48,8 @@ function validDocument(path: string, value: unknown): boolean {
   return typeof v.progress === 'number' && Number.isFinite(v.progress) && v.progress >= 0 && v.progress <= 100 &&
     text(v.currentChapter, 600) && text(v.lastCfi, 4000) &&
     integer(v.currentChapterIndex) && integer(v.currentChapterNumber) &&
-    integer(v.lastOpenedAt) && integer(v.updatedAt) && v.updatedAt !== null;
+    integer(v.lastOpenedAt) && integer(v.updatedAt) && v.updatedAt !== null &&
+    (v.completedAt === undefined || integer(v.completedAt));
 }
 
 async function contentRevision(bytes: string): Promise<string> {
