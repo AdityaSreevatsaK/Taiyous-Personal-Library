@@ -10,7 +10,7 @@ A responsive, installable EPUB reader and personal novel library for desktop and
 
 - **`master`** is the production source branch. Deployment is **manual**, not automatic on push.
 - Short-lived feature/fix branches may open pull requests against `master`. The former long-lived `dev` branch was merged and deleted.
-- **[Draft PR #2](https://github.com/AdityaSreevatsaK/Taiyous-Personal-Library/pull/2)** contains revision-safe personal-data sync and explicit conflict handling. Its automated tests have passed, but **it has not been merged or deployed**.
+- **[Draft PR #57](https://github.com/AdityaSreevatsaK/Taiyous-Personal-Library/pull/57)** is the current-master implementation of revision-safe personal-data sync and explicit conflict handling. Its automated tests include simulated two-browser conflicts, but **it has not been merged or deployed**; the real disposable-HF and authenticated browser release gates remain.
 - There is **no published GitHub Release or version tag**. A package version is not a release announcement. **Do not create a `v1.0` tag or GitHub Release without the owner's explicit approval and acceptance testing.**
 
 ## Features
@@ -33,13 +33,13 @@ For complete behaviour, see [Capabilities and offline behaviour](docs/CAPABILITI
 | Browser localStorage | Collections and device-local preferences |
 | GitHub / Cloudflare Pages | Source and public app shell; **no private novels or Hugging Face credentials** |
 
-**Sign-in:** Hugging Face OAuth establishes an encrypted, Secure, HttpOnly server-side session; the HF token is not exposed to React. A fine-grained token entered manually is an **in-memory legacy fallback**, not the recommended method for editing cloud data. The draft PR makes legacy token mode read-only for dataset writes; revision-safe editing requires OAuth.
+**Sign-in:** Hugging Face OAuth establishes an encrypted, Secure, HttpOnly server-side session; the HF token is not exposed to React. A fine-grained token entered manually is an **in-memory legacy fallback**, not the recommended method for editing cloud data. Draft PR #57 makes legacy token mode read-only for private dataset writes; revision-safe editing requires OAuth. This behaviour is **not deployed**.
 
 **Owner mode:** Deleting an *entire novel* or named collection requires a fresh owner session, separate Owner passphrase and exact-title confirmation. Removing just a locally downloaded EPUB **does not** require Owner mode. Full deletion remains disabled without the Owner secret.
 
 **Novel catalogue integrity:** The production code already guards imports with revision-checked commits and refuses unsafe catalogue overwrites. The web upload limit is about **70 MiB per file / 75 MiB per request**; use the separate Storage Controller for larger archives.
 
-**Personal sync:** The deployed `master` code still has timestamp-based cross-device reconciliation limitations. [Draft PR #2](https://github.com/AdityaSreevatsaK/Taiyous-Personal-Library/pull/2) introduces content revisions, preserves competing copies and requires explicit resolution for conflicting progress, reviews and collections. These improvements **are not live yet**. A controlled test against a disposable private Hugging Face Dataset remains a production release gate.
+**Personal sync:** The deployed `master` code still has timestamp-based cross-device reconciliation limitations. [Draft PR #57](https://github.com/AdityaSreevatsaK/Taiyous-Personal-Library/pull/57) introduces content revisions, preserves competing copies and requires explicit resolution for conflicting progress, reviews and collections. These improvements **are not live yet**. The disposable HF test workflow currently **skips the real integration test** because this repository has no `HF_DISPOSABLE_TEST_TOKEN` secret; two authenticated, isolated-dataset browser tests are also required.
 
 **Backups:** Browser storage can be cleared or evicted. Keep EPUB/ZIP backups separately. Offline storage from the historical `dev.taiyous-personal-library.pages.dev` hostname does not transfer automatically to the permanent URL.
 
@@ -69,3 +69,8 @@ The workflow uses Cloudflare secrets `CF_ACCOUNT_ID` and `CF_API_TOKEN` plus var
 Further reading: [Cloudflare operations](docs/STANDALONE_PWA.md) · [OAuth and Owner mode](docs/ACCESS_GATEWAY.md) · [Production-readiness audit](docs/READINESS_AUDIT_2026-11.md).
 
 Additional audit notes: [Evidence-based validation of the 17 November report](docs/AUDIT_VALIDATION_2026-11-17.md).
+
+## Remaining manual security gates
+
+- **Protect `master`:** in GitHub repository **Settings → Rules → Rulesets**, create an active branch ruleset targeting `master`, require pull requests and successful `verify` and `CodeQL JavaScript and TypeScript` checks before merging, and restrict bypass permissions. The repository's `CODEOWNERS` file names the owner, but does **not** enforce reviews until branch protection is configured.
+- **Disposable sync acceptance:** configure `HF_DISPOSABLE_TEST_TOKEN` as a repository Actions secret using a short-lived, dedicated Hugging Face test account/token with **no access to production novels**. The [isolated test workflow](.github/workflows/verify-hf-disposable.yml) creates and deletes only a randomly named disposable private dataset. Its green status when the secret is missing is **not** a completed HF integration test. Separately test two authenticated OAuth browsers against a non-production dataset before merging [draft PR #57](https://github.com/AdityaSreevatsaK/Taiyous-Personal-Library/pull/57).
