@@ -1,5 +1,6 @@
 import { commit, uploadFiles, type CommitOperation } from '@huggingface/hub';
 import { hasOwnerGrant } from './owner';
+import { personalRequest } from '../_lib/personal';
 import { parseNovelFilePath, verifiedNovelFolder } from '../../src/lib/novel-paths';
 import {
   CATALOGUE_LIMIT, parseDatasetCatalogue, planAdditiveCatalogueUpload,
@@ -206,13 +207,9 @@ async function upload(request: Request, repo: string, token: string): Promise<Re
   // Sidecar notes/collections are independent and never carry book files.
   if (hasCatalogue) return uploadCatalogueAddition(repo, token, files, title);
   if (hasNovelData) return reject(403, 'Direct novel-file replacement is not permitted');
-  await uploadFiles({
-    repo: { type: 'dataset', name: repo },
-    accessToken: token,
-    files,
-    commitTitle: title,
-  });
-  return json({ saved: true });
+  // Personal sidecars must use revision-aware CAS. Never silently accept
+  // stale uploads from a previous offline tab or an old application build.
+  return reject(409, 'Personal data requires revision-aware synchronisation; update the app and refresh before retrying.');
 }
 
 /** Destructive deletion is server-side, never a reusable general-purpose delete API.
@@ -393,6 +390,9 @@ export async function onRequest({ request, env }: PagesContext): Promise<Respons
   const respond = (response: Response) => attachRenewal(response, auth);
   const url = new URL(request.url);
   const action = url.searchParams.get('action');
+  if (action === 'personal' && (request.method === 'GET' || request.method === 'POST')) {
+    return respond(await personalRequest(request, DATASET_REPO, token, json));
+  }
   if (request.method === 'GET' && action === 'session') {
     if (!(await isPrivateDataset(token))) return respond(reject(502, 'The private novel dataset is inaccessible'));
     return respond(secureResponse({ connected: true, repo: DATASET_REPO, username: auth.session.username }));
