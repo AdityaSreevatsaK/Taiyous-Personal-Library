@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 import type { LibraryBook, ReaderTheme } from '../types';
 import { isFinished, isCurrentlyReading } from '../lib/reading-status';
-import { openNovelInCurrentTab } from '../lib/novel-links';
+import { openNovelInCurrentTab, openInternalLinkInCurrentTab } from '../lib/novel-links';
 import { namedNovelUrl } from '../lib/routes';
 import { bookTags, includesTag, tagCounts } from '../lib/tags';
 import type { CloudSession } from '../lib/cloud';
@@ -307,7 +307,7 @@ export default function LibraryDashboard({
       {dragging && <div className="drop-overlay" aria-hidden="true"><Upload size={46} /><strong>Drop your novels to import</strong><span>EPUB or supported Novel ZIP</span></div>}
 
       <main className="main-panel">
-        <header className="topbar"><button className="library-wordmark" type="button" aria-label="Taiyou's Personal Library home" onClick={goHome}><span className="library-wordmark-mark"><BrandMark size={36} theme={theme}/></span><span className="library-wordmark-text"><strong>TAIYOU'S</strong><small>PERSONAL LIBRARY</small></span></button><section className="cloud-connect" aria-label="Cloud library storage" ref={cloudRoot}>
+        <header className="topbar"><a className="library-wordmark" href="/" aria-label="Taiyou's Personal Library home" onClick={event => openInternalLinkInCurrentTab(event, goHome)}><span className="library-wordmark-mark"><BrandMark size={36} theme={theme}/></span><span className="library-wordmark-text"><strong>TAIYOU'S</strong><small>PERSONAL LIBRARY</small></span></a><section className="cloud-connect" aria-label="Cloud library storage" ref={cloudRoot}>
             <div className="cloud-connect-head"><span><Cloud size={16} /><strong>Cloud library</strong><small className={cloudRepo && cloudSession ? 'connection-badge is-connected' : 'connection-badge'}>{cloudRepo && cloudSession && <span className="cloud-connected-dot" aria-hidden="true" />}{cloudRepo && cloudSession ? 'Connected' : cloudRepo ? 'Disconnected' : 'Not set up'}</small></span>{syncProblem && <span className="cloud-sync-flag" role="status" title={syncProblem}>Needs sync</span>}{!cloudSession && online && <button type="button" className="secondary-button oauth-header-login" onClick={() => window.location.assign('/api/oauth/login')}><LogIn size={14}/> Sign in with HF</button>}<button type="button" className="secondary-button" aria-expanded={showCloud} onClick={() => setShowCloud(v => !v)}>{showCloud ? 'Close' : 'Settings'}</button></div>
             {showCloud && <div className="cloud-connect-body">
               <p>Use one private Hugging Face dataset as the shared <code>data/</code> folder on PC and mobile. When connected, importing a ZIP saves its original archive, EPUB and catalogue to that repository.</p>
@@ -343,23 +343,23 @@ export default function LibraryDashboard({
               {cloudMessage && <p className="cloud-sync-message" role="status">{cloudMessage}</p>}
               {cloudSession?.via !== 'oauth' && <p className="cloud-caution" id="cloud-token-note">Legacy manual connection: use only a fine-grained dataset token. It is held in memory only and not retained after restarting the app. The Hugging Face OAuth sign-in is preferred, so you need not re-enter a token on every visit.</p>}
             </div>}
-          </section><div className="top-actions"><label className="global-search-field"><Search size={16} /><input aria-label="Search all novels" placeholder="Search all novels…" value={globalSearch} onChange={event => onGlobalSearch(event.target.value)} />{globalSearch && <button type="button" aria-label="Clear global search" onClick={() => onGlobalSearch('')}><X size={15} /></button>}</label><button type="button" className="advanced-search-launch" aria-label="Advanced search" onClick={() => { setShowAdvanced(true); onLibraryNavigate('/advanced-search'); }}><Search size={16} /><span>Advanced search</span></button><ThemeSwitcher value={theme} onChange={onThemeChange} label="Choose library theme" /></div></header>
+          </section><div className="top-actions"><label className="global-search-field"><Search size={16} /><input aria-label="Search all novels" placeholder="Search all novels…" value={globalSearch} onChange={event => onGlobalSearch(event.target.value)} />{globalSearch && <button type="button" aria-label="Clear global search" onClick={() => onGlobalSearch('')}><X size={15} /></button>}</label><a href="/advanced-search" className="advanced-search-launch" aria-label="Advanced search" onClick={event => openInternalLinkInCurrentTab(event, () => { setShowAdvanced(true); onLibraryNavigate('/advanced-search'); })}><Search size={16} /><span>Advanced search</span></a><ThemeSwitcher value={theme} onChange={onThemeChange} label="Choose library theme" /></div></header>
         <nav className="primary-top-nav" aria-label="Library sections">
           <div className="top-nav-links">
-            <button type="button" className={`top-nav-link ${libraryPath === '/' && !globalMode ? 'active' : ''}`}
+            <a href="/" className={`top-nav-link ${libraryPath === '/' && !globalMode ? 'active' : ''}`}
               aria-current={libraryPath === '/' && !globalMode ? 'page' : undefined}
-              onClick={goHome}>Home</button>
-            {navEntries.map(({ id, name, count }) => <button type="button" key={id} className={`top-nav-link ${!showAdvanced && !isMasterControls && filter === id && !selectedTag && !selectedAuthor && !selectedCollectionId ? 'active' : ''}`}
+              onClick={event => openInternalLinkInCurrentTab(event, goHome)}>Home</a>
+            {navEntries.map(({ id, name, count }) => <a href={libraryShelfUrl(id)} key={id} className={`top-nav-link ${!showAdvanced && !isMasterControls && filter === id && !selectedTag && !selectedAuthor && !selectedCollectionId ? 'active' : ''}`}
               aria-current={!showAdvanced && !isMasterControls && filter === id && !selectedTag && !selectedAuthor && !selectedCollectionId ? 'page' : undefined}
-              onClick={() => goTo(id)}><span>{name}</span>{id !== 'analytics' && <small>{count}</small>}</button>)}
+              onClick={event => openInternalLinkInCurrentTab(event, () => goTo(id))}><span>{name}</span>{id !== 'analytics' && <small>{count}</small>}</a>)}
           </div>
           <div className="mobile-shelf-nav" aria-label="Quick library shelves">
-            <button type="button" className={filter === 'reading' && libraryPath !== '/' ? 'selected' : ''}
-              onClick={() => goTo('reading')}>Reading</button>
-            <button type="button" className={filter === 'trying' ? 'selected' : ''}
-              onClick={() => goTo('trying')}>Trying</button>
-            <button type="button" className={filter === 'offline' ? 'selected' : ''}
-              onClick={() => goTo('offline')}>Offline</button>
+            <a href={libraryShelfUrl('reading')} className={filter === 'reading' && libraryPath !== '/' ? 'selected' : ''}
+              onClick={event => openInternalLinkInCurrentTab(event, () => goTo('reading'))}>Reading</a>
+            <a href={libraryShelfUrl('trying')} className={filter === 'trying' ? 'selected' : ''}
+              onClick={event => openInternalLinkInCurrentTab(event, () => goTo('trying'))}>Trying</a>
+            <a href={libraryShelfUrl('offline')} className={filter === 'offline' ? 'selected' : ''}
+              onClick={event => openInternalLinkInCurrentTab(event, () => goTo('offline'))}>Offline</a>
             <label className="mobile-shelf-more">
               <span className="sr-only">More library shelves</span>
               <select aria-label="More library shelves"
@@ -380,9 +380,9 @@ export default function LibraryDashboard({
               <div className="top-nav-dropdown" role="group" aria-label="Browse tags">
                 <strong className="top-nav-caption">BROWSE BY TAG</strong>
                 {availableTags.length > 0 ? availableTags.map(({ tag, count }) =>
-                  <button type="button" key={tag} className="top-nav-dropdown-item" aria-label={`Browse novels tagged ${tag}`}
-                    onClick={event => { event.currentTarget.closest('details')?.removeAttribute('open'); browseTag(tag); }}>
-                    <span>{tag}</span><small>{count}</small></button>)
+                  <a key={tag} href={libraryTagUrl(tag)} className="top-nav-dropdown-item" aria-label={`Browse novels tagged ${tag}`}
+                    onClick={event => openInternalLinkInCurrentTab(event, () => { event.currentTarget.closest('details')?.removeAttribute('open'); browseTag(tag); })}>
+                    <span>{tag}</span><small>{count}</small></a>)
                   : <p className="top-nav-empty">No tags yet</p>}
               </div>
             </details>
@@ -390,10 +390,10 @@ export default function LibraryDashboard({
               <summary><Library size={15}/> Collections <ChevronDown size={13}/></summary>
               <div className="top-nav-dropdown" role="group" aria-label="Manage collections">
                 <strong className="top-nav-caption">YOUR COLLECTIONS</strong>
-                {collections.map(collection => <button type="button" key={collection.id} className="top-nav-dropdown-item"
-                    aria-label={`Open collection ${collection.name}`} onClick={event => {
+                {collections.map(collection => <a href={libraryCollectionUrl(collection.id)} key={collection.id} className="top-nav-dropdown-item"
+                    aria-label={`Open collection ${collection.name}`} onClick={event => openInternalLinkInCurrentTab(event, () => {
                       event.currentTarget.closest('details')?.removeAttribute('open'); browseCollection(collection.id);
-                    }}><span>{collection.name}</span><small>{collection.bookIds.length}</small></button>)}
+                    })}><span>{collection.name}</span><small>{collection.bookIds.length}</small></a>)}
                 {collections.length === 0 && <p className="top-nav-empty">No collections yet</p>}
                 <button type="button" className="top-nav-new-collection" aria-label="Create collection"
                   onClick={() => setCreatingCollection(value => !value)}><Plus size={14}/> New collection</button>
@@ -411,11 +411,11 @@ export default function LibraryDashboard({
                 </form>}
               </div>
             </details>
-            <button type="button" className="top-nav-master" aria-label="Open Master Controls"
+            <a href="/master-controls" className="top-nav-master" aria-label="Open Master Controls"
               aria-current={isMasterControls ? 'page' : undefined}
-              onClick={() => { setShowCloud(false); onLibraryNavigate('/master-controls'); }}>
+              onClick={event => openInternalLinkInCurrentTab(event, () => { setShowCloud(false); onLibraryNavigate('/master-controls'); })}>
               <LockKeyhole size={16}/><span>Master</span>
-            </button>
+            </a>
             <button type="button" className="top-nav-add" onClick={onImportClick} disabled={importing}>
               <Plus size={16}/><span>{importing ? 'Importing…' : 'Add novel'}</span>
             </button>
