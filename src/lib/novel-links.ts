@@ -1,9 +1,10 @@
 import type { MouseEvent } from 'react';
 
-/** Intercept only an ordinary same-tab click. Let the browser own new tabs,
- * middle-click, modifier-click, copy-link and the native context menu.
+/** Intercept only an ordinary same-tab click for internal navigation.
+ * Preserve middle-click, Ctrl/Cmd-click, Shift-click, copy-link, native context
+ * menus, and browser history; never open an extra tab programmatically.
  */
-export function openNovelInCurrentTab(
+export function openInternalLinkInCurrentTab(
   event: MouseEvent<HTMLAnchorElement>, open: () => void,
 ): void {
   if (event.defaultPrevented || event.button !== 0 ||
@@ -11,3 +12,6 @@ export function openNovelInCurrentTab(
   event.preventDefault();
   open();
 }
+
+/** Kept as an alias for existing book and reader links. */
+export { openInternalLinkInCurrentTab as openNovelInCurrentTab };
