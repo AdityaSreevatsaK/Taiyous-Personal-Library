@@ -449,8 +449,7 @@ export default function LibraryDashboard({
             {showCloud && <div id="cloud-settings-panel" className="cloud-connect-body">
               <h2 className="cloud-settings-heading">Cloud library settings</h2>
               <p className="cloud-settings-state" role="status">
-                <span className={'cloud-settings-dot ' + (cloudRepo && cloudSession && online ? 'is-connected' : 'is-disconnected')} aria-hidden="true" />
-                {cloudRepo && cloudSession && online ? 'Connected' : 'Disconnected'}
+                Connection: {cloudRepo && cloudSession && online ? 'Connected' : 'Disconnected'}
               </p>
               <p>Use one private Hugging Face dataset as the shared <code>data/</code> folder on PC and mobile. When connected, importing a ZIP saves its original archive, EPUB and catalogue to that repository.</p>
               {cloudSession?.via === 'oauth' ? <p className="cloud-access-connected"><LockKeyhole size={15}/> Signed in with Hugging Face. Your private dataset token is kept in an encrypted server-side session cookie, not saved by this page.</p> : <form onSubmit={event => {event.preventDefault(); onCloudRepo(repoDraft); }} className="cloud-repo-form"><label htmlFor="cloud-repo-input">Private dataset repository</label><input id="cloud-repo-input" value={repoDraft} onChange={event => setRepoDraft(event.target.value)} placeholder="your-username/taiyous-novels" autoComplete="off" /><button type="submit" className="secondary-button">Save</button></form>}
