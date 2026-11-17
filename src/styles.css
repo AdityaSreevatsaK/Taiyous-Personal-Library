@@ -1567,34 +1567,10 @@ html::-webkit-scrollbar-thumb:hover { background: var(--library-scroll-hover); }
   background: var(--library-scroll-thumb); background-clip: padding-box;
 }
 
-/* Immediate, fully legible hover label for long novel names. The visible
-   caption is always present for touch and keyboard readers. */
+/* Covers remain unobscured on hover. Full titles appear only for a
+   genuinely clipped caption, using the browser-native tooltip. */
 .book-tile .cover-button {
-  position: relative; display: block; text-decoration: none; color: inherit;
-  isolation: isolate;
-}
-.book-tile .cover-hover-title {
-  position: absolute; z-index: 3; inset: 0;
-  display: flex; align-items: center; justify-content: center;
-  padding: 16px 13px; overflow-wrap: anywhere; overflow-y: auto;
-  border-radius: 8px; text-align: center;
-  font: 600 clamp(13px, 1.25vw, 17px)/1.42 Georgia, serif;
-  color: #fff5df; text-shadow: 0 2px 8px #000b;
-  background: linear-gradient(180deg, rgba(13,21,34,.89), rgba(22,38,53,.93));
-  opacity: 0; visibility: hidden;
-  transition: opacity .18s ease, visibility .18s;
-  pointer-events: none;
-}
-@media (hover: hover) {
-  .book-tile .cover-button:hover .cover-hover-title {
-    opacity: 1; visibility: visible;
-  }
-}
-.book-tile .cover-button:focus-visible .cover-hover-title {
-  opacity: 1; visibility: visible;
-}
-@media (hover: none) {
-  .book-tile .cover-hover-title { display: none; }
+  display: block; text-decoration: none; color: inherit;
 }
 .book-tile .tile-title, .advanced-result-title,
 .advanced-result-cover, .details-start, .details-resume {
@@ -1603,6 +1579,4 @@ html::-webkit-scrollbar-thumb:hover { background: var(--library-scroll-hover); }
 .advanced-result-cover { display: block; cursor: pointer; }
 .advanced-result-title { display: inline-block; }
 .details-start, .details-resume { cursor: pointer; }
-@media (prefers-reduced-motion: reduce) {
-  .book-tile .cover-hover-title { transition: none; }
-}
+
