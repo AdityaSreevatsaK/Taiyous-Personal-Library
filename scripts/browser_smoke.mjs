@@ -1027,6 +1027,40 @@ try {
     await page.getByText('Collections', { exact: true }).click();
     await page.getByRole('link', { name: 'Open collection Example Series' }).waitFor();
     await page.getByRole('link', { name: 'Open collection Example Series' }).click();
+    // Parent collections contain navigable child collections, not duplicated novel tiles.
+    await page.getByRole('button', { name: 'Create subcollection in Example Series' }).click();
+    await page.getByRole('textbox', { name: 'New subcollection inside Example Series' }).fill('Volume One');
+    await page.getByRole('button', { name: 'Create', exact: true }).click();
+    const volumeLink = page.getByRole('link', { name: 'Open subcollection Volume One' });
+    await volumeLink.waitFor();
+    const volumeHref = await volumeLink.getAttribute('href');
+    if (!volumeHref?.startsWith('/collections/')) throw new Error('Subcollection requires a stable deep link');
+    const volumeId = volumeHref.split('/').pop();
+    await volumeLink.click();
+    await page.waitForURL('**' + volumeHref);
+    await page.getByRole('button', { name: 'Create subcollection in Volume One' }).click();
+    await page.getByRole('textbox', { name: 'New subcollection inside Volume One' }).fill('Arc A');
+    await page.getByRole('button', { name: 'Create', exact: true }).click();
+    await page.getByRole('link', { name: 'Open subcollection Arc A' }).click();
+    const arcUrl = new URL(page.url()).pathname;
+    const arcParent = page.getByRole('combobox', { name: 'Parent collection for Arc A' });
+    if (await arcParent.inputValue() !== volumeId)
+      throw new Error('New grandchild was not attached to its requested parent');
+    await arcParent.selectOption('');
+    await page.waitForFunction(() => {
+      const trail = document.querySelector('[aria-label="Collection hierarchy"]');
+      return !!trail && !trail.textContent.includes('Volume One');
+    });
+    await arcParent.selectOption(volumeId);
+    await page.waitForFunction(() =>
+      document.querySelector('[aria-label="Collection hierarchy"]')?.textContent.includes('Volume One'));
+    await page.reload({ waitUntil: 'networkidle' });
+    if (new URL(page.url()).pathname !== arcUrl ||
+        !(await page.getByRole('navigation', { name: 'Collection hierarchy' }).getByText('Volume One').count())) {
+      throw new Error('Nested collection path did not survive a reload');
+    }
+    await page.getByRole('navigation', { name: 'Collection hierarchy' })
+      .getByRole('link', { name: 'Example Series' }).click();
     await page.getByRole('link', { name: 'View details for Sample Library Book' }).waitFor();
     // The current novel title returns to details; the library brand goes home.
     await page.getByRole('link', { name: 'View details for Sample Library Book' }).click();

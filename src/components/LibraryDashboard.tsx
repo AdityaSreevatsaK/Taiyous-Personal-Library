@@ -20,7 +20,7 @@ import { openNovelInCurrentTab, openInternalLinkInCurrentTab, revealClippedLinkT
 import { namedNovelUrl } from '../lib/routes';
 import { bookTags, includesTag, tagCounts } from '../lib/tags';
 import type { CloudSession } from '../lib/cloud';
-import type { BookCollection } from '../lib/collections';
+import { collectionAncestors, collectionChildren, collectionDescendantIds, collectionTree, type BookCollection } from '../lib/collections';
 import { libraryAuthorUrl, libraryCollectionUrl, libraryShelfUrl, libraryTagUrl, parseLibraryViewPath, type ShelfFilter } from '../lib/library-routes';
 
 type Filter = ShelfFilter;
@@ -53,7 +53,8 @@ interface Props {
   pendingProgressCount: number;
   collectionsSyncPending: boolean;
   collections: BookCollection[];
-  onCreateCollection: (name: string) => Promise<void>;
+  onCreateCollection: (name: string, parentId?: string) => Promise<void>;
+  onMoveCollection: (id: string, parentId: string | null) => Promise<void>;
   onRenameCollection: (id: string, name: string) => Promise<void>;
   onDeleteCollection: (id: string) => void;
   onCollectionMembership: (collectionId: string, bookId: string, include: boolean) => Promise<void>;
@@ -141,7 +142,7 @@ export default function LibraryDashboard({
   onMasterMarkCompleted, onMasterResetProgress, onMasterSaveTags, onMasterSaveSummary,
   onMasterSaveReview, onMasterExportEpub, onMasterDeleteNovel, staleCount, onMasterArchiveStale,
   localBackups, cachedEpubIds, online, offlineShellReady, bulkOfflineProgress, onCacheAllOffline, offlineRetention, pendingReviewCount, pendingProgressCount, collectionsSyncPending,
-  collections, onCreateCollection, onRenameCollection, onDeleteCollection, onCollectionMembership,
+  collections, onCreateCollection, onMoveCollection, onRenameCollection, onDeleteCollection, onCollectionMembership,
   initialTag, libraryPath, onLibraryNavigate, globalSearch, onGlobalSearch, theme, onThemeChange, onImportClick, onFiles, onOpen, onRead, onRemoveOffline,
   importing, notice, onDismissNotice, error, storageError, cloudRepo, cloudSession,
   cloudBusy, cloudMessage, syncProblem, onCloudRepo, onCloudLogin, onCloudLogout, onCloudRefresh, onCloudPublishCached,
@@ -170,11 +171,14 @@ export default function LibraryDashboard({
   useEffect(() => {
     if (!online && libraryPath === '/') onLibraryNavigate(libraryShelfUrl('offline'));
   }, [online, libraryPath, onLibraryNavigate]);
-  useEffect(() => {
-    if (selectedCollectionId && !collections.some(item => item.id === selectedCollectionId)) setSelectedCollectionId('');
-  }, [collections, selectedCollectionId]);
+  // Preserve deep-linked collections while the private dataset is loading.
+  // Clearing the ID here breaks new tabs on devices without a local snapshot.
   const [creatingCollection, setCreatingCollection] = useState(false);
   const [newCollectionName, setNewCollectionName] = useState('');
+  const [newCollectionParent, setNewCollectionParent] = useState('');
+  const [creatingSubcollection, setCreatingSubcollection] = useState(false);
+  const [newSubcollectionName, setNewSubcollectionName] = useState('');
+  const [collectionError, setCollectionError] = useState<string | null>(null);
   const availableTags = useMemo(() => tagCounts(books), [books]);
   // URL tag slugs are lowercase, but headings retain catalogue typography.
   const displayTag = availableTags.find(({tag}) => tag.toLocaleLowerCase() === selectedTag.toLocaleLowerCase())?.tag || selectedTag;
@@ -219,6 +223,14 @@ export default function LibraryDashboard({
 
   const globalMode = globalSearch.trim().length > 0;
   const selectedCollection = collections.find(c => c.id === selectedCollectionId);
+  const collectionItems = useMemo(() => collectionTree(collections), [collections]);
+  const childCollections = useMemo(() => selectedCollection
+    ? collectionChildren(collections, selectedCollection.id) : [], [collections, selectedCollection]);
+  const collectionTrail = useMemo(() => selectedCollection
+    ? collectionAncestors(collections, selectedCollection.id) : [], [collections, selectedCollection]);
+  const forbiddenParents = useMemo(() => selectedCollection
+    ? collectionDescendantIds(collections, selectedCollection.id) : new Set<string>(),
+    [collections, selectedCollection]);
   const showEditorialHome = !isMasterControls && books.length > 0 && libraryPath === '/' && filter === 'all' && !selectedTag && !selectedAuthor && !selectedCollectionId && !globalMode && !showAdvanced;
   const visible = useMemo(() => {
     const q = (globalMode ? globalSearch : query).trim().toLocaleLowerCase();
@@ -390,25 +402,37 @@ export default function LibraryDashboard({
               <summary><Library size={15}/> Collections <ChevronDown size={13}/></summary>
               <div className="top-nav-dropdown" role="group" aria-label="Manage collections">
                 <strong className="top-nav-caption">YOUR COLLECTIONS</strong>
-                {collections.map(collection => <a href={libraryCollectionUrl(collection.id)} key={collection.id} className="top-nav-dropdown-item"
-                    aria-label={`Open collection ${collection.name}`} onClick={event => openInternalLinkInCurrentTab(event, () => {
-                      event.currentTarget.closest('details')?.removeAttribute('open'); browseCollection(collection.id);
-                    })}><span>{collection.name}</span><small>{collection.bookIds.length}</small></a>)}
+                {collectionItems.map(({collection, depth, path}) => <a href={libraryCollectionUrl(collection.id)} key={collection.id}
+                  className="top-nav-dropdown-item" style={{paddingInlineStart: 8 + depth * 17}}
+                  title={path} aria-label={`Open collection ${collection.name}`}
+                  onClick={event => openInternalLinkInCurrentTab(event, () => {
+                    event.currentTarget.closest('details')?.removeAttribute('open'); browseCollection(collection.id);
+                  })}><span>{depth > 0 ? '↳ ' : ''}{collection.name}</span><small>{collection.bookIds.length}</small></a>)}
                 {collections.length === 0 && <p className="top-nav-empty">No collections yet</p>}
                 <button type="button" className="top-nav-new-collection" aria-label="Create collection"
                   onClick={() => setCreatingCollection(value => !value)}><Plus size={14}/> New collection</button>
                 {creatingCollection && <form className="top-nav-collection-form" onSubmit={event => {
                   event.preventDefault();
                   if (!newCollectionName.trim()) return;
-                  void onCreateCollection(newCollectionName).then(() => {
-                    setNewCollectionName(''); setCreatingCollection(false);
-                  });
+                  setCollectionError(null);
+                  void onCreateCollection(newCollectionName, newCollectionParent || undefined).then(() => {
+                    setNewCollectionName(''); setNewCollectionParent(''); setCreatingCollection(false);
+                  }).catch(reason => setCollectionError(String(reason)));
                 }}>
                   <label htmlFor="collection-name-input">Collection name</label>
                   <input id="collection-name-input" maxLength={90} value={newCollectionName}
                     onChange={event => setNewCollectionName(event.target.value)} placeholder="e.g. Favourite series" required />
+                  <label htmlFor="collection-new-parent">Inside collection</label>
+                  <select id="collection-new-parent" aria-label="Parent collection for new collection"
+                    value={newCollectionParent} onChange={event => setNewCollectionParent(event.target.value)}>
+                    <option value="">Top level (no parent)</option>
+                    {collectionItems.map(({collection, path}) => <option key={collection.id} value={collection.id}>
+                      {path}
+                    </option>)}
+                  </select>
                   <button type="submit" aria-label="Save new collection"><CheckCircle2 size={17}/> Save</button>
                 </form>}
+                {collectionError && <p className="collection-form-error" role="alert">{collectionError}</p>}
               </div>
             </details>
             <a href="/master-controls" className="top-nav-master" aria-label="Open Master Controls"
@@ -435,6 +459,10 @@ export default function LibraryDashboard({
             onSaveReview={onMasterSaveReview} onExportEpub={onMasterExportEpub}
             onDeleteNovel={onMasterDeleteNovel} staleCount={staleCount} onArchiveStale={onMasterArchiveStale}/>}
 
+          {selectedCollectionId && !selectedCollection && !isMasterControls && !showAdvanced &&
+            <p className="collection-unavailable" role="status">
+              This collection is not on this device yet. Refresh cloud or choose another collection.
+            </p>}
           {!showAdvanced && !showEditorialHome && !isMasterControls && filter !== 'analytics' && (selectedTag || selectedAuthor) && <div className="page-head page-head-compact">
             <div><div className="eyebrow"><span className="eyebrow-line" /> TAIYOU'S COLLECTION</div>
               <h1>{filter === 'offline' ? 'Offline library' : filter === 'trying' ? 'Trying out' : selectedCollection ? selectedCollection.name : selectedTag ? displayTag : selectedAuthor ? selectedAuthor : 'Your library'}<span className="serif-accent">.</span></h1>
@@ -476,19 +504,80 @@ export default function LibraryDashboard({
             cover={(book, isFeatured, onArtworkStateChange) => <Cover book={book} variant={isFeatured ? 'feature' : 'normal'} cloudRepo={cloudRepo} cloudSession={cloudSession} onArtworkStateChange={onArtworkStateChange} />} />}
 
           {!showEditorialHome && !isMasterControls && <section id="library-full-catalogue" className="library-section" aria-label="Book collection"><div className="section-titlebar"><div><div className="section-overline">{globalMode ? 'ALL NOVELS' : selectedCollection ? 'YOUR COLLECTION' : selectedTag ? 'BROWSING TAG' : selectedAuthor ? 'BROWSING AUTHOR' : 'THE COLLECTION'}</div><h2>{globalMode ? 'Global search results' : selectedCollection ? selectedCollection.name : selectedTag ? 'Novels' : selectedAuthor ? 'Books by ' + selectedAuthor : filter === 'all' ? 'All your stories' : navEntries.find((i) => i.id === filter)?.name}<span className="title-count">{visible.length}</span></h2></div><span className="library-description">A little world on every shelf</span></div>
-            {selectedCollection && !globalMode && <div className="tag-collection-head collection-heading">
-              <span><strong>{selectedCollection.name}</strong> · {visible.length} novels · Sorted A–Z</span>
+            {selectedCollection && !globalMode && <>
+            <nav className="collection-breadcrumbs" aria-label="Collection hierarchy">
+              <a href={libraryShelfUrl('all')}
+                onClick={event => openInternalLinkInCurrentTab(event, clearCollection)}>All novels</a>
+              {collectionTrail.map((entry, index) => <span key={entry.id} className="collection-crumb">
+                <span aria-hidden="true">/</span>
+                {index === collectionTrail.length - 1
+                  ? <strong aria-current="page">{entry.name}</strong>
+                  : <a href={libraryCollectionUrl(entry.id)}
+                      onClick={event => openInternalLinkInCurrentTab(event, () => browseCollection(entry.id))}>
+                      {entry.name}</a>}
+              </span>)}
+            </nav>
+            <div className="tag-collection-head collection-heading">
+              <span><strong>{selectedCollection.name}</strong> · {visible.length} direct novels · {childCollections.length} subcollections</span>
               <div className="collection-actions">
+                <label className="collection-parent-control">
+                  Move under
+                  <select aria-label={`Parent collection for ${selectedCollection.name}`}
+                    value={selectedCollection.parentId || ''}
+                    onChange={event => {
+                      setCollectionError(null);
+                      void onMoveCollection(selectedCollection.id, event.target.value || null)
+                        .catch(reason => setCollectionError(String(reason)));
+                    }}>
+                    <option value="">Top level</option>
+                    {collectionItems.filter(item =>
+                      item.collection.id !== selectedCollection.id &&
+                      !forbiddenParents.has(item.collection.id))
+                      .map(({collection, path}) => <option value={collection.id} key={collection.id}>{path}</option>)}
+                  </select>
+                </label>
+                <button type="button" aria-label={`Create subcollection in ${selectedCollection.name}`}
+                  onClick={() => { setCollectionError(null); setCreatingSubcollection(value => !value); }}>
+                  <Plus size={13}/> Subcollection</button>
                 <button type="button" onClick={() => {
                   const value = window.prompt('Rename collection', selectedCollection.name);
                   if (value?.trim()) void onRenameCollection(selectedCollection.id, value);
                 }}><Pencil size={13} /> Rename</button>
-                <button type="button" onClick={() => {
-                  onDeleteCollection(selectedCollection.id);
-                }}><Trash2 size={13} /> Delete</button>
+                <button type="button" onClick={() => onDeleteCollection(selectedCollection.id)}><Trash2 size={13} /> Delete</button>
                 <button type="button" onClick={clearCollection}>All novels <X size={13} /></button>
               </div>
-            </div>}<div className="library-toolbar"><div className="toolbar-right"><label className="tag-filter"><Tag size={16} /><select aria-label="Filter novels by tag" value={selectedTag} onChange={(e) => browseTag(e.target.value)}><option value="">All tags</option>{availableTags.map(({tag, count}) => <option key={tag} value={tag}>{tag} ({count})</option>)}</select><ChevronDown size={14} /></label><label className="search-field"><Search size={17} /><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={selectedCollection ? `Search ${selectedCollection.name}…` : selectedTag ? `Search ${displayTag} novels…` : "Search this shelf…"} aria-label="Search within current list" />{query && <button aria-label="Clear search" onClick={() => setQuery('')}><X size={14} /></button>}</label><label className="sort-field"><Settings2 size={16} /><select value={selectedTag || selectedAuthor || selectedCollection || globalMode ? 'title' : sort} disabled={!!selectedTag || !!selectedAuthor || !!selectedCollection || globalMode} onChange={(e) => setSort(e.target.value as Sort)} aria-label="Sort books"><option value="title">Title A–Z</option><option value="recent">Recent</option><option value="added">Date added</option></select><ChevronDown size={14} /></label></div></div>
+            </div>
+            {creatingSubcollection && <form className="new-subcollection-form" onSubmit={event => {
+              event.preventDefault();
+              if (!newSubcollectionName.trim()) return;
+              setCollectionError(null);
+              void onCreateCollection(newSubcollectionName, selectedCollection.id).then(() => {
+                setNewSubcollectionName(''); setCreatingSubcollection(false);
+              }).catch(reason => setCollectionError(String(reason)));
+            }}>
+              <label htmlFor="new-subcollection-name">New subcollection inside {selectedCollection.name}</label>
+              <input id="new-subcollection-name" value={newSubcollectionName} maxLength={90}
+                onChange={event => setNewSubcollectionName(event.target.value)} required
+                placeholder="Subcollection name" />
+              <button type="submit" className="secondary-button"><Plus size={14}/> Create</button>
+              <button type="button" onClick={() => setCreatingSubcollection(false)}>Cancel</button>
+            </form>}
+            {collectionError && <p className="collection-form-error" role="alert">{collectionError}</p>}
+            <section className="nested-collections" aria-label={`Subcollections of ${selectedCollection.name}`}>
+              <header><h3>Subcollections</h3><span>{childCollections.length}</span></header>
+              {childCollections.length > 0 ? <div className="nested-collection-grid">
+                {childCollections.map(child => <a key={child.id} className="nested-collection-card"
+                  href={libraryCollectionUrl(child.id)}
+                  aria-label={`Open subcollection ${child.name}`}
+                  onClick={event => openInternalLinkInCurrentTab(event, () => browseCollection(child.id))}>
+                  <Library size={21} aria-hidden="true"/>
+                  <span><strong>{child.name}</strong>
+                    <small>{child.bookIds.length} direct novels · {collectionChildren(collections, child.id).length} subcollections</small>
+                  </span><ChevronDown size={15} className="nested-collection-arrow" aria-hidden="true"/>
+                </a>)}
+              </div> : <p>No subcollections yet. Create one here, or move another collection under this one.</p>}
+            </section>
+          </>}<div className="library-toolbar"><div className="toolbar-right"><label className="tag-filter"><Tag size={16} /><select aria-label="Filter novels by tag" value={selectedTag} onChange={(e) => browseTag(e.target.value)}><option value="">All tags</option>{availableTags.map(({tag, count}) => <option key={tag} value={tag}>{tag} ({count})</option>)}</select><ChevronDown size={14} /></label><label className="search-field"><Search size={17} /><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={selectedCollection ? `Search ${selectedCollection.name}…` : selectedTag ? `Search ${displayTag} novels…` : "Search this shelf…"} aria-label="Search within current list" />{query && <button aria-label="Clear search" onClick={() => setQuery('')}><X size={14} /></button>}</label><label className="sort-field"><Settings2 size={16} /><select value={selectedTag || selectedAuthor || selectedCollection || globalMode ? 'title' : sort} disabled={!!selectedTag || !!selectedAuthor || !!selectedCollection || globalMode} onChange={(e) => setSort(e.target.value as Sort)} aria-label="Sort books"><option value="title">Title A–Z</option><option value="recent">Recent</option><option value="added">Date added</option></select><ChevronDown size={14} /></label></div></div>
 
             {visible.length ? <div className="book-grid">{visible.map((book) => <article className="book-tile" key={book.id}><a className="cover-button" href={namedNovelUrl(book, allBooks)}
                   onClick={event => openNovelInCurrentTab(event, () => onOpen(book))}
@@ -524,7 +613,7 @@ export default function LibraryDashboard({
               {book.shelfStatus === 'trying' && <span className="tile-trying-status">TRYING</span>}
               {book.personalRating && <span className="book-rating-pill"><Star size={12} fill="currentColor" /> {book.personalRating}/10</span>}
               {book.progress > 0 && <><div className="mini-progress" aria-hidden="true"><i style={{ width: `${Math.min(100, Math.max(0, book.progress))}%` }} /></div><span className="tile-progress-value">{Math.round(book.progress)}%</span></>}
-              </div></div></article>)}</div> : <div className="no-results"><BookOpen size={27} /><h3>{filter === 'offline' ? 'No novels saved offline' : books.length ? 'No novels on this shelf' : 'Your library is waiting'}</h3><p>{filter === 'offline' ? 'While connected, choose Save offline on a novel to make it available here.' : books.length ? 'Try a different search or tag.' : 'Import a novel ZIP, then connect your private cloud dataset to use the same collection on other devices.'}</p>{!books.length && <button className="secondary-button" onClick={onImportClick}><Upload size={17} /> Choose a ZIP or EPUB</button>}</div>}
+              </div></div></article>)}</div> : <div className="no-results"><BookOpen size={27} /><h3>{filter === 'offline' ? 'No novels saved offline' : selectedCollection ? 'No novels directly in this collection' : books.length ? 'No novels on this shelf' : 'Your library is waiting'}</h3><p>{filter === 'offline' ? 'While connected, choose Save offline on a novel to make it available here.' : books.length ? 'Try a different search or tag.' : 'Import a novel ZIP, then connect your private cloud dataset to use the same collection on other devices.'}</p>{!books.length && <button className="secondary-button" onClick={onImportClick}><Upload size={17} /> Choose a ZIP or EPUB</button>}</div>}
             {filter === 'offline' && !globalMode && !selectedTag && localBackups.some(book => cachedEpubIds.includes(book.id)) &&
               <details className="offline-local-backups">
                 <summary><BookOpen size={16}/> {localBackups.filter(book => cachedEpubIds.includes(book.id)).length} additional local EPUB {localBackups.filter(book => cachedEpubIds.includes(book.id)).length === 1 ? 'copy' : 'copies'} preserved

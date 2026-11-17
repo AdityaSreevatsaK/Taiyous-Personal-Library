@@ -176,3 +176,80 @@
   .app-shell .top-nav-dropdown-item span {overflow-wrap:anywhere;min-width:0}
   .app-shell .top-nav-dropdown-item small {flex:0 0 auto}
 }
+
+/* A lightweight, accessible collection tree. Retains all six reader palettes. */
+.app-shell .top-nav-collection-form select {
+  width:100%; min-width:0; padding:9px; border:1px solid var(--border);
+  border-radius:6px; background:var(--surface); color:var(--text);
+  font:inherit;
+}
+.app-shell .collection-breadcrumbs {
+  display:flex; align-items:center; flex-wrap:wrap; gap:7px;
+  color:var(--subtext); font-size:12px; margin:0 0 10px;
+  min-width:0; overflow-wrap:anywhere;
+}
+.app-shell .collection-breadcrumbs a {
+  color:var(--text); text-underline-offset:3px;
+}
+.app-shell .collection-crumb {display:inline-flex;align-items:center;gap:7px;min-width:0}
+.app-shell .collection-crumb strong {color:var(--text)}
+.app-shell .collection-parent-control {
+  display:inline-flex; align-items:center; gap:6px;
+  font-size:12px; color:var(--text); white-space:nowrap;
+}
+.app-shell .collection-parent-control select {
+  max-width:min(220px,55vw); min-width:100px; padding:7px 8px;
+  border:1px solid var(--border); border-radius:7px;
+  background:var(--surface); color:var(--text);
+  font:inherit;
+}
+.app-shell .collection-form-error {color:var(--text);border-inline-start:3px solid #be604f;
+  padding:7px 11px; font-size:12px; margin:8px 0; background:var(--pale)}
+.app-shell .new-subcollection-form {
+  display:flex; flex-wrap:wrap; align-items:center; gap:9px;
+  border:1px solid var(--border); border-radius:10px; background:var(--surface);
+  padding:12px; margin:10px 0;
+}
+.app-shell .new-subcollection-form label {
+  font-size:12px; color:var(--text); font-weight:600;
+}
+.app-shell .new-subcollection-form input {
+  flex:1 1 160px; min-width:0; border:1px solid var(--border);
+  border-radius:7px; padding:10px; background:var(--surface-soft); color:var(--text);
+}
+.app-shell .new-subcollection-form button:not(.secondary-button) {
+  border:1px solid var(--border); border-radius:7px; padding:9px;
+  background:var(--pale); color:var(--text);
+}
+.app-shell .nested-collections {
+  margin:12px 0 18px; padding:14px; background:var(--surface-soft);
+  border:1px solid var(--border); border-radius:11px;
+}
+.app-shell .nested-collections header {
+  display:flex; align-items:center; gap:8px; margin-bottom:10px;
+}
+.app-shell .nested-collections h3 {
+  font:700 16px/1.4 Georgia,serif; color:var(--text); margin:0;
+}
+.app-shell .nested-collections header > span {font-size:12px;color:var(--subtext)}
+.app-shell .nested-collections > p {margin:5px 0 0;font-size:12px;color:var(--subtext)}
+.app-shell .nested-collection-grid {
+  display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,230px),1fr));gap:10px;
+}
+.app-shell .nested-collection-card {
+  display:flex;gap:12px;align-items:center;min-width:0;min-height:78px;
+  text-decoration:none;padding:13px;border:1px solid var(--border);border-radius:9px;
+  background:var(--surface);color:var(--text);box-shadow:0 3px 12px #00000009;
+}
+.app-shell .nested-collection-card:hover,.app-shell .nested-collection-card:focus-visible {
+  border-color:var(--accent);background:var(--pale);outline-offset:2px;
+}
+.app-shell .nested-collection-card>span {min-width:0;flex:1;overflow-wrap:anywhere}
+.app-shell .nested-collection-card strong {display:block;font-size:13px;line-height:1.35}
+.app-shell .nested-collection-card small {display:block;font-size:11px;color:var(--subtext);margin-top:5px}
+.app-shell .nested-collection-arrow {transform:rotate(-90deg);flex:0 0 auto;color:var(--subtext)}
+@media(max-width:700px){
+  .app-shell .collection-parent-control {width:100%;justify-content:space-between}
+  .app-shell .collection-parent-control select {max-width:65vw}
+  .app-shell .new-subcollection-form label {width:100%}
+}
