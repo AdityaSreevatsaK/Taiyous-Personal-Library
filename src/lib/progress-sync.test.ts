@@ -14,6 +14,13 @@ describe('private reading progress sync', () => {
     expect(result.currentChapter).toBe('Chapter 3');
     expect(result.pendingProgressSync).toBe(false);
   });
+  it('retains the local Finished marker if a later cloud position is earlier in the novel', () => {
+    const completed = { ...book, progress: 15, completedAt: 200 };
+    const result = applyCloudReadingProgress(completed, { ...remote, progress: 12, updatedAt: 350 });
+    expect(result.progress).toBe(12);
+    expect(result.completedAt).toBe(200);
+  });
+
   it('does not overwrite a newer unsynced local position', () => {
     expect(applyCloudReadingProgress({ ...book, progress: 81, progressUpdatedAt: 400, pendingProgressSync: true }, remote).progress).toBe(81);
   });
