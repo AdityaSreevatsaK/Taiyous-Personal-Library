@@ -21,11 +21,12 @@ jobs:
     env:
       HF_DISPOSABLE_TEST_TOKEN: ${{ secrets.HF_DISPOSABLE_TEST_TOKEN }}
     steps:
-      # Run only the isolated helper on the approved sync PR branch. The
+      # Run only the isolated helper from current-master sync draft PR #57. The
       # checkout has no write credential and cannot modify the GitHub repo.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: fix/revision-aware-personal-sync-20261111
+          # Run only the audited disposable test helper at an immutable draft SHA.
+          ref: ec7a7df75656940fbffde8fdbc6679810e465ef2
           persist-credentials: false
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
@@ -51,4 +52,4 @@ jobs:
         if: steps.token.outputs.available == 'no'
         run: |
           echo 'BLOCKED: no HF_DISPOSABLE_TEST_TOKEN configured. The integration check was NOT run.' >> "$GITHUB_STEP_SUMMARY"
-          echo 'Do not merge the sync PR or tag v1.0.0 solely from this workflow.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'Do not merge sync PR #57 or tag a release solely from simulated CI.' >> "$GITHUB_STEP_SUMMARY"
