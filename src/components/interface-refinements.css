@@ -652,3 +652,32 @@
     width:100%;min-height:43px;
   }
 }
+
+
+/* Filtered tag/author headings receive the full phone width. Previously
+ * the adjacent escape button squeezed "Martial Arts" onto two lines. */
+@media(max-width:700px) {
+  .app-shell .page-head.page-head-compact {
+    display:flex;flex-direction:column;align-items:stretch;
+    justify-content:flex-start;gap:12px;min-width:0;
+  }
+  .app-shell .page-head.page-head-compact > div:first-child {
+    width:100%;min-width:0;
+  }
+  .app-shell .page-head.page-head-compact h1 {
+    width:100%;max-width:none;
+    font-size:clamp(30px,7.5vw,38px);
+    overflow-wrap:normal;word-break:normal;
+    text-wrap:pretty;
+  }
+  .app-shell .page-head.page-head-compact .eyebrow {
+    max-width:100%;min-width:0;
+  }
+  .app-shell .page-head.page-head-compact .page-head-actions {
+    display:flex;flex-wrap:wrap;width:100%;min-width:0;
+    align-items:center;justify-content:flex-start;gap:9px;
+  }
+  .app-shell .page-head.page-head-compact .tag-clear-link {
+    min-height:38px;white-space:nowrap;
+  }
+}
