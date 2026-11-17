@@ -1446,7 +1446,13 @@ try {
     // Reloading a deep link can persist real progress, legitimately changing
     // this action's label from Start reading to Continue reading.
     await page.getByRole('link', { name: /^(Start reading|Continue reading)$/ }).click();
-    await page.getByRole('button', { name: 'Go to library home' }).click();
+    if (viewport.width <= 700) {
+      await page.locator('.reader-header .quick-nav-mobile summary').click();
+      await page.getByRole('group', { name:'Library shortcuts' })
+        .getByRole('link', { name:'Home', exact:true }).click();
+    } else {
+      await page.getByRole('button', { name: 'Go to library home' }).click();
+    }
     await page.getByRole('navigation', { name: 'Library sections' }).waitFor();
     await navigateShelf(/All books/, 'all');
     await page.waitForURL('**/library');
