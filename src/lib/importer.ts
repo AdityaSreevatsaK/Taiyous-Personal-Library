@@ -164,7 +164,11 @@ export async function prepareImport(file: File): Promise<ImportedBook> {
   if (!bytes.byteLength || bytes.byteLength > MAX_EPUB_BYTES) throw new Error(`${file.name}: EPUB is empty or exceeds 120 MB.`);
 
   const details = await extractEpubMetadata(bytes);
-  const hash = await crypto.subtle.digest('SHA-256', bytes);
+  // TypeScript 5.9 requires Web Crypto BufferSource backed by ArrayBuffer,
+  // whereas decoded ZIP bytes can carry the wider ArrayBufferLike type.
+  const digestBuffer = new ArrayBuffer(bytes.byteLength);
+  new Uint8Array(digestBuffer).set(bytes);
+  const hash = await crypto.subtle.digest('SHA-256', digestBuffer);
   const id = Array.from(new Uint8Array(hash), (b) => b.toString(16).padStart(2, '0')).join('').slice(0, 24);
   const now = Date.now();
   const epub = new Blob([new Uint8Array(bytes)], { type: 'application/epub+zip' });
