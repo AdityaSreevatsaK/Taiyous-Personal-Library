@@ -930,24 +930,17 @@ export default function App() {
     setCollectionsSyncPending(true);
     if (cloudRepo && cloudSession) {
       try {
-        const synced = await saveCloudCollections(cloudRepo, cloudSession, next);
-        const combined = mergeCollections(synced, collectionsRef.current);
-        collectionsRef.current = combined;
-        writeLocalCollections(combined);
-        setCollections(combined);
-        // If another edit happened during this upload, retain its pending flag.
-        if (collectionsRef.current.every(c => {
-          const syncedEntry = synced.find(s => s.id === c.id);
-          return syncedEntry && syncedEntry.updatedAt >= c.updatedAt;
-        })) {
-          writeCollectionsPending(false);
-          setCollectionsSyncPending(false);
+        const outcome = await reconcileCollections(cloudRepo, cloudSession, next, true,
+          readCollectionsCloudRevision(), readCollectionsConflict());
+        applyCollectionsOutcome(outcome, next);
+        if (outcome.conflict) {
+          setLastSyncError('Collections were saved locally. Resolve the competing cloud copy in Settings.');
         }
       } catch (cause) {
         setError(`Collections saved on this device, but cloud sync failed: ${String(cause)}`);
       }
     }
-  }, [cloudRepo, cloudSession]);
+  }, [cloudRepo, cloudSession, applyCollectionsOutcome]);
 
   const createCollection = useCallback(async (name: string) => {
     const cleaned = name.trim().slice(0, 90);
