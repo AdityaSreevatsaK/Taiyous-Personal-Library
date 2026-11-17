@@ -504,3 +504,58 @@
   .details-shell .details-hero .details-meta-row {padding:8px}
   .details-shell .details-hero .details-meta-row span {font-size:10px}
 }
+
+
+/* Direct novel collection memberships live in a compact, top-right hero row.
+ * Grid placement prevents collisions with long titles, covers and tags. */
+.details-shell .details-hero.has-member-collections { row-gap:12px; }
+.details-shell .details-hero .details-hero-memberships {
+  position:relative; z-index:4;
+  grid-column:1 / -1; grid-row:1; justify-self:end;
+  width:100%; min-width:0;
+  display:flex; justify-content:flex-end; align-items:center;
+  flex-wrap:wrap; gap:7px 8px;
+  color:#fff; text-shadow:none;
+}
+.details-shell .details-hero-memberships-label {
+  display:inline-flex; align-items:center; gap:6px;
+  flex:0 0 auto; color:#fff;
+  font-size:10px; font-weight:800; letter-spacing:.09em;
+  text-shadow:0 1px 5px #000;
+}
+.details-shell .details-hero .details-hero-membership {
+  display:inline-block; flex:0 1 auto; min-width:0;
+  max-width:min(265px,40vw);
+  padding:7px 11px;
+  overflow:hidden; white-space:nowrap; text-overflow:ellipsis;
+  border:1px solid #ffffffbd; border-radius:7px;
+  background:#0b1426d9; color:#fff;
+  text-decoration:none; text-shadow:none;
+  font-size:11px; font-weight:700; line-height:1.35;
+  transition:background-color .12s ease,border-color .12s ease;
+}
+.details-shell .details-hero .details-hero-membership:hover {
+  background:#101d32f5; border-color:#fff;
+}
+.details-shell .details-hero .details-hero-membership:focus-visible {
+  outline:2px solid #fff; outline-offset:3px;
+}
+@media(max-width:700px) {
+  /* The mobile title, memberships and cover get their own rows, not overlays. */
+  .details-shell .details-hero.has-member-collections .details-hero-memberships {
+    grid-column:1 / -1; grid-row:2;
+    justify-self:stretch; justify-content:flex-end;
+    width:100%; gap:6px;
+  }
+  .details-shell .details-hero.has-member-collections .details-cover-wrap {grid-row:3}
+  .details-shell .details-hero.has-member-collections .details-hero-facts {grid-row:3}
+  .details-shell .details-hero.has-member-collections .details-hero-actions {grid-row:4}
+  .details-shell .details-hero-memberships-label {font-size:9px}
+  .details-shell .details-hero .details-hero-membership {
+    max-width:min(265px,100%);
+    padding:6px 9px; font-size:10px;
+  }
+}
+@media(prefers-reduced-motion:reduce) {
+  .details-shell .details-hero .details-hero-membership {transition:none}
+}
