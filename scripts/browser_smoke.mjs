@@ -183,6 +183,17 @@ try {
     await page.locator('.app-shell.theme-sepia').waitFor({ state: 'visible' });
     // Local private analytics must be usable and switchable without a server.
     const nav = page.getByRole('navigation', { name: 'Library sections' });
+    const navLinks = await nav.locator('.top-nav-links > a[href]').count();
+    if (navLinks !== 8) {
+      throw new Error('Home and all seven desktop shelf tabs must be real links: ' + navLinks);
+    }
+    if (await page.getByRole('link', { name: 'Advanced search' }).getAttribute('href') !== '/advanced-search') {
+      throw new Error('Advanced search must have a copyable, new-tab URL');
+    }
+    if (await nav.getByRole('link', { name: 'Open Master Controls' }).getAttribute('href') !== '/master-controls') {
+      throw new Error('Master Controls must have a real deep link');
+    }
+
     // Logo and shelf tabs are real hyperlinks; Ctrl-click opens a new tab.
     const openInNewTab = async (locator, expectedPath) => {
       const href = await locator.getAttribute('href');
