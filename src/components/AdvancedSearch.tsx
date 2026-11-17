@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { ArrowLeft, BookOpen, Filter, Search, SlidersHorizontal, Star, Tag, X } from 'lucide-react';
 import { bookTags } from '../lib/tags';
+import { ratingLabel } from '../lib/ratings';
 import { namedNovelUrl } from '../lib/routes';
 import { openNovelInCurrentTab, revealClippedLinkTitle } from '../lib/novel-links';
 import type { LibraryBook } from '../types';
@@ -29,7 +30,9 @@ export function matchesAdvancedSearch(book: LibraryBook, criteria: SearchCriteri
   const tests: boolean[] = [];
   const name = criteria.name.trim().toLocaleLowerCase();
   const comments = criteria.comments.trim().toLocaleLowerCase();
-  if (name) tests.push((book.title + ' ' + book.author).toLocaleLowerCase().includes(name));
+  // A typed title/author query is always required to match. "Match any"
+  // only affects the optional filters; it must not show unrelated novels.
+  if (name && !(book.title + ' ' + book.author).toLocaleLowerCase().includes(name)) return false;
   if (comments) tests.push((book.personalReview || '').toLocaleLowerCase().includes(comments));
   if (criteria.tags.length) {
     const owned = new Set(bookTags(book).map(tag => tag.toLocaleLowerCase()));
@@ -52,7 +55,9 @@ interface Props {
   books: LibraryBook[];
   allBooks: LibraryBook[];
   offlineIds: string[];
-  initialName?: string;
+  /** Shared search term displayed in the global library search and this panel. */
+  nameQuery: string;
+  onNameQueryChange: (query: string) => void;
   cloudRepo: string;
   cloudSession: CloudSession | null;
   onClose: () => void;
@@ -60,16 +65,23 @@ interface Props {
   onBrowseTag?: (tag: string) => void;
 }
 
-export default function AdvancedSearch({ books, allBooks, offlineIds, initialName = '', cloudRepo, cloudSession, onClose, onOpen, onBrowseTag }: Props) {
-  const [criteria, setCriteria] = useState<SearchCriteria>({ ...defaultSearchCriteria, name: initialName });
+export default function AdvancedSearch({ books, allBooks, offlineIds, nameQuery, onNameQueryChange, cloudRepo, cloudSession, onClose, onOpen, onBrowseTag }: Props) {
+  // One source of truth for title/author search across both visible search boxes.
+  // Other advanced criteria remain local to this page, never cached or fetched.
+  const [criteria, setCriteria] = useState<SearchCriteria>({ ...defaultSearchCriteria });
+  const activeCriteria = useMemo(() => ({ ...criteria, name: nameQuery }), [criteria, nameQuery]);
+  const resetFilters = () => {
+    setCriteria({ ...defaultSearchCriteria });
+    onNameQueryChange('');
+  };
   const [sort, setSort] = useState<'title' | 'rating' | 'recent'>('title');
   const availableTags = useMemo(
     () => [...new Set(books.flatMap(bookTags))].sort((a, b) => a.localeCompare(b)), [books]);
   const cached = useMemo(() => new Set(offlineIds), [offlineIds]);
-  const results = useMemo(() => books.filter(book => matchesAdvancedSearch(book, criteria, cached)).sort((a, b) =>
+  const results = useMemo(() => books.filter(book => matchesAdvancedSearch(book, activeCriteria, cached)).sort((a, b) =>
     sort === 'rating' ? (b.personalRating ?? -1) - (a.personalRating ?? -1) || a.title.localeCompare(b.title)
       : sort === 'recent' ? (b.lastOpenedAt || 0) - (a.lastOpenedAt || 0)
-        : a.title.localeCompare(b.title)), [books, criteria, cached, sort]);
+        : a.title.localeCompare(b.title)), [books, activeCriteria, cached, sort]);
   const update = <K extends keyof SearchCriteria>(key: K, value: SearchCriteria[K]) =>
     setCriteria(previous => ({ ...previous, [key]: value }));
   const toggleTag = (tag: string) => setCriteria(previous => ({
@@ -87,29 +99,37 @@ export default function AdvancedSearch({ books, allBooks, offlineIds, initialNam
     <div className="advanced-search-layout">
       <aside className="advanced-filter-panel" aria-label="Advanced search filters">
         <div className="advanced-panel-heading"><Filter size={18}/><strong>Filters</strong>
-          <button type="button" onClick={() => setCriteria({ ...defaultSearchCriteria })}>Clear all</button>
+          <button type="button" onClick={resetFilters}>Clear all</button>
         </div>
         <label className="advanced-field">Novel name or author
-          <span><Search size={16}/><input aria-label="Search by novel name or author" value={criteria.name}
-            onChange={event => update('name', event.target.value)} placeholder="Title or author…" /></span>
+          <span><Search size={16}/><input aria-label="Search by novel name or author" value={nameQuery}
+            onChange={event => onNameQueryChange(event.target.value)} placeholder="Title or author…" /></span>
         </label>
         <label className="advanced-field">Words in my comments
           <span><Search size={16}/><input aria-label="Search personal comments" value={criteria.comments}
             onChange={event => update('comments', event.target.value)} placeholder="e.g. excellent romance" /></span>
         </label>
-        <div className="advanced-field"><span className="advanced-field-label"><Star size={15}/> Personal rating</span>
+        <div className="advanced-field"><span className="advanced-field-label"><Star size={15}/> Personal rating (1–10)</span>
+          <p id="advanced-rating-guide" className="advanced-filter-help">1 = Terrible · 5 = Average · 9 = Excellent · 10 = Masterpiece</p>
           <div className="advanced-rating-range">
-            <label>From<select aria-label="Minimum rating" value={criteria.minRating}
+            <label>From<select aria-label="Minimum rating" aria-describedby="advanced-rating-guide" value={criteria.minRating}
               onChange={event => update('minRating', Math.min(Number(event.target.value), criteria.maxRating))}>
-              {Array.from({ length: 11 }, (_, i) => <option key={i} value={i}>{i === 0 ? 'Any' : i + '/10'}</option>)}
+              <option value={0}>Any rating</option>
+              {Array.from({ length: 10 }, (_, index) => index + 1).map(value =>
+                <option key={value} value={value}>{value}/10 · {ratingLabel(value)}</option>)}
             </select></label>
-            <label>To<select aria-label="Maximum rating" value={criteria.maxRating}
+            <label>To<select aria-label="Maximum rating" aria-describedby="advanced-rating-guide" value={criteria.maxRating}
               onChange={event => update('maxRating', Math.max(Number(event.target.value), criteria.minRating))}>
-              {Array.from({ length: 11 }, (_, i) => <option key={i} value={i}>{i === 10 ? 'Any' : i + '/10'}</option>)}
+              {Array.from({ length: 10 }, (_, index) => index + 1).map(value =>
+                <option key={value} value={value}>{value}/10 · {ratingLabel(value)}</option>)}
             </select></label>
           </div>
+          <p className="advanced-filter-help">{criteria.minRating === 0 && criteria.maxRating === 10
+            ? 'All novels, including unrated ones, unless you set a range.'
+            : 'Only novels with a saved personal rating in this range.'}</p>
         </div>
         <fieldset className="advanced-tags"><legend><Tag size={15}/> Tags</legend>
+          <p className="advanced-filter-help">Genres and labels attached to novels. Select any that interest you.</p>
           <div className="advanced-tag-options">
             {availableTags.length ? availableTags.map(tag => <label key={tag} className={criteria.tags.includes(tag) ? 'checked' : ''}>
               <input type="checkbox" checked={criteria.tags.includes(tag)} onChange={() => toggleTag(tag)}/>{tag}
@@ -136,7 +156,8 @@ export default function AdvancedSearch({ books, allBooks, offlineIds, initialNam
           </select></label>
         </div>
         <p className="advanced-mode-hint">{criteria.mode === 'all'
-          ? 'A book must meet every active filter.' : 'A book may meet any active filter.'}</p>
+          ? 'Title or author must match, together with every active filter.'
+          : 'Title or author must match. Other filters may match individually.'}</p>
         {results.length ? <div className="advanced-results-grid">
           {results.map(book => <article className="advanced-result" key={book.id}>
             <a href={namedNovelUrl(book, allBooks)} className="advanced-result-cover"
@@ -158,7 +179,7 @@ export default function AdvancedSearch({ books, allBooks, offlineIds, initialNam
           </article>)}
         </div> : <div className="no-results"><Search size={30}/><h3>No matching books</h3>
           <p>Try fewer filters, a different rating range, or Match any.</p>
-          <button type="button" className="secondary-button" onClick={() => setCriteria({ ...defaultSearchCriteria })}><X size={14}/> Reset filters</button>
+          <button type="button" className="secondary-button" onClick={resetFilters}><X size={14}/> Reset filters</button>
         </div>}
       </div>
     </div>

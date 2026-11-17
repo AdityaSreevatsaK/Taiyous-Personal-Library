@@ -117,10 +117,14 @@ export default function App() {
   }, [routePath]);
 
   const goLibrary = useCallback(() => {
-    navigate('/');
+    // Every Home/logo action must return to the actual homepage, not revive a
+    // previous search, filtered shelf or collection from shared React state.
+    setGlobalSearch('');
+    setBrowseTag('');
     setReadingId(null);
     setDetailsId(null);
     setStartChapterHref(null);
+    navigate('/');
   }, [navigate]);
   const browseLibraryFromNovel = useCallback((path: string) => {
     setReadingId(null);
