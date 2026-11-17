@@ -333,25 +333,10 @@
   }
   .editorial-home .editorial-margin-stats>button strong{font-size:28px}
 }
-/* No mock book covers for genre/collection shelves when no real art exists. */
-.editorial-home .editorial-shelf-card:not(:has(.editorial-shelf-cover)) {
-  padding-inline:20px;
-}
-.editorial-home .editorial-shelf-card:not(:has(.editorial-shelf-cover))
- .editorial-shelf-details strong {font-size:20px}
-
-
-/* A declared coverPath is not proof that a cover image actually loaded.
-   Never expose the decorative fallback as a genre/collection tile image. */
-/* Keep the candidate observable while artwork loads. display:none would deadlock
-   IntersectionObserver and permanently suppress genuine hosted covers. */
+/* Genre tiles always have a legible cover: the genuine image or a designed
+ * library edition when the private artwork is absent or unavailable. */
 .editorial-home .editorial-shelf-card {position:relative}
-.editorial-home .editorial-shelf-cover:not(:has(.cover-has-image)) {
-  position:absolute;left:14px;top:14px;opacity:0;pointer-events:none;
-}
-.editorial-home .editorial-shelf-cover:has(.cover-has-image) {
-  position:relative;opacity:1;transition:opacity .2s ease;
-}
+.editorial-home .editorial-shelf-cover {position:relative;opacity:1;pointer-events:none}
 .editorial-home .editorial-shelf-details strong {display:block;min-width:0}
 
 /* Editorial index: deliberate, easily visible contrast rather than a pale
@@ -464,15 +449,6 @@
     line-height:1.45;text-align:left;
   }
 }
-/* Floating cover gallery: never represent a decorative placeholder as a
- * real book jacket. Wait until the private artwork has actually decoded. */
-.editorial-home .editorial-art-book:not(:has(.cover-has-image)) {
-  visibility:hidden;pointer-events:none;
-}
-.editorial-home .editorial-grand-gallery:not(:has(.cover-has-image))::after {
-  content:'The stories are waiting';
-  display:block;position:absolute;top:50%;left:50%;width:max-content;
-  max-width:95%;transform:translate(-50%,-50%);
-  font:italic 18px/1.4 Georgia,serif;color:#e0cfacb8;
-  text-align:center;letter-spacing:.035em;
-}
+/* The three floating books keep their jacket silhouette even when the real
+ * covers have not yet loaded. Generated designs are clearly library editions. */
+.editorial-home .editorial-art-book {visibility:visible;pointer-events:auto}
