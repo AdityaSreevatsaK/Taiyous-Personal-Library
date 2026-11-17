@@ -9,6 +9,7 @@ import { THEME_OPTIONS, themeById } from '../lib/themes';
 import ThemeSwitcher from './ThemeSwitcher';
 import { approximateProgress, chapterIndexForHref, findChapter, firstRealChapterIndex, flattenToc, nextChapterHref, type NavigationNode, normalizeChapterHref } from '../lib/chapters';
 import { getBookFile } from '../lib/storage';
+import { disableActiveEpubLinks } from '../lib/epub-safety';
 import { virtualChapterWindow } from '../lib/chapter-virtual';
 
 interface Props {
@@ -146,6 +147,7 @@ export default function Reader({ book, settings, onSettings, onBack, onNovelDeta
         renderer.hooks.content.register((contents: any) => {
           const doc = contents?.document as Document | undefined;
           if (!doc?.head) return;
+          disableActiveEpubLinks(doc);
           // EPUB scroll/touch happens inside an iframe. Mark activity on the
           // parent without reading or reporting any novel text or locations.
           if (!doc.documentElement.hasAttribute('data-taiyou-usage-listening')) {
