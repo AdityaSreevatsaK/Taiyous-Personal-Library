@@ -5,7 +5,6 @@ import re
 
 ROOT = Path(__file__).resolve().parent.parent
 DIST = ROOT / "dist"
-README = ROOT / "README.md"
 SAFE_SUFFIXES = {".html", ".js", ".css", ".svg", ".png", ".jpg", ".jpeg", ".webp", ".gif", ".ico", ".woff", ".woff2", ".ttf", ".otf", ".map", ".json", ".webmanifest", ".txt"}
 BLOCKED_SUFFIXES = {".epub", ".zip", ".env", ".pem", ".key", ".p12", ".pfx", ".db", ".sqlite"}
 OAUTH_METADATA = Path("oauth-client.json")
@@ -18,9 +17,7 @@ SECRETS = [
 def validate():
     if not (DIST / "index.html").is_file():
         raise ValueError("Missing compiled dist/index.html")
-    readme = README.read_text(encoding="utf-8")
-    if "sdk: static" not in readme or "app_file: dist/index.html" not in readme:
-        raise ValueError("Expected static Space metadata is missing")
+    # Validate the compiled Cloudflare Pages assets, never obsolete HF Spaces README metadata.
     # Use a normal JSON asset; hidden /.well-known/ metadata fell back to SPA HTML.
     oauth_file = DIST / OAUTH_METADATA
     if not oauth_file.is_file() or oauth_file.is_symlink():
