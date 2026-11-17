@@ -229,42 +229,16 @@ try {
   const pageB = await second.newPage();
   pageB.on('pageerror', error => errors.push('device B: ' + error.message));
   await pageB.goto(base, {waitUntil: 'domcontentloaded'});
-  // CSS and tile structure have evolved; assert the persisted data itself.
-  await pageB.waitForFunction(async () => {
-    const request = indexedDB.open('folio-personal-library-v1', 3);
-    const db = await new Promise((resolve, reject) => {
-      request.onsuccess = () => resolve(request.result);
-      request.onerror = () => reject(request.error);
-    });
-    const tx = db.transaction('books', 'readonly');
-    const found = await new Promise((resolve, reject) => {
-      const get = tx.objectStore('books').get('aaaaaaaaaaaaaaaaaaaaaaaa');
-      get.onsuccess = () => resolve(get.result);
-      get.onerror = () => reject(get.error);
-    });
-    db.close();
-    return found?.progress === 80 && found?.personalRating === 6;
-  }, null, {timeout: 30000});
-  const persisted = await readBook(pageB);
-  if (!persisted) {
-    const diagnostics = await pageB.evaluate(async () => {
-      const request = indexedDB.open('folio-personal-library-v1', 3);
-      const db = await new Promise((resolve, reject) => {
-        request.onsuccess = () => resolve(request.result);
-        request.onerror = () => reject(request.error);
-      });
-      const tx = db.transaction('books', 'readonly');
-      const keys = await new Promise((resolve, reject) => {
-        const query = tx.objectStore('books').getAllKeys();
-        query.onsuccess = () => resolve(query.result);
-        query.onerror = () => reject(query.error);
-      });
-      db.close();
-      return { keys, url: location.href };
-    });
-    throw new Error('Second device book disappeared after successful IndexedDB read: '+
-      JSON.stringify(diagnostics));
+  // Wait for the new browser's actual IndexedDB record. A Promise returned
+  // from Playwright waitForFunction is not a reliable asynchronous poll.
+  await pageB.locator('.app-shell').waitFor({ state: 'visible', timeout: 25000 });
+  let persisted;
+  for (let attempt = 0; attempt < 100; attempt++) {
+    persisted = await readBook(pageB);
+    if (persisted?.progress === 80 && persisted.personalRating === 6) break;
+    await new Promise(resolve => setTimeout(resolve, 250));
   }
+  assert(persisted !== undefined, 'Second device never saved its hosted library record');
   assert(persisted.progress === 80 && persisted.personalRating === 6,
     'Second device did not load the chosen progress and review');
   assert(persisted.shelfStatus === 'trying', 'Trying shelf status was not synchronised');
