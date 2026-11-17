@@ -1087,7 +1087,44 @@ try {
     await page.getByRole('navigation', { name: 'Collection hierarchy' })
       .getByRole('link', { name: 'Example Series' }).click();
     await page.getByRole('link', { name: 'View details for Sample Library Book' }).waitFor();
-    // The current novel title returns to details; the library brand goes home.
+    // Add the novel to a nested collection as well, without removing its parent membership.
+    await page.getByRole('combobox', { name: 'Add Sample Library Book to collection' })
+      .selectOption({ label:'Arc A' });
+    await page.getByRole('link', { name: 'View details for Sample Library Book' }).click();
+    await page.getByRole('heading', { name: 'Sample Library Book' }).waitFor();
+
+    // The top-right membership chips must show direct membership with full nested paths.
+    const membershipNav = page.getByRole('navigation', { name: 'Collections containing this novel' });
+    await membershipNav.getByRole('link', { name: 'Open collection Example Series', exact:true }).waitFor();
+    const nestedMembership = membershipNav.getByRole('link', {
+      name: 'Open collection Example Series / Volume One / Arc A',
+    });
+    await nestedMembership.waitFor();
+    if (await nestedMembership.getAttribute('href') !== arcUrl) {
+      throw new Error('Nested membership does not target its stable collection URL');
+    }
+    const membershipLayout = await page.locator('.details-hero').evaluate(hero => {
+      const badge = hero.querySelector('.details-hero-memberships')?.getBoundingClientRect();
+      const heading = hero.querySelector('.details-hero-heading')?.getBoundingClientRect();
+      const cover = hero.querySelector('.details-cover-wrap')?.getBoundingClientRect();
+      const bounds = hero.getBoundingClientRect();
+      const overlaps = (a,b) => !!a && !!b && a.left < b.right - 1 && a.right > b.left + 1 &&
+        a.top < b.bottom - 1 && a.bottom > b.top + 1;
+      return {
+        visible:!!badge && badge.width > 0 && badge.height > 0,
+        inside:!!badge && badge.left >= bounds.left && badge.right <= bounds.right + 1,
+        rightAligned:!!badge && badge.right >= bounds.right - 95,
+        titleClear:!overlaps(badge,heading),
+        coverClear:!overlaps(badge,cover),
+      };
+    });
+    if (Object.values(membershipLayout).some(value => !value)) {
+      throw new Error('Collection chips are not visible at top-right or overlap the hero: '
+        + JSON.stringify(membershipLayout));
+    }
+    // Collection links remain functional without fetching a new catalogue.
+    await nestedMembership.click();
+    await page.waitForURL('**' + arcUrl);
     await page.getByRole('link', { name: 'View details for Sample Library Book' }).click();
     await page.getByRole('heading', { name: 'Sample Library Book' }).waitFor();
     if (await page.evaluate(() => window.scrollY) > 8) throw new Error('Novel details inherited old library scroll offset');
