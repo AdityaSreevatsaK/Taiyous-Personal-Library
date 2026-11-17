@@ -23,7 +23,7 @@ jobs:
       revision: ${{ steps.source.outputs.revision }}
     steps:
       - name: Fetch pinned isolated preview source, NEVER production checkout
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: b0fe0092e8aa5c3a1cc0a12f4b0d627e02581cc5
           persist-credentials: false
