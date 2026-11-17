@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { ArrowLeft, BookOpen, Filter, Search, SlidersHorizontal, Star, Tag, X } from 'lucide-react';
 import { bookTags } from '../lib/tags';
+import { ratingLabel } from '../lib/ratings';
 import { namedNovelUrl } from '../lib/routes';
 import { openNovelInCurrentTab, revealClippedLinkTitle } from '../lib/novel-links';
 import type { LibraryBook } from '../types';
@@ -106,19 +107,27 @@ export default function AdvancedSearch({ books, allBooks, offlineIds, nameQuery,
           <span><Search size={16}/><input aria-label="Search personal comments" value={criteria.comments}
             onChange={event => update('comments', event.target.value)} placeholder="e.g. excellent romance" /></span>
         </label>
-        <div className="advanced-field"><span className="advanced-field-label"><Star size={15}/> Personal rating</span>
+        <div className="advanced-field"><span className="advanced-field-label"><Star size={15}/> Personal rating (1–10)</span>
+          <p id="advanced-rating-guide" className="advanced-filter-help">1 = Terrible · 5 = Average · 9 = Excellent · 10 = Masterpiece</p>
           <div className="advanced-rating-range">
-            <label>From<select aria-label="Minimum rating" value={criteria.minRating}
+            <label>From<select aria-label="Minimum rating" aria-describedby="advanced-rating-guide" value={criteria.minRating}
               onChange={event => update('minRating', Math.min(Number(event.target.value), criteria.maxRating))}>
-              {Array.from({ length: 11 }, (_, i) => <option key={i} value={i}>{i === 0 ? 'Any' : i + '/10'}</option>)}
+              <option value={0}>Any rating</option>
+              {Array.from({ length: 10 }, (_, index) => index + 1).map(value =>
+                <option key={value} value={value}>{value}/10 · {ratingLabel(value)}</option>)}
             </select></label>
-            <label>To<select aria-label="Maximum rating" value={criteria.maxRating}
+            <label>To<select aria-label="Maximum rating" aria-describedby="advanced-rating-guide" value={criteria.maxRating}
               onChange={event => update('maxRating', Math.max(Number(event.target.value), criteria.minRating))}>
-              {Array.from({ length: 11 }, (_, i) => <option key={i} value={i}>{i === 10 ? 'Any' : i + '/10'}</option>)}
+              {Array.from({ length: 10 }, (_, index) => index + 1).map(value =>
+                <option key={value} value={value}>{value}/10 · {ratingLabel(value)}</option>)}
             </select></label>
           </div>
+          <p className="advanced-filter-help">{criteria.minRating === 0 && criteria.maxRating === 10
+            ? 'All novels, including unrated ones, unless you set a range.'
+            : 'Only novels with a saved personal rating in this range.'}</p>
         </div>
         <fieldset className="advanced-tags"><legend><Tag size={15}/> Tags</legend>
+          <p className="advanced-filter-help">Genres and labels attached to novels. Select any that interest you.</p>
           <div className="advanced-tag-options">
             {availableTags.length ? availableTags.map(tag => <label key={tag} className={criteria.tags.includes(tag) ? 'checked' : ''}>
               <input type="checkbox" checked={criteria.tags.includes(tag)} onChange={() => toggleTag(tag)}/>{tag}
