@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 import type { LibraryBook, ReaderTheme } from '../types';
 import { isFinished, isCurrentlyReading } from '../lib/reading-status';
-import { openNovelInCurrentTab, openInternalLinkInCurrentTab } from '../lib/novel-links';
+import { openNovelInCurrentTab, openInternalLinkInCurrentTab, revealClippedLinkTitle } from '../lib/novel-links';
 import { namedNovelUrl } from '../lib/routes';
 import { bookTags, includesTag, tagCounts } from '../lib/tags';
 import type { CloudSession } from '../lib/cloud';
@@ -492,13 +492,14 @@ export default function LibraryDashboard({
 
             {visible.length ? <div className="book-grid">{visible.map((book) => <article className="book-tile" key={book.id}><a className="cover-button" href={namedNovelUrl(book, allBooks)}
                   onClick={event => openNovelInCurrentTab(event, () => onOpen(book))}
-                  title={book.title} aria-label={`View details for ${book.title}`}>
+                  aria-label={`View details for ${book.title}`}>
                   <Cover book={book} cloudRepo={cloudRepo} cloudSession={cloudSession} />
-                  <span className="cover-hover-title" aria-hidden="true">{book.title}</span>
+                  
                 </a><div className="tile-meta"><div className="tile-title-row"><a className="tile-title"
                   href={namedNovelUrl(book, allBooks)}
                   onClick={event => openNovelInCurrentTab(event, () => onOpen(book))}
-                  title={book.title}>{book.title}</a></div><button type="button" className="tile-author-link" onClick={() => browseAuthor(book.author)} aria-label={`View novels by ${book.author}`}>{book.author}</button>{filter === 'offline' && cachedEpubIds.includes(book.id) && <div className="offline-tile-actions">
+                  onMouseEnter={event => revealClippedLinkTitle(event, book.title)}
+                  onFocus={event => revealClippedLinkTitle(event, book.title)}>{book.title}</a></div><button type="button" className="tile-author-link" onClick={() => browseAuthor(book.author)} aria-label={`View novels by ${book.author}`}>{book.author}</button>{filter === 'offline' && cachedEpubIds.includes(book.id) && <div className="offline-tile-actions">
                 {book.cloud
                   ? <button type="button" className="offline-remove-button" onClick={() => onRemoveOffline(book)} aria-label={`Remove offline EPUB for ${book.title}`}>
                       <Trash2 size={14} /> Remove download
