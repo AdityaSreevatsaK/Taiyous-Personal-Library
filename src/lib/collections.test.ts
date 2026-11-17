@@ -90,6 +90,15 @@ describe('nested personal collections', () => {
     expect(collectionChildren(result,root.id)).toEqual([result.find(c=>c.id===grandchild.id)]);
   });
 
+  it('retains parent placement through cloud merge and rejects conflicting device cycles', () => {
+    const upgraded = { ...child, parentId:other.id, updatedAt:240 };
+    expect(mergeCollections([root,child,other], [upgraded]).find(c=>c.id===child.id)?.parentId)
+      .toBe(other.id);
+    const remoteA = { ...root, parentId:other.id, updatedAt:300 };
+    const localB = { ...other, parentId:root.id, updatedAt:301 };
+    expect(() => mergeCollections([remoteA,other], [root,localB])).toThrow(/cycle/);
+  });
+
   it('renders legacy orphaned records at the top level without losing data', () => {
     const orphan = { ...child, parentId:'deleted_parent_1' };
     expect(collectionChildren([orphan])).toEqual([orphan]);
