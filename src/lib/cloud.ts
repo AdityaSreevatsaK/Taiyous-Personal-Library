@@ -1,4 +1,3 @@
-import { uploadFiles } from '@huggingface/hub';
 import { retryTransientRead } from './network-pool';
 import type { LibraryBook, ImportedBook } from '../types';
 import { coverPathForEntry, novelFolderFromEpubPath, parseNovelFilePath, readableNovelFolder, verifiedNovelFolder } from './novel-paths';
@@ -88,7 +87,7 @@ export async function uploadPrivateDatasetFiles(
   repo: string, session: CloudSession,
   files: Array<{ path: string; content: Blob }>, commitTitle: string,
 ): Promise<void> {
-  const id = validateDatasetRepo(repo);
+  validateDatasetRepo(repo);
   if (session.via !== 'oauth') {
     // Legacy manual token mode is read-only. It cannot enforce CAS and
     // must never overwrite another device's private sidecar or catalogue.
