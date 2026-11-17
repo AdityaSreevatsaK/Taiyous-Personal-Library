@@ -1,4 +1,4 @@
-# Guarded one-shot deployment trigger reused for verified PR #58.
+# Guarded one-shot deployment trigger reused for verified PR #59.
 # Does not delete stored EPUBs, update private Hugging Face records or tag a release.
 name: "One-shot: deploy verified library updates"
 on:
@@ -29,4 +29,4 @@ jobs:
             exit 1
           fi
           gh workflow run deploy-standalone.yml --repo "$GH_REPO" --ref master -f publish=true
-          echo 'Guarded Cloudflare deployment requested for PR #58 (compatible minor dependency updates and memory-safe TypeScript 5.9 hashing). No EPUB deletion or release tag.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'Guarded Cloudflare deployment requested for PR #59 (native novel links, persistent Finished status and accessible themed scrollbars). No EPUB deletion or release tag.' >> "$GITHUB_STEP_SUMMARY"
