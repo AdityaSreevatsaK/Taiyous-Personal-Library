@@ -1459,6 +1459,38 @@ try {
           throw new Error('Catalogue metadata rows no longer align: ' + JSON.stringify({ viewport, firstRow }));
         }
         await fastPage.screenshot({path:`artifacts/design-screenshots/catalogue-tiles-${viewport.width}.png`,fullPage:true});
+        // Fixed desktop column counts replace cramped auto-fill. Exercise the
+        // actual compiled stylesheet at wide desktop, laptop, tablet and phone.
+        for (const { width, columns } of [
+          { width:1828, columns:6 },
+          { width:1366, columns:5 },
+          { width:1024, columns:4 },
+          { width:800, columns:3 },
+          { width:390, columns:2 },
+        ]) {
+          await fastPage.setViewportSize({ width, height:900 });
+          const layout = await fastPage.locator('.book-grid').evaluate(grid => {
+            const style = getComputedStyle(grid);
+            const tracks = style.gridTemplateColumns.trim().split(/\s+/).filter(Boolean);
+            const rect = grid.getBoundingClientRect();
+            const firstCover = grid.querySelector('.book-tile .cover-button > .cover')?.getBoundingClientRect();
+            return {
+              columns:tracks.length,
+              gap:parseFloat(style.columnGap),
+              width:rect.width,
+              viewport:window.innerWidth,
+              coverRatio:firstCover ? firstCover.width/firstCover.height : null,
+              maxWidth:parseFloat(style.maxWidth),
+            };
+          });
+          if (layout.columns !== columns ||
+              (width > 700 && (layout.gap < 21 || layout.width > 1761)) ||
+              (layout.coverRatio !== null && Math.abs(layout.coverRatio - 2/3) > 0.025)) {
+            throw new Error('Responsive catalogue grid regressed at ' + width + ': ' + JSON.stringify(layout));
+          }
+        }
+        await fastPage.setViewportSize(viewport);
+
       } finally {
         await fastPage.close();
       }

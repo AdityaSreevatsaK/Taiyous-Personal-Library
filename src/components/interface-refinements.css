@@ -681,3 +681,27 @@
     min-height:38px;white-space:nowrap;
   }
 }
+
+/* Roomier catalogue at native desktop zoom. Keep covers in their original 2:3
+ * proportions, with a deliberate six-column ceiling at wide desktop widths.
+ * Prevent giant jackets on ultrawide monitors; phone layout remains two across. */
+@media (min-width:701px) {
+  .app-shell .book-grid {
+    max-width:1760px;
+    margin-inline:auto;
+    column-gap:clamp(22px,1.6vw,30px);
+    row-gap:clamp(32px,2.4vw,42px);
+  }
+}
+@media (min-width:1451px) {
+  .app-shell .book-grid {grid-template-columns:repeat(6,minmax(0,1fr))}
+}
+@media (min-width:1151px) and (max-width:1450px) {
+  .app-shell .book-grid {grid-template-columns:repeat(5,minmax(0,1fr))}
+}
+@media (min-width:901px) and (max-width:1150px) {
+  .app-shell .book-grid {grid-template-columns:repeat(4,minmax(0,1fr))}
+}
+@media (min-width:701px) and (max-width:900px) {
+  .app-shell .book-grid {grid-template-columns:repeat(3,minmax(0,1fr))}
+}
