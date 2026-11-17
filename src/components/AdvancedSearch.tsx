@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { ArrowLeft, BookOpen, Filter, Search, SlidersHorizontal, Star, Tag, X } from 'lucide-react';
 import { bookTags } from '../lib/tags';
 import { namedNovelUrl } from '../lib/routes';
-import { openNovelInCurrentTab } from '../lib/novel-links';
+import { openNovelInCurrentTab, revealClippedLinkTitle } from '../lib/novel-links';
 import type { LibraryBook } from '../types';
 import type { CloudSession } from '../lib/cloud';
 import { Cover } from './LibraryDashboard';
@@ -139,11 +139,11 @@ export default function AdvancedSearch({ books, allBooks, offlineIds, initialNam
           ? 'A book must meet every active filter.' : 'A book may meet any active filter.'}</p>
         {results.length ? <div className="advanced-results-grid">
           {results.map(book => <article className="advanced-result" key={book.id}>
-            <a href={namedNovelUrl(book, allBooks)} className="advanced-result-cover" title={book.title}
+            <a href={namedNovelUrl(book, allBooks)} className="advanced-result-cover"
               onClick={event => openNovelInCurrentTab(event, () => onOpen(book))}
               aria-label={`View details for ${book.title}`}><Cover book={book} cloudRepo={cloudRepo} cloudSession={cloudSession}/></a>
             <div className="advanced-result-details">
-              <a href={namedNovelUrl(book, allBooks)} className="advanced-result-title" title={book.title} onClick={event => openNovelInCurrentTab(event, () => onOpen(book))}>{book.title}</a>
+              <a href={namedNovelUrl(book, allBooks)} className="advanced-result-title" onClick={event => openNovelInCurrentTab(event, () => onOpen(book))} onMouseEnter={event => revealClippedLinkTitle(event, book.title)} onFocus={event => revealClippedLinkTitle(event, book.title)}>{book.title}</a>
               <p>{book.author || 'Unknown author'}</p>
               <div className="advanced-result-meta">
                 {book.personalRating !== undefined && <span><Star size={13} fill="currentColor"/>{book.personalRating}/10</span>}
