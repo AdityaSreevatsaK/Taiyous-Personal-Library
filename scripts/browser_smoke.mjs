@@ -92,6 +92,14 @@ try {
     if (rootText.length < 20) throw new Error('Compiled React app did not visibly render');
     // Assert the real library dashboard rendered, rather than a long error message.
     await page.locator('.app-shell').waitFor({ state: 'visible' });
+    // Only new mobile readers default to Inter 105%; desktops retain Literata 115%.
+    const initialReadingSettings = await page.evaluate(() =>
+      JSON.parse(localStorage.getItem('folio.reader-settings.v1') || '{}'));
+    const wantedFont = viewport.width <= 700 ? 'sans' : 'literary';
+    const wantedSize = viewport.width <= 700 ? 105 : 115;
+    if (initialReadingSettings.font !== wantedFont || initialReadingSettings.fontSize !== wantedSize) {
+      throw new Error('Incorrect first-run reader font defaults: ' + JSON.stringify(initialReadingSettings));
+    }
     await page.getByRole('navigation', { name: 'Library sections' }).waitFor({ state: 'attached' });
     await page.locator('.topbar > .cloud-connect').waitFor({ state: 'visible' });
     const cloudBox = await page.locator('.topbar > .cloud-connect').boundingBox();
@@ -1292,6 +1300,56 @@ try {
     if (await page.locator('.reader-home-link').getByText("Taiyou's Personal Library").count()) {
       throw new Error('Reader home control should use the symbol alone');
     }
+    if (viewport.width <= 700) {
+      const layout = await page.locator('.reader-header').evaluate(header => {
+        const title = header.querySelector('.reader-head-center')?.getBoundingClientRect();
+        const elements = Array.from(header.querySelectorAll(
+          '.reader-head-left button:not([hidden]), .quick-nav-mobile summary, .reader-head-right button:not([hidden])'
+        )).filter(el => getComputedStyle(el).display !== 'none' &&
+          getComputedStyle(el).visibility !== 'hidden');
+        const boxes = elements.map(el => el.getBoundingClientRect());
+        const collision = boxes.some((a,i) => boxes.slice(i+1).some(b =>
+          a.left < b.right - 1 && a.right > b.left + 1 &&
+          a.top < b.bottom - 1 && a.bottom > b.top + 1));
+        return {
+          titleBelow:!!title && boxes.every(b => title.top >= b.bottom - 2),
+          collision, visibleTitle:!!title && title.width > 80,
+          inside:boxes.every(b => b.left >= -1 && b.right <= window.innerWidth + 1),
+        };
+      });
+      if (!layout.titleBelow || layout.collision || !layout.visibleTitle || !layout.inside) {
+        throw new Error('Reader mobile header controls collide with the title: ' + JSON.stringify(layout));
+      }
+      const menuToggle = page.locator('.reader-header .quick-nav-mobile summary');
+      await menuToggle.click();
+      const libraryMenu = page.getByRole('group', { name:'Library shortcuts' });
+      await libraryMenu.waitFor({ state:'visible' });
+      await libraryMenu.getByRole('link', { name:'Currently reading' }).waitFor();
+      const menuGeometry = await libraryMenu.evaluate(element => {
+        const rect = element.getBoundingClientRect();
+        const firstLink = element.querySelector('a')?.getBoundingClientRect();
+        return { inside:rect.left >= -1 && rect.right <= window.innerWidth + 1,
+          textInside:!!firstLink && firstLink.left >= rect.left && firstLink.right <= rect.right,
+          width:rect.width };
+      });
+      if (!menuGeometry.inside || !menuGeometry.textInside || menuGeometry.width < 180) {
+        throw new Error('Reader library menu is clipped off the mobile screen: '
+          + JSON.stringify(menuGeometry));
+      }
+      await menuToggle.click();
+      // The bottom chapter chooser replaces the duplicate top TOC button.
+      if (await page.getByRole('button', { name:'Table of contents' }).isVisible()) {
+        throw new Error('Mobile header still has duplicate chapter navigation');
+      }
+    }
+    await page.getByRole('button', { name:'Reading preferences' }).click();
+    const fontSelect = page.locator('#font-family-select');
+    if (await fontSelect.inputValue() !== wantedFont ||
+        !(await page.locator('.font-stepper span').innerText()).includes(String(wantedSize))) {
+      throw new Error('Reader preferences do not match the responsive default font');
+    }
+    await page.getByRole('button', { name:'Close panel' }).click();
+
     const chapterJump = footer.getByRole('button', { name: 'Jump to chapter' });
     await chapterJump.waitFor({ state: 'visible' });
     const jumpBox = await chapterJump.boundingBox();
@@ -1308,10 +1366,32 @@ try {
     if (!popupBox || Math.abs(popupBox.x + popupBox.width / 2 - viewport.width / 2) > 3) {
       throw new Error('Chapter chooser is not centred in the viewport');
     }
-    await chapterDialog.getByRole('searchbox', { name: 'Search chapter titles' }).fill('Next Step');
+    if (viewport.width <= 700) {
+      const geometry = await chapterDialog.evaluate(dialog => {
+        const list = dialog.querySelector('.reader-chapter-picker-list')?.getBoundingClientRect();
+        const bounds = dialog.getBoundingClientRect();
+        return { listHeight:list?.height ?? 0, dialogHeight:bounds.height,
+          inside:bounds.left >= -1 && bounds.right <= window.innerWidth + 1,
+          title:dialog.querySelector('h2')?.textContent?.trim(),
+        };
+      });
+      if (!geometry.inside || geometry.title !== 'Chapter navigation' ||
+          geometry.listHeight < geometry.dialogHeight * .55) {
+        throw new Error('Mobile chapter list does not dominate the chooser: ' +
+          JSON.stringify(geometry));
+      }
+    }
+    const numericSearch = chapterDialog.getByRole('searchbox', { name: 'Search chapter number' });
+    await numericSearch.fill('2');
     await chapterDialog.getByRole('button', { name: /Chapter 2: The Next Step/ }).waitFor();
-    await chapterDialog.getByRole('searchbox', { name: 'Search chapter titles' }).fill('');
-    await chapterDialog.getByRole('spinbutton', { name: 'Chapter number' }).fill('2');
+    if (await chapterDialog.getByRole('button', { name: /Chapter 1/ }).count()) {
+      throw new Error('Number-only chapter search must exclude other chapters');
+    }
+    // Enter and clicking a result both navigate, without a second Go field.
+    if (await chapterDialog.locator('input').count() !== 1 ||
+        await chapterDialog.getByRole('button', { name:'Go', exact:true }).count()) {
+      throw new Error('The chapter picker still has redundant search/Go controls');
+    }
     await page.locator('.reader-page iframe').first().waitFor({ state: 'visible', timeout: 20000 });
     await page.waitForFunction(() => {
       const frame = document.querySelector('.reader-page iframe');
@@ -1322,7 +1402,7 @@ try {
       return heading ? frame.contentWindow?.getComputedStyle(heading).textAlign : '';
     });
     if (headingAligned !== 'center') throw new Error('EPUB h2 chapter heading not centred');
-    await chapterDialog.getByRole('button', { name: 'Go', exact: true }).click();
+    await numericSearch.press('Enter');
     await chapterDialog.waitFor({ state: 'detached' });
     await page.getByText('Chapter 2 of 2').waitFor();
     await page.waitForURL('**/novels/sample-library-book/read/chapter-2');
@@ -1333,8 +1413,10 @@ try {
     });
     if (paragraphAligned !== 'center') throw new Error('EPUB paragraph chapter heading not centred');
     await chapterJump.click();
-    await page.getByRole('dialog', { name: 'Choose chapter' }).getByRole('spinbutton', { name: 'Chapter number' }).fill('1');
-    await page.getByRole('dialog', { name: 'Choose chapter' }).getByRole('button', { name: 'Go', exact: true }).click();
+    await page.getByRole('dialog', { name: 'Choose chapter' })
+      .getByRole('searchbox', { name:'Search chapter number' }).fill('1');
+    await page.getByRole('dialog', { name: 'Choose chapter' })
+      .getByRole('button', { name:/Chapter 1/ }).click();
     await page.getByText('Chapter 1 of 2').waitFor();
     await page.waitForURL('**/novels/sample-library-book/read/chapter-1');
 
