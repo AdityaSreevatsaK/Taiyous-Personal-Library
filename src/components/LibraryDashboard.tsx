@@ -20,7 +20,7 @@ import { openNovelInCurrentTab, openInternalLinkInCurrentTab, revealClippedLinkT
 import { namedNovelUrl } from '../lib/routes';
 import { bookTags, includesTag, tagCounts } from '../lib/tags';
 import type { CloudSession } from '../lib/cloud';
-import type { BookCollection } from '../lib/collections';
+import { collectionAncestors, collectionChildren, collectionDescendantIds, collectionTree, type BookCollection } from '../lib/collections';
 import { libraryAuthorUrl, libraryCollectionUrl, libraryShelfUrl, libraryTagUrl, parseLibraryViewPath, type ShelfFilter } from '../lib/library-routes';
 
 type Filter = ShelfFilter;
@@ -53,7 +53,8 @@ interface Props {
   pendingProgressCount: number;
   collectionsSyncPending: boolean;
   collections: BookCollection[];
-  onCreateCollection: (name: string) => Promise<void>;
+  onCreateCollection: (name: string, parentId?: string) => Promise<void>;
+  onMoveCollection: (id: string, parentId: string | null) => Promise<void>;
   onRenameCollection: (id: string, name: string) => Promise<void>;
   onDeleteCollection: (id: string) => void;
   onCollectionMembership: (collectionId: string, bookId: string, include: boolean) => Promise<void>;
@@ -141,7 +142,7 @@ export default function LibraryDashboard({
   onMasterMarkCompleted, onMasterResetProgress, onMasterSaveTags, onMasterSaveSummary,
   onMasterSaveReview, onMasterExportEpub, onMasterDeleteNovel, staleCount, onMasterArchiveStale,
   localBackups, cachedEpubIds, online, offlineShellReady, bulkOfflineProgress, onCacheAllOffline, offlineRetention, pendingReviewCount, pendingProgressCount, collectionsSyncPending,
-  collections, onCreateCollection, onRenameCollection, onDeleteCollection, onCollectionMembership,
+  collections, onCreateCollection, onMoveCollection, onRenameCollection, onDeleteCollection, onCollectionMembership,
   initialTag, libraryPath, onLibraryNavigate, globalSearch, onGlobalSearch, theme, onThemeChange, onImportClick, onFiles, onOpen, onRead, onRemoveOffline,
   importing, notice, onDismissNotice, error, storageError, cloudRepo, cloudSession,
   cloudBusy, cloudMessage, syncProblem, onCloudRepo, onCloudLogin, onCloudLogout, onCloudRefresh, onCloudPublishCached,
@@ -175,6 +176,10 @@ export default function LibraryDashboard({
   }, [collections, selectedCollectionId]);
   const [creatingCollection, setCreatingCollection] = useState(false);
   const [newCollectionName, setNewCollectionName] = useState('');
+  const [newCollectionParent, setNewCollectionParent] = useState('');
+  const [creatingSubcollection, setCreatingSubcollection] = useState(false);
+  const [newSubcollectionName, setNewSubcollectionName] = useState('');
+  const [collectionError, setCollectionError] = useState<string | null>(null);
   const availableTags = useMemo(() => tagCounts(books), [books]);
   // URL tag slugs are lowercase, but headings retain catalogue typography.
   const displayTag = availableTags.find(({tag}) => tag.toLocaleLowerCase() === selectedTag.toLocaleLowerCase())?.tag || selectedTag;
@@ -219,6 +224,14 @@ export default function LibraryDashboard({
 
   const globalMode = globalSearch.trim().length > 0;
   const selectedCollection = collections.find(c => c.id === selectedCollectionId);
+  const collectionItems = useMemo(() => collectionTree(collections), [collections]);
+  const childCollections = useMemo(() => selectedCollection
+    ? collectionChildren(collections, selectedCollection.id) : [], [collections, selectedCollection]);
+  const collectionTrail = useMemo(() => selectedCollection
+    ? collectionAncestors(collections, selectedCollection.id) : [], [collections, selectedCollection]);
+  const forbiddenParents = useMemo(() => selectedCollection
+    ? collectionDescendantIds(collections, selectedCollection.id) : new Set<string>(),
+    [collections, selectedCollection]);
   const showEditorialHome = !isMasterControls && books.length > 0 && libraryPath === '/' && filter === 'all' && !selectedTag && !selectedAuthor && !selectedCollectionId && !globalMode && !showAdvanced;
   const visible = useMemo(() => {
     const q = (globalMode ? globalSearch : query).trim().toLocaleLowerCase();
