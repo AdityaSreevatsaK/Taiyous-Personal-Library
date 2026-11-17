@@ -165,9 +165,10 @@ function CollectionQuickAdd({ collection, collections, books, onAddNovel, onMove
   const folderMatches = useMemo(() => {
     if (!folderSearch) return [];
     const descendants = collectionDescendantIds(collections, collection.id);
+    const ancestors = new Set(collectionAncestors(collections, collection.id).map(item => item.id));
     return collectionTree(collections).filter(({ collection: item, path }) =>
       item.id !== collection.id && item.parentId !== collection.id &&
-      !descendants.has(item.id) &&
+      !descendants.has(item.id) && !ancestors.has(item.id) &&
       path.normalize('NFKC').toLocaleLowerCase().includes(folderSearch)).slice(0, 8);
   }, [collections, collection.id, folderSearch]);
   const canCreateFolder = !!folderSearch && !collectionChildren(collections, collection.id)
