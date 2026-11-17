@@ -60,7 +60,7 @@ interface Props {
   onBrowseTag?: (tag: string) => void;
 }
 
-export default function AdvancedSearch({ books, offlineIds, initialName = '', cloudRepo, cloudSession, onClose, onOpen, onBrowseTag }: Props) {
+export default function AdvancedSearch({ books, allBooks, offlineIds, initialName = '', cloudRepo, cloudSession, onClose, onOpen, onBrowseTag }: Props) {
   const [criteria, setCriteria] = useState<SearchCriteria>({ ...defaultSearchCriteria, name: initialName });
   const [sort, setSort] = useState<'title' | 'rating' | 'recent'>('title');
   const availableTags = useMemo(
