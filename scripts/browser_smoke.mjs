@@ -787,6 +787,21 @@ try {
     await page.waitForURL('**/advanced-search');
     await page.getByRole('region', { name: 'Advanced novel search' }).waitFor();
     const advancedNameInput = page.getByRole('textbox', { name: 'Search by novel name or author' });
+    const minimumRating = page.getByRole('combobox', { name: 'Minimum rating' });
+    const maximumRating = page.getByRole('combobox', { name: 'Maximum rating' });
+    if ((await minimumRating.locator('option[value="10"]').textContent()) !== '10/10 · Masterpiece' ||
+        (await minimumRating.locator('option[value="9"]').textContent()) !== '9/10 · Excellent' ||
+        (await maximumRating.locator('option[value="5"]').textContent()) !== '5/10 · Average' ||
+        await maximumRating.locator('option[value="0"]').count()) {
+      throw new Error('Advanced rating filters must explain each score and exclude invalid 0/10 maximum');
+    }
+    await page.getByText('Genres and labels attached to novels.', { exact: false }).waitFor();
+    await minimumRating.selectOption('10');
+    if (await maximumRating.inputValue() !== '10') {
+      throw new Error('Minimum rating of 10 must cap at the Masterpiece rating');
+    }
+    await minimumRating.selectOption('0');
+    await page.getByText('All novels, including unrated ones', { exact: false }).waitFor();
     if (await advancedNameInput.inputValue() !== 'Sample Library') {
       throw new Error('Advanced search ignored the global query when opened');
     }
