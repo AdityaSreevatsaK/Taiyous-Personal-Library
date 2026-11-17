@@ -11,6 +11,8 @@ import './editorial-home.css';
 
 interface Props {
   books: LibraryBook[];
+  /** Full canonical catalogue, including any hidden local backups. */
+  allBooks: LibraryBook[];
   collections: BookCollection[];
   onBrowseCollection: (id: string) => void;
   onBrowseAll: () => void;
@@ -34,7 +36,7 @@ function readingStatus(book: LibraryBook): string {
  * no fictional fixtures, separate catalogue, or replacement of owner controls.
  */
 export default function EditorialHome({
-  books, collections, onBrowseCollection, onBrowseAll, onBrowseShelf, onOpen, onRead, onBrowseTag, cover,
+  books, allBooks, collections, onBrowseCollection, onBrowseAll, onBrowseShelf, onOpen, onRead, onBrowseTag, cover,
 }: Props) {
   const { featured, continueReading, journal } = useMemo(() => selectHomeBooks(books), [books]);
   const readingCount = useMemo(() =>
@@ -85,10 +87,10 @@ export default function EditorialHome({
             </div>}
           </div>
           <div className="editorial-grand-actions">
-            <a href={namedNovelUrl(featured, books, true)} className="editorial-primary" onClick={event => openNovelInCurrentTab(event, () => onRead(featured))}>
+            <a href={namedNovelUrl(featured, allBooks, true)} className="editorial-primary" onClick={event => openNovelInCurrentTab(event, () => onRead(featured))}>
               <BookOpen size={18} /> {featured.progress > 0 ? 'Continue reading' : 'Begin reading'} <ArrowRight size={16} />
             </a>
-            <a href={namedNovelUrl(featured, books)} className="editorial-secondary" title={featured.title} onClick={event => openNovelInCurrentTab(event, () => onOpen(featured))}>
+            <a href={namedNovelUrl(featured, allBooks)} className="editorial-secondary" title={featured.title} onClick={event => openNovelInCurrentTab(event, () => onOpen(featured))}>
               Explore this novel <ArrowRight size={15} />
             </a>
           </div>
@@ -98,7 +100,7 @@ export default function EditorialHome({
           {galleryCandidates.map(book => {
             const index = visibleGalleryIds.indexOf(book.id);
             return <a
-              href={namedNovelUrl(book, books)} title={book.title}
+              href={namedNovelUrl(book, allBooks)} title={book.title}
               className={'editorial-art-book ' + (index < 0 ? 'editorial-art-book-pending' : 'editorial-art-book-' + index)}
               key={book.id}
               aria-label={'Featured cover for ' + book.title}
@@ -125,9 +127,9 @@ export default function EditorialHome({
       </div>
       <div className="editorial-continue-rail">
         {continueReading.map(book => <article className="editorial-continue-card" key={book.id}>
-          <a href={namedNovelUrl(book, books)} title={book.title} className="editorial-continue-cover" aria-label={'Reading desk cover for ' + book.title} onClick={event => openNovelInCurrentTab(event, () => onOpen(book))}>{cover(book)}</a>
+          <a href={namedNovelUrl(book, allBooks)} title={book.title} className="editorial-continue-cover" aria-label={'Reading desk cover for ' + book.title} onClick={event => openNovelInCurrentTab(event, () => onOpen(book))}>{cover(book)}</a>
           <div className="editorial-continue-copy">
-            <a href={namedNovelUrl(book, books)} title={book.title} className="editorial-book-title" onClick={event => openNovelInCurrentTab(event, () => onOpen(book))}>{book.title}</a>
+            <a href={namedNovelUrl(book, allBooks)} title={book.title} className="editorial-book-title" onClick={event => openNovelInCurrentTab(event, () => onOpen(book))}>{book.title}</a>
             <span className="editorial-continue-chapter">{book.currentChapterNumber
               ? `Chapter ${book.currentChapterNumber.toLocaleString()}${book.chapterCount ? ` of ${book.chapterCount.toLocaleString()}` : ''}`
               : book.currentChapter || 'Saved reading position'}
@@ -137,7 +139,7 @@ export default function EditorialHome({
               <i style={{ width: Math.min(100,Math.max(0,book.progress)) + '%' }} />
             </div>
           </div>
-          <a href={namedNovelUrl(book, books, true)} className="editorial-rail-read" onClick={event => openNovelInCurrentTab(event, () => onRead(book))}>
+          <a href={namedNovelUrl(book, allBooks, true)} className="editorial-rail-read" onClick={event => openNovelInCurrentTab(event, () => onRead(book))}>
             Resume · {Math.round(book.progress)}% <ArrowRight size={13}/>
           </a>
         </article>)}
@@ -159,7 +161,7 @@ export default function EditorialHome({
           </div>
           <div className="editorial-index-labels" aria-hidden="true"><span>NO.</span><span>NOVEL</span><span>GENRE</span><span>YOUR SHELF</span></div>
           <div className="editorial-index-rows">
-            {journal.map((book, i) => <a href={namedNovelUrl(book, books)} title={book.title} key={book.id}
+            {journal.map((book, i) => <a href={namedNovelUrl(book, allBooks)} title={book.title} key={book.id}
               className="editorial-index-row" onClick={event => openNovelInCurrentTab(event, () => onOpen(book))}
               aria-label={'Journal entry for ' + book.title}>
               <span className="editorial-index-number">{String(i + 1).padStart(2, '0')}</span>
