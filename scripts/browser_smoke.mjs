@@ -851,7 +851,7 @@ try {
       throw new Error('Home and another shelf both appear selected simultaneously');
     }
     // A shelf has its own single selected tab, and the brand always goes Home.
-    await page.getByRole('link', { name:/All books/ }).first().click();
+    await navigateShelf(/All books/, 'all');
     await page.waitForURL('**/library');
     if (await page.locator('.top-nav-links .top-nav-link[aria-current="page"]').count() !== 1 ||
         await page.locator('.top-nav-links .top-nav-link.active').count() !== 1) {
