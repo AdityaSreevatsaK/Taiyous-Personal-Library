@@ -44,7 +44,7 @@ export function validateCollections(value: unknown): BookCollection[] {
       raw.bookIds.some(id => typeof id !== 'string' || !/^[0-9a-f]{24}$/.test(id)) ||
       typeof raw.updatedAt !== 'number' || !Number.isFinite(raw.updatedAt) || raw.updatedAt < 0 ||
       (raw.deleted !== undefined && typeof raw.deleted !== 'boolean') ||
-      (raw.parentId !== undefined && (!validId.test(raw.parentId) || raw.parentId === raw.id)) ||
+      (raw.parentId !== undefined && (typeof raw.parentId !== 'string' || !validId.test(raw.parentId) || raw.parentId === raw.id)) ||
       seen.has(raw.id)) {
       throw new Error('Invalid collection entry.');
     }
