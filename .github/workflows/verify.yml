@@ -46,7 +46,8 @@ jobs:
               csp.includes("'unsafe-eval'") || /script-src[^;]*'unsafe-inline'/.test(csp)) {
             throw new Error('Cloudflare Pages is not serving a restrictive CSP');
           }
-          if (!h.includes('x-content-type-options: nosniff') || !h.includes('referrer-policy: no-referrer')) {
+          if (!h.includes('x-content-type-options: nosniff') || !h.includes('referrer-policy: no-referrer') ||
+              !h.includes('strict-transport-security: max-age=31536000')) {
             throw new Error('Required security headers are missing');
           }
           JS
