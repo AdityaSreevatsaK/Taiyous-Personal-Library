@@ -130,7 +130,7 @@ jobs:
           SMOKE_URL=http://127.0.0.1:8791 node scripts/epub_security_smoke.mjs
       - name: Publish synthetic-only design screenshots for review
         if: ${{ always() && github.event_name == 'pull_request' && startsWith(github.head_ref, 'design/') }}
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: editorial-design-desktop-mobile
           path: artifacts/design-screenshots/*.png
