@@ -29,3 +29,36 @@
   .quick-nav-mobile summary {padding:9px 6px}
   .reader-header .quick-nav {order:2}
 }
+
+
+/* On narrow readers a right-anchored 245px popover can extend beyond the
+   left screen edge. Anchor it to the viewport, not the tiny menu icon. */
+@media (max-width:700px) {
+  .reader-header .quick-nav-mobile summary {
+    min-width:40px;min-height:42px;box-sizing:border-box;
+    padding:7px;justify-content:center;gap:2px;
+  }
+  .reader-header .quick-nav-mobile summary span {display:none;}
+  .reader-header .quick-nav-mobile .quick-nav-popover {
+    position:fixed;top:80px;left:10px;right:10px;
+    box-sizing:border-box;width:auto;min-width:0;max-width:none;
+    max-height:min(70dvh,580px);padding:12px 10px;
+    overflow-x:hidden;overflow-y:auto;
+  }
+  .reader-header .quick-nav-popover a {
+    min-width:0;width:100%;box-sizing:border-box;
+    white-space:normal;overflow-wrap:anywhere;
+    font-size:13px;line-height:1.35;
+  }
+  .reader-header .quick-nav-popover .quick-nav-collection-link span {
+    flex:1 1 auto;min-width:0;overflow-wrap:anywhere;
+  }
+  .reader-header .quick-nav-popover .quick-nav-collection-link small {
+    flex:0 0 auto;max-width:44px;text-align:right;
+  }
+}
+@media (max-width:700px) and (max-height:520px) and (orientation:landscape) {
+  .reader-header .quick-nav-mobile .quick-nav-popover {
+    top:68px;max-height:calc(100dvh - 78px);
+  }
+}
