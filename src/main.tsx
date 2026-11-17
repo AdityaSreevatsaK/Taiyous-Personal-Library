@@ -1,6 +1,7 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
+import { AppDialogProvider } from './components/AppDialogs';
 import './styles.css';
 import './theme-palettes.css';
 import './components/interface-refinements.css';
@@ -10,6 +11,6 @@ registerOfflineApp();
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <App />
+    <AppDialogProvider><App /></AppDialogProvider>
   </React.StrictMode>,
 );

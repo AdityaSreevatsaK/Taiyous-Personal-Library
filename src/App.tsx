@@ -19,6 +19,7 @@ import { resetReadingProgress } from './lib/progress-admin';
 import { withUpdatedReadingPosition } from './lib/reading-status';
 import { loadChapterCatalog } from './lib/catalog';
 import BackToTop from './components/BackToTop';
+import { useAppDialogs } from './components/AppDialogs';
 import './components/back-to-top.css';
 import {
   reconcileCloudLibrary, clearCloudSession, createCloudSession, discoverHostedOAuthSession, assertPrivateDataset,
@@ -31,6 +32,7 @@ import type { LibraryBook, ReaderSettings } from './types';
 import { fetchCloudCollections, mergeCollections, readLocalCollections, saveCloudCollections, writeLocalCollections, readCollectionsPending, writeCollectionsPending, type BookCollection } from './lib/collections';
 
 export default function App() {
+  const { confirm } = useAppDialogs();
   const [books, setBooks] = useState<LibraryBook[]>([]);
   const [settings, setSettings] = useState<ReaderSettings>(readSettings);
   const [routePath, setRoutePath] = useState(() => window.location.pathname);
@@ -119,7 +121,15 @@ export default function App() {
     setReadingId(null);
     setDetailsId(null);
     setStartChapterHref(null);
-  }, []);
+  }, [navigate]);
+  const browseLibraryFromNovel = useCallback((path: string) => {
+    setReadingId(null);
+    setDetailsId(null);
+    setStartChapterHref(null);
+    setBrowseTag('');
+    setGlobalSearch('');
+    navigate(path);
+  }, [navigate]);
   useEffect(() => {
     const updateFromURL = () => {
       const path = window.location.pathname;
@@ -987,7 +997,11 @@ export default function App() {
       setError('Cannot verify a hosted backup right now. The local EPUB has been kept.');
       return;
     }
-    if (!window.confirm(`Remove the offline download for “${book.title}” from this device? Your cloud novel, notes and reading progress will remain.`)) return;
+    if (!await confirm({
+      title: 'Remove offline download?',
+      message: 'Remove the offline EPUB for “' + book.title + '” from this device? Your cloud novel, notes and reading progress remain.',
+      confirmLabel: 'Remove download', destructive: true,
+    })) return;
     try {
       if (!(await hostedEpubExists(cloudRepo, entry, cloudSession))) {
         throw new Error('Hosted EPUB is missing or inaccessible. The local copy was kept.');
@@ -996,7 +1010,7 @@ export default function App() {
       setCachedEpubIds(ids => ids.filter(id => id !== book.id));
       setNotice(`Offline download for “${book.title}” removed from this device.`);
     } catch (reason) { setError(`Could not remove offline download: ${String(reason)}`); }
-  }, [cloudRepo, cloudSession]);
+  }, [cloudRepo, cloudSession, confirm]);
 
   const requestDeleteCollection = useCallback((collectionId: string) => {
     const collection = collectionsRef.current.find(item => item.id === collectionId && !item.deleted);
@@ -1262,11 +1276,12 @@ export default function App() {
             window.history.replaceState(window.history.state, '', chapterUrl + window.location.search + window.location.hash);
           }
         }}
-        onBack={goLibrary}
+        onBack={goLibrary} collections={collections.filter(c => !c.deleted)} onBrowseLibrary={browseLibraryFromNovel}
         onNovelDetails={() => { setReadingId(null); setDetailsId(activeBook.id); setStartChapterHref(null); navigate(namedNovelUrl(activeBook, booksRef.current)); }} onProgress={recordProgress} />
       </Suspense>
     ) : detailBook ? (
       <BookDetails book={detailBook} availableTags={tagCounts(books).map(({tag}) => tag)} theme={settings.theme} onThemeChange={theme => setSettings(current => ({ ...current, theme }))}
+        collections={collections.filter(c => !c.deleted)} onBrowseLibrary={browseLibraryFromNovel}
         onLoadChapters={() => loadChapterCatalog(detailBook.id, detailBook.chapterCount, async () => {
           try { return await getBookFile(detailBook.id); }
           catch { /* Preview can read a hosted EPUB without caching it. */ }
