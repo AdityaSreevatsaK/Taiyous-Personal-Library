@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, useMemo, type ChangeEvent } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState, useMemo, type ChangeEvent } from 'react';
 import LibraryDashboard from './components/LibraryDashboard';
 import BookDetails from './components/BookDetails';
-import Reader from './components/Reader';
+// Keep the larger EPUB parser out of the initial library/dashboard bundle.
+const Reader = lazy(() => import('./components/Reader'));
 import OwnerActionDialog, { type OwnerRemovalRequest } from './components/OwnerActionDialog';
 import { ownerPost } from './lib/owner';
 import { extractEpubMetadata, prepareImport } from './lib/importer';
@@ -1248,6 +1249,7 @@ export default function App() {
         <button type="button" onClick={goLibrary}>Return to library</button>
       </div>
     ) : activeBook ? (
+      <Suspense fallback={<main className="reader-route-loading" role="status">Opening your reader…</main>}>
       <Reader key={activeBook.id} book={activeBook} settings={settings} onSettings={setSettings}
         initialChapterHref={startChapterHref || undefined}
         initialChapterNumber={requestedChapter}
@@ -1262,6 +1264,7 @@ export default function App() {
         }}
         onBack={goLibrary}
         onNovelDetails={() => { setReadingId(null); setDetailsId(activeBook.id); setStartChapterHref(null); navigate(namedNovelUrl(activeBook, booksRef.current)); }} onProgress={recordProgress} />
+      </Suspense>
     ) : detailBook ? (
       <BookDetails book={detailBook} availableTags={tagCounts(books).map(({tag}) => tag)} theme={settings.theme} onThemeChange={theme => setSettings(current => ({ ...current, theme }))}
         onLoadChapters={() => loadChapterCatalog(detailBook.id, detailBook.chapterCount, async () => {
