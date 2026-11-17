@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import {
   ArrowRight, BookOpen, Bookmark, Check, Download, ExternalLink, Hash,
-  Info, LockKeyhole, Pencil, Plus, Star, Tag, Trash2, X,
+  Info, Library, LockKeyhole, Pencil, Plus, Star, Tag, Trash2, X,
 } from 'lucide-react';
 import { Cover } from './LibraryDashboard';
 import ThemeSwitcher from './ThemeSwitcher';
@@ -10,6 +10,7 @@ import { useAppDialogs } from './AppDialogs';
 import type { BookCollection } from '../lib/collections';
 import BrandMark from './BrandMark';
 import { novelHeroBackdrop, novelHeroBackdropUrl, novelHeroStyle } from '../lib/novel-hero';
+import { libraryCollectionUrl } from '../lib/library-routes';
 import './details-palettes.css';
 import type { CloudSession } from '../lib/cloud';
 import ChapterBrowser from './ChapterBrowser';
@@ -17,7 +18,7 @@ import { bookTags, normalisePersonalTags, suggestExistingTags, tagKey } from '..
 import { ratingLabel, ratingToneClass } from '../lib/ratings';
 import './site-footer.css';
 import { isFinished } from '../lib/reading-status';
-import { openNovelInCurrentTab } from '../lib/novel-links';
+import { openInternalLinkInCurrentTab, openNovelInCurrentTab, revealClippedLinkTitle } from '../lib/novel-links';
 import type { ChapterItem, LibraryBook, ReaderTheme } from '../types';
 
 interface Props {
@@ -27,6 +28,7 @@ interface Props {
   onThemeChange: (theme: ReaderTheme) => void;
   onBack: () => void;
   collections: BookCollection[];
+  membershipPaths: Array<{ collection: BookCollection; path: string }>;
   onBrowseLibrary: (path: string) => void;
   onRead: () => void;
   readHref: string;
@@ -51,7 +53,7 @@ interface Props {
   error: string | null;
 }
 
-export default function BookDetails({ book, availableTags, theme, onThemeChange, onBack, collections, onBrowseLibrary, onRead, readHref, onDownloadEpub, isCachedOffline, onSaveOffline, onRemoveOffline, onDeleteLocal, onDownloadArchive, cloudConnected, cloudRepo, cloudSession, onReadChapter, onLoadChapters, onSaveTags, onSaveSummary, onSaveReview, onSetTrial, onBrowseTag, onBrowseAuthor, onMarkCompleted, error }: Props) {
+export default function BookDetails({ book, availableTags, theme, onThemeChange, onBack, collections, membershipPaths, onBrowseLibrary, onRead, readHref, onDownloadEpub, isCachedOffline, onSaveOffline, onRemoveOffline, onDeleteLocal, onDownloadArchive, cloudConnected, cloudRepo, cloudSession, onReadChapter, onLoadChapters, onSaveTags, onSaveSummary, onSaveReview, onSetTrial, onBrowseTag, onBrowseAuthor, onMarkCompleted, error }: Props) {
   const [tagInput, setTagInput] = useState('');
   const [tagDraft, setTagDraft] = useState<string[]>(() => book.personalTags || []);
   const [editingSummary, setEditingSummary] = useState(false);
@@ -169,7 +171,7 @@ export default function BookDetails({ book, availableTags, theme, onThemeChange,
       <div className="details-top-controls"><ThemeSwitcher compact value={theme} onChange={onThemeChange} /></div>
     </header>
     <main className="details-layout">
-      <div className="details-hero details-hero-photographic" style={novelHeroStyle(book.id)}>
+      <div className={'details-hero details-hero-photographic' + (membershipPaths.length ? ' has-member-collections' : '')} style={novelHeroStyle(book.id)}>
         {failedBackdropId !== book.id && <img
           className="details-hero-backdrop"
           src={novelHeroBackdropUrl(backdrop.photoId)}
@@ -180,6 +182,21 @@ export default function BookDetails({ book, availableTags, theme, onThemeChange,
           style={{ objectPosition: backdrop.position }}
           onError={() => setFailedBackdropId(book.id)}
         />}
+        {membershipPaths.length > 0 && <nav className="details-hero-memberships"
+          aria-label="Collections containing this novel">
+          <span className="details-hero-memberships-label"><Library size={14} aria-hidden="true" /> IN COLLECTIONS</span>
+          {membershipPaths.map(({ collection, path }) => (
+            <a key={collection.id} className="details-hero-membership"
+              href={libraryCollectionUrl(collection.id)}
+              aria-label={'Open collection ' + path}
+              onMouseEnter={event => revealClippedLinkTitle(event, path)}
+              onFocus={event => revealClippedLinkTitle(event, path)}
+              onClick={event => openInternalLinkInCurrentTab(event,
+                () => onBrowseLibrary(libraryCollectionUrl(collection.id)))}>
+              {path}
+            </a>
+          ))}
+        </nav>}
         <div className="details-cover-wrap"><Cover book={book} variant="feature" cloudRepo={cloudRepo} cloudSession={cloudSession} /></div>
         <div className="details-hero-content">
           <div className="details-hero-heading">

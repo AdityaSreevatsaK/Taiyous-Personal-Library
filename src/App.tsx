@@ -29,7 +29,7 @@ import {
   type CloudEntry, type CloudSession,
 } from './lib/cloud';
 import type { LibraryBook, ReaderSettings } from './types';
-import { fetchCloudCollections, mergeCollections, readLocalCollections, saveCloudCollections, writeLocalCollections, readCollectionsPending, writeCollectionsPending, collectionChildren, moveCollection, deleteCollectionPreservingChildren, type BookCollection } from './lib/collections';
+import { fetchCloudCollections, mergeCollections, readLocalCollections, saveCloudCollections, writeLocalCollections, readCollectionsPending, writeCollectionsPending, collectionChildren, moveCollection, deleteCollectionPreservingChildren, collectionMembershipPaths, type BookCollection } from './lib/collections';
 
 export default function App() {
   const { confirm } = useAppDialogs();
@@ -1251,6 +1251,12 @@ export default function App() {
   }
   const activeBook = books.find(book => book.id === readingId);
   const detailBook = books.find(book => book.id === detailsId);
+  // Keep collection membership lookup out of rating/edit state updates in BookDetails.
+  // This uses the already loaded local/cloud collection metadata, never another request.
+  const detailMemberships = useMemo(
+    () => detailBook ? collectionMembershipPaths(collections, detailBook.id) : [],
+    [collections, detailBook?.id],
+  );
   const { library: visibleLibraryBooks, localBackups } = useMemo(() => partitionLocalBackups(books), [books]);
   const libraryReady = localLoaded && oauthChecked && (!cloudSession || initialCloudLoaded);
   // A numeric reader deep link takes priority over any saved CFI position.
@@ -1289,7 +1295,7 @@ export default function App() {
       </Suspense>
     ) : detailBook ? (
       <BookDetails book={detailBook} availableTags={tagCounts(books).map(({tag}) => tag)} theme={settings.theme} onThemeChange={theme => setSettings(current => ({ ...current, theme }))}
-        collections={collections.filter(c => !c.deleted)} onBrowseLibrary={browseLibraryFromNovel}
+        collections={collections.filter(c => !c.deleted)} membershipPaths={detailMemberships} onBrowseLibrary={browseLibraryFromNovel}
         onLoadChapters={() => loadChapterCatalog(detailBook.id, detailBook.chapterCount, async () => {
           try { return await getBookFile(detailBook.id); }
           catch { /* Preview can read a hosted EPUB without caching it. */ }

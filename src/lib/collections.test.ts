@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { mergeCollections, validateCollections, collectionChildren, collectionAncestors, collectionTree, collectionDescendantIds, moveCollection, deleteCollectionPreservingChildren, type BookCollection } from './collections';
+import { mergeCollections, validateCollections, collectionChildren, collectionAncestors, collectionTree, collectionMembershipPaths, collectionDescendantIds, moveCollection, deleteCollectionPreservingChildren, type BookCollection } from './collections';
 
 const base: BookCollection = { id: 'collection_12345', name: 'Harry Potter', bookIds: ['aaaaaaaaaaaaaaaaaaaaaaaa'], updatedAt: 100 };
 
@@ -49,6 +49,33 @@ describe('nested personal collections', () => {
     expect(collectionTree(collections).map(item=>[item.collection.name,item.depth]))
       .toEqual([['Cultivation',0],['Xianxia',1],['Sect novels',2],['Fantasy',0]]);
     expect(collectionDescendantIds(collections,root.id)).toEqual(new Set([child.id,grandchild.id]));
+  });
+
+  it('lists direct memberships in the nested hierarchy without treating ancestors as membership', () => {
+    const items = [
+      { ...root, bookIds:['aaaaaaaaaaaaaaaaaaaaaaaa'] },
+      { ...child, bookIds:['bbbbbbbbbbbbbbbbbbbbbbbb'] },
+      { ...grandchild, bookIds:['bbbbbbbbbbbbbbbbbbbbbbbb'] },
+      { ...other, bookIds:['bbbbbbbbbbbbbbbbbbbbbbbb'] },
+    ];
+    const memberships = collectionMembershipPaths(items, 'bbbbbbbbbbbbbbbbbbbbbbbb');
+    expect(memberships.map(({ collection, path }) => [collection.id, path])).toEqual([
+      [other.id, 'Fantasy'],
+      [grandchild.id, 'Cultivation / Xianxia / Sect novels'],
+      [child.id, 'Cultivation / Xianxia'],
+    ].sort((a,b) => (a[1] || '').localeCompare(b[1] || '', undefined, { sensitivity:'base', numeric:true })));
+    expect(memberships.some(item => item.collection.id === root.id)).toBe(false);
+    expect(collectionMembershipPaths(items, 'cccccccccccccccccccccccc')).toEqual([]);
+  });
+
+  it('skips deleted collections and resolves orphaned parents safely', () => {
+    const orphan = { ...child, parentId:'missing_parent_1' };
+    expect(collectionMembershipPaths([root, orphan], 'bbbbbbbbbbbbbbbbbbbbbbbb')
+      .map(x => x.path)).toEqual(['Xianxia']);
+    expect(collectionMembershipPaths([{ ...child, deleted:true }], 'bbbbbbbbbbbbbbbbbbbbbbbb'))
+      .toEqual([]);
+    expect(collectionMembershipPaths([{ ...child, parentId:root.id },{ ...root, deleted:true }],
+      'bbbbbbbbbbbbbbbbbbbbbbbb').map(x => x.path)).toEqual(['Xianxia']);
   });
 
   it('moves collections into another parent or back to the top, without losing memberships', () => {
