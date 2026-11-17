@@ -52,7 +52,9 @@ interface Props {
   books: LibraryBook[];
   allBooks: LibraryBook[];
   offlineIds: string[];
-  initialName?: string;
+  /** Shared search term displayed in the global library search and this panel. */
+  nameQuery: string;
+  onNameQueryChange: (query: string) => void;
   cloudRepo: string;
   cloudSession: CloudSession | null;
   onClose: () => void;
@@ -60,16 +62,23 @@ interface Props {
   onBrowseTag?: (tag: string) => void;
 }
 
-export default function AdvancedSearch({ books, allBooks, offlineIds, initialName = '', cloudRepo, cloudSession, onClose, onOpen, onBrowseTag }: Props) {
-  const [criteria, setCriteria] = useState<SearchCriteria>({ ...defaultSearchCriteria, name: initialName });
+export default function AdvancedSearch({ books, allBooks, offlineIds, nameQuery, onNameQueryChange, cloudRepo, cloudSession, onClose, onOpen, onBrowseTag }: Props) {
+  // One source of truth for title/author search across both visible search boxes.
+  // Other advanced criteria remain local to this page, never cached or fetched.
+  const [criteria, setCriteria] = useState<SearchCriteria>({ ...defaultSearchCriteria });
+  const activeCriteria = useMemo(() => ({ ...criteria, name: nameQuery }), [criteria, nameQuery]);
+  const resetFilters = () => {
+    setCriteria({ ...defaultSearchCriteria });
+    onNameQueryChange('');
+  };
   const [sort, setSort] = useState<'title' | 'rating' | 'recent'>('title');
   const availableTags = useMemo(
     () => [...new Set(books.flatMap(bookTags))].sort((a, b) => a.localeCompare(b)), [books]);
   const cached = useMemo(() => new Set(offlineIds), [offlineIds]);
-  const results = useMemo(() => books.filter(book => matchesAdvancedSearch(book, criteria, cached)).sort((a, b) =>
+  const results = useMemo(() => books.filter(book => matchesAdvancedSearch(book, activeCriteria, cached)).sort((a, b) =>
     sort === 'rating' ? (b.personalRating ?? -1) - (a.personalRating ?? -1) || a.title.localeCompare(b.title)
       : sort === 'recent' ? (b.lastOpenedAt || 0) - (a.lastOpenedAt || 0)
-        : a.title.localeCompare(b.title)), [books, criteria, cached, sort]);
+        : a.title.localeCompare(b.title)), [books, activeCriteria, cached, sort]);
   const update = <K extends keyof SearchCriteria>(key: K, value: SearchCriteria[K]) =>
     setCriteria(previous => ({ ...previous, [key]: value }));
   const toggleTag = (tag: string) => setCriteria(previous => ({
@@ -87,11 +96,11 @@ export default function AdvancedSearch({ books, allBooks, offlineIds, initialNam
     <div className="advanced-search-layout">
       <aside className="advanced-filter-panel" aria-label="Advanced search filters">
         <div className="advanced-panel-heading"><Filter size={18}/><strong>Filters</strong>
-          <button type="button" onClick={() => setCriteria({ ...defaultSearchCriteria })}>Clear all</button>
+          <button type="button" onClick={resetFilters}>Clear all</button>
         </div>
         <label className="advanced-field">Novel name or author
-          <span><Search size={16}/><input aria-label="Search by novel name or author" value={criteria.name}
-            onChange={event => update('name', event.target.value)} placeholder="Title or author…" /></span>
+          <span><Search size={16}/><input aria-label="Search by novel name or author" value={nameQuery}
+            onChange={event => onNameQueryChange(event.target.value)} placeholder="Title or author…" /></span>
         </label>
         <label className="advanced-field">Words in my comments
           <span><Search size={16}/><input aria-label="Search personal comments" value={criteria.comments}
@@ -158,7 +167,7 @@ export default function AdvancedSearch({ books, allBooks, offlineIds, initialNam
           </article>)}
         </div> : <div className="no-results"><Search size={30}/><h3>No matching books</h3>
           <p>Try fewer filters, a different rating range, or Match any.</p>
-          <button type="button" className="secondary-button" onClick={() => setCriteria({ ...defaultSearchCriteria })}><X size={14}/> Reset filters</button>
+          <button type="button" className="secondary-button" onClick={resetFilters}><X size={14}/> Reset filters</button>
         </div>}
       </div>
     </div>
