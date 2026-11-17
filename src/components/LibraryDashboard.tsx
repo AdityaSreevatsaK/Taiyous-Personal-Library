@@ -139,6 +139,116 @@ export function Cover({ book, variant = 'normal', cloudRepo = '', cloudSession =
   );
 }
 
+/** Search existing catalogue records directly from inside a collection.
+ * All results use in-memory data. Mutations reuse the existing revision-safe
+ * callbacks and remain fully reversible through the collection controls. */
+function CollectionQuickAdd({ collection, collections, books, onAddNovel, onMoveExisting, onCreateSubcollection }: {
+  collection: BookCollection;
+  collections: BookCollection[];
+  books: LibraryBook[];
+  onAddNovel: (bookId: string) => Promise<void>;
+  onMoveExisting: (collectionId: string) => Promise<void>;
+  onCreateSubcollection: (name: string) => Promise<void>;
+}) {
+  const [novelQuery, setNovelQuery] = useState('');
+  const [collectionQuery, setCollectionQuery] = useState('');
+  const [busy, setBusy] = useState<string | null>(null);
+  const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
+  const novelSearch = novelQuery.trim().normalize('NFKC').toLocaleLowerCase();
+  const folderSearch = collectionQuery.trim().normalize('NFKC').toLocaleLowerCase();
+  const novelMatches = useMemo(() => novelSearch
+    ? books.filter(book => !collection.bookIds.includes(book.id) &&
+        (book.title + ' ' + book.author).normalize('NFKC').toLocaleLowerCase().includes(novelSearch))
+      .sort((a, b) => a.title.localeCompare(b.title, undefined, { numeric: true })).slice(0, 8)
+    : [], [books, collection.bookIds, novelSearch]);
+  const folderMatches = useMemo(() => {
+    if (!folderSearch) return [];
+    const descendants = collectionDescendantIds(collections, collection.id);
+    return collectionTree(collections).filter(({ collection: item, path }) =>
+      item.id !== collection.id && item.parentId !== collection.id &&
+      !descendants.has(item.id) &&
+      path.normalize('NFKC').toLocaleLowerCase().includes(folderSearch)).slice(0, 8);
+  }, [collections, collection.id, folderSearch]);
+  const canCreateFolder = !!folderSearch && !collectionChildren(collections, collection.id)
+    .some(child => child.name.normalize('NFKC').toLocaleLowerCase() === folderSearch);
+
+  async function perform(key: string, action: () => Promise<void>, message: string) {
+    if (busy) return;
+    setBusy(key); setError(''); setNotice('');
+    try {
+      await action();
+      setNotice(message);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : String(reason));
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  return <section className="collection-quick-add" aria-label={'Add to ' + collection.name}>
+    <header>
+      <h3><Plus size={16} aria-hidden="true" /> Add to this collection</h3>
+      <p>Search your existing library, then add novels or organise collections here.</p>
+    </header>
+    <div className="collection-quick-add-columns">
+      <div className="collection-quick-add-column">
+        <label htmlFor={'collection-novel-search-' + collection.id}>Find novels by title or author</label>
+        <div className="collection-quick-add-field">
+          <Search size={16} aria-hidden="true" />
+          <input id={'collection-novel-search-' + collection.id} type="search" maxLength={150}
+            autoComplete="off" aria-label="Find novels to add"
+            value={novelQuery} onChange={event => {setNovelQuery(event.target.value);setNotice('');}}
+            placeholder="Search novel titles…" />
+        </div>
+        {novelSearch && <div className="collection-quick-add-results" role="group" aria-label="Matching novels">
+          {novelMatches.length ? <ul>{novelMatches.map(book =>
+            <li key={book.id}>
+              <span><strong>{book.title}</strong><small>{book.author || 'Unknown author'}</small></span>
+              <button type="button" disabled={busy !== null}
+                aria-label={'Add ' + book.title + ' to ' + collection.name}
+                onClick={() => void perform('novel:' + book.id, () => onAddNovel(book.id), 'Added “' + book.title + '”.')}>
+                {busy === 'novel:' + book.id ? 'Adding…' : 'Add'}
+              </button>
+            </li>)}</ul> : <p>No available novels match. Novels already in this collection are excluded.</p>}
+        </div>}
+      </div>
+      <div className="collection-quick-add-column">
+        <label htmlFor={'collection-folder-search-' + collection.id}>Find or create a subcollection</label>
+        <div className="collection-quick-add-field">
+          <Search size={16} aria-hidden="true" />
+          <input id={'collection-folder-search-' + collection.id} type="search" maxLength={90}
+            autoComplete="off" aria-label="Find collections to move here"
+            value={collectionQuery} onChange={event => {setCollectionQuery(event.target.value);setNotice('');}}
+            placeholder="Search collection names…" />
+        </div>
+        {folderSearch && <div className="collection-quick-add-results" role="group" aria-label="Matching collections">
+          {folderMatches.length ? <ul>{folderMatches.map(({ collection: item, path }) =>
+            <li key={item.id}>
+              <span><strong>{item.name}</strong><small>{path}</small></span>
+              <button type="button" disabled={busy !== null}
+                aria-label={'Move collection ' + item.name + ' into ' + collection.name}
+                onClick={() => void perform('folder:' + item.id, () => onMoveExisting(item.id),
+                  'Moved “' + item.name + '” under “' + collection.name + '”.')}>
+                {busy === 'folder:' + item.id ? 'Moving…' : 'Move here'}
+              </button>
+            </li>)}</ul> : <p>No other collections match this search.</p>}
+          {canCreateFolder && <button className="collection-quick-add-create" type="button"
+            disabled={busy !== null}
+            aria-label={'Create subcollection ' + collectionQuery.trim()}
+            onClick={() => void perform('create', () => onCreateSubcollection(collectionQuery.trim()),
+              'Created subcollection “' + collectionQuery.trim() + '”.')}>
+            <Plus size={14} aria-hidden="true" /> Create “{collectionQuery.trim()}” here
+          </button>}
+          <p className="collection-quick-add-note">Moving an existing collection changes its parent. Its novels and nested collections remain inside it.</p>
+        </div>}
+      </div>
+    </div>
+    {error && <p className="collection-quick-add-error" role="alert">{error}</p>}
+    {notice && <p className="collection-quick-add-notice" role="status">{notice}</p>}
+  </section>;
+}
+
 export default function LibraryDashboard({
   books, allBooks, onMasterClearOffline, onMasterSaveRating, onMasterCorrectMetadata,
   onMasterMarkCompleted, onMasterResetProgress, onMasterSaveTags, onMasterSaveSummary,
@@ -364,21 +474,21 @@ export default function LibraryDashboard({
             <a href="/" className={`top-nav-link ${libraryPath === '/' && !globalMode ? 'active' : ''}`}
               aria-current={libraryPath === '/' && !globalMode ? 'page' : undefined}
               onClick={event => openInternalLinkInCurrentTab(event, goHome)}>Home</a>
-            {navEntries.map(({ id, name, count }) => <a href={libraryShelfUrl(id)} key={id} className={`top-nav-link ${!showAdvanced && !isMasterControls && filter === id && !selectedTag && !selectedAuthor && !selectedCollectionId ? 'active' : ''}`}
+            {navEntries.map(({ id, name, count }) => <a href={libraryShelfUrl(id)} key={id} className={`top-nav-link ${!globalMode && !showAdvanced && !isMasterControls && libraryPath === libraryShelfUrl(id) && !selectedTag && !selectedAuthor && !selectedCollectionId ? 'active' : ''}`}
               aria-current={!showAdvanced && !isMasterControls && filter === id && !selectedTag && !selectedAuthor && !selectedCollectionId ? 'page' : undefined}
               onClick={event => openInternalLinkInCurrentTab(event, () => goTo(id))}><span>{name}</span>{id !== 'analytics' && <small>{count}</small>}</a>)}
           </div>
           <div className="mobile-shelf-nav" aria-label="Quick library shelves">
-            <a href={libraryShelfUrl('reading')} className={filter === 'reading' && libraryPath !== '/' ? 'selected' : ''}
+            <a href={libraryShelfUrl('reading')} className={libraryPath === libraryShelfUrl('reading') && !globalMode ? 'selected' : ''}
               onClick={event => openInternalLinkInCurrentTab(event, () => goTo('reading'))}>Reading</a>
-            <a href={libraryShelfUrl('trying')} className={filter === 'trying' ? 'selected' : ''}
+            <a href={libraryShelfUrl('trying')} className={libraryPath === libraryShelfUrl('trying') && !globalMode ? 'selected' : ''}
               onClick={event => openInternalLinkInCurrentTab(event, () => goTo('trying'))}>Trying</a>
-            <a href={libraryShelfUrl('offline')} className={filter === 'offline' ? 'selected' : ''}
+            <a href={libraryShelfUrl('offline')} className={libraryPath === libraryShelfUrl('offline') && !globalMode ? 'selected' : ''}
               onClick={event => openInternalLinkInCurrentTab(event, () => goTo('offline'))}>Offline</a>
             <label className="mobile-shelf-more">
               <span className="sr-only">More library shelves</span>
               <select aria-label="More library shelves"
-                value={['finished','unread','all','analytics'].includes(filter) && libraryPath !== '/' && !selectedTag && !selectedCollectionId && !selectedAuthor ? filter : ''}
+                value={['finished','unread','all','analytics'].includes(filter) && !globalMode && libraryPath === libraryShelfUrl(filter) ? filter : ''}
                 onChange={event => goTo(event.target.value as Filter)}>
                 <option value="" disabled>More…</option>
                 <option value="finished">Finished</option>
@@ -506,7 +616,7 @@ export default function LibraryDashboard({
             onOpen={onOpen} onRead={onRead} onBrowseTag={browseTag}
             cover={(book, isFeatured, onArtworkStateChange) => <Cover book={book} variant={isFeatured ? 'feature' : 'normal'} cloudRepo={cloudRepo} cloudSession={cloudSession} onArtworkStateChange={onArtworkStateChange} />} />}
 
-          {!showEditorialHome && !isMasterControls && <section id="library-full-catalogue" className="library-section" aria-label="Book collection"><div className="section-titlebar"><div><div className="section-overline">{globalMode ? 'ALL NOVELS' : selectedCollection ? 'YOUR COLLECTION' : selectedTag ? 'BROWSING TAG' : selectedAuthor ? 'BROWSING AUTHOR' : 'THE COLLECTION'}</div><h2>{globalMode ? 'Global search results' : selectedCollection ? selectedCollection.name : selectedTag ? 'Novels' : selectedAuthor ? 'Books by ' + selectedAuthor : filter === 'all' ? 'All your stories' : navEntries.find((i) => i.id === filter)?.name}<span className="title-count">{visible.length}</span></h2></div><span className="library-description">A little world on every shelf</span></div>
+          {!showEditorialHome && !isMasterControls && <section id="library-full-catalogue" className={'library-section' + (selectedCollection && !globalMode ? ' collection-view' : '')} aria-label="Book collection"><div className="section-titlebar"><div><div className="section-overline">{globalMode ? 'ALL NOVELS' : selectedCollection ? 'YOUR COLLECTION' : selectedTag ? 'BROWSING TAG' : selectedAuthor ? 'BROWSING AUTHOR' : 'THE COLLECTION'}</div><h2>{globalMode ? 'Global search results' : selectedCollection ? selectedCollection.name : selectedTag ? 'Novels' : selectedAuthor ? 'Books by ' + selectedAuthor : filter === 'all' ? 'All your stories' : navEntries.find((i) => i.id === filter)?.name}<span className="title-count">{visible.length}</span></h2></div><span className="library-description">A little world on every shelf</span></div>
             {selectedCollection && !globalMode && <>
             <nav className="collection-breadcrumbs" aria-label="Collection hierarchy">
               <a href={libraryShelfUrl('all')}
@@ -521,7 +631,7 @@ export default function LibraryDashboard({
               </span>)}
             </nav>
             <div className="tag-collection-head collection-heading">
-              <span><strong>{selectedCollection.name}</strong> · {visible.length} direct novels · {childCollections.length} subcollections</span>
+              <span className="collection-heading-summary"><Library size={15} aria-hidden="true" /> {visible.length} direct novels <span aria-hidden="true">·</span> {childCollections.length} subcollections</span>
               <div className="collection-actions">
                 <label className="collection-parent-control">
                   Move under
@@ -566,6 +676,11 @@ export default function LibraryDashboard({
               <button type="button" onClick={() => setCreatingSubcollection(false)}>Cancel</button>
             </form>}
             {collectionError && <p className="collection-form-error" role="alert">{collectionError}</p>}
+            <CollectionQuickAdd key={selectedCollection.id}
+              collection={selectedCollection} collections={collections} books={books}
+              onAddNovel={bookId => onCollectionMembership(selectedCollection.id, bookId, true)}
+              onMoveExisting={id => onMoveCollection(id, selectedCollection.id)}
+              onCreateSubcollection={name => onCreateCollection(name, selectedCollection.id)} />
             <section className="nested-collections" aria-label={`Subcollections of ${selectedCollection.name}`}>
               <header><h3>Subcollections</h3><span>{childCollections.length}</span></header>
               {childCollections.length > 0 ? <div className="nested-collection-grid">
