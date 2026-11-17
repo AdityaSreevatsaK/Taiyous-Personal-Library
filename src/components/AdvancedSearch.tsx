@@ -50,6 +50,7 @@ export function matchesAdvancedSearch(book: LibraryBook, criteria: SearchCriteri
 
 interface Props {
   books: LibraryBook[];
+  allBooks: LibraryBook[];
   offlineIds: string[];
   initialName?: string;
   cloudRepo: string;
@@ -138,11 +139,11 @@ export default function AdvancedSearch({ books, offlineIds, initialName = '', cl
           ? 'A book must meet every active filter.' : 'A book may meet any active filter.'}</p>
         {results.length ? <div className="advanced-results-grid">
           {results.map(book => <article className="advanced-result" key={book.id}>
-            <a href={namedNovelUrl(book, books)} className="advanced-result-cover" title={book.title}
+            <a href={namedNovelUrl(book, allBooks)} className="advanced-result-cover" title={book.title}
               onClick={event => openNovelInCurrentTab(event, () => onOpen(book))}
               aria-label={`View details for ${book.title}`}><Cover book={book} cloudRepo={cloudRepo} cloudSession={cloudSession}/></a>
             <div className="advanced-result-details">
-              <a href={namedNovelUrl(book, books)} className="advanced-result-title" title={book.title} onClick={event => openNovelInCurrentTab(event, () => onOpen(book))}>{book.title}</a>
+              <a href={namedNovelUrl(book, allBooks)} className="advanced-result-title" title={book.title} onClick={event => openNovelInCurrentTab(event, () => onOpen(book))}>{book.title}</a>
               <p>{book.author || 'Unknown author'}</p>
               <div className="advanced-result-meta">
                 {book.personalRating !== undefined && <span><Star size={13} fill="currentColor"/>{book.personalRating}/10</span>}
