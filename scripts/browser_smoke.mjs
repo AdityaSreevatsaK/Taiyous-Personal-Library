@@ -1471,7 +1471,7 @@ try {
           await fastPage.setViewportSize({ width, height:900 });
           const layout = await fastPage.locator('.book-grid').evaluate(grid => {
             const style = getComputedStyle(grid);
-            const tracks = style.gridTemplateColumns.trim().split(/\\s+/).filter(Boolean);
+            const tracks = style.gridTemplateColumns.trim().split(/\s+/).filter(Boolean);
             const rect = grid.getBoundingClientRect();
             const firstCover = grid.querySelector('.book-tile .cover-button > .cover')?.getBoundingClientRect();
             return {
