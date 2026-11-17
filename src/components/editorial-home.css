@@ -533,3 +533,16 @@
   .editorial-home .editorial-gallery-count-2 .editorial-art-book-0 {left:17%;top:21px}
   .editorial-home .editorial-gallery-count-2 .editorial-art-book-1 {left:54%;top:7px}
 }
+
+/* Native links preserve the original editorial appearance whilst supporting
+   browser context menus, keyboard activation and Ctrl/Cmd/middle-click. */
+.editorial-home :is(
+  .editorial-primary, .editorial-secondary, .editorial-art-book,
+  .editorial-continue-cover, .editorial-book-title,
+  .editorial-rail-read, .editorial-index-row
+) { text-decoration: none; cursor: pointer; }
+.editorial-home .editorial-book-title { display: block; }
+.editorial-home .editorial-continue-cover { display: block; }
+.editorial-home .editorial-art-book:focus-visible {
+  outline: 3px solid #e7d2a1; outline-offset: 4px;
+}
