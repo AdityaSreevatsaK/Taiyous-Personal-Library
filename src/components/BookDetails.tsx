@@ -14,6 +14,7 @@ import { bookTags, normalisePersonalTags, suggestExistingTags, tagKey } from '..
 import { ratingLabel } from '../lib/ratings';
 import './site-footer.css';
 import { isFinished } from '../lib/reading-status';
+import { openNovelInCurrentTab } from '../lib/novel-links';
 import type { ChapterItem, LibraryBook, ReaderTheme } from '../types';
 
 interface Props {
@@ -23,6 +24,7 @@ interface Props {
   onThemeChange: (theme: ReaderTheme) => void;
   onBack: () => void;
   onRead: () => void;
+  readHref: string;
   onDownloadEpub: () => Promise<void>;
   isCachedOffline: boolean;
   onSaveOffline: () => void;
@@ -44,7 +46,7 @@ interface Props {
   error: string | null;
 }
 
-export default function BookDetails({ book, availableTags, theme, onThemeChange, onBack, onRead, onDownloadEpub, isCachedOffline, onSaveOffline, onRemoveOffline, onDeleteLocal, onDownloadArchive, cloudConnected, cloudRepo, cloudSession, onReadChapter, onLoadChapters, onSaveTags, onSaveSummary, onSaveReview, onSetTrial, onBrowseTag, onBrowseAuthor, onMarkCompleted, error }: Props) {
+export default function BookDetails({ book, availableTags, theme, onThemeChange, onBack, onRead, readHref, onDownloadEpub, isCachedOffline, onSaveOffline, onRemoveOffline, onDeleteLocal, onDownloadArchive, cloudConnected, cloudRepo, cloudSession, onReadChapter, onLoadChapters, onSaveTags, onSaveSummary, onSaveReview, onSetTrial, onBrowseTag, onBrowseAuthor, onMarkCompleted, error }: Props) {
   const [tagInput, setTagInput] = useState('');
   const [tagDraft, setTagDraft] = useState<string[]>(() => book.personalTags || []);
   const [editingSummary, setEditingSummary] = useState(false);
@@ -206,7 +208,7 @@ export default function BookDetails({ book, availableTags, theme, onThemeChange,
                 .catch(reason => setFeedback(String(reason instanceof Error ? reason.message : reason)))
                 .finally(() => setSaving(false));
             }}>{book.shelfStatus === 'trying' ? 'Move to regular library' : 'Add to Trying out'}</button>
-            <button type="button" className="details-start" onClick={onRead}>{book.progress > 0 ? 'Continue reading' : 'Start reading'} <ArrowRight size={20} /></button>
+            <a href={readHref} className="details-start" onClick={event => openNovelInCurrentTab(event, onRead)}>{book.progress > 0 ? 'Continue reading' : 'Start reading'} <ArrowRight size={20} /></a>
             <button type="button" className="details-download" disabled={downloading} onClick={() => {
               setDownloading(true); setFeedback(null);
               void onDownloadEpub().catch(reason => setFeedback(`Download failed: ${String(reason)}`)).finally(() => setDownloading(false));
@@ -225,7 +227,7 @@ export default function BookDetails({ book, availableTags, theme, onThemeChange,
             <div className="details-progress-track"><i style={{ width: `${Math.max(0, Math.min(book.progress, 100))}%` }} /></div>
             <div className="details-progress-status">{isFinished(book) ? 'Finished' : book.progress <= 0 ? 'Not started' : 'Currently reading'}</div>
             <div className="details-location"><span>{book.currentChapterNumber ? 'Chapter' : 'Last reading position'}</span><strong>{chapterText}</strong></div>
-            <button type="button" className="details-resume" onClick={onRead}>{book.progress > 0 ? 'Resume at saved position' : 'Begin this novel'} <ArrowRight size={17} /></button>
+            <a href={readHref} className="details-resume" onClick={event => openNovelInCurrentTab(event, onRead)}>{book.progress > 0 ? 'Resume at saved position' : 'Begin this novel'} <ArrowRight size={17} /></a>
             {!isFinished(book) && <button type="button" className="details-mark-completed" disabled={markingCompleted}
               onClick={() => {
                 if (!window.confirm(`Mark “${book.title}” as completed? You can still reopen and read it afterwards.`)) return;
