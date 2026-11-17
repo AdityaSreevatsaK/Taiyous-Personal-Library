@@ -138,12 +138,12 @@ describe('Hugging Face catalogue upload integrity', () => {
     expect(response.status).toBe(409);
     expect(commit).toHaveBeenCalledOnce();
   });
-  it('preserves small personal sidecar writes without Owner mode', async () => {
+  it('refuses unrevisioned personal sidecar uploads to prevent lost cross-device edits', async () => {
     remoteMock();
-    vi.mocked(uploadFiles).mockResolvedValue(undefined);
     const path = 'data/personal/reviews/' + id + '.json';
     const response = await req('POST', 'upload', { paths: { [path]: '{"ok":true}' } });
-    expect(response.status).toBe(200);
-    expect(uploadFiles).toHaveBeenCalledOnce();
+    expect(response.status).toBe(409);
+    expect(uploadFiles).not.toHaveBeenCalled();
+    expect(commit).not.toHaveBeenCalled();
   });
 });
