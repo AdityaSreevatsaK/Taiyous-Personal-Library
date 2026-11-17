@@ -76,7 +76,13 @@ export function mergeCollections(a: BookCollection[], b: BookCollection[]): Book
       entries.set(entry.id, entry);
     }
   }
-  return [...entries.values()].sort((x, y) => x.name.localeCompare(y.name));
+  // Concurrent offline moves can independently create A -> B and B -> A.
+  // Refuse to upload that combined cycle; preserve both local/remote copies
+  // for retry instead of silently writing a corrupt collection hierarchy.
+  return validateCollections({
+    version: 1,
+    collections: [...entries.values()].sort((x,y) => x.name.localeCompare(y.name)),
+  });
 }
 
 export function readLocalCollections(): BookCollection[] {
