@@ -91,7 +91,7 @@ export default function EditorialHome({
             </button>
           </div>
         </div>
-        <div className="editorial-grand-gallery" aria-label="Featured books">
+        <div className={`editorial-grand-gallery editorial-gallery-count-${visibleGalleryIds.length}`} aria-label="Featured books">
           <div className="editorial-art-halo" aria-hidden="true" />
           {galleryCandidates.map(book => {
             const index = visibleGalleryIds.indexOf(book.id);
