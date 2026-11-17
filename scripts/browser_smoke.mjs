@@ -826,6 +826,24 @@ try {
     if (!headerGeometry.separate || !headerGeometry.visible) {
       throw new Error('Sun brand link and theme picker overlap: ' + JSON.stringify(headerGeometry));
     }
+    const detailsQuickNav = page.locator('.details-topbar .quick-nav');
+    await detailsQuickNav.waitFor({ state: 'visible' });
+    const quickNavToggle = viewport.width <= 1080
+      ? detailsQuickNav.getByRole('button', { name: 'Open library navigation' })
+      : detailsQuickNav.locator('.quick-nav-dropdown-host summary');
+    // Native details/summary menus do not require a fetch when opened.
+    if (viewport.width <= 1080) {
+      await detailsQuickNav.locator('.quick-nav-mobile summary').click();
+      await detailsQuickNav.getByRole('link', { name: 'Currently reading' }).waitFor();
+      await detailsQuickNav.locator('.quick-nav-mobile summary').click();
+    } else {
+      if (await detailsQuickNav.getByRole('link', { name: 'Currently reading' }).getAttribute('href') !== '/currently-reading') {
+        throw new Error('Quick navigation must use an ordinary, bookmarkable shelf link');
+      }
+      await quickNavToggle.click();
+      await detailsQuickNav.getByRole('group', { name: 'Collections and subcollections' }).waitFor();
+      await quickNavToggle.click();
+    }
     await page.reload({ waitUntil: 'networkidle' });
     await page.getByRole('heading', { name: 'Sample Library Book' }).waitFor();
     if (viewport.width <= 700) {
@@ -906,25 +924,32 @@ try {
     await page.getByLabel('My comments / reading notes').fill('Local test note');
     await page.getByRole('button', { name: 'Save comments' }).click();
 
-    // Synopsis edits must prompt before committing.
+    // Confirmations use the app's accessible, themed dialog, not browser prompts.
     await page.getByRole('button', { name: 'Edit summary' }).click();
     await page.locator('#summary-editor').fill('My confirmed synopsis');
-    page.once('dialog', dialog => void dialog.dismiss());
     await page.getByRole('button', { name: 'Save summary' }).click();
+    const synopsisDialog = page.getByRole('dialog', { name: 'Save revised synopsis?' });
+    await synopsisDialog.waitFor();
+    await synopsisDialog.getByRole('button', { name: 'Cancel' }).click();
+    await synopsisDialog.waitFor({ state: 'detached' });
     await page.locator('#summary-editor').waitFor();
-    page.once('dialog', dialog => void dialog.accept());
     await page.getByRole('button', { name: 'Save summary' }).click();
+    await page.getByRole('dialog', { name: 'Save revised synopsis?' })
+      .getByRole('button', { name: 'Save synopsis' }).click();
     await page.getByText('My confirmed synopsis').waitFor();
 
-    // Tags must be staged; multiple changes are confirmed in one batch.
+    // Personal tags stay in draft after cancel and save on explicit confirmation.
     await page.getByRole('textbox', { name: 'New personal tag' }).fill('Worth a try');
     await page.getByRole('button', { name: 'Add tag' }).click();
     await page.getByText('Unsaved tag changes').waitFor();
-    page.once('dialog', dialog => void dialog.dismiss());
     await page.getByRole('button', { name: 'Review & save tags' }).click();
+    const tagsDialog = page.getByRole('dialog', { name: 'Save tag changes?' });
+    await tagsDialog.waitFor();
+    await tagsDialog.getByRole('button', { name: 'Cancel' }).click();
     await page.getByText('Unsaved tag changes').waitFor();
-    page.once('dialog', dialog => void dialog.accept());
     await page.getByRole('button', { name: 'Review & save tags' }).click();
+    await page.getByRole('dialog', { name: 'Save tag changes?' })
+      .getByRole('button', { name: 'Save tags' }).click();
     await page.getByText('Your tags are saved').waitFor();
 
     // Trial shelf changes are explicit, and do not alter genre tags.
