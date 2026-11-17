@@ -426,8 +426,8 @@ export default function LibraryDashboard({
                   <select id="collection-new-parent" aria-label="Parent collection for new collection"
                     value={newCollectionParent} onChange={event => setNewCollectionParent(event.target.value)}>
                     <option value="">Top level (no parent)</option>
-                    {collectionItems.map(({collection, depth}) => <option key={collection.id} value={collection.id}>
-                      {'  '.repeat(depth)}{collection.name}
+                    {collectionItems.map(({collection, path}) => <option key={collection.id} value={collection.id}>
+                      {path}
                     </option>)}
                   </select>
                   <button type="submit" aria-label="Save new collection"><CheckCircle2 size={17}/> Save</button>
