@@ -5,6 +5,8 @@ export interface BookCollection {
   id: string;
   name: string;
   bookIds: string[];
+  /** Optional parent collection. Omitted for top-level collections (v1-compatible). */
+  parentId?: string;
   updatedAt: number;
   /** A tombstone prevents deleted collections from being restored by another device. */
   deleted?: boolean;
@@ -35,19 +37,35 @@ export function validateCollections(value: unknown): BookCollection[] {
     throw new Error('Unsupported collections file.');
   }
   const seen = new Set<string>();
-  return doc.collections.map((raw) => {
+  const validated = doc.collections.map((raw) => {
     if (!raw || typeof raw !== 'object' || !validId.test(raw.id) ||
       typeof raw.name !== 'string' || !raw.name.trim() || raw.name.length > 90 ||
       !Array.isArray(raw.bookIds) || raw.bookIds.length > 2000 ||
       raw.bookIds.some(id => typeof id !== 'string' || !/^[0-9a-f]{24}$/.test(id)) ||
       typeof raw.updatedAt !== 'number' || !Number.isFinite(raw.updatedAt) || raw.updatedAt < 0 ||
-      (raw.deleted !== undefined && typeof raw.deleted !== 'boolean') || seen.has(raw.id)) {
+      (raw.deleted !== undefined && typeof raw.deleted !== 'boolean') ||
+      (raw.parentId !== undefined && (!validId.test(raw.parentId) || raw.parentId === raw.id)) ||
+      seen.has(raw.id)) {
       throw new Error('Invalid collection entry.');
     }
     seen.add(raw.id);
     return { id: raw.id, name: raw.name.trim(), bookIds: [...new Set(raw.bookIds)],
-      updatedAt: raw.updatedAt, ...(raw.deleted ? { deleted: true } : {}) };
+      updatedAt: raw.updatedAt, ...(raw.parentId ? { parentId: raw.parentId } : {}),
+      ...(raw.deleted ? { deleted: true } : {}) };
   });
+  // A malformed remote hierarchy must not trap the UI in recursive rendering.
+  // Dangling parents are kept as metadata and displayed at the root instead.
+  const byId = new Map(validated.filter(c => !c.deleted).map(c => [c.id, c]));
+  for (const entry of byId.values()) {
+    const visited = new Set<string>([entry.id]);
+    let parentId = entry.parentId;
+    while (parentId && byId.has(parentId)) {
+      if (visited.has(parentId)) throw new Error('Collection hierarchy contains a cycle.');
+      visited.add(parentId);
+      parentId = byId.get(parentId)?.parentId;
+    }
+  }
+  return validated;
 }
 
 export function mergeCollections(a: BookCollection[], b: BookCollection[]): BookCollection[] {
@@ -96,4 +114,89 @@ export async function saveCloudCollections(
     { path: CLOUD_PATH, content: new Blob([JSON.stringify({ version: 1, collections: merged }, null, 2)], { type: 'application/json' }) },
   ], 'Update private reading collections');
   return merged;
+}
+
+/** Parents are optional to retain full compatibility with existing v1 data. */
+export function collectionChildren(items: BookCollection[], parentId: string | null = null): BookCollection[] {
+  const active = items.filter(item => !item.deleted);
+  const existing = new Set(active.map(item => item.id));
+  return active.filter(item => parentId
+    ? item.parentId === parentId
+    : !item.parentId || !existing.has(item.parentId))
+    .sort((a,b) => a.name.localeCompare(b.name, undefined, {sensitivity:'base', numeric:true}));
+}
+
+export function collectionAncestors(items: BookCollection[], id: string): BookCollection[] {
+  const byId = new Map(items.filter(item => !item.deleted).map(item => [item.id, item]));
+  const path: BookCollection[] = [];
+  const visited = new Set<string>();
+  let current = byId.get(id);
+  while (current && !visited.has(current.id)) {
+    path.unshift(current);
+    visited.add(current.id);
+    current = current.parentId ? byId.get(current.parentId) : undefined;
+  }
+  return path;
+}
+
+export function collectionTree(items: BookCollection[]): Array<{collection:BookCollection; depth:number; path:string}> {
+  const flattened: Array<{collection:BookCollection; depth:number; path:string}> = [];
+  const seen = new Set<string>();
+  const walk = (node: BookCollection, depth: number, path: string) => {
+    if (seen.has(node.id)) return;
+    seen.add(node.id);
+    const currentPath = path ? path + ' / ' + node.name : node.name;
+    flattened.push({collection:node, depth, path:currentPath});
+    for (const child of collectionChildren(items,node.id)) walk(child, depth+1, currentPath);
+  };
+  for (const node of collectionChildren(items)) walk(node,0,'');
+  // Fail-safe for pre-existing bad sync data: render nodes rather than hiding them.
+  for (const node of items.filter(item => !item.deleted)) if (!seen.has(node.id)) walk(node,0,'');
+  return flattened;
+}
+
+export function collectionDescendantIds(items: BookCollection[], id: string): Set<string> {
+  const found = new Set<string>();
+  const queue = [id];
+  for (let index = 0; index < queue.length; index++) {
+    for (const child of collectionChildren(items, queue[index])) {
+      if (found.has(child.id)) continue;
+      found.add(child.id);
+      queue.push(child.id);
+    }
+  }
+  return found;
+}
+
+export function moveCollection(
+  items: BookCollection[], id: string, parentId: string | null, timestamp = Date.now(),
+): BookCollection[] {
+  const item = items.find(entry => entry.id === id && !entry.deleted);
+  if (!item) throw new Error('Collection no longer exists.');
+  const nextParent = parentId || undefined;
+  if (nextParent === item.parentId) return items;
+  if (nextParent) {
+    if (!items.some(entry => entry.id === nextParent && !entry.deleted)) throw new Error('Parent collection no longer exists.');
+    if (nextParent === id || collectionDescendantIds(items,id).has(nextParent))
+      throw new Error('A collection cannot be moved into itself or one of its subcollections.');
+  }
+  return items.map(entry => entry.id === id
+    ? { ...entry, parentId:nextParent, updatedAt:Math.max(timestamp,entry.updatedAt+1) }
+    : entry);
+}
+
+/** Deleting a folder retains its novels and adopts children into its own parent. */
+export function deleteCollectionPreservingChildren(
+  items: BookCollection[], id: string, timestamp = Date.now(),
+): BookCollection[] {
+  const target = items.find(entry => entry.id === id && !entry.deleted);
+  if (!target) return items;
+  const parentId = items.some(entry => entry.id === target.parentId && !entry.deleted)
+    ? target.parentId : undefined;
+  return items.map(entry => {
+    if (entry.id === id) return { ...entry, deleted:true, updatedAt:Math.max(timestamp,entry.updatedAt+1) };
+    if (!entry.deleted && entry.parentId === id)
+      return { ...entry, parentId, updatedAt:Math.max(timestamp,entry.updatedAt+1) };
+    return entry;
+  });
 }
