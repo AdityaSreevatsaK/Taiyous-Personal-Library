@@ -1,15 +1,3 @@
----
-title: Taiyou's Personal Library
-emoji: 📖
-colorFrom: green
-colorTo: yellow
-sdk: static
-app_file: dist/index.html
-fullWidth: true
-header: mini
-short_description: Personal offline-capable novel library with private cloud storage
----
-
 # Taiyou's Personal Library
 
 A responsive, installable EPUB reader and personal novel library for desktop and mobile. The **application shell is public**, but the novels and selected synchronised personal data live in a **private Hugging Face Dataset**. EPUBs saved for offline reading stay in the browser's IndexedDB.
@@ -34,7 +22,7 @@ A responsive, installable EPUB reader and personal novel library for desktop and
 - **Offline:** installable PWA, local bookshelf management and **Save all offline**. A downloaded EPUB can be removed with ordinary confirmation only after the hosted replacement is verified.
 - **Private cloud:** Hugging Face OAuth for novel imports, covers, reading progress, personal reviews and collections. Personal tags, custom summaries and reader settings remain device-local.
 
-For complete behaviour, see [Capabilities and offline behaviour](docs/CAPABILITIES.md). The production dataset's **89 novel folders have now been migrated** to human-readable names, with stable IDs and all personal sidecar paths preserved. See [migration compatibility sign-off](docs/READABLE_FOLDER_MIGRATION_SIGNOFF_2026-11-14.md).
+For complete behaviour, see [Capabilities and offline behaviour](docs/CAPABILITIES.md). A migration converted **89 existing novel folders** to human-readable names while preserving their IDs and personal sidecar paths. The live library can contain more novels than that historical migration count. See [migration compatibility sign-off](docs/READABLE_FOLDER_MIGRATION_SIGNOFF_2026-11-14.md).
 
 ## Storage, authentication and safety
 
@@ -67,7 +55,7 @@ npm run build
 npm run preview
 ```
 
-The [Verify novel reader](.github/workflows/verify.yml) workflow runs TypeScript/build checks, cloud gateway tests, dependency audits and Chromium desktop/mobile/offline smoke tests. The browser suites are in `scripts/browser_smoke.mjs` and `scripts/browser_sync_smoke.mjs`. CI uses **synthetic EPUBs and simulated cloud data**, never the owner's real novel collection or private credentials. Passing CI does not replace real OAuth/Hugging Face integration testing.
+The [Verify novel reader](.github/workflows/verify.yml) workflow runs TypeScript/build checks, cloud gateway tests, dependency audits and Chromium desktop/mobile/offline smoke tests. Monthly Dependabot updates cover npm packages and pinned GitHub Actions. The browser suites are in `scripts/browser_smoke.mjs`, `scripts/csp_browser_smoke.mjs` and `scripts/epub_security_smoke.mjs`. The last specifically checks that crafted EPUB scripts and event handlers cannot execute. CI uses **synthetic EPUBs and simulated cloud data**, never the owner's real novel collection or private credentials. Passing CI does not replace real OAuth/Hugging Face integration testing.
 
 ## Production deployment
 
@@ -79,3 +67,5 @@ The [Verify novel reader](.github/workflows/verify.yml) workflow runs TypeScript
 The workflow uses Cloudflare secrets `CF_ACCOUNT_ID` and `CF_API_TOKEN` plus variable `CF_PAGES_PROJECT` in the inherited GitHub environment `standalone-staging` (**despite that name, this workflow publishes production**). OAuth and Owner mode need `HF_OAUTH_SESSION_KEY` and `TAIYOU_OWNER_PASSPHRASE` as documented. The previous Hugging Face Spaces are historical app deployments; **do not delete the private Hugging Face Dataset**.
 
 Further reading: [Cloudflare operations](docs/STANDALONE_PWA.md) · [OAuth and Owner mode](docs/ACCESS_GATEWAY.md) · [Production-readiness audit](docs/READINESS_AUDIT_2026-11.md).
+
+Additional audit notes: [Evidence-based validation of the 17 November report](docs/AUDIT_VALIDATION_2026-11-17.md).

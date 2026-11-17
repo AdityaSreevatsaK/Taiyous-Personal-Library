@@ -45,7 +45,8 @@ try {
     if (!policy.includes("script-src 'self'") || !policy.includes("object-src 'none'") ||
         policy.includes("'unsafe-eval'") ||
         !policy.includes("img-src 'self' blob: data:") ||
-        !policy.includes('https://images.unsplash.com')) {
+        !policy.includes('https://images.unsplash.com') ||
+        !response.headers()['strict-transport-security']?.includes('max-age=31536000')) {
       throw new Error('CSP header must allow local covers and vetted photos only');
     }
     await page.locator('.app-shell').waitFor({state:'visible',timeout:12000});
