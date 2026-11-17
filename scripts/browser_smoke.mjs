@@ -1348,7 +1348,7 @@ try {
         !(await page.locator('.font-stepper span').innerText()).includes(String(wantedSize))) {
       throw new Error('Reader preferences do not match the responsive default font');
     }
-    await page.getByRole('button', { name:'Close panel' }).click();
+    await page.locator('.reader-panel .panel-header').getByRole('button', { name:'Close panel' }).click();
 
     const chapterJump = footer.getByRole('button', { name: 'Jump to chapter' });
     await chapterJump.waitFor({ state: 'visible' });
