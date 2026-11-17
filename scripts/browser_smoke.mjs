@@ -99,7 +99,7 @@ try {
     if (!cloudBox || !topbarBox || cloudBox.x < -1 ||
         cloudBox.x + cloudBox.width > viewport.width + 1 ||
         topbarBox.x + topbarBox.width > viewport.width + 1) {
-      throw new Error('Cloud connection pill overflows the responsive header');
+      throw new Error('Cloud status icon overflows the responsive header');
     }
     if (await page.locator('.breadcrumbs').count()) throw new Error('Redundant My Library / All Books breadcrumb still visible');
     if (await page.locator('.offline-health').count()) throw new Error('Offline status must be restricted to Offline tab');
@@ -132,40 +132,35 @@ try {
       const id = { Sepia: 'sepia', Paper: 'light', Charcoal: 'dark',
         Midnight: 'midnight', Ocean: 'ocean', Plum: 'plum' }[name];
       await page.locator('.app-shell.theme-' + id).waitFor({ state: 'visible' });
-      // Connection label and Settings must meet readable contrast in every
-      // theme. Simulate CSS state only, not a Hugging Face login.
-      const cloudContrast = await page.evaluate(() => {
-        const pill = document.querySelector('.topbar .cloud-connect-head .connection-badge');
-        const button = document.querySelector('.topbar .cloud-connect-head > .secondary-button');
-        if (!pill || !button) return null;
-        pill.classList.add('is-connected');
-        const dot = document.createElement('span');
-        dot.className = 'cloud-connected-dot';
-        pill.prepend(dot);
-        const rgb = color => (color.match(/[0-9.]+/g) || []).slice(0, 3).map(Number);
-        const luminance = color => rgb(color).map(value => {
-          const x = value / 255;
-          return x <= .04045 ? x / 12.92 : ((x + .055) / 1.055) ** 2.4;
-        }).reduce((sum, value, index) => sum + value * [.2126, .7152, .0722][index], 0);
-        const ratio = (a,b) => {
-          const x = luminance(a), y = luminance(b);
-          return (Math.max(x,y)+.05)/(Math.min(x,y)+.05);
+      // One cloud icon. Simulate the alternate state without a cloud login.
+      const iconState = await page.evaluate(() => {
+        const toggle = document.querySelector('.topbar .cloud-status-toggle');
+        const dot = toggle?.querySelector('.cloud-status-dot');
+        const svg = toggle?.querySelector('svg');
+        const header = document.querySelector('.topbar');
+        if (!toggle || !dot || !svg || !header) return null;
+        const red = getComputedStyle(dot).backgroundColor;
+        dot.classList.replace('is-disconnected','is-connected');
+        const green = getComputedStyle(dot).backgroundColor;
+        dot.classList.replace('is-connected','is-disconnected');
+        const d = dot.getBoundingClientRect(), i = svg.getBoundingClientRect(),
+          b = toggle.getBoundingClientRect();
+        const rgb = c => (c.match(/[0-9.]+/g)||[]).slice(0,3).map(Number);
+        const luminance = c => rgb(c).map(x=>{
+          const v=x/255; return v<=.04045?v/12.92:((v+.055)/1.055)**2.4;
+        }).reduce((t,x,n)=>t+x*[.2126,.7152,.0722][n],0);
+        const a=luminance(getComputedStyle(toggle).color),
+          bg=luminance(getComputedStyle(header).backgroundColor);
+        return {
+          red,green,contrast:(Math.max(a,bg)+.05)/(Math.min(a,bg)+.05),
+          touch:b.width>=40&&b.height>=40,
+          inside:d.left>i.left+i.width*.25&&d.right<i.right-i.width*.25&&
+            d.top>i.top+i.height*.25&&d.bottom<i.bottom-i.height*.19,
         };
-        const badgeStyle = getComputedStyle(pill), buttonStyle = getComputedStyle(button),
-          dotStyle = getComputedStyle(dot);
-        const metrics = {
-          badge:ratio(badgeStyle.color,badgeStyle.backgroundColor),
-          settings:ratio(buttonStyle.color,buttonStyle.backgroundColor),
-          dot:ratio(dotStyle.backgroundColor,badgeStyle.backgroundColor),
-        };
-        dot.remove();
-        pill.classList.remove('is-connected');
-        return metrics;
       });
-      if (!cloudContrast || cloudContrast.settings < 4.5 ||
-          (viewport.width > 700 && cloudContrast.badge < 4.5) ||
-          cloudContrast.dot < 3) {
-        throw new Error('Cloud connection contrast fails in ' + name + ': ' + JSON.stringify(cloudContrast));
+      if(!iconState||iconState.red===iconState.green||!iconState.touch||
+         !iconState.inside||iconState.contrast<4.5) {
+        throw new Error('Two-state cloud icon not readable in '+name+': '+JSON.stringify(iconState));
       }
       const expectedLogo = ['Sepia','Paper','Ocean'].includes(name) ? 'sun-light.webp' : 'sun-dark.webp';
       await page.locator('.taiyou-brand-mark[src$="' + expectedLogo + '"]').waitFor();
@@ -282,24 +277,35 @@ try {
     await navigateShelf(/All books/, 'all');
     await page.waitForURL('**/library');
 
-    // Cloud connection must not dominate the bookshelf by default, but remain accessible.
-    const cloudSettings = page.getByRole('button', { name: 'Settings', exact: true });
+    // Both statuses are represented by one dot INSIDE a single cloud button.
+    const cloudSettings = page.getByRole('button',{name:'Cloud settings, disconnected',exact:true});
     await cloudSettings.waitFor();
-    if (!(await page.locator('.connection-badge').count())) throw new Error('Cloud status pill missing');
-    if (await page.locator('.cloud-connected-dot').count()) throw new Error('Disconnected dataset must NOT show a green connection dot');
-    if (await page.locator('.cloud-connect-body').count()) {
-      throw new Error('Cloud settings should be collapsed by default');
+    if (await page.locator('.topbar .cloud-status-dot.is-disconnected').count()!==1 ||
+        await page.locator('.topbar .cloud-status-dot.is-connected').count() ||
+        await page.locator('.connection-badge,.cloud-connected-dot,.oauth-header-login').count()) {
+      throw new Error('Cloud has an extra status badge or lacks its red dot');
+    }
+    if (await cloudSettings.getAttribute('aria-expanded')!=='false'||
+        await page.locator('.cloud-connect-body').count()) {
+      throw new Error('Cloud settings must be collapsed by default');
     }
     await cloudSettings.click();
-    await page.getByRole('textbox', { name: 'Private dataset repository' }).waitFor();
-    await page.getByRole('button', { name: 'Close', exact: true }).click();
-    if (await page.locator('.cloud-connect-body').count()) {
-      throw new Error('Cloud settings did not collapse');
+    await page.getByRole('textbox',{name:'Private dataset repository'}).waitFor();
+    await page.getByText('Connection: Disconnected').waitFor();
+    if(await cloudSettings.getAttribute('aria-expanded')!=='true') {
+      throw new Error('Cloud toggle must expose its expanded state');
     }
-    await page.getByRole('button', { name: 'Settings', exact: true }).click();
-    await page.locator('.cloud-connect-body').waitFor({ state: 'visible' });
-    await page.getByRole('textbox', { name: 'Search all novels' }).click();
-    await page.locator('.cloud-connect-body').waitFor({ state: 'detached' });
+    await cloudSettings.click();
+    if(await page.locator('.cloud-connect-body').count()) {
+      throw new Error('Cloud settings did not close from the same icon');
+    }
+    await cloudSettings.click();
+    const popup=await page.locator('.cloud-connect-body').boundingBox();
+    if(!popup||popup.x< -1||popup.x+popup.width>viewport.width+1) {
+      throw new Error('Cloud settings panel is outside the viewport');
+    }
+    await page.getByRole('textbox',{name:'Search all novels'}).click();
+    await page.locator('.cloud-connect-body').waitFor({state:'detached'});
     if (await page.locator('.cloud-status').count()) {
       throw new Error('Persistent cloud status obscures the bookshelf');
     }
@@ -1684,7 +1690,7 @@ try {
         await confirmDialog.getByRole('button',{name:'Cancel',exact:true}).click();
         if(await adminPage.getByRole('dialog').count()) throw new Error('Owner deletion modal failed to close');
         // Also check the journal's Plum hover and a genuinely contrasting
-        // Settings capsule without altering stored theme preferences.
+        // Cloud icon without altering stored theme preferences.
         await adminPage.goto(baseUrl+'/',{waitUntil:'domcontentloaded'});
         const journalRow=adminPage.locator('.editorial-index-row').first();
         await journalRow.waitFor({state:'visible',timeout:12000});
@@ -1700,18 +1706,18 @@ try {
         await adminPage.waitForTimeout(240);
         const after=await journalRow.evaluate(el=>getComputedStyle(el).backgroundColor);
         if(before===after)throw new Error('Journal row hover has no contrasting visual state in Plum theme');
-        const settings=adminPage.getByRole('button',{name:'Settings',exact:true});
-        const contrast=await settings.evaluate(el=>{
-          const cs=getComputedStyle(el);
-          const rgb=color=>[...(color.match(/\d+(?:\.\d+)?/g)||[])].slice(0,3).map(Number);
-          const luminance=(color)=>{
-            const [r,g,b]=rgb(color).map(v=>{const s=v/255;return s<=0.04045?s/12.92:Math.pow((s+0.055)/1.055,2.4)});
-            return 0.2126*r+0.7152*g+0.0722*b;
-          };
-          const a=luminance(cs.color),b=luminance(cs.backgroundColor);
-          return (Math.max(a,b)+0.05)/(Math.min(a,b)+0.05);
+        const cloudButton=adminPage.getByRole('button',{name:/Cloud settings, (connected|disconnected)/});
+        const contrast=await cloudButton.evaluate(el=>{
+          const foreground=getComputedStyle(el).color;
+          const background=getComputedStyle(document.querySelector('.topbar')).backgroundColor;
+          const rgb=c=>(c.match(/[0-9.]+/g)||[]).slice(0,3).map(Number);
+          const luminance=c=>rgb(c).map(x=>{
+            const v=x/255; return v<=.04045?v/12.92:((v+.055)/1.055)**2.4;
+          }).reduce((t,x,n)=>t+x*[.2126,.7152,.0722][n],0);
+          const a=luminance(foreground),b=luminance(background);
+          return (Math.max(a,b)+.05)/(Math.min(a,b)+.05);
         });
-        if(contrast<4.5)throw new Error('Plum Settings button text contrast failed: '+contrast.toFixed(2)+':1');
+        if(contrast<4.5)throw new Error('Plum cloud icon contrast failed: '+contrast.toFixed(2)+':1');
         console.log('Owner deletion preflight and Plum hover/contrast checks passed');
 
       } finally {
