@@ -1,4 +1,4 @@
-import type { MouseEvent } from 'react';
+import type { FocusEvent, MouseEvent } from 'react';
 
 /** Intercept only an ordinary same-tab click for internal navigation.
  * Preserve middle-click, Ctrl/Cmd-click, Shift-click, copy-link, native context
@@ -15,3 +15,17 @@ export function openInternalLinkInCurrentTab(
 
 /** Kept as an alias for existing book and reader links. */
 export { openInternalLinkInCurrentTab as openNovelInCurrentTab };
+
+/** Browser-native tooltip only if a visual title was actually ellipsised or
+ * line-clamped. Full titles remain visible to assistive technology as content.
+ */
+export function revealClippedLinkTitle(
+  event: MouseEvent<HTMLAnchorElement> | FocusEvent<HTMLAnchorElement>,
+  title: string,
+): void {
+  const el = event.currentTarget;
+  const isClipped = el.scrollWidth > el.clientWidth + 1 ||
+    el.scrollHeight > el.clientHeight + 1;
+  if (isClipped) el.setAttribute('title', title);
+  else el.removeAttribute('title');
+}
