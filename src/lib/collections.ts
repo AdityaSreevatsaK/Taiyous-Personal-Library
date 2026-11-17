@@ -145,6 +145,26 @@ export function collectionAncestors(items: BookCollection[], id: string): BookCo
   return path;
 }
 
+/** Direct memberships only. A child collection does not implicitly contain its parent's novels.
+ * Resolve readable nested paths in linear time for the current book, with no fetches. */
+export function collectionMembershipPaths(
+  items: BookCollection[], bookId: string,
+): Array<{ collection: BookCollection; path: string }> {
+  const active = items.filter(item => !item.deleted);
+  const byId = new Map(active.map(item => [item.id, item]));
+  return active.filter(item => item.bookIds.includes(bookId)).map(collection => {
+    const names: string[] = [];
+    const seen = new Set<string>();
+    let current: BookCollection | undefined = collection;
+    while (current && !seen.has(current.id)) {
+      names.unshift(current.name);
+      seen.add(current.id);
+      current = current.parentId ? byId.get(current.parentId) : undefined;
+    }
+    return { collection, path: names.join(' / ') };
+  }).sort((a, b) => a.path.localeCompare(b.path, undefined, { sensitivity:'base', numeric:true }));
+}
+
 export function collectionTree(items: BookCollection[]): Array<{collection:BookCollection; depth:number; path:string}> {
   const flattened: Array<{collection:BookCollection; depth:number; path:string}> = [];
   const seen = new Set<string>();
