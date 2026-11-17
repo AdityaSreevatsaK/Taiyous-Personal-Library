@@ -537,7 +537,8 @@ export function blendCloudAndLocal(remote: CloudEntry[], local: LibraryBook[]): 
         personalReviewUpdatedAt: prior.personalReviewUpdatedAt,
         pendingReviewSync: prior.pendingReviewSync,
         progressUpdatedAt: prior.progressUpdatedAt, pendingProgressSync: prior.pendingProgressSync,
-        progress: prior.progress, currentChapter: prior.currentChapter,
+        progress: prior.progress, completedAt: prior.completedAt,
+        currentChapter: prior.currentChapter,
         currentChapterIndex: prior.currentChapterIndex, currentChapterNumber: prior.currentChapterNumber,
         lastCfi: prior.lastCfi, lastOpenedAt: prior.lastOpenedAt } : {}),
     });
