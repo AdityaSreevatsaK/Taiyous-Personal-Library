@@ -22,6 +22,14 @@ describe('Owner reading-progress reset', () => {
     expect(updated.lastOpenedAt).toBeUndefined();
     expect(book.progress).toBe(80);
   });
+  it('clears the Finished marker only when explicitly resetting the progress', () => {
+    const previouslyFinished = { ...book, progress: 21, completedAt: 430 };
+    const updated = resetReadingProgress(previouslyFinished, 600);
+    expect(updated.progress).toBe(0);
+    expect(updated.completedAt).toBeUndefined();
+    expect(previouslyFinished.completedAt).toBe(430);
+  });
+
   it('does not allow stale remote progress to win a same-millisecond reset', () => {
     expect(resetReadingProgress(book,499).progressUpdatedAt).toBe(501);
   });
