@@ -514,3 +514,22 @@
     transform:translateY(1px);
   }
 }
+
+
+/* Keep the actual covers centred if fewer than three pass image validation. */
+.editorial-home .editorial-gallery-count-1 .editorial-art-book-0 {
+  left:34%;top:5%;transform:rotate(-4deg);
+}
+.editorial-home .editorial-gallery-count-2 .editorial-art-book-0 {
+  left:18%;top:26px;transform:rotate(-8deg);
+}
+.editorial-home .editorial-gallery-count-2 .editorial-art-book-1 {
+  left:53%;top:10px;transform:rotate(8deg);
+}
+@media(max-width:660px) {
+  .editorial-home .editorial-gallery-count-1 .editorial-art-book-0 {
+    left:35%;top:10px;
+  }
+  .editorial-home .editorial-gallery-count-2 .editorial-art-book-0 {left:17%;top:21px}
+  .editorial-home .editorial-gallery-count-2 .editorial-art-book-1 {left:54%;top:7px}
+}
