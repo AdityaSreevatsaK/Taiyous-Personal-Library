@@ -8,7 +8,7 @@ import { extractEpubMetadata, prepareImport } from './lib/importer';
 import { bookTags, normalisePersonalTags, tagCounts, tagKey } from './lib/tags';
 import { namedNovelUrl, parseLibraryRoute, resolveNovelRoute } from './lib/routes';
 import { libraryAuthorUrl, libraryTagUrl } from './lib/library-routes';
-import { mapWithConcurrency, retryTransientRead } from './lib/network-pool';
+import { mapWithConcurrency } from './lib/network-pool';
 import { partitionLocalBackups } from './lib/local-backups';
 import { requestOfflineRetention } from './lib/offline';
 import { installUsageTracker } from './lib/usage-analytics';
@@ -31,6 +31,7 @@ import { readLocalCollections, writeLocalCollections, readCollectionsPending, wr
   writeCollectionsConflict, type BookCollection } from './lib/collections';
 import { reconcileCollections, resolveCollections, type CollectionsOutcome } from './lib/collections-sync';
 import { syncReadingRecord, syncReviewRecord, resolveReadingConflict, resolveReviewConflict } from './lib/personal-sync';
+import { nextLocalEditTimestamp } from './lib/revision-sync';
 
 export default function App() {
   const [books, setBooks] = useState<LibraryBook[]>([]);
@@ -847,7 +848,7 @@ export default function App() {
     if (rating !== undefined && (!Number.isInteger(rating) || rating < 1 || rating > 10)) {
       throw new Error('Rating must be between 1 and 10');
     }
-    const updatedAt = Date.now();
+    const updatedAt = nextLocalEditTimestamp(Date.now(), current.personalReviewUpdatedAt);
     const updated = { ...current, personalRating: rating, personalReview: review.trim().slice(0, 10000),
        shelfStatus: trialStatus === 'trying' ? 'trying' as const : trialStatus === 'regular' ? undefined : current.shelfStatus,
       personalReviewUpdatedAt: updatedAt, pendingReviewSync: !!current.cloud };
