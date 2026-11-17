@@ -93,8 +93,8 @@ try {
       throw new Error('Hero gallery presented generated cover art as a real cover');
     }
     await page.goto(base+'/library',{waitUntil:'domcontentloaded',timeout:35000});
-    await page.getByRole('button',{name:'View details for CSP Test Novel'}).waitFor({timeout:15000});
-    await page.getByRole('button',{name:'View details for CSP Test Novel'}).click();
+    await page.getByRole('link',{name:'View details for CSP Test Novel'}).waitFor({timeout:15000});
+    await page.getByRole('link',{name:'View details for CSP Test Novel'}).click();
     await page.getByRole('heading',{name:'CSP Test Novel'}).waitFor();
     await page.locator('.details-hero-backdrop').waitFor({state:'visible'});
     await page.waitForFunction(() => {
@@ -107,7 +107,7 @@ try {
     if (await page.locator('.details-cover-wrap .cover-generated-artwork').count()) {
       throw new Error('Stored real novel covers must outrank generated jackets');
     }
-    await page.getByRole('button',{name:/^(Start reading|Continue reading)$/}).click();
+    await page.getByRole('link',{name:/^(Start reading|Continue reading)$/}).click();
     await page.locator('.reader-page iframe').first().waitFor({state:'visible',timeout:20000});
     await page.waitForFunction(() => {
       const frame=document.querySelector('.reader-page iframe');
