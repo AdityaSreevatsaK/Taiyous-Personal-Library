@@ -497,7 +497,7 @@ export default function LibraryDashboard({
              {pendingProgressCount > 0 && <span className="pending-sync-status">{pendingProgressCount} reading positions waiting to sync</span>}
              {collectionsSyncPending && <span className="pending-sync-status">Collections waiting to sync</span>}
            </section>}
-                    {!isMasterControls && (showAdvanced ? <AdvancedSearch books={books} allBooks={allBooks} offlineIds={cachedEpubIds} initialName={globalSearch} cloudRepo={cloudRepo} cloudSession={cloudSession}
+                    {!isMasterControls && (showAdvanced ? <AdvancedSearch books={books} allBooks={allBooks} offlineIds={cachedEpubIds} nameQuery={globalSearch} onNameQueryChange={onGlobalSearch} cloudRepo={cloudRepo} cloudSession={cloudSession}
             onClose={() => { setShowAdvanced(false); onGlobalSearch(''); onLibraryNavigate(libraryShelfUrl('all')); }} onOpen={onOpen}
             onBrowseTag={browseTag} /> : filter === 'analytics' ? <UsageDashboard books={books} /> : <>
 
