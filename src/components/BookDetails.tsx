@@ -5,13 +5,16 @@ import {
 } from 'lucide-react';
 import { Cover } from './LibraryDashboard';
 import ThemeSwitcher from './ThemeSwitcher';
+import QuickNavigation from './QuickNavigation';
+import { useAppDialogs } from './AppDialogs';
+import type { BookCollection } from '../lib/collections';
 import BrandMark from './BrandMark';
 import { novelHeroBackdrop, novelHeroBackdropUrl, novelHeroStyle } from '../lib/novel-hero';
 import './details-palettes.css';
 import type { CloudSession } from '../lib/cloud';
 import ChapterBrowser from './ChapterBrowser';
 import { bookTags, normalisePersonalTags, suggestExistingTags, tagKey } from '../lib/tags';
-import { ratingLabel } from '../lib/ratings';
+import { ratingLabel, ratingToneClass } from '../lib/ratings';
 import './site-footer.css';
 import { isFinished } from '../lib/reading-status';
 import { openNovelInCurrentTab } from '../lib/novel-links';
@@ -23,6 +26,8 @@ interface Props {
   theme: ReaderTheme;
   onThemeChange: (theme: ReaderTheme) => void;
   onBack: () => void;
+  collections: BookCollection[];
+  onBrowseLibrary: (path: string) => void;
   onRead: () => void;
   readHref: string;
   onDownloadEpub: () => Promise<void>;
@@ -46,7 +51,7 @@ interface Props {
   error: string | null;
 }
 
-export default function BookDetails({ book, availableTags, theme, onThemeChange, onBack, onRead, readHref, onDownloadEpub, isCachedOffline, onSaveOffline, onRemoveOffline, onDeleteLocal, onDownloadArchive, cloudConnected, cloudRepo, cloudSession, onReadChapter, onLoadChapters, onSaveTags, onSaveSummary, onSaveReview, onSetTrial, onBrowseTag, onBrowseAuthor, onMarkCompleted, error }: Props) {
+export default function BookDetails({ book, availableTags, theme, onThemeChange, onBack, collections, onBrowseLibrary, onRead, readHref, onDownloadEpub, isCachedOffline, onSaveOffline, onRemoveOffline, onDeleteLocal, onDownloadArchive, cloudConnected, cloudRepo, cloudSession, onReadChapter, onLoadChapters, onSaveTags, onSaveSummary, onSaveReview, onSetTrial, onBrowseTag, onBrowseAuthor, onMarkCompleted, error }: Props) {
   const [tagInput, setTagInput] = useState('');
   const [tagDraft, setTagDraft] = useState<string[]>(() => book.personalTags || []);
   const [editingSummary, setEditingSummary] = useState(false);
@@ -57,6 +62,7 @@ export default function BookDetails({ book, availableTags, theme, onThemeChange,
   const [downloading, setDownloading] = useState(false);
   const [markingCompleted, setMarkingCompleted] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
+  const { confirm } = useAppDialogs();
   const originalTags = book.sourceTags || [];
   const customTags = tagDraft;
   const tagsChanged = JSON.stringify(tagDraft) !== JSON.stringify(book.personalTags || []);
@@ -99,7 +105,7 @@ export default function BookDetails({ book, availableTags, theme, onThemeChange,
 
   async function saveTags() {
     if (saving || !tagsChanged) return;
-    if (!window.confirm('Are you sure you wish to save your tag changes for this novel? All additions and removals will be applied together.')) return;
+    if (!await confirm({ title: 'Save tag changes?', message: 'All tag additions and removals will be saved together.', confirmLabel: 'Save tags' })) return;
     setSaving(true); setFeedback(null);
     try {
       await onSaveTags(tagDraft);
@@ -112,7 +118,7 @@ export default function BookDetails({ book, availableTags, theme, onThemeChange,
   async function saveSummary(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (saving) return;
-    if (!window.confirm('Are you sure you wish to save this revised synopsis?')) return;
+    if (!await confirm({ title: 'Save revised synopsis?', confirmLabel: 'Save synopsis' })) return;
     setSaving(true); setFeedback(null);
     try { await onSaveSummary(summaryDraft); setEditingSummary(false); setFeedback('Summary saved on this device.'); }
     catch { setFeedback('Could not save your summary.'); }
@@ -159,6 +165,7 @@ export default function BookDetails({ book, availableTags, theme, onThemeChange,
           <span className="details-brand-short">Taiyou's Library</span>
         </span>
       </a>
+      <QuickNavigation collections={collections} onNavigate={onBrowseLibrary} />
       <div className="details-top-controls"><ThemeSwitcher compact value={theme} onChange={onThemeChange} /></div>
     </header>
     <main className="details-layout">
@@ -190,7 +197,7 @@ export default function BookDetails({ book, availableTags, theme, onThemeChange,
           </div>
           <form className="hero-rating" aria-label="Personal novel rating" onSubmit={(event) => void saveReview(event)}>
             <fieldset className="hero-rating-fieldset">
-              <legend><Star size={15} /> My rating {book.personalRating ? `· ${book.personalRating}/10` : ''}</legend>
+              <legend><Star size={15} fill="currentColor" className={'rating-star ' + ratingToneClass(ratingDraft)} /> My rating {book.personalRating ? `· ${book.personalRating}/10` : ''}</legend>
               <div className="hero-rating-choices">
                 {Array.from({ length: 10 }, (_, index) => index + 1).map(value =>
                   <button key={value} type="button" className={ratingDraft === value ? 'hero-rating-choice selected' : 'hero-rating-choice'} onClick={() => setRatingDraft(value)} aria-label={`Rate ${value} out of 10: ${ratingLabel(value)}`} title={ratingLabel(value)} aria-pressed={ratingDraft === value}>{value}</button>
@@ -230,11 +237,13 @@ export default function BookDetails({ book, availableTags, theme, onThemeChange,
             <a href={readHref} className="details-resume" onClick={event => openNovelInCurrentTab(event, onRead)}>{book.progress > 0 ? 'Resume at saved position' : 'Begin this novel'} <ArrowRight size={17} /></a>
             {!isFinished(book) && <button type="button" className="details-mark-completed" disabled={markingCompleted}
               onClick={() => {
-                if (!window.confirm(`Mark “${book.title}” as completed? You can still reopen and read it afterwards.`)) return;
+                void (async () => {
+                  if (!await confirm({ title: 'Mark as completed?', message: '“' + book.title + '”', confirmLabel: 'Mark completed' })) return;
                 setMarkingCompleted(true); setFeedback(null);
                 void onMarkCompleted().then(() => setFeedback('Novel marked as completed and moved to Finished.'))
                   .catch(reason => setFeedback(String(reason)))
                   .finally(() => setMarkingCompleted(false));
+                })();
               }}><Check size={15}/> {markingCompleted ? 'Saving…' : 'Mark as completed'}</button>}
           </section>
           <section className="details-card details-info-card"><div className="details-section-header"><div><span className="details-label">BOOK INFORMATION</span><h2>Details</h2></div><Info size={20} className="details-section-icon" /></div>
@@ -297,7 +306,7 @@ export default function BookDetails({ book, availableTags, theme, onThemeChange,
           </section>
         </aside>
         <section className="details-card details-mobile-rating" aria-label="Personal novel rating on mobile">
-          <div className="details-mobile-rating-label"><Star size={16} aria-hidden="true" />
+          <div className="details-mobile-rating-label"><Star size={16} fill="currentColor" className={ratingToneClass(ratingDraft)} aria-hidden="true" />
             <span>My rating</span>
             {ratingDraft != null && <strong aria-live="polite">{ratingDraft}/10 · {ratingLabel(ratingDraft)}</strong>}
           </div>

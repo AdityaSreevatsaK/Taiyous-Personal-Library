@@ -1580,3 +1580,24 @@ html::-webkit-scrollbar-thumb:hover { background: var(--library-scroll-hover); }
 .advanced-result-title { display: inline-block; }
 .details-start, .details-resume { cursor: pointer; }
 
+
+
+/* Static, rating-dependent star brightness. No animations or requests. */
+.rating-tone-0 { --rating-star:#a6a09d; }
+.rating-tone-1 { --rating-star:#938e8c; }
+.rating-tone-2 { --rating-star:#a19a90; }
+.rating-tone-3 { --rating-star:#aa9d86; }
+.rating-tone-4 { --rating-star:#b6a079; }
+.rating-tone-5 { --rating-star:#c3a268; }
+.rating-tone-6 { --rating-star:#d1ab5a; }
+.rating-tone-7 { --rating-star:#dcb454; }
+.rating-tone-8 { --rating-star:#e9bd4d; }
+.rating-tone-9 { --rating-star:#f3c654; }
+.rating-tone-10 { --rating-star:#ffd66a; }
+.book-rating-pill {color:var(--text);}
+.book-rating-pill svg,
+.details-shell .hero-rating-fieldset legend .rating-star,
+.details-mobile-rating-label svg[class*="rating-tone-"] {color:var(--rating-star,#a6a09d);}
+.rating-tone-10 svg, .details-shell .hero-rating-fieldset legend .rating-star.rating-tone-10 {
+  filter:drop-shadow(0 0 2px #e4a92a88);
+}

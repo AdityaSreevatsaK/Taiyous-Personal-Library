@@ -1,0 +1,27 @@
+.app-dialog-overlay {
+  position:fixed; inset:0; z-index:10000;
+  display:grid; place-items:center; padding:20px;
+  background:rgba(12,13,20,.65); backdrop-filter:blur(3px);
+  color:var(--text,#292536);
+}
+.app-dialog {
+  position:relative; width:min(100%,440px); max-height:min(85dvh,600px);
+  overflow:auto; border:1px solid var(--border,#dad0c4); border-radius:14px;
+  background:var(--surface,#faf5e9); box-shadow:0 22px 70px #0006;
+  padding:28px; text-align:left;
+}
+.app-dialog h2 {font:500 clamp(22px,3vw,27px)/1.2 Georgia,serif; margin:0 36px 11px 0; color:var(--text,#292536)}
+.app-dialog p {margin:0 0 22px; line-height:1.55; color:var(--subtext,#655e67); overflow-wrap:anywhere; font-size:14px}
+.app-dialog-close {position:absolute;right:16px;top:15px;border:0;background:transparent;color:var(--subtext,#6c6262);cursor:pointer;padding:6px;border-radius:7px}
+.app-dialog form {display:grid;gap:10px}
+.app-dialog label {font-size:12px;font-weight:700;color:var(--text,#292536)}
+.app-dialog input {width:100%;min-height:43px;padding:10px 12px; border:1px solid var(--border,#dad0c4);border-radius:8px;background:var(--bg,#fff);color:var(--text,#292536);font-size:14px}
+.app-dialog-actions {display:flex;justify-content:flex-end;gap:10px;flex-wrap:wrap;margin-top:10px}
+.app-dialog-actions button {border-radius:8px; min-height:41px; padding:10px 16px; font-size:13px; font-weight:700; cursor:pointer; border:1px solid var(--border,#dad0c4)}
+.app-dialog-cancel {background:var(--pale,#f3e9d9);color:var(--text,#292536)}
+.app-dialog-confirm {background:var(--text,#2b2935);color:var(--surface,#fff);border-color:var(--text,#2b2935)!important}
+.app-dialog-confirm.destructive {background:#a63e38;color:#fff;border-color:#a63e38!important}
+.app-dialog button:disabled {opacity:.48;cursor:not-allowed}
+.app-dialog :is(button,input):focus-visible {outline:2px solid var(--accent,#b38551);outline-offset:3px}
+@media (prefers-reduced-motion:reduce) {.app-dialog-overlay {backdrop-filter:none}}
+@media (max-width:550px) {.app-dialog{padding:24px 20px}.app-dialog-actions button{flex:1}}

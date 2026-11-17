@@ -7,6 +7,8 @@ import {
 import { DEFAULT_SETTINGS, type ChapterItem, type LibraryBook, type ReaderSettings } from '../types';
 import { THEME_OPTIONS, themeById } from '../lib/themes';
 import ThemeSwitcher from './ThemeSwitcher';
+import QuickNavigation from './QuickNavigation';
+import type { BookCollection } from '../lib/collections';
 import { approximateProgress, chapterIndexForHref, findChapter, firstRealChapterIndex, flattenToc, nextChapterHref, type NavigationNode, normalizeChapterHref } from '../lib/chapters';
 import { getBookFile } from '../lib/storage';
 import { disableActiveEpubLinks } from '../lib/epub-safety';
@@ -17,6 +19,8 @@ interface Props {
   settings: ReaderSettings;
   onSettings: (settings: ReaderSettings) => void;
   onBack: () => void;
+  onBrowseLibrary: (path: string) => void;
+  collections: BookCollection[];
   onNovelDetails: () => void;
   initialChapterHref?: string;
   /** One-based chapter from /read/chapter-N. */
@@ -87,7 +91,7 @@ function applyAppearance(rendition: any, settings: ReaderSettings) {
   rendition.themes.fontSize(`${settings.fontSize}%`);
 }
 
-export default function Reader({ book, settings, onSettings, onBack, onNovelDetails, onProgress, initialChapterHref, initialChapterNumber, onChapterChange }: Props) {
+export default function Reader({ book, settings, onSettings, onBack, collections, onBrowseLibrary, onNovelDetails, onProgress, initialChapterHref, initialChapterNumber, onChapterChange }: Props) {
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const bookRef = useRef<any>(null);
   const renditionRef = useRef<any>(null);
@@ -404,6 +408,7 @@ export default function Reader({ book, settings, onSettings, onBack, onNovelDeta
           <button type="button" className="reader-novel-link" onClick={onNovelDetails} title="Go to novel details" aria-label={`Go to ${book.title} details`}>{book.title}</button>
           <small>{currentChapterIndex >= 0 ? `Chapter ${displayedChapterIndex} of ${displayedChapterCount}` : chapter} <span className="reader-progress-percent"> · {Math.round(progress)}% read</span></small>
         </div>
+        <QuickNavigation compact collections={collections} onNavigate={onBrowseLibrary} />
         <nav className="reader-head-right" aria-label="Reader controls">
           <button className={`icon-button ${panel === 'toc' ? 'reader-active' : ''}`} onClick={() => setPanel(panel === 'toc' ? null : 'toc')} title="Table of contents" aria-label="Table of contents"><List size={20} /></button>
           <ThemeSwitcher compact value={settings.theme} onChange={theme => change({ theme })} />

@@ -3,6 +3,7 @@ import { BarChart3, Clock3, Download, Eraser, WifiOff, BookOpen, ShieldCheck } f
 import type { LibraryBook } from '../types';
 import { clearUsage, localDayKey, readUsage, readableDuration, setUsageEnabled } from '../lib/usage-analytics';
 import './usage-analytics.css';
+import { useAppDialogs } from './AppDialogs';
 
 function exportAnalytics() {
   const data = readUsage();
@@ -18,6 +19,7 @@ function exportAnalytics() {
 /** On-device approximate engagement metrics; no Google Analytics or tracking API. */
 export default function UsageDashboard({ books }: { books: LibraryBook[] }) {
   const [usage, setUsage] = useState(readUsage);
+  const { confirm } = useAppDialogs();
   useEffect(() => {
     const refresh = () => setUsage(readUsage());
     window.addEventListener('taiyou-usage-changed', refresh);
@@ -96,9 +98,11 @@ export default function UsageDashboard({ books }: { books: LibraryBook[] }) {
       <div className="usage-privacy-actions">
         <button type="button" onClick={exportAnalytics}><Download size={15}/> Export JSON</button>
         <button type="button" onClick={() => {
-          if (window.confirm('Permanently delete all usage analytics on this device? Your novels and reading progress will remain untouched.')) {
-            setUsage(clearUsage());
-          }
+          void confirm({
+            title: 'Delete usage analytics?',
+            message: 'Permanently delete usage statistics from this device? Your novels and reading progress remain untouched.',
+            destructive: true, confirmLabel: 'Delete analytics',
+          }).then(approved => { if (approved) setUsage(clearUsage()); });
         }}><Eraser size={15}/> Clear analytics</button>
       </div>
     </section>

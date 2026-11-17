@@ -3,6 +3,7 @@ import { AlertTriangle, Check, LockKeyhole, Search, ShieldCheck, ShieldOff, Tras
 import type { LibraryBook, ReaderTheme } from '../types';
 import { normalisePersonalTags, suggestExistingTags, tagCounts } from '../lib/tags';
 import { ratingLabel } from '../lib/ratings';
+import { useAppDialogs } from './AppDialogs';
 import { isFinished } from '../lib/reading-status';
 import { getOwnerStatus, ownerPost, type OwnerStatus } from '../lib/owner';
 import './master-controls.css';
@@ -46,6 +47,7 @@ function BookRow({ book, onCorrectMetadata, onMarkCompleted, onResetProgress,
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState('');
   const [resultError, setResultError] = useState(false);
+  const { confirm, prompt } = useAppDialogs();
   useEffect(() => {
     if (!result) return;
     const timeout = window.setTimeout(() => setResult(''), 8000);
@@ -119,9 +121,8 @@ function BookRow({ book, onCorrectMetadata, onMarkCompleted, onResetProgress,
           <input id={'master-author-' + book.id} value={author} maxLength={160} onChange={event => setAuthor(event.target.value)} />
           <button type="button" disabled={busy || !metadataChanged || !newTitle || !newAuthor}
             onClick={() => {
-              if (window.confirm('Correct title and author for ' + book.title + '? The immutable ID, EPUB and saved reading data will remain unchanged.')) {
-                void run(() => onCorrectMetadata(book.id, newTitle, newAuthor), 'Title and author saved');
-              }
+              void confirm({ title: 'Save corrected metadata?', message: 'Correct the title and author for “' + book.title + '”? The immutable ID, EPUB and reading data remain unchanged.', confirmLabel: 'Save changes' })
+                .then(ok => { if (ok) void run(() => onCorrectMetadata(book.id, newTitle, newAuthor), 'Title and author saved'); });
             }}>Save title and author</button>
         </div>
         <div className="master-editor-group">
@@ -151,9 +152,8 @@ function BookRow({ book, onCorrectMetadata, onMarkCompleted, onResetProgress,
           </div>}
           <button type="button" disabled={busy || !tagsChanged}
             onClick={() => {
-              if (window.confirm('Save personal tags for ' + book.title + '? Imported genres remain untouched.')) {
-                void run(() => onSaveTags(book.id, tags), 'Personal tags saved');
-              }
+              void confirm({ title: 'Save personal tags?', message: 'Save tags for “' + book.title + '”? Imported genres remain untouched.', confirmLabel: 'Save tags' })
+                .then(ok => { if (ok) void run(() => onSaveTags(book.id, tags), 'Personal tags saved'); });
             }}>Save personal tags</button>
         </div>
         <div className="master-editor-group">
@@ -163,9 +163,8 @@ function BookRow({ book, onCorrectMetadata, onMarkCompleted, onResetProgress,
           <p>Saved locally; the original imported synopsis is preserved.</p>
           <button type="button" disabled={busy || !summaryChanged}
             onClick={() => {
-              if (window.confirm('Save synopsis for ' + book.title + '?')) {
-                void run(() => onSaveSummary(book.id, summary), 'Synopsis saved locally');
-              }
+              void confirm({ title: 'Save synopsis?', message: '“' + book.title + '”', confirmLabel: 'Save synopsis' })
+                .then(ok => { if (ok) void run(() => onSaveSummary(book.id, summary), 'Synopsis saved locally'); });
             }}>Save synopsis</button>
         </div>
       </div>
@@ -173,15 +172,16 @@ function BookRow({ book, onCorrectMetadata, onMarkCompleted, onResetProgress,
         <div><h3>Reading progress</h3><p>{book.progress > 0 ? Math.round(book.progress) + '% complete' : 'Not started'}{book.currentChapterNumber ? ' · Chapter ' + book.currentChapterNumber : ''}. Notes, ratings and the EPUB are unaffected by these actions.</p></div>
         <button type="button" disabled={busy || isFinished(book)}
           onClick={() => {
-            if (window.confirm('Mark ' + book.title + ' as completed?')) {
-              void run(() => onMarkCompleted(book.id), 'Marked as completed');
-            }
+            void confirm({ title: 'Mark as completed?', message: '“' + book.title + '”', confirmLabel: 'Mark completed' })
+              .then(ok => { if (ok) void run(() => onMarkCompleted(book.id), 'Marked as completed'); });
           }}>Mark as completed</button>
         <button type="button" className="master-danger-outline" disabled={busy || (book.progress === 0 && !book.lastCfi && !book.currentChapter)}
           onClick={() => {
-            if (!window.confirm('Reset the saved reading position for ' + book.title + '? This will synchronise a blank reading position to your private cloud when connected.')) return;
-            if (window.prompt('Type RESET PROGRESS to confirm') !== 'RESET PROGRESS') return;
-            void run(() => onResetProgress(book.id), 'Reading progress reset');
+            void (async () => {
+              if (!await confirm({ title: 'Reset reading progress?', message: 'Reset the saved reading position for “' + book.title + '”? A blank position will synchronise when connected.', destructive: true, confirmLabel: 'Continue' })) return;
+              if (await prompt({ title: 'Confirm progress reset', requiredText: 'RESET PROGRESS', confirmLabel: 'Reset progress', destructive: true }) !== 'RESET PROGRESS') return;
+              await run(() => onResetProgress(book.id), 'Reading progress reset');
+            })();
           }}>Reset progress</button>
         <button type="button" disabled={busy} onClick={() => void run(() => onExportEpub(book.id), 'EPUB export initiated; verify the download before deleting')}>Export EPUB backup</button>
         <button type="button" className="master-danger-outline" disabled={busy}
@@ -199,6 +199,7 @@ export default function MasterControls({
   onDeleteNovel, staleCount, onArchiveStale,
 }: Props) {
   const [status, setStatus] = useState<OwnerStatus | null>(null);
+  const { confirm, prompt } = useAppDialogs();
   const [passphrase, setPassphrase] = useState('');
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
@@ -277,8 +278,8 @@ export default function MasterControls({
   }
   async function clearSafeCache() {
     if (busy || !hostedCached) return;
-    if (!window.confirm('Remove all safely verified hosted EPUB downloads from this browser? Private cloud novels, progress, notes and local-only EPUBs will remain untouched.')) return;
-    const typed = window.prompt('Type REMOVE DOWNLOADS to confirm bulk removal');
+    if (!await confirm({ title: 'Remove verified downloads?', message: 'Only hosted EPUB downloads verified in your cloud will be removed. Private novels, reading progress, notes and local-only EPUBs remain.', destructive: true, confirmLabel: 'Continue' })) return;
+    const typed = await prompt({ title: 'Confirm bulk removal', requiredText: 'REMOVE DOWNLOADS', destructive: true, confirmLabel: 'Remove downloads' });
     if (typed !== 'REMOVE DOWNLOADS') return;
     setBusy(true); setError(''); setMessage('');
     try {
@@ -332,10 +333,12 @@ export default function MasterControls({
         <h2 id="master-stale-heading">Historical browser records</h2>
         <p>{staleCount} old entries are absent from the verified cloud catalogue and have no EPUB saved here. They are hidden, but their annotations remain on this device.</p>
         <button type="button" className="master-archive-button" disabled={busy} onClick={() => {
-          if (!window.confirm('Export a JSON backup, then archive only records that are absent from the live private cloud catalogue and have no local EPUB? No EPUB or cloud data will be deleted.')) return;
+          void (async () => {
+            if (!await confirm({ title: 'Back up and archive records?', message: 'Export a JSON backup, then archive only records absent from your live cloud catalogue that have no local EPUB. No EPUB or cloud data is deleted.', confirmLabel: 'Back up and archive' })) return;
           setBusy(true); setError(''); setMessage('');
           void onArchiveStale().then(count => setMessage(count + ' historical records archived safely. Their metadata and progress remain recoverable from the exported JSON and browser archive.'))
             .catch(reason => setError(errorMessage(reason))).finally(() => setBusy(false));
+          })();
         }}>Back up and archive {staleCount} stale records</button>
       </section>}
       <section className="master-panel" aria-labelledby="master-records-heading">
