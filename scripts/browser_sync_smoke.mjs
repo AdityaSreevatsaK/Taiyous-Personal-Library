@@ -246,6 +246,25 @@ try {
     return found?.progress === 80 && found?.personalRating === 6;
   }, null, {timeout: 30000});
   const persisted = await readBook(pageB);
+  if (!persisted) {
+    const diagnostics = await pageB.evaluate(async () => {
+      const request = indexedDB.open('folio-personal-library-v1', 3);
+      const db = await new Promise((resolve, reject) => {
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+      });
+      const tx = db.transaction('books', 'readonly');
+      const keys = await new Promise((resolve, reject) => {
+        const query = tx.objectStore('books').getAllKeys();
+        query.onsuccess = () => resolve(query.result);
+        query.onerror = () => reject(query.error);
+      });
+      db.close();
+      return { keys, url: location.href };
+    });
+    throw new Error('Second device book disappeared after successful IndexedDB read: '+
+      JSON.stringify(diagnostics));
+  }
   assert(persisted.progress === 80 && persisted.personalRating === 6,
     'Second device did not load the chosen progress and review');
   assert(persisted.shelfStatus === 'trying', 'Trying shelf status was not synchronised');
