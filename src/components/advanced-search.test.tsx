@@ -37,6 +37,14 @@ describe('advanced novel search', () => {
     expect(matchesAdvancedSearch(second, criteria, offline)).toBe(true);
     expect(matchesAdvancedSearch({ ...second, sourceTags: [], personalRating: undefined, personalReview: '' }, criteria, offline)).toBe(false);
   });
+  it('always requires a typed title or author even when combining other filters with OR', () => {
+    const criteria = { ...defaultSearchCriteria, name: 'martial', mode: 'any' as const,
+      tags: ['Fantasy'], minRating: 5 };
+    expect(matchesAdvancedSearch(first, criteria, offline)).toBe(true);
+    expect(matchesAdvancedSearch(second, criteria, offline)).toBe(false);
+    expect(matchesAdvancedSearch(first, { ...criteria, name: 'no such title' }, offline)).toBe(false);
+    expect(matchesAdvancedSearch(first, { ...defaultSearchCriteria, mode: 'any', name: 'Martial' }, offline)).toBe(true);
+  });
   it('matches the downloaded set only when requested', () => {
     const criteria = { ...defaultSearchCriteria, offlineOnly: true };
     expect(matchesAdvancedSearch(first, criteria, offline)).toBe(true);
