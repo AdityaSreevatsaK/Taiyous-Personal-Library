@@ -253,3 +253,137 @@
   .app-shell .collection-parent-control select {max-width:65vw}
   .app-shell .new-subcollection-form label {width:100%}
 }
+
+/* Collection pages have one clear heading, matching catalogue typography.
+   Keep navigation breadcrumbs, collection actions and controls on distinct rows. */
+.app-shell .collection-view > .section-titlebar {margin-bottom:13px}
+.app-shell .collection-view > .section-titlebar h2 {
+  font:500 clamp(25px,2.2vw,34px)/1.2 Georgia,serif;
+  letter-spacing:-.5px; min-width:0; overflow-wrap:anywhere;
+}
+.app-shell .collection-view .collection-breadcrumbs {margin:0 0 12px;line-height:1.5}
+.app-shell .collection-view .collection-heading {
+  display:grid;grid-template-columns:minmax(0,1fr) auto;
+  align-items:center;gap:10px 20px;
+  padding:12px 15px;margin:0 0 13px;
+}
+.app-shell .collection-view .collection-heading-summary {
+  display:inline-flex;align-items:center;flex-wrap:wrap;gap:7px;
+  font:650 12px/1.45 "Segoe UI",Inter,system-ui,sans-serif;
+  color:var(--subtext);min-width:0;
+}
+.app-shell .collection-view .collection-heading-summary svg {color:var(--accent);flex:none}
+.app-shell .collection-view .collection-heading .collection-actions {
+  display:flex;gap:7px;align-items:center;justify-content:flex-end;flex-wrap:wrap;
+  min-width:0;
+}
+.app-shell .collection-view .collection-heading .collection-actions button {
+  min-height:34px;padding:7px 10px;white-space:nowrap;
+  font:650 11px/1.3 "Segoe UI",Inter,system-ui,sans-serif;
+}
+.app-shell .collection-view .nested-collections h3 {
+  font:700 15px/1.35 "Segoe UI",Inter,system-ui,sans-serif;
+}
+.app-shell .collection-quick-add {
+  margin:14px 0;padding:17px 18px;
+  background:var(--surface);border:1px solid var(--border);border-radius:12px;
+  min-width:0;
+}
+.app-shell .collection-quick-add > header {
+  display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 16px;
+  margin:0 0 14px;
+}
+.app-shell .collection-quick-add > header h3 {
+  display:inline-flex;align-items:center;gap:8px;
+  margin:0;color:var(--text);
+  font:750 15px/1.4 "Segoe UI",Inter,system-ui,sans-serif;
+}
+.app-shell .collection-quick-add > header p {
+  margin:0;color:var(--subtext);font-size:12px;line-height:1.5;
+}
+.app-shell .collection-quick-add-columns {
+  display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px 20px;
+}
+.app-shell .collection-quick-add-column {min-width:0}
+.app-shell .collection-quick-add-column > label {
+  display:block;margin:0 0 8px;color:var(--text);
+  font-size:12px;font-weight:700;
+}
+.app-shell .collection-quick-add-field {
+  display:flex;align-items:center;gap:9px;padding:0 11px;
+  min-height:42px;border:1px solid var(--border);
+  border-radius:8px;background:var(--bg);color:var(--subtext);
+}
+.app-shell .collection-quick-add-field:focus-within {
+  border-color:var(--accent);outline:1px solid var(--accent);
+}
+.app-shell .collection-quick-add-field input {
+  width:100%;min-width:0;min-height:40px;padding:8px 0;
+  font:500 12px/1.3 "Segoe UI",Inter,system-ui,sans-serif;
+  color:var(--text);background:transparent;border:0;outline:0;
+}
+.app-shell .collection-quick-add-results {
+  margin-top:9px;max-height:294px;overflow:auto;
+  border:1px solid var(--border);border-radius:8px;
+  background:var(--surface-soft);
+}
+.app-shell .collection-quick-add-results ul {
+  list-style:none;margin:0;padding:5px;
+}
+.app-shell .collection-quick-add-results li {
+  display:flex;align-items:center;justify-content:space-between;
+  flex-wrap:wrap;gap:8px;min-width:0;padding:8px;
+  border-radius:6px;
+}
+.app-shell .collection-quick-add-results li + li {border-top:1px solid var(--border)}
+.app-shell .collection-quick-add-results li > span {flex:1 1 140px;min-width:0}
+.app-shell .collection-quick-add-results li strong {
+  display:block;min-width:0;color:var(--text);
+  font-size:12px;font-weight:650;line-height:1.4;overflow-wrap:anywhere;
+}
+.app-shell .collection-quick-add-results li small {
+  display:block;color:var(--subtext);font-size:11px;line-height:1.45;
+  overflow-wrap:anywhere;
+}
+.app-shell .collection-quick-add-results button {
+  display:inline-flex;justify-content:center;align-items:center;gap:6px;
+  min-height:32px;padding:6px 10px;
+  background:var(--pale);color:var(--text);
+  border:1px solid var(--border);border-radius:7px;
+  font:700 11px/1.3 "Segoe UI",Inter,system-ui,sans-serif;
+  cursor:pointer;
+}
+.app-shell .collection-quick-add-results button:hover:not(:disabled) {
+  background:color-mix(in srgb,var(--text) 12%,var(--surface));
+  border-color:var(--accent);
+}
+.app-shell .collection-quick-add-results button:disabled {
+  cursor:wait;opacity:.65;
+}
+.app-shell .collection-quick-add-results > p,
+.app-shell .collection-quick-add-results .collection-quick-add-note {
+  padding:8px 10px;margin:0;color:var(--subtext);
+  font-size:11px;line-height:1.5;
+}
+.app-shell .collection-quick-add-results .collection-quick-add-create {
+  margin:7px 10px;max-width:calc(100% - 20px);white-space:normal;text-align:left;
+}
+.app-shell .collection-quick-add-results .collection-quick-add-note {padding-top:4px}
+.app-shell .collection-quick-add :is(button,input):focus-visible {
+  outline:2px solid var(--accent);outline-offset:3px;
+}
+.app-shell .collection-quick-add-error,.app-shell .collection-quick-add-notice {
+  margin:11px 0 0;padding:9px 11px;border-radius:6px;
+  background:var(--pale);color:var(--text);font-size:12px;
+}
+.app-shell .collection-quick-add-error {border-inline-start:3px solid #b75049}
+@media(max-width:1180px) {
+  .app-shell .collection-view .collection-heading {grid-template-columns:minmax(0,1fr)}
+  .app-shell .collection-view .collection-heading .collection-actions {justify-content:flex-start}
+}
+@media(max-width:780px) {
+  .app-shell .collection-quick-add-columns {grid-template-columns:minmax(0,1fr)}
+  .app-shell .collection-quick-add {padding:14px}
+  .app-shell .collection-view .collection-heading {padding:12px}
+  .app-shell .collection-view .collection-heading .collection-actions button {min-height:38px}
+}
