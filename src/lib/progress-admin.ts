@@ -10,6 +10,8 @@ export function resetReadingProgress(book: LibraryBook, now = Date.now()): Libra
   return {
     ...book,
     progress: 0,
+    // An explicit reset is the only action which clears a Finished marker.
+    completedAt: undefined,
     currentChapter: undefined,
     currentChapterIndex: undefined,
     currentChapterNumber: undefined,

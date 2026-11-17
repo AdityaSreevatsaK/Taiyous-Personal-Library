@@ -481,7 +481,31 @@ try {
     }
     await page.locator('.editorial-browse-all').click();
     await page.waitForURL('**/library');
-    await page.getByRole('button', { name: 'View details for Sample Library Book' }).waitFor();
+    await page.getByRole('link', { name: 'View details for Sample Library Book' }).waitFor();
+    // True anchors expose a browser-native Open in new tab action. A normal
+    // click still uses the app router, while Ctrl-click opens a second tab.
+    const sampleLink = page.getByRole('link', { name: 'View details for Sample Library Book' });
+    const sampleHref = await sampleLink.getAttribute('href');
+    if (!sampleHref?.startsWith('/novels/')) throw new Error('Novel cover is not a canonical link');
+    const sampleTitle = await sampleLink.getAttribute('title');
+    if (sampleTitle !== 'Sample Library Book') throw new Error('Cover tooltip omitted complete title');
+    const openedTab = page.context().waitForEvent('page');
+    await sampleLink.click({ modifiers: ['Control'] });
+    const secondTab = await openedTab;
+    await secondTab.waitForLoadState('domcontentloaded');
+    if (new URL(secondTab.url()).pathname !== sampleHref) {
+      throw new Error('Ctrl-click did not open the requested novel in a new tab');
+    }
+    await secondTab.close();
+    if (viewport.width >= 900) {
+      await sampleLink.hover();
+      await page.waitForFunction(() => {
+        const hover = document.querySelector('.book-tile .cover-hover-title');
+        return hover?.textContent === 'Sample Library Book' &&
+          getComputedStyle(hover).opacity === '1';
+      }, null, { timeout: 6000 });
+    }
+
     const catalogueCaption = await page.locator('.book-tile').first().evaluate(tile => ({
       title: getComputedStyle(tile.querySelector('.tile-title')).textAlign,
       author: getComputedStyle(tile.querySelector('.tile-author-link')).textAlign,
@@ -500,14 +524,14 @@ try {
     }
     await page.getByRole('button', { name: 'View novels by Test Author' }).click();
     await page.waitForURL('**/authors/Test%20Author');
-    await page.getByRole('button', { name: 'View details for Sample Library Book' }).waitFor();
+    await page.getByRole('link', { name: 'View details for Sample Library Book' }).waitFor();
     await page.reload({ waitUntil: 'networkidle' });
-    await page.getByRole('button', { name: 'View details for Sample Library Book' }).waitFor();
+    await page.getByRole('link', { name: 'View details for Sample Library Book' }).waitFor();
     await page.getByRole('button', { name: 'All authors' }).click();
     await page.waitForURL('**/library');
     await page.reload({ waitUntil: 'networkidle' });
     await page.waitForURL('**/library');
-    await page.getByRole('button', { name: 'View details for Sample Library Book' }).waitFor();
+    await page.getByRole('link', { name: 'View details for Sample Library Book' }).waitFor();
     // Author deep-link navigation adds a history entry. Explicit Home remains
     // the stable way to return to the curated front page from any catalogue.
     await page.getByRole('button', { name: "Taiyou's Personal Library home" }).click();
@@ -549,7 +573,7 @@ try {
     }
     await page.getByRole('button', { name: "Taiyou's Personal Library home" }).click();
     await page.waitForURL('**/');
-    await page.getByRole('button', { name: 'Explore this novel' }).click();
+    await page.getByRole('link', { name: 'Explore this novel' }).click();
     // The existing detail action first resolves EPUB availability asynchronously.
     await page.waitForURL('**/novels/sample-library-book');
     await page.getByRole('heading', { name: 'Sample Library Book' }).waitFor();
@@ -717,7 +741,7 @@ try {
     await page.locator('.advanced-search-launch').click();
     await page.getByRole('region', { name: 'Advanced novel search' }).waitFor();
     await page.getByRole('textbox', { name: 'Search by novel name or author' }).fill('Sample Library');
-    await page.getByRole('button', { name: 'View details for Sample Library Book' }).waitFor();
+    await page.getByRole('link', { name: 'View details for Sample Library Book' }).waitFor();
     if (await page.getByText('Unrated', { exact: true }).count()) throw new Error('Unrated should not be repeated across search results');
     await page.getByRole('textbox', { name: 'Search by novel name or author' }).fill('No such book');
     await page.getByRole('heading', { name: 'No matching books' }).waitFor();
@@ -725,13 +749,13 @@ try {
     // Local EPUBs must be listed on the Offline tab without requiring a cloud token.
     await navigateShelf(/Available offline/, 'offline');
     await page.locator('.offline-management-bar').waitFor({ state: 'visible' });
-    await page.getByRole('button', { name: 'View details for Sample Library Book' }).waitFor();
+    await page.getByRole('link', { name: 'View details for Sample Library Book' }).waitFor();
     if (await page.getByRole('button', { name: 'Remove offline EPUB for Sample Library Book' }).count()) {
       throw new Error('Must not allow removing the only local-only EPUB with no verified cloud copy');
     }
     await navigateShelf(/All books/, 'all');
     if (await page.locator('.offline-health').count()) throw new Error('Offline status shown outside Offline tab');
-    await page.getByRole('button', { name: 'View details for Sample Library Book' }).click();
+    await page.getByRole('link', { name: 'View details for Sample Library Book' }).click();
     await page.waitForURL('**/novels/sample-library-book');
     await page.getByRole('heading', { name: 'Sample Library Book' }).waitFor();
     // Existing ID-based bookmarks must land on the identical book and replace
@@ -871,8 +895,8 @@ try {
       await libraryTitle.click();
     }
     await navigateShelf(/Trying out/, 'trying');
-    await page.getByRole('button', { name: 'View details for Sample Library Book' }).waitFor();
-    await page.getByRole('button', { name: 'View details for Sample Library Book' }).click();
+    await page.getByRole('link', { name: 'View details for Sample Library Book' }).waitFor();
+    await page.getByRole('link', { name: 'View details for Sample Library Book' }).click();
     await page.getByRole('button', { name: 'Move to regular library' }).click();
     await page.getByRole('button', { name: 'Add to Trying out' }).waitFor();
     if (viewport.width <= 700) {
@@ -933,13 +957,13 @@ try {
     }
     await page.getByRole('heading', { name: /Fantasy/ }).first().waitFor();
     await page.getByRole('textbox', { name: 'Search within current list' }).fill('unmatched');
-    if (await page.getByRole('button', { name: 'View details for Sample Library Book' }).count()) {
+    if (await page.getByRole('link', { name: 'View details for Sample Library Book' }).count()) {
       throw new Error('Tag-local search failed to limit results');
     }
     await page.getByRole('textbox', { name: 'Search within current list' }).fill('Sample');
-    await page.getByRole('button', { name: 'View details for Sample Library Book' }).waitFor();
+    await page.getByRole('link', { name: 'View details for Sample Library Book' }).waitFor();
     await page.getByRole('textbox', { name: 'Search all novels' }).fill('Test Author');
-    await page.getByRole('button', { name: 'View details for Sample Library Book' }).waitFor();
+    await page.getByRole('link', { name: 'View details for Sample Library Book' }).waitFor();
     await page.getByRole('button', { name: 'Clear global search' }).click();
     await page.getByRole('button', { name: 'Show all novels' }).click();
     await page.waitForURL('**/library');
@@ -954,16 +978,16 @@ try {
     await page.waitForURL(/\/collections\/[A-Za-z0-9_-]{8,100}$/);
     if (await page.locator('.filter-tabs').count()) throw new Error('Collection pages must not duplicate main shelf navigation');
     const collectionUrl = new URL(page.url()).pathname;
-    await page.getByRole('button', { name: 'View details for Sample Library Book' }).waitFor();
+    await page.getByRole('link', { name: 'View details for Sample Library Book' }).waitFor();
     await page.reload({ waitUntil: 'networkidle' });
     if (new URL(page.url()).pathname !== collectionUrl) throw new Error('Collection deep link not preserved');
-    await page.getByRole('button', { name: 'View details for Sample Library Book' }).waitFor();
+    await page.getByRole('link', { name: 'View details for Sample Library Book' }).waitFor();
     await page.getByText('Collections', { exact: true }).click();
     await page.getByRole('button', { name: 'Open collection Example Series' }).waitFor();
     await page.getByRole('button', { name: 'Open collection Example Series' }).click();
-    await page.getByRole('button', { name: 'View details for Sample Library Book' }).waitFor();
+    await page.getByRole('link', { name: 'View details for Sample Library Book' }).waitFor();
     // The current novel title returns to details; the library brand goes home.
-    await page.getByRole('button', { name: 'View details for Sample Library Book' }).click();
+    await page.getByRole('link', { name: 'View details for Sample Library Book' }).click();
     await page.getByRole('heading', { name: 'Sample Library Book' }).waitFor();
     if (await page.evaluate(() => window.scrollY) > 8) throw new Error('Novel details inherited old library scroll offset');
     const previousTheme = await page.locator('.details-shell').getAttribute('class');
@@ -974,8 +998,8 @@ try {
     await page.getByRole('group', { name: 'Choose reading colour theme' })
       .getByRole('button', { name: 'Use Plum theme' }).click();
     await page.locator('.details-shell.theme-plum').waitFor();
-    if (viewport.width <= 700) await page.getByRole('button', { name: 'Start reading' }).hover();
-    else await page.getByRole('button', { name: 'Begin this novel' }).hover();
+    if (viewport.width <= 700) await page.getByRole('link', { name: 'Start reading' }).hover();
+    else await page.getByRole('link', { name: 'Begin this novel' }).hover();
     const heroAction = await page.locator(viewport.width <= 700 ? '.details-start' : '.details-resume').evaluate(el => ({
       background:getComputedStyle(el).backgroundColor,
       ink:getComputedStyle(el).color,
@@ -983,7 +1007,7 @@ try {
     if (heroAction.background === 'rgb(35, 65, 47)' || heroAction.background === heroAction.ink) {
       throw new Error('Reading action retains old green or has illegible hover contrast');
     }
-    await page.getByRole('button', { name: 'Start reading' }).click();
+    await page.getByRole('link', { name: 'Start reading' }).click();
     // EPUB loading is asynchronous: verify the URL after the read action commits.
     await page.waitForURL('**/novels/sample-library-book/read/chapter-1');
     if (new URL(page.url()).pathname !== '/novels/sample-library-book/read/chapter-1') {
@@ -1088,7 +1112,7 @@ try {
     await page.getByRole('heading', { name: 'Sample Library Book' }).waitFor();
     // Reloading a deep link can persist real progress, legitimately changing
     // this action's label from Start reading to Continue reading.
-    await page.getByRole('button', { name: /^(Start reading|Continue reading)$/ }).click();
+    await page.getByRole('link', { name: /^(Start reading|Continue reading)$/ }).click();
     await page.getByRole('button', { name: 'Go to library home' }).click();
     await page.getByRole('navigation', { name: 'Library sections' }).waitFor();
     await navigateShelf(/All books/, 'all');
@@ -1141,8 +1165,8 @@ try {
         throw new Error(`Offline reload did not bootstrap React: HTTP ${offlineResponse?.status()}; ${JSON.stringify(diagnostic)}; scriptErrors=${JSON.stringify(errors)}; failedRequests=${JSON.stringify(failedAssets)}`);
       }
       await page.locator('nav[aria-label="Library sections"]').waitFor({ state: 'attached' });
-      await page.getByRole('button', { name: 'View details for Sample Library Book' }).click();
-      await page.getByRole('button', { name: /^(Start|Continue) reading$/ }).click();
+      await page.getByRole('link', { name: 'View details for Sample Library Book' }).click();
+      await page.getByRole('link', { name: /^(Start|Continue) reading$/ }).click();
       await page.locator('.reader-page iframe').first().waitFor({ state: 'visible', timeout: 20000 });
       await page.getByRole('button', { name: 'Go to library home' }).click();
       await page.locator('nav[aria-label="Library sections"]').waitFor({ state: 'attached' });
@@ -1169,8 +1193,8 @@ try {
         } else {
           await freshPage.locator('.top-nav-link.active').getByText('Available offline').waitFor();
         }
-        await freshPage.getByRole('button', { name: 'View details for Sample Library Book' }).click();
-        await freshPage.getByRole('button', { name: /^(Start|Continue) reading$/ }).click();
+        await freshPage.getByRole('link', { name: 'View details for Sample Library Book' }).click();
+        await freshPage.getByRole('link', { name: /^(Start|Continue) reading$/ }).click();
         await freshPage.locator('.reader-page iframe').first().waitFor({ state: 'visible', timeout: 20000 });
       } finally {
         await freshPage.close();
@@ -1206,7 +1230,7 @@ try {
         });
         await fastPage.reload({ waitUntil: 'networkidle' });
         const began = Date.now();
-        await fastPage.getByRole('button', { name: 'View details for Cloud Metadata Only' }).click();
+        await fastPage.getByRole('link', { name: 'View details for Cloud Metadata Only' }).click();
         await fastPage.waitForURL('**/novels/cloud-metadata-only', { timeout: 3500 });
         await fastPage.locator('.details-hero').getByRole('heading', { name: 'Cloud Metadata Only' }).waitFor();
         const detailLatencyMs = Date.now() - began;
@@ -1259,7 +1283,7 @@ try {
           db.close();
         });
         await fastPage.goto(baseUrl + '/library', { waitUntil:'networkidle' });
-        await fastPage.getByRole('button', { name:'View details for Long Cultivation: My Augmented Statuses Have Unlimited Duration' }).waitFor();
+        await fastPage.getByRole('link', { name:'View details for Long Cultivation: My Augmented Statuses Have Unlimited Duration' }).waitFor();
         await fastPage.locator('.tile-trying-status').waitFor();
         await fastPage.locator('.tile-progress-value').first().waitFor();
         const fiveTagTile = fastPage.locator('.book-tile').filter({hasText:'Long Cultivation: My Augmented Statuses'});

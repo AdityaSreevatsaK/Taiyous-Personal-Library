@@ -79,10 +79,10 @@ try {
       db.close();
     },{id,epubData});
     await page.goto(base+'/library',{waitUntil:'domcontentloaded',timeout:35000});
-    await page.getByRole('button',{name:'View details for EPUB Security Fixture'})
+    await page.getByRole('link',{name:'View details for EPUB Security Fixture'})
       .click({timeout:15000});
     await page.getByRole('heading',{name:'EPUB Security Fixture'}).waitFor();
-    await page.getByRole('button',{name:/^(Start reading|Continue reading)$/}).click();
+    await page.getByRole('link',{name:/^(Start reading|Continue reading)$/}).click();
     await page.waitForFunction(() => {
       const frame=document.querySelector('.reader-page iframe');
       return Boolean(frame?.contentDocument?.body?.textContent

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { reconcileCloudLibrary, type CloudEntry } from './cloud';
 import type { LibraryBook } from '../types';
+import { isFinished, withUpdatedReadingPosition } from './reading-status';
 
 function book(id: string, title: string, cloud = true): LibraryBook {
   return {
@@ -35,6 +36,20 @@ describe('cloud catalogue reconciliation after a dataset is recreated', () => {
     const result = reconcileCloudLibrary([entry(newer)], [old, cached], [cached.id]);
     expect(result.books.map(b => b.id).sort()).toEqual([newer.id, cached.id].sort());
     expect(result.hiddenStaleEntries).toBe(1);
+  });
+
+  it('keeps a Finished marker when refreshing hosted metadata, then reopening an earlier chapter', () => {
+    const completed = { ...newer, progress: 100, completedAt: 1_700_000 };
+    const hosted = { ...newer, progress: 0, completedAt: undefined };
+    const {books} = reconcileCloudLibrary([entry(hosted)], [completed], []);
+    expect(books[0].completedAt).toBe(1_700_000);
+    expect(books[0].progress).toBe(100);
+    const earlier = withUpdatedReadingPosition(books[0], {
+      progress: 16, currentChapterNumber: 4,
+    }, 1_800_000);
+    expect(earlier.progress).toBe(16);
+    expect(earlier.completedAt).toBe(1_700_000);
+    expect(isFinished(earlier)).toBe(true);
   });
 
   it('retains local notes and progress for novels that are still hosted', () => {
