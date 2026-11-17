@@ -41,6 +41,15 @@
   color:var(--subtext); padding:10px clamp(7px,.85vw,14px); font-size:12px; font-weight:600;
   white-space:nowrap;
 }
+/* Links preserve the existing tab treatment without underlining it. */
+.app-shell .top-nav-link,
+.app-shell .library-wordmark,
+.app-shell .top-nav-dropdown-item { text-decoration:none; cursor:pointer; }
+.app-shell .top-nav-dropdown-item { box-sizing:border-box; }
+/* Real navigation anchors must retain their button-like visual treatment. */
+.app-shell :is(.advanced-search-launch, .top-nav-master, .mobile-shelf-nav>a) {
+  text-decoration: none;
+}
 .app-shell .top-nav-link small { color:var(--subtext); font-size:10px; font-weight:500; opacity:.75; }
 .app-shell .top-nav-link:hover,.app-shell .top-nav-link.active { color:var(--text); }
 .app-shell .top-nav-link.active { border-bottom-color:#b18c60; }

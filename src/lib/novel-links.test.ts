@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { openNovelInCurrentTab } from './novel-links';
+import { openInternalLinkInCurrentTab, openNovelInCurrentTab, revealClippedLinkTitle } from './novel-links';
 import type { MouseEvent } from 'react';
 
 function click(options: Partial<MouseEvent<HTMLAnchorElement>> = {}) {
@@ -26,4 +26,31 @@ describe('native novel links', () => {
       expect(callback).not.toHaveBeenCalled();
     },
   );
+});
+
+describe('all internal navigation links', () => {
+  it('uses the same native-click semantics for header and novel links', () => {
+    const preventDefault = vi.fn();
+    const navigate = vi.fn();
+    openInternalLinkInCurrentTab({
+      button: 0, defaultPrevented: false, ctrlKey: false, metaKey: false,
+      shiftKey: false, altKey: false, preventDefault,
+    } as unknown as MouseEvent<HTMLAnchorElement>, navigate);
+    expect(preventDefault).toHaveBeenCalledOnce();
+    expect(navigate).toHaveBeenCalledOnce();
+  });
+  it('shows the whole novel title only when the visible caption is clipped', () => {
+    const setAttribute = vi.fn();
+    const removeAttribute = vi.fn();
+    const element = {
+      scrollWidth: 200, clientWidth: 90, scrollHeight: 40, clientHeight: 35,
+      setAttribute, removeAttribute,
+    };
+    revealClippedLinkTitle({currentTarget: element} as never, 'Long book title');
+    expect(setAttribute).toHaveBeenCalledWith('title', 'Long book title');
+    element.scrollWidth = 90;
+    element.scrollHeight = 35;
+    revealClippedLinkTitle({currentTarget: element} as never, 'Long book title');
+    expect(removeAttribute).toHaveBeenCalledWith('title');
+  });
 });

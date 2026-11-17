@@ -183,20 +183,56 @@ try {
     await page.locator('.app-shell.theme-sepia').waitFor({ state: 'visible' });
     // Local private analytics must be usable and switchable without a server.
     const nav = page.getByRole('navigation', { name: 'Library sections' });
+    const navLinks = await nav.locator('.top-nav-links > a[href]').count();
+    if (navLinks !== 8) {
+      throw new Error('Home and all seven desktop shelf tabs must be real links: ' + navLinks);
+    }
+    if (await page.getByRole('link', { name: 'Advanced search' }).getAttribute('href') !== '/advanced-search') {
+      throw new Error('Advanced search must have a copyable, new-tab URL');
+    }
+    if (await nav.getByRole('link', { name: 'Open Master Controls' }).getAttribute('href') !== '/master-controls') {
+      throw new Error('Master Controls must have a real deep link');
+    }
+
+    // Logo and shelf tabs are real hyperlinks; Ctrl-click opens a new tab.
+    const openInNewTab = async (locator, expectedPath) => {
+      const href = await locator.getAttribute('href');
+      if (href !== expectedPath) {
+        throw new Error('Navigation is not a canonical hyperlink: ' + href);
+      }
+      const popupPromise = page.context().waitForEvent('page');
+      await locator.click({ modifiers: ['Control'] });
+      const popup = await popupPromise;
+      await popup.waitForLoadState('domcontentloaded');
+      if (new URL(popup.url()).pathname !== expectedPath) {
+        throw new Error('Ctrl-click did not open new tab at ' + expectedPath);
+      }
+      await popup.close();
+      if (new URL(page.url()).pathname !== '/') {
+        throw new Error('Ctrl-click unexpectedly replaced the current library tab');
+      }
+    };
+    await openInNewTab(
+      page.getByRole('link', { name: "Taiyou's Personal Library home" }), '/');
+    await openInNewTab(
+      viewport.width <= 700
+        ? nav.locator('.mobile-shelf-nav').getByRole('link', { name: 'Trying' })
+        : nav.getByRole('link', { name: /Trying out/ }), '/trying-out');
+
     const navigateShelf = async (name, filter) => {
       if (viewport.width <= 700) {
         if (['reading','trying','offline'].includes(filter)) {
-          await nav.locator('.mobile-shelf-nav').getByRole('button', {
+          await nav.locator('.mobile-shelf-nav').getByRole('link', {
             name: filter === 'reading' ? 'Reading' : filter === 'trying' ? 'Trying' : 'Offline',
           }).click();
         } else {
           await nav.getByRole('combobox', { name: 'More library shelves' }).selectOption(filter);
         }
       } else {
-        await nav.getByRole('button', { name }).click();
+        await nav.getByRole('link', { name }).click();
       }
     };
-    await page.getByRole('button', { name: 'Advanced search' }).click();
+    await page.getByRole('link', { name: 'Advanced search' }).click();
     await page.waitForURL('**/advanced-search');
     await page.getByRole('button', { name: 'Back to shelf' }).click();
     await page.waitForURL('**/library');
@@ -272,7 +308,7 @@ try {
     }
     // Direct access to Master Controls must never reveal record editing until
     // Owner mode is authenticated by the production server.
-    await page.getByRole('button', { name: 'Open Master Controls' }).click();
+    await page.getByRole('link', { name: 'Open Master Controls' }).click();
     await page.waitForURL('**/master-controls');
     await page.getByRole('heading', { name: 'Master Controls' }).waitFor();
     if (await page.locator('.master-controls table').count()) {
@@ -307,7 +343,7 @@ try {
       db.close();
     }, epubBytes);
     // Seeded catalogue was opened on /library; return to the separately addressable Home.
-    await page.getByRole('button', { name: "Taiyou's Personal Library home" }).click();
+    await page.getByRole('link', { name: "Taiyou's Personal Library home" }).click();
     await page.waitForURL('**/');
     await page.reload({ waitUntil: 'networkidle' });
     // The integrated redesign uses the REAL IndexedDB books, not design fixtures.
@@ -487,8 +523,7 @@ try {
     const sampleLink = page.getByRole('link', { name: 'View details for Sample Library Book' });
     const sampleHref = await sampleLink.getAttribute('href');
     if (!sampleHref?.startsWith('/novels/')) throw new Error('Novel cover is not a canonical link');
-    const sampleTitle = await sampleLink.getAttribute('title');
-    if (sampleTitle !== 'Sample Library Book') throw new Error('Cover tooltip omitted complete title');
+    if (await sampleLink.getAttribute('title') !== null) throw new Error('Full cover hover label must not duplicate the visible novel title');
     const openedTab = page.context().waitForEvent('page');
     await sampleLink.click({ modifiers: ['Control'] });
     const secondTab = await openedTab;
@@ -497,14 +532,21 @@ try {
       throw new Error('Ctrl-click did not open the requested novel in a new tab');
     }
     await secondTab.close();
-    if (viewport.width >= 900) {
-      await sampleLink.hover();
-      await page.waitForFunction(() => {
-        const hover = document.querySelector('.book-tile .cover-hover-title');
-        return hover?.textContent === 'Sample Library Book' &&
-          getComputedStyle(hover).opacity === '1';
-      }, null, { timeout: 6000 });
+    if (await page.locator('.cover-hover-title').count()) {
+      throw new Error('Novel cover should not duplicate its title in a hover overlay');
     }
+    // Show the native full-title tooltip ONLY when a caption is actually cut off.
+    const titleLink = page.locator('.book-tile .tile-title').first();
+    if (await titleLink.getAttribute('title') !== null) {
+      throw new Error('Novel title should not have a redundant default tooltip');
+    }
+    await titleLink.evaluate(element => { element.style.maxWidth = '48px'; });
+    await titleLink.hover();
+    await page.waitForFunction(() => {
+      const element = document.querySelector('.book-tile .tile-title');
+      return element?.getAttribute('title') === 'Sample Library Book';
+    }, null, {timeout: 7000});
+    await titleLink.evaluate(element => { element.style.maxWidth = ''; });
 
     const catalogueCaption = await page.locator('.book-tile').first().evaluate(tile => ({
       title: getComputedStyle(tile.querySelector('.tile-title')).textAlign,
@@ -534,7 +576,7 @@ try {
     await page.getByRole('link', { name: 'View details for Sample Library Book' }).waitFor();
     // Author deep-link navigation adds a history entry. Explicit Home remains
     // the stable way to return to the curated front page from any catalogue.
-    await page.getByRole('button', { name: "Taiyou's Personal Library home" }).click();
+    await page.getByRole('link', { name: "Taiyou's Personal Library home" }).click();
     await page.waitForURL('**/');
     await page.locator('.editorial-grand').waitFor();
     await page.getByRole('button', { name: 'Browse tag Action' }).click();
@@ -571,7 +613,7 @@ try {
     if (await page.locator('.filter-tabs').count()) {
       throw new Error('Tag pages must not duplicate the main shelf navigation');
     }
-    await page.getByRole('button', { name: "Taiyou's Personal Library home" }).click();
+    await page.getByRole('link', { name: "Taiyou's Personal Library home" }).click();
     await page.waitForURL('**/');
     await page.getByRole('link', { name: 'Explore this novel' }).click();
     // The existing detail action first resolves EPUB availability asynchronously.
@@ -972,9 +1014,9 @@ try {
     await page.getByRole('button', { name: 'Create collection' }).click();
     await page.getByRole('textbox', { name: 'Collection name' }).fill('Example Series');
     await page.getByRole('button', { name: 'Save new collection' }).click();
-    await page.getByRole('button', { name: 'Open collection Example Series' }).waitFor();
+    await page.getByRole('link', { name: 'Open collection Example Series' }).waitFor();
     await page.getByRole('combobox', { name: 'Add Sample Library Book to collection' }).selectOption({ label: 'Example Series' });
-    await page.getByRole('button', { name: 'Open collection Example Series' }).click();
+    await page.getByRole('link', { name: 'Open collection Example Series' }).click();
     await page.waitForURL(/\/collections\/[A-Za-z0-9_-]{8,100}$/);
     if (await page.locator('.filter-tabs').count()) throw new Error('Collection pages must not duplicate main shelf navigation');
     const collectionUrl = new URL(page.url()).pathname;
@@ -983,8 +1025,8 @@ try {
     if (new URL(page.url()).pathname !== collectionUrl) throw new Error('Collection deep link not preserved');
     await page.getByRole('link', { name: 'View details for Sample Library Book' }).waitFor();
     await page.getByText('Collections', { exact: true }).click();
-    await page.getByRole('button', { name: 'Open collection Example Series' }).waitFor();
-    await page.getByRole('button', { name: 'Open collection Example Series' }).click();
+    await page.getByRole('link', { name: 'Open collection Example Series' }).waitFor();
+    await page.getByRole('link', { name: 'Open collection Example Series' }).click();
     await page.getByRole('link', { name: 'View details for Sample Library Book' }).waitFor();
     // The current novel title returns to details; the library brand goes home.
     await page.getByRole('link', { name: 'View details for Sample Library Book' }).click();
@@ -1171,7 +1213,7 @@ try {
       await page.getByRole('button', { name: 'Go to library home' }).click();
       await page.locator('nav[aria-label="Library sections"]').waitFor({ state: 'attached' });
       await (viewport.width <= 700
-        ? page.locator('.mobile-shelf-nav').getByRole('button', { name: 'Offline' })
+        ? page.locator('.mobile-shelf-nav').getByRole('link', { name: 'Offline' })
         : page.getByText('Available offline').first()).waitFor();
     } finally {
       await page.context().setOffline(false);
@@ -1189,7 +1231,7 @@ try {
         if (!startup?.ok()) throw new Error('Offline cold launch returned HTTP ' + startup?.status());
         await freshPage.locator('.app-shell').waitFor({ state: 'visible', timeout: 10000 });
         if (viewport.width <= 700) {
-          await freshPage.locator('.mobile-shelf-nav button.selected').getByText('Offline').waitFor();
+          await freshPage.locator('.mobile-shelf-nav a.selected').getByText('Offline').waitFor();
         } else {
           await freshPage.locator('.top-nav-link.active').getByText('Available offline').waitFor();
         }

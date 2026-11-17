@@ -5,7 +5,7 @@ import type { BookCollection } from '../lib/collections';
 import { selectHomeBooks, selectHomeShelves } from '../lib/home-curation';
 import { isFinished, isCurrentlyReading } from '../lib/reading-status';
 import { namedNovelUrl } from '../lib/routes';
-import { openNovelInCurrentTab } from '../lib/novel-links';
+import { openNovelInCurrentTab, revealClippedLinkTitle } from '../lib/novel-links';
 import type { LibraryBook } from '../types';
 import './editorial-home.css';
 
@@ -100,7 +100,7 @@ export default function EditorialHome({
           {galleryCandidates.map(book => {
             const index = visibleGalleryIds.indexOf(book.id);
             return <a
-              href={namedNovelUrl(book, allBooks)} title={book.title}
+              href={namedNovelUrl(book, allBooks)}
               className={'editorial-art-book ' + (index < 0 ? 'editorial-art-book-pending' : 'editorial-art-book-' + index)}
               key={book.id}
               aria-label={'Featured cover for ' + book.title}
@@ -127,9 +127,9 @@ export default function EditorialHome({
       </div>
       <div className="editorial-continue-rail">
         {continueReading.map(book => <article className="editorial-continue-card" key={book.id}>
-          <a href={namedNovelUrl(book, allBooks)} title={book.title} className="editorial-continue-cover" aria-label={'Reading desk cover for ' + book.title} onClick={event => openNovelInCurrentTab(event, () => onOpen(book))}>{cover(book)}</a>
+          <a href={namedNovelUrl(book, allBooks)} className="editorial-continue-cover" aria-label={'Reading desk cover for ' + book.title} onClick={event => openNovelInCurrentTab(event, () => onOpen(book))}>{cover(book)}</a>
           <div className="editorial-continue-copy">
-            <a href={namedNovelUrl(book, allBooks)} title={book.title} className="editorial-book-title" onClick={event => openNovelInCurrentTab(event, () => onOpen(book))}>{book.title}</a>
+            <a href={namedNovelUrl(book, allBooks)} className="editorial-book-title" onClick={event => openNovelInCurrentTab(event, () => onOpen(book))} onMouseEnter={event => revealClippedLinkTitle(event, book.title)} onFocus={event => revealClippedLinkTitle(event, book.title)}>{book.title}</a>
             <span className="editorial-continue-chapter">{book.currentChapterNumber
               ? `Chapter ${book.currentChapterNumber.toLocaleString()}${book.chapterCount ? ` of ${book.chapterCount.toLocaleString()}` : ''}`
               : book.currentChapter || 'Saved reading position'}
@@ -161,7 +161,7 @@ export default function EditorialHome({
           </div>
           <div className="editorial-index-labels" aria-hidden="true"><span>NO.</span><span>NOVEL</span><span>GENRE</span><span>YOUR SHELF</span></div>
           <div className="editorial-index-rows">
-            {journal.map((book, i) => <a href={namedNovelUrl(book, allBooks)} title={book.title} key={book.id}
+            {journal.map((book, i) => <a href={namedNovelUrl(book, allBooks)} key={book.id}
               className="editorial-index-row" onClick={event => openNovelInCurrentTab(event, () => onOpen(book))}
               aria-label={'Journal entry for ' + book.title}>
               <span className="editorial-index-number">{String(i + 1).padStart(2, '0')}</span>
