@@ -705,3 +705,76 @@
 @media (min-width:701px) and (max-width:900px) {
   .app-shell .book-grid {grid-template-columns:repeat(3,minmax(0,1fr))}
 }
+
+
+/* Cloud status: one theme-neutral button with exactly two states.
+   A green or red dot sits INSIDE the outline. Press the same button to
+   expand/collapse Cloud settings. No separate badges or Close capsule. */
+.app-shell .topbar > .cloud-connect {
+  flex:0 0 auto;
+  width:42px; height:42px; min-width:42px; max-width:none;
+  margin:0; padding:0; background:transparent; border:0;
+  box-shadow:none; border-radius:12px;
+}
+.app-shell .topbar .cloud-connect-head {
+  display:block; width:100%; height:100%; margin:0; padding:0;
+}
+.app-shell .topbar .cloud-status-toggle {
+  display:grid; place-items:center;
+  width:42px; height:42px; min-width:42px; min-height:42px;
+  box-sizing:border-box; padding:0; margin:0;
+  border:1px solid var(--border); border-radius:12px;
+  background:transparent; color:var(--text);
+  cursor:pointer; transition:background-color .14s ease,border-color .14s ease;
+}
+.app-shell .topbar .cloud-status-toggle:hover,
+.app-shell .topbar .cloud-status-toggle[aria-expanded="true"] {
+  background:color-mix(in srgb,var(--text) 9%,var(--surface));
+  border-color:var(--accent);
+}
+.app-shell .topbar .cloud-status-toggle:focus-visible {
+  outline:2px solid var(--accent); outline-offset:3px;
+}
+.app-shell .topbar .cloud-status-icon {
+  position:relative; display:grid; place-items:center;
+  width:27px; height:27px; flex:none;
+}
+.app-shell .topbar .cloud-status-icon > svg {
+  display:block; width:27px; height:27px;
+  color:var(--text); opacity:1;
+}
+.app-shell .topbar .cloud-status-dot {
+  position:absolute; left:51%; top:59%; transform:translate(-50%,-50%);
+  display:block; width:8px; height:8px; min-width:8px; min-height:8px;
+  box-sizing:border-box; border:1px solid var(--surface);
+  border-radius:50%; pointer-events:none;
+}
+.app-shell .topbar .cloud-status-dot.is-connected {
+  background:#26d878; box-shadow:0 0 0 1px #065c35;
+}
+.app-shell .topbar .cloud-status-dot.is-disconnected {
+  background:#f05e66; box-shadow:0 0 0 1px #7d2530;
+}
+.app-shell .topbar .cloud-settings-heading {
+  font:700 16px/1.3 "Segoe UI",Inter,system-ui,sans-serif;
+  color:var(--text); margin:0 0 9px;
+}
+.app-shell .topbar .cloud-settings-state {
+  display:block; font-size:12px; font-weight:700;
+  color:var(--text); margin:0 0 14px;
+}
+@media (max-width:800px) {
+  .app-shell .topbar > .cloud-connect {
+    width:42px; height:42px; min-width:42px; max-width:42px;
+    padding:0;
+  }
+  /* A right-anchored 490px popover overflows a narrow viewport. */
+  .app-shell .topbar .cloud-connect-body {
+    position:fixed; left:12px; right:12px; top:72px;
+    width:auto; max-width:none; max-height:calc(100dvh - 84px);
+    overflow:auto;
+  }
+}
+@media (prefers-reduced-motion:reduce) {
+  .app-shell .topbar .cloud-status-toggle { transition:none; }
+}
