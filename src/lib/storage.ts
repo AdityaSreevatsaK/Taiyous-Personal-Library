@@ -1,6 +1,6 @@
 import { openDB, type DBSchema, type IDBPDatabase } from 'idb';
 import type { LibraryBook, ReaderSettings } from '../types';
-import { DEFAULT_SETTINGS } from '../types';
+import { readerDefaultsForViewport } from '../types';
 import { isReaderTheme } from './themes';
 
 interface NovelDB extends DBSchema {
@@ -153,6 +153,9 @@ const WIDTH_MIGRATION_KEY = 'taiyou.full-width-default-applied.v0.4.0';
 const WIDTH_FIX_KEY = 'taiyou.full-width-explicit-v0.6.0';
 
 export function readSettings(): ReaderSettings {
+  const defaults = readerDefaultsForViewport(
+    typeof window !== 'undefined' && window.matchMedia?.('(max-width: 700px)').matches === true,
+  );
   try {
     const saved = JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}') as Partial<ReaderSettings>;
     // This personal-library upgrade explicitly switches its owner's starting
@@ -163,7 +166,7 @@ export function readSettings(): ReaderSettings {
     // that former default to full width once, preserving deliberate custom widths.
     const firstRunOfWidthEdition = localStorage.getItem(WIDTH_MIGRATION_KEY) !== 'yes';
     if (firstRunOfWidthEdition) localStorage.setItem(WIDTH_MIGRATION_KEY, 'yes');
-    const legacyWidth = Number.isFinite(saved.readingWidth) ? saved.readingWidth! : DEFAULT_SETTINGS.readingWidth;
+    const legacyWidth = Number.isFinite(saved.readingWidth) ? saved.readingWidth! : defaults.readingWidth;
     const widthFixNeeded = localStorage.getItem(WIDTH_FIX_KEY) !== 'yes';
     if (widthFixNeeded) {
       // Persist immediately because React StrictMode can invoke the state
@@ -175,14 +178,14 @@ export function readSettings(): ReaderSettings {
     // Afterwards Comfortable/Wide/custom choices are kept as usual.
     const readingWidth = widthFixNeeded ? 0 : (firstRunOfWidthEdition && legacyWidth === 680 ? 0 : legacyWidth);
     return {
-      theme: firstRunOfSepiaEdition ? 'sepia' : (isReaderTheme(saved.theme) ? saved.theme : DEFAULT_SETTINGS.theme),
-      font: ['literary', 'classic', 'georgia', 'sans', 'clear'].includes(saved.font ?? '') ? saved.font! : DEFAULT_SETTINGS.font,
-      fontSize: Number.isFinite(saved.fontSize) ? Math.min(170, Math.max(75, saved.fontSize!)) : DEFAULT_SETTINGS.fontSize,
-      lineHeight: Number.isFinite(saved.lineHeight) ? Math.min(2.2, Math.max(1.3, saved.lineHeight!)) : DEFAULT_SETTINGS.lineHeight,
+      theme: firstRunOfSepiaEdition ? 'sepia' : (isReaderTheme(saved.theme) ? saved.theme : defaults.theme),
+      font: ['literary', 'classic', 'georgia', 'sans', 'clear'].includes(saved.font ?? '') ? saved.font! : defaults.font,
+      fontSize: Number.isFinite(saved.fontSize) ? Math.min(170, Math.max(75, saved.fontSize!)) : defaults.fontSize,
+      lineHeight: Number.isFinite(saved.lineHeight) ? Math.min(2.2, Math.max(1.3, saved.lineHeight!)) : defaults.lineHeight,
       readingWidth: readingWidth === 0 ? 0 : Math.min(1600, Math.max(520, readingWidth)),
     };
   } catch {
-    return DEFAULT_SETTINGS;
+    return defaults;
   }
 }
 
