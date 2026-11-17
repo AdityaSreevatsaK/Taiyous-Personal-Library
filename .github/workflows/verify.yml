@@ -127,6 +127,7 @@ jobs:
             sleep 1
           done
           SMOKE_URL=http://127.0.0.1:8791 node scripts/csp_browser_smoke.mjs
+          SMOKE_URL=http://127.0.0.1:8791 node scripts/epub_security_smoke.mjs
       - name: Publish synthetic-only design screenshots for review
         if: ${{ always() && github.event_name == 'pull_request' && startsWith(github.head_ref, 'design/') }}
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
