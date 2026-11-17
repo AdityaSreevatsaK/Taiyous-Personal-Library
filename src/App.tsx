@@ -1284,7 +1284,7 @@ export default function App() {
           // actions should persist the full EPUB in browser IndexedDB.
           return fetchCloudEpub(cloudRepo, entry, cloudSession);
         })}
-        onBack={goLibrary} onRead={() => openBook(detailBook)}
+        onBack={goLibrary} onRead={() => openBook(detailBook)} readHref={namedNovelUrl(detailBook, books, true)}
         onReadChapter={href => openBook(detailBook, href)}
         onDownloadEpub={() => downloadEpub(detailBook)}
         isCachedOffline={cachedEpubIds.includes(detailBook.id)}
