@@ -836,6 +836,30 @@ try {
       throw new Error('Clear all left a stale header or advanced query');
     }
     await page.getByRole('button', { name: 'Back to shelf' }).click();
+    // Home from a search must always be the curated Home, never an old result or shelf.
+    await page.getByRole('textbox', { name:'Search all novels' }).fill('Sample Library');
+    await page.getByRole('link', { name:"Taiyou's Personal Library home" }).click();
+    await page.waitForURL('**/');
+    await page.locator('.editorial-grand').waitFor({ state:'visible' });
+    if (await page.getByRole('textbox', { name:'Search all novels' }).inputValue() !== '') {
+      throw new Error('Clicking the brand should clear the old search before showing Home');
+    }
+    const activeHomeNav = page.locator('.top-nav-links .top-nav-link[aria-current="page"]');
+    if (await activeHomeNav.count() !== 1 ||
+        (await activeHomeNav.first().textContent())?.trim() !== 'Home' ||
+        await page.locator('.top-nav-links .top-nav-link.active').count() !== 1) {
+      throw new Error('Home and another shelf both appear selected simultaneously');
+    }
+    // A shelf has its own single selected tab, and the brand always goes Home.
+    await page.getByRole('link', { name:/All books/ }).first().click();
+    await page.waitForURL('**/library');
+    if (await page.locator('.top-nav-links .top-nav-link[aria-current="page"]').count() !== 1 ||
+        await page.locator('.top-nav-links .top-nav-link.active').count() !== 1) {
+      throw new Error('Shelf navigation has duplicate selected tabs');
+    }
+    await page.getByRole('link', { name:"Taiyou's Personal Library home" }).click();
+    await page.waitForURL('**/');
+    await page.locator('.editorial-grand').waitFor({ state:'visible' });
     // Local EPUBs must be listed on the Offline tab without requiring a cloud token.
     await navigateShelf(/Available offline/, 'offline');
     await page.locator('.offline-management-bar').waitFor({ state: 'visible' });
@@ -1097,13 +1121,44 @@ try {
     await page.reload({ waitUntil: 'networkidle' });
     if (new URL(page.url()).pathname !== collectionUrl) throw new Error('Collection deep link not preserved');
     await page.getByRole('link', { name: 'View details for Sample Library Book' }).waitFor();
+    const collectionLayout = await page.locator('.collection-view').evaluate(section => {
+      const header = section.querySelector('.collection-heading');
+      const summary = section.querySelector('.collection-heading-summary')?.getBoundingClientRect();
+      const actions = section.querySelector('.collection-actions')?.getBoundingClientRect();
+      const quickAdd = section.querySelector('.collection-quick-add')?.getBoundingClientRect();
+      const inputs = Array.from(section.querySelectorAll('.collection-quick-add-field')).map(node => node.getBoundingClientRect());
+      const bounds = section.getBoundingClientRect();
+      const aligned = summary && actions && (window.innerWidth > 1180
+        ? Math.abs((summary.top + summary.bottom) / 2 - (actions.top + actions.bottom) / 2) < 24
+        : summary.bottom <= actions.top + 2);
+      const inputsAligned = inputs.length === 2 && (window.innerWidth > 780
+        ? Math.abs(inputs[0].top-inputs[1].top) < 3
+        : inputs[0].bottom <= inputs[1].top);
+      return {
+        aligned:!!aligned,inputsAligned,
+        inside:!!quickAdd && quickAdd.right <= bounds.right + 2,
+        headingVisible:!!header && getComputedStyle(header).display !== 'none',
+      };
+    });
+    if (Object.values(collectionLayout).some(ok => !ok)) {
+      throw new Error('Collection typography or actions/search alignment regressed: ' +
+        JSON.stringify(collectionLayout));
+    }
     await page.getByText('Collections', { exact: true }).click();
     await page.getByRole('link', { name: 'Open collection Example Series' }).waitFor();
     await page.getByRole('link', { name: 'Open collection Example Series' }).click();
-    // Parent collections contain navigable child collections, not duplicated novel tiles.
-    await page.getByRole('button', { name: 'Create subcollection in Example Series' }).click();
-    await page.getByRole('textbox', { name: 'New subcollection inside Example Series' }).fill('Volume One');
-    await page.getByRole('button', { name: 'Create', exact: true }).click();
+    // Direct collection management searches the local catalogue and creates nested folders.
+    const addPanel = page.getByRole('region', { name:'Add to Example Series' });
+    const findNovel = addPanel.getByRole('searchbox', { name:'Find novels to add' });
+    await findNovel.fill('Sample Library');
+    if (await addPanel.getByRole('button', {
+      name:'Add Sample Library Book to Example Series',
+    }).count()) {
+      throw new Error('Quick add should not offer books already directly in this collection');
+    }
+    const findFolder = addPanel.getByRole('searchbox', { name:'Find collections to move here' });
+    await findFolder.fill('Volume One');
+    await addPanel.getByRole('button', { name:'Create subcollection Volume One' }).click();
     const volumeLink = page.getByRole('link', { name: 'Open subcollection Volume One' });
     await volumeLink.waitFor();
     const volumeHref = await volumeLink.getAttribute('href');
@@ -1111,6 +1166,10 @@ try {
     const volumeId = volumeHref.split('/').pop();
     await volumeLink.click();
     await page.waitForURL('**' + volumeHref);
+    const addToVolume = page.getByRole('region', { name:'Add to Volume One' });
+    await addToVolume.getByRole('searchbox', { name:'Find novels to add' }).fill('Sample Library');
+    await addToVolume.getByRole('button', { name:'Add Sample Library Book to Volume One' }).click();
+    await page.getByRole('link', { name:'View details for Sample Library Book' }).waitFor();
     await page.getByRole('button', { name: 'Create subcollection in Volume One' }).click();
     await page.getByRole('textbox', { name: 'New subcollection inside Volume One' }).fill('Arc A');
     await page.getByRole('button', { name: 'Create', exact: true }).click();
