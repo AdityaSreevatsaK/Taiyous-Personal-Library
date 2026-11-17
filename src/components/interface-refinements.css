@@ -282,7 +282,7 @@
     display:grid;grid-template-columns:repeat(3,minmax(0,1fr)) minmax(88px,1fr);
     width:100%;gap:5px;min-width:0;align-items:center
   }
-  .app-shell .mobile-shelf-nav>button,
+  .app-shell .mobile-shelf-nav>a,
   .app-shell .mobile-shelf-more {
     min-width:0;min-height:38px;display:flex;align-items:center;
     justify-content:center;border:1px solid var(--border);
@@ -290,7 +290,7 @@
     font:600 11px/1.2 system-ui,-apple-system,"Segoe UI",sans-serif;
     cursor:pointer;padding:8px 5px;text-align:center
   }
-  .app-shell .mobile-shelf-nav>button.selected {
+  .app-shell .mobile-shelf-nav>a.selected {
     background:var(--pale);border-color:var(--accent);color:var(--text)
   }
   .app-shell .mobile-shelf-more {padding:0 3px 0 6px;gap:2px}
@@ -305,7 +305,7 @@
 }
 @media(max-width:350px){
   .app-shell .mobile-shelf-nav{grid-template-columns:repeat(3,minmax(0,1fr)) 77px}
-  .app-shell .mobile-shelf-nav>button,.app-shell .mobile-shelf-more{font-size:10px}
+  .app-shell .mobile-shelf-nav>a,.app-shell .mobile-shelf-more{font-size:10px}
 }
 
 
