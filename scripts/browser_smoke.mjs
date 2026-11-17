@@ -1507,7 +1507,13 @@ try {
       await page.getByRole('link', { name: 'View details for Sample Library Book' }).click();
       await page.getByRole('link', { name: /^(Start|Continue) reading$/ }).click();
       await page.locator('.reader-page iframe').first().waitFor({ state: 'visible', timeout: 20000 });
-      await page.getByRole('button', { name: 'Go to library home' }).click();
+      if (viewport.width <= 700) {
+        await page.locator('.reader-header .quick-nav-mobile summary').click();
+        await page.getByRole('group', { name:'Library shortcuts' })
+          .getByRole('link', { name:'Home', exact:true }).click();
+      } else {
+        await page.getByRole('button', { name: 'Go to library home' }).click();
+      }
       await page.locator('nav[aria-label="Library sections"]').waitFor({ state: 'attached' });
       await (viewport.width <= 700
         ? page.locator('.mobile-shelf-nav').getByRole('link', { name: 'Offline' })
