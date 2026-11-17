@@ -37,12 +37,12 @@ export default function EditorialHome({
   const { featured, continueReading, journal } = useMemo(() => selectHomeBooks(books), [books]);
   const readingCount = useMemo(() =>
     books.filter(isCurrentlyReading).length, [books]);
-  // The floating gallery shows only candidate books with stored cover paths.
-  // Each candidate remains hidden until its genuine image has loaded.
+  // Display the reader's real jacket where possible, otherwise its elegant
+  // temporary library-edition design. Never mistake missing images for errors.
   const displayBooks = useMemo(() => {
     const seen = new Set<string>();
     return [featured, ...journal, ...books].filter((book): book is LibraryBook => {
-      if (!book?.coverPath || seen.has(book.id)) return false;
+      if (!book || seen.has(book.id)) return false;
       seen.add(book.id);
       return true;
     }).slice(0, 3);
@@ -184,7 +184,7 @@ export default function EditorialHome({
           key={shelf.kind + ':' + shelf.id}
           onClick={() => shelf.kind === 'collection' ? onBrowseCollection(shelf.id) : onBrowseTag(shelf.id)}
           aria-label={`Browse ${shelf.kind} ${shelf.name}`}>
-          {shelf.preview.coverPath && <span className="editorial-shelf-cover" aria-hidden="true">{cover(shelf.preview)}</span>}
+          <span className="editorial-shelf-cover" aria-hidden="true">{cover(shelf.preview)}</span>
           <span className="editorial-shelf-details">
             <strong>{shelf.name}</strong>
             <small>{shelf.count} {shelf.count === 1 ? 'novel' : 'novels'}</small>

@@ -6,8 +6,7 @@ import {
 import { Cover } from './LibraryDashboard';
 import ThemeSwitcher from './ThemeSwitcher';
 import BrandMark from './BrandMark';
-import { novelHeroStyle } from '../lib/novel-hero';
-import { useCoverArt } from './useCoverArt';
+import { novelHeroBackdrop, novelHeroBackdropUrl, novelHeroStyle } from '../lib/novel-hero';
 import './details-palettes.css';
 import type { CloudSession } from '../lib/cloud';
 import ChapterBrowser from './ChapterBrowser';
@@ -139,13 +138,10 @@ export default function BookDetails({ book, availableTags, theme, onThemeChange,
     } finally { setSaving(false); }
   }
 
-  // Use only this novel's stored cover as decorative hero artwork. No unrelated
-  // landscape photography or fabricated cover is substituted when it is absent.
-  const coverBackdropUrl = useCoverArt(book, cloudRepo, cloudSession);
-  const [failedBackdropUrl, setFailedBackdropUrl] = useState<string | null>(null);
-  const [loadedBackdropUrl, setLoadedBackdropUrl] = useState<string | null>(null);
-  const showCoverBackdrop = Boolean(coverBackdropUrl &&
-    failedBackdropUrl !== coverBackdropUrl && loadedBackdropUrl === coverBackdropUrl);
+  // The hero photograph is ambient scenery, separate from this novel's own cover.
+  // Assignments are stable, use a vetted fixed set and reveal no novel metadata.
+  const backdrop = novelHeroBackdrop(book.id);
+  const [failedBackdropId, setFailedBackdropId] = useState<string | null>(null);
 
   return <div className={`details-shell theme-${theme}`}>
     <header className="details-topbar">
@@ -164,14 +160,16 @@ export default function BookDetails({ book, availableTags, theme, onThemeChange,
       <div className="details-top-controls"><ThemeSwitcher compact value={theme} onChange={onThemeChange} /></div>
     </header>
     <main className="details-layout">
-      <div className={`details-hero details-hero-cover-led${showCoverBackdrop ? ' cover-backdrop-ready' : ''}`}
-        style={novelHeroStyle(book.id)}>
-        {coverBackdropUrl && failedBackdropUrl !== coverBackdropUrl && <img
-          className="details-hero-backdrop details-hero-cover-backdrop"
-          src={coverBackdropUrl}
+      <div className="details-hero details-hero-photographic" style={novelHeroStyle(book.id)}>
+        {failedBackdropId !== book.id && <img
+          className="details-hero-backdrop"
+          src={novelHeroBackdropUrl(backdrop.photoId)}
+          srcSet={`${novelHeroBackdropUrl(backdrop.photoId, 840)} 840w, ${novelHeroBackdropUrl(backdrop.photoId, 1500)} 1500w`}
+          sizes="(max-width: 700px) 100vw, 1200px"
           alt="" aria-hidden="true" loading="eager" decoding="async" draggable={false}
-          onLoad={() => setLoadedBackdropUrl(coverBackdropUrl)}
-          onError={() => { setFailedBackdropUrl(coverBackdropUrl); setLoadedBackdropUrl(null); }}
+          referrerPolicy="no-referrer"
+          style={{ objectPosition: backdrop.position }}
+          onError={() => setFailedBackdropId(book.id)}
         />}
         <div className="details-cover-wrap"><Cover book={book} variant="feature" cloudRepo={cloudRepo} cloudSession={cloudSession} /></div>
         <div className="details-hero-content">

@@ -1,26 +1,37 @@
-# Novel details artwork
+# Novel cover and hero imagery
 
-The details hero takes its visual identity from **the novel's own uploaded cover**.
-It does not show stock landscapes, AI-generated jackets, or photos from unrelated novels.
+## Cover precedence
 
-## Source of truth
+1. Display the **genuine cover** stored with the EPUB or in the user's private Hugging Face dataset.
+2. If the image is missing, downloading, offline or corrupt, render a **CSS-generated library edition** with the actual novel title and author. Six tasteful colourways are selected deterministically by novel ID.
+3. When the genuine image finishes decoding, it immediately replaces the temporary generated jacket. Nothing is uploaded or persisted for that generated artwork.
 
-- `book.coverPath` must refer to cover artwork extracted from the user's EPUB or saved in the private Hugging Face dataset.
-- `useCoverArt` first checks the local IndexedDB cover cache and then fetches that same book's private cloud cover when authenticated and online.
-- The cover shown in the book tile and the backdrop come from the same source. The backdrop is decorative, blurred and darkened for readable text, while the original cover remains sharp.
-- Never fetch images by guessing a title, searching the web, or using another novel's art. A stored path alone is not proof of provenance; source verification belongs in the novel retrieval/import pipeline.
+Generated jackets are typographic placeholders, **not claims that an official novel cover exists**. All pages (catalogue, continue reading, floating gallery, genre tiles and novel details) use the same shared `Cover` component.
 
-## Missing, offline and broken artwork
+## Novel-details photography
 
-When a book has no `coverPath`, the private dataset is disconnected, or decoding fails, the hero uses a deterministic six-colour gradient selected by the immutable novel ID. It never fabricates a substitute cover. Book tiles show an explicit **Cover unavailable** placeholder rather than typography styled to imitate a jacket.
+The wide background behind the novel details is independent atmospheric decoration, not a book jacket. The library uses an approved fixed collection of genuine photographs, mixing **historic libraries**, **celestial skies**, and **desert/mountain landscapes**. The assigned photograph is stable for each novel ID, with different photography across novels.
 
-The decorative background does not reveal titles or private dataset URLs to an external image CDN. Its image comes from the same local/cloud cover already used in the library.
+The images use `images.unsplash.com` only; titles, descriptions, private dataset paths, passwords and tokens are never part of an external URL. The site Content Security Policy explicitly restricts the photo host. If photographs cannot load (including offline), the existing accessible six-colour gradient provides the fallback.
 
-## Responsive behaviour
+The cover at the left remains sharp; the photograph covers the background behind it. Title, metadata and actions sit above the photograph in their own legible layers. Mobile layouts retain all tags and controls.
 
-The reader's title, chapter information, tags, ratings and actions remain accessible above the decorative backdrop on desktop and mobile. The gradient overlay preserves contrast against bright cover artwork. Reduced-motion users do not receive backdrop transition animations.
+## Photography sources
 
-## Regression checks
+| Scene | Credit | Source |
+| --- | --- | --- |
+| Vaulted library reading room | Unsplash contributor | [Unsplash historic library collection](https://unsplash.com/fr/s/photos/biblioth%C3%A8que-sombre) |
+| Gilded archive shelves | J. Balla | [Unsplash profile](https://unsplash.com/@jballa) |
+| Milky Way above mountains | Ashwini Chaudhary | [Unsplash photograph](https://unsplash.com/photos/starry-night-sky-over-mountains-z-u4kAj3JeY) |
+| Star-filled mountain lake | Dhaivat Shah | [Unsplash photograph](https://unsplash.com/photos/starry-night-sky-over-mountains-and-a-lake-8W9nKu1PLu4) |
+| Northern lights and snowy mountains | Rafael Peier | [Unsplash photograph](https://unsplash.com/photos/northern-lights-illuminate-a-starry-sky-over-snowy-mountains-XXX2uavaR38) |
+| Desert dunes at sunset | Francesco Ungaro | [Unsplash photograph](https://unsplash.com/photos/the-sun-is-setting-over-a-desert-with-sand-dunes-tSR133k8Diw) |
+| Twilight mountains | 志远 杨 | [Unsplash photograph](https://unsplash.com/photos/misty-mountains-shrouded-in-blue-twilight-fog-kzH-sVU5pqs) |
 
-`tests/novel-hero.test.ts` checks stable colour palettes and contrast.
-`scripts/browser_smoke.mjs` checks a novel without a cover for the palette fallback and verifies details layout and visibility on mobile and desktop.
+Image licence: https://unsplash.com/license
+
+## Regression coverage
+
+- `tests/novel-hero.test.ts`: stable generated-cover variants, known photographic sources and safe URL construction.
+- `scripts/browser_smoke.mjs`: generated cover jackets, editorial layout, visible atmospheric photos, desktop/mobile, offline reading and fast metadata-only detail navigation.
+- `scripts/csp_browser_smoke.mjs`: proves the local genuine cover remains distinct from scenic photography under production Cloudflare Content Security Policy.

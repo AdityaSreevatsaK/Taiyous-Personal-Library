@@ -411,11 +411,16 @@ try {
       throw new Error('All four mobile shelves must fit in 2x2 without horizontal scrolling: '+
         JSON.stringify(shelfGeometry));
     }
-    if (await page.locator('.editorial-shelf-card .cover').count()) {
-      throw new Error('Genre shelves may not display a fake cover when no real cover artwork exists');
+    const genreJackets=page.locator('.editorial-shelf-card .cover-generated-artwork');
+    if (!(await genreJackets.count())) {
+      throw new Error('Genre shelves must show a designed fallback jacket for uncovered novels');
     }
-    if (await page.locator('.editorial-art-book').count()) {
-      throw new Error('Home hero may show only candidate novels that have a genuine coverPath');
+    const floatingJackets=page.locator('.editorial-art-book .cover-generated-artwork');
+    if (!(await floatingJackets.count())) {
+      throw new Error('Home hero should retain a designed jacket when no cover image exists');
+    }
+    if (await page.getByText('Cover unavailable').count()) {
+      throw new Error('Blank unavailable-cover placeholders must not appear');
     }
     await page.locator('.site-credit-footer').getByText(/Created by Taiyou/).waitFor();
     const shelfHeading = await page.locator('.editorial-shelves > .editorial-section-heading').evaluate(header => {
@@ -542,20 +547,25 @@ try {
       throw new Error('Advanced ZIP should be compact and full-width on mobile: '+
         JSON.stringify(backup));
     }
-    // The fixture intentionally has no cover. Details must remain beautiful
-    // without requesting unrelated stock landscapes or inventing a jacket.
-    const coverLedHero = page.locator('.details-hero-cover-led');
-    await coverLedHero.waitFor({state:'visible'});
-    if (await page.locator('.details-hero-cover-backdrop').count()) {
-      throw new Error('A novel without real cover artwork must not display a backdrop image');
-    }
-    const heroBackdropStyle=await coverLedHero.evaluate(el => ({
-      background:getComputedStyle(el).backgroundImage,
-      overlay:getComputedStyle(el,'::before').backgroundImage,
+    // The test novel has no image. Its generated jacket and an independent
+    // atmospheric photo must still render without pretending to be real art.
+    const photoHero=page.locator('.details-hero-photographic');
+    await photoHero.waitFor({state:'visible'});
+    await page.locator('.details-cover-wrap .cover-generated-artwork').waitFor({state:'visible'});
+    const landscapePhoto=page.locator('.details-hero-backdrop');
+    await landscapePhoto.waitFor({state:'visible'});
+    await page.waitForFunction(() => {
+      const img=document.querySelector('.details-hero-backdrop');
+      return Boolean(img?.complete && img.naturalWidth > 0);
+    });
+    const photoStyle=await landscapePhoto.evaluate(el => ({
+      source:el.getAttribute('src'),opacity:getComputedStyle(el).opacity,
+      filter:getComputedStyle(el).filter,fit:getComputedStyle(el).objectFit,
     }));
-    if (!heroBackdropStyle.background.includes('radial-gradient') ||
-        !heroBackdropStyle.overlay.includes('linear-gradient')) {
-      throw new Error('Missing-cover details need a readable palette fallback: '+JSON.stringify(heroBackdropStyle));
+    if (!photoStyle.source?.startsWith('https://images.unsplash.com/photo-') ||
+        photoStyle.opacity!=='1' || photoStyle.filter!=='none' || photoStyle.fit!=='cover') {
+      throw new Error('Decorative photography must remain visible behind novel details: '+
+        JSON.stringify(photoStyle));
     }
     // Desktop: no giant blackout over the entire book information area.
     // Mobile: grid children must have their OWN stacking context because the
@@ -616,9 +626,8 @@ try {
        (readability.mobile && readability.wrapperDisplay!=='contents') ||
        [readability.title,readability.author,readability.chapters]
          .some(colour=>colour!=='rgb(255, 255, 255)') ||
-       (readability.photoOpacity!=='absent' && readability.photoOpacity!=='1') ||
-       (readability.photoFilter!=='absent' && !readability.photoFilter.includes('blur'))) {
-      throw new Error('Hero must keep title, facts and actions above cover-led artwork: '+JSON.stringify(readability));
+       readability.photoOpacity!=='1' || readability.photoFilter!=='none') {
+      throw new Error('Hero must keep title, facts and actions above real scenery: '+JSON.stringify(readability));
     }
     const detailsOrder = await page.locator('.details-aside > .details-card').evaluateAll(nodes =>
       nodes.map(node => [...node.classList].find(value => /details-(tags|review|management)-card/.test(value))).filter(Boolean));
@@ -1149,8 +1158,9 @@ try {
           colour:getComputedStyle(el).backgroundColor,
         }));
         if (!heroFallback.image.includes('radial-gradient') ||
-            await fastPage.locator('.details-hero-cover-backdrop').count()) {
-          throw new Error('Missing artwork must use a cover-free palette fallback: '+JSON.stringify(heroFallback));
+            !(await fastPage.locator('.details-cover-wrap .cover-generated-artwork').count()) ||
+            !(await fastPage.locator('.details-hero-backdrop').count())) {
+          throw new Error('Metadata-only novels need generated jackets and atmospheric backdrops: '+JSON.stringify(heroFallback));
         }
         console.log('Uncached novel details navigated without EPUB in ' + detailLatencyMs + ' ms');
 

@@ -354,72 +354,83 @@
   }
 }
 
-/* No fabricated jacket artwork. Missing/private covers use a deliberately
- * neutral availability indicator; real covers retain their image rendering. */
-.cover.cover-missing-artwork {
-  display:grid;place-items:center;
-  padding:10px;box-sizing:border-box;overflow:hidden;
-  background:var(--pale);color:var(--subtext);
-  border:1px solid var(--border);
-  box-shadow:0 4px 12px #00000020;
-}
-.cover.cover-missing-artwork::before,
-.cover.cover-missing-artwork::after {content:none}
-.cover .cover-unavailable {
+/* CSS-generated library-edition jackets are a visual fallback, not imported
+ * image files. Genuine EPUB/dataset artwork always takes precedence. */
+.cover.cover-generated-artwork {
+  background:linear-gradient(115deg,rgba(0,0,0,.22),transparent 13%,rgba(255,255,255,.065) 46%,rgba(0,0,0,.19)),var(--cover-bg);
+  color:var(--cover-fg);
+  border:1px solid color-mix(in srgb,var(--cover-fg) 28%,transparent);
   display:flex;flex-direction:column;align-items:center;
-  justify-content:center;gap:7px;min-width:0;width:100%;
-  color:var(--subtext);text-align:center;
+  justify-content:space-between;box-sizing:border-box;overflow:hidden;
+  padding:clamp(10px,8%,20px) 7%;
+  text-align:center;
+  box-shadow:2px 6px 15px #00000039,inset 5px 0 6px #00000033;
 }
-.cover .cover-unavailable small {
-  font:500 10px/1.35 Inter,"Segoe UI",sans-serif;
-  letter-spacing:0;overflow-wrap:anywhere;
+.cover.cover-generated-artwork::before {
+  content:'';display:block;inset:6%;
+  border:1px solid color-mix(in srgb,var(--cover-fg) 43%,transparent);
 }
-/* The cover artwork is only considered present after the image loads. */
+.cover.cover-generated-artwork::after {
+  content:'';display:block;width:83%;height:50%;top:24%;
+  border:1px solid color-mix(in srgb,var(--cover-fg) 28%,transparent);
+  border-radius:50%;transform:translate(-50%,-50%) rotate(-20deg);
+}
+.cover.cover-generated-artwork .cover-heading {
+  display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:5;
+  font:600 clamp(11px,1.27vw,21px)/1.13 Georgia,"Times New Roman",serif;
+  overflow:hidden;overflow-wrap:anywhere;word-break:normal;
+  margin:auto 0 0;letter-spacing:-.02em;min-width:0;
+}
+.cover.cover-generated-artwork .cover-author {
+  display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;
+  font:italic clamp(8px,.7vw,12px)/1.25 Georgia,serif;
+  margin:12px 0 auto;max-width:100%;overflow:hidden;overflow-wrap:anywhere;
+}
+.cover.cover-generated-artwork .cover-bottom {
+  align-items:center;gap:5px;font-size:clamp(5px,.45vw,8px);
+  line-height:1.3;letter-spacing:.06em;
+}
+.cover.cover-generated-artwork .cover-bottom span {min-width:0}
+.cover.cover-generated-artwork .cover-ornament {
+  font-size:clamp(10px,1.2vw,21px);
+}
+.cover.cover-generated-artwork .cover-lilies {
+  font-size:clamp(36px,5vw,78px);opacity:.19;pointer-events:none;
+}
+.cover.cover-generated-artwork.cover-feature .cover-heading {
+  font-size:clamp(15px,2.1vw,27px);
+}
+.cover.cover-generated-artwork.cover-feature .cover-author {font-size:clamp(10px,1.1vw,14px)}
+@media(max-width:700px) {
+  .cover.cover-generated-artwork .cover-heading {font-size:clamp(10px,2.7vw,15px)}
+  .cover.cover-generated-artwork.cover-feature .cover-heading {font-size:clamp(12px,3.7vw,19px)}
+  .cover.cover-generated-artwork .cover-author {font-size:clamp(8px,1.6vw,10px)}
+}
 .cover:not(.cover-has-image) .cover-art {visibility:hidden}
 
-
-/* Cover-led details: the ONLY photographic artwork is the novel's own
- * previously uploaded cover. No scenery, synthetic jackets or external CDN.
- * Missing/unreadable covers retain the stable six-colour editorial backdrop. */
-.details-shell .details-hero.details-hero-cover-led {
-  background:radial-gradient(ellipse at 83% 31%,
+/* Vetted scenic photography returns to the detail hero. Photos decorate the
+ * backdrop, while real/generated book jackets remain in the foreground. */
+.details-shell .details-hero.details-hero-photographic {
+  background:radial-gradient(ellipse at 78% 31%,
     var(--novel-hero-glow,#365c85) 0%,
-    var(--novel-hero-mid,#243c5b) 52%,
+    var(--novel-hero-mid,#243c5b) 48%,
     var(--novel-hero-shadow,#14253f) 100%);
   isolation:isolate;
 }
-.details-shell .details-hero .details-hero-cover-backdrop {
+.details-shell .details-hero.details-hero-photographic .details-hero-backdrop {
   position:absolute;inset:0;width:100%;height:100%;
-  display:block;object-fit:cover;object-position:center 42%;
-  z-index:0;pointer-events:none;
-  opacity:1;filter:blur(28px) brightness(.79) saturate(1.18);
-  transform:scale(1.3);transform-origin:center;
-  mask-image:none;-webkit-mask-image:none;
+  object-fit:cover;display:block;z-index:0;pointer-events:none;
+  opacity:1;filter:none;transform:none;
 }
-.details-shell .details-hero.details-hero-cover-led:not(.cover-backdrop-ready) .details-hero-cover-backdrop {
-  opacity:0;
-}
-.details-shell .details-hero.details-hero-cover-led::before {
+.details-shell .details-hero.details-hero-photographic::before {
   content:'';display:block;position:absolute;inset:0;z-index:1;
-  pointer-events:none;
-  background:linear-gradient(100deg,#091525df 0%,#0c182bc2 43%,#101a2e94 100%);
+  pointer-events:none;background:linear-gradient(90deg,#08142666,transparent 72%);
 }
-.details-shell .details-hero.details-hero-cover-led::after {
-  content:'';display:block;position:absolute;inset:0;z-index:1;
-  pointer-events:none;
-  background:repeating-radial-gradient(circle at 86% 37%,
-    transparent 0 68px,#e8d4aa12 69px 70px);
-  opacity:.6;
+.details-shell .details-hero.details-hero-photographic::after {
+  content:none;
 }
 @media(max-width:700px) {
-  .details-shell .details-hero .details-hero-cover-backdrop {
-    filter:blur(23px) brightness(.72) saturate(1.1);
-    transform:scale(1.4);
+  .details-shell .details-hero.details-hero-photographic::before {
+    background:linear-gradient(110deg,#0814265e,transparent 85%);
   }
-  .details-shell .details-hero.details-hero-cover-led::before {
-    background:linear-gradient(135deg,#071427e6,#09172ad2 64%,#0c1b2bc2);
-  }
-}
-@media(prefers-reduced-motion:no-preference) {
-  .details-shell .details-hero .details-hero-cover-backdrop {transition:opacity .22s ease}
 }

@@ -7,6 +7,7 @@ import UsageDashboard from './UsageDashboard';
 import MasterControls from './MasterControls';
 import './top-navigation.css';
 import { useCoverArt } from './useCoverArt';
+import { generatedCoverVariant } from '../lib/novel-hero';
 import './site-footer.css';
 import {
   BarChart3, Book, BookOpen, CheckCircle2, ChevronDown, CloudOff, Download, WifiOff,
@@ -113,9 +114,15 @@ export function Cover({ book, variant = 'normal', cloudRepo = '', cloudSession =
   const visibleImage = failedImage ? null : imageUrl;
   const hasRealArtwork = Boolean(visibleImage && imageLoaded);
   return (
-    <div ref={wrapper} className={`cover ${variant === 'feature' ? 'cover-feature' : ''} ${hasRealArtwork ? 'cover-has-image' : 'cover-missing-artwork'}`} aria-hidden="true">
+    <div ref={wrapper} className={`cover ${variant === 'feature' ? 'cover-feature' : ''} ${hasRealArtwork ? 'cover-has-image' : `cover-generated-artwork cover-${generatedCoverVariant(book.id)}`}`} aria-hidden="true">
       {visibleImage && <img className="cover-art" src={visibleImage} alt="" decoding="async" loading={variant === 'feature' ? 'eager' : 'lazy'} onLoad={() => setImageLoaded(true)} onError={() => { setFailedImage(true); setImageLoaded(false); }} />}
-      {!hasRealArtwork && <span className="cover-unavailable"><BookOpen size={24} strokeWidth={1.5}/><small>Cover unavailable</small></span>}
+      {!hasRealArtwork && <>
+        <span className="cover-ornament" aria-hidden="true">✦</span>
+        <span className="cover-lilies" aria-hidden="true">❦</span>
+        <span className="cover-heading">{book.title}</span>
+        <span className="cover-author">{book.author}</span>
+        <span className="cover-bottom"><span>TAIYOU'S LIBRARY</span><span>✧</span></span>
+      </>}
     </div>
   );
 }

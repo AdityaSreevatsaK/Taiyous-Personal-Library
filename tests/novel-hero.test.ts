@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { novelHeroPalette, novelHeroStyle, NOVEL_HERO_PALETTES } from '../src/lib/novel-hero';
+import { novelHeroPalette, novelHeroStyle, NOVEL_HERO_PALETTES, NOVEL_HERO_BACKDROPS, generatedCoverVariant, novelHeroBackdrop, novelHeroBackdropUrl } from '../src/lib/novel-hero';
 
 const NOVEL_IDS = Array.from({ length: 150 }, (_, n) => n.toString(16).padStart(24, '0'));
 
@@ -44,6 +44,42 @@ describe('stable, accessible colour variety on novel details', () => {
     for (const palette of NOVEL_HERO_PALETTES) {
       const lightestBackground = luminance(palette.glow);
       expect((text + 0.05) / (lightestBackground + 0.05)).toBeGreaterThanOrEqual(4.5);
+    }
+  });
+});
+
+
+describe('decorative covers and novel details photography', () => {
+  it('generates six stable cover designs without title-specific lookup or uploads', () => {
+    expect(new Set(NOVEL_IDS.map(generatedCoverVariant))).toEqual(new Set([0,1,2,3,4,5]));
+    for (const id of NOVEL_IDS) {
+      expect(generatedCoverVariant(id)).toBe(generatedCoverVariant(id.toUpperCase()));
+      expect(generatedCoverVariant(id)).toBeGreaterThanOrEqual(0);
+      expect(generatedCoverVariant(id)).toBeLessThan(6);
+    }
+  });
+
+  it('uses known photographic sources spanning libraries, skies and landscapes', () => {
+    expect(NOVEL_HERO_BACKDROPS.length).toBeGreaterThanOrEqual(6);
+    expect(new Set(NOVEL_HERO_BACKDROPS.map(photo => photo.photoId)).size)
+      .toBe(NOVEL_HERO_BACKDROPS.length);
+    expect(new Set(NOVEL_HERO_BACKDROPS.map(photo => photo.category)))
+      .toEqual(new Set(['library', 'celestial', 'landscape']));
+    for (const photo of NOVEL_HERO_BACKDROPS) {
+      expect(photo.source).toMatch(/^https:\/\/unsplash\.com\//);
+      expect(photo.photographer).toBeTruthy();
+      expect(novelHeroBackdropUrl(photo.photoId,840))
+        .toBe(`https://images.unsplash.com/${photo.photoId}?auto=format&fit=crop&w=840&q=80`);
+    }
+    expect(() => novelHeroBackdropUrl('https://other-site.invalid/private')).toThrow();
+  });
+
+  it('chooses a repeatable image without leaking title, URL or private data', () => {
+    expect(new Set(NOVEL_IDS.map(id => novelHeroBackdrop(id).photoId)).size)
+      .toBe(NOVEL_HERO_BACKDROPS.length);
+    for (const id of NOVEL_IDS) {
+      expect(novelHeroBackdrop(id)).toBe(novelHeroBackdrop(id.toUpperCase()));
+      expect(JSON.stringify(novelHeroBackdrop(id))).not.toContain(id);
     }
   });
 });
