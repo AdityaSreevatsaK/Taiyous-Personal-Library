@@ -353,6 +353,21 @@ try {
       throw new Error('Reading-record contrast must match the journal on this theme: '+
         JSON.stringify({statsHover,journalHover}));
     }
+    if (viewport.width <= 660) {
+      const recordButtons=await page.locator('.editorial-margin-stats > button')
+        .evaluateAll(buttons => buttons.map(button => ({
+          r:button.getBoundingClientRect().toJSON(),
+          border:getComputedStyle(button).borderTopWidth,
+          arrow:button.querySelector('.editorial-stat-arrow') !== null,
+        })));
+      if (recordButtons.length!==4 || recordButtons.some(x => x.border==='0px'||!x.arrow) ||
+          Math.abs(recordButtons[0].r.top-recordButtons[1].r.top)>2 ||
+          Math.abs(recordButtons[2].r.top-recordButtons[3].r.top)>2 ||
+          recordButtons[2].r.top<=recordButtons[0].r.bottom) {
+        throw new Error('Mobile reading statistics need an obvious bordered 2x2 button grid: '+
+          JSON.stringify(recordButtons));
+      }
+    }
     await page.evaluate(() => window.scrollTo({top:document.documentElement.scrollHeight,behavior:'instant'}));
     await page.waitForFunction(() => window.scrollY > 420, {timeout:10000});
     const backToTop = page.getByRole('button',{name:'Back to top'});
@@ -437,9 +452,11 @@ try {
     if (!(await genreJackets.count())) {
       throw new Error('Genre shelves must show a designed fallback jacket for uncovered novels');
     }
-    const floatingJackets=page.locator('.editorial-art-book .cover-generated-artwork');
-    if (!(await floatingJackets.count())) {
-      throw new Error('Home hero should retain a designed jacket when no cover image exists');
+    // The homepage floating gallery must NEVER show the generated book
+    // jackets used elsewhere. This fixture has no real cover at all.
+    if (await page.locator('.editorial-grand-gallery .editorial-art-book:visible').count() ||
+        await page.locator('.editorial-grand-gallery .cover-generated-artwork').count()) {
+      throw new Error('Homepage floating gallery exposed an unverified/generated cover');
     }
     if (await page.getByText('Cover unavailable').count()) {
       throw new Error('Blank unavailable-cover placeholders must not appear');
@@ -503,6 +520,30 @@ try {
     }
     await page.getByRole('button', { name: 'Show all novels' }).waitFor();
     await page.getByText('1 novel in this category').waitFor();
+    if (viewport.width <= 700) {
+      const tagHeader = await page.locator('.page-head-compact').evaluate(header => {
+        const heading = header.querySelector('h1');
+        const button = header.querySelector('.tag-clear-link');
+        const first = heading?.firstChild;
+        if (!heading || !button || !first) return null;
+        const original = first.textContent;
+        first.textContent = 'Martial Arts';
+        const range = document.createRange();
+        range.selectNodeContents(first);
+        const lines = range.getClientRects().length;
+        const titleRect = heading.getBoundingClientRect();
+        const actionRect = button.getBoundingClientRect();
+        const parentRect = header.getBoundingClientRect();
+        first.textContent = original;
+        return {lines,actionBelow:actionRect.top >= titleRect.bottom - 1,
+          titleWidth:titleRect.width,parentWidth:parentRect.width};
+      });
+      if (!tagHeader || tagHeader.lines !== 1 || !tagHeader.actionBelow ||
+          tagHeader.titleWidth < tagHeader.parentWidth - 3) {
+        throw new Error('Mobile tag heading must use full width without folding Martial Arts: '+
+          JSON.stringify(tagHeader));
+      }
+    }
     if (await page.locator('.filter-tabs').count()) {
       throw new Error('Tag pages must not duplicate the main shelf navigation');
     }
@@ -538,11 +579,13 @@ try {
           display:getComputedStyle(document.querySelector('.details-hero-facts')).display,
         };
       });
-      if (regions.display!=='contents' || regions.meta.left<regions.cover.right-2 ||
-          regions.tags.top<regions.cover.bottom-2 ||
-          regions.actions.top<regions.tags.bottom-2 ||
-          regions.tags.right>regions.hero.right+1) {
-        throw new Error('Mobile cover, facts, and all tags must align: '+JSON.stringify(regions));
+      if (regions.display!=='flex' || regions.meta.left<regions.cover.right-2 ||
+          regions.tags.left<regions.cover.right-2 ||
+          regions.tags.top<regions.meta.bottom-2 ||
+          regions.actions.top<Math.max(regions.tags.bottom,regions.cover.bottom)-2 ||
+          regions.tags.right>regions.hero.right+1 ||
+          regions.cover.width<130) {
+        throw new Error('Mobile hero must enlarge artwork and use adjacent space for facts/tags: '+JSON.stringify(regions));
       }
     }
     // Validate the advanced ZIP disclosure styling even in the local EPUB
