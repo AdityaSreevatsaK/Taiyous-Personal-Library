@@ -1,24 +1,42 @@
-# Keep production and CI dependencies reviewed without a flood of PRs.
-# Security advisories are already checked by npm audit in verify.yml.
+# Monthly non-breaking version updates. Major framework migrations are
+# coordinated and tested separately; dependency SECURITY updates are not
+# limited by the allow.update-types version-update filter.
 version: 2
 updates:
-  - package-ecosystem: npm
+  - package-ecosystem: "npm"
     directory: "/"
     schedule:
-      interval: monthly
-    open-pull-requests-limit: 3
+      interval: "monthly"
+    open-pull-requests-limit: 2
+    allow:
+      - dependency-name: "*"
+        update-types:
+          - "version-update:semver-minor"
+          - "version-update:semver-patch"
     groups:
       npm-minor-patch:
+        applies-to: version-updates
+        patterns:
+          - "*"
         update-types:
           - minor
           - patch
-  - package-ecosystem: github-actions
+
+  - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
-      interval: monthly
-    open-pull-requests-limit: 2
+      interval: "monthly"
+    open-pull-requests-limit: 1
+    allow:
+      - dependency-name: "*"
+        update-types:
+          - "version-update:semver-minor"
+          - "version-update:semver-patch"
     groups:
-      action-updates:
+      actions-minor-patch:
+        applies-to: version-updates
+        patterns:
+          - "*"
         update-types:
           - minor
           - patch
