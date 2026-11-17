@@ -83,6 +83,14 @@ try {
         tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);});
       db.close();
     }, bytes);
+    // Unlike catalogue tiles, the homepage may display only a successfully
+    // decoded original cover, never a CSS-generated book jacket.
+    await page.goto(base+'/',{waitUntil:'domcontentloaded',timeout:35000});
+    await page.locator('.editorial-grand-gallery .editorial-art-book:visible .cover-has-image')
+      .waitFor({state:'visible',timeout:12000});
+    if (await page.locator('.editorial-grand-gallery .cover-generated-artwork:visible').count()) {
+      throw new Error('Hero gallery presented generated cover art as a real cover');
+    }
     await page.goto(base+'/library',{waitUntil:'domcontentloaded',timeout:35000});
     await page.getByRole('button',{name:'View details for CSP Test Novel'}).waitFor({timeout:15000});
     await page.getByRole('button',{name:'View details for CSP Test Novel'}).click();

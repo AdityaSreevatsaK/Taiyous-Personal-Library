@@ -86,11 +86,14 @@ interface Props {
 
 
 
-export function Cover({ book, variant = 'normal', cloudRepo = '', cloudSession = null }: {
+export function Cover({ book, variant = 'normal', cloudRepo = '', cloudSession = null, onArtworkStateChange }: {
   book: LibraryBook;
   variant?: 'normal' | 'feature';
   cloudRepo?: string;
   cloudSession?: CloudSession | null;
+  // The homepage uses this only for its floating gallery: a cover is genuine
+  // once the stored image has decoded, never merely because coverPath exists.
+  onArtworkStateChange?: (id: string, loaded: boolean) => void;
 }) {
   const wrapper = useRef<HTMLDivElement>(null);
   const [visible, setVisible] = useState(variant === 'feature');
@@ -110,12 +113,16 @@ export function Cover({ book, variant = 'normal', cloudRepo = '', cloudSession =
   const imageUrl = useCoverArt(book, cloudRepo, cloudSession, visible);
   const [failedImage, setFailedImage] = useState(false);
   const [imageLoaded, setImageLoaded] = useState(false);
-  useEffect(() => { setFailedImage(false); setImageLoaded(false); }, [book.id, book.coverPath, imageUrl]);
+  useEffect(() => {
+    setFailedImage(false);
+    setImageLoaded(false);
+    onArtworkStateChange?.(book.id, false);
+  }, [book.id, book.coverPath, imageUrl, onArtworkStateChange]);
   const visibleImage = failedImage ? null : imageUrl;
   const hasRealArtwork = Boolean(visibleImage && imageLoaded);
   return (
     <div ref={wrapper} className={`cover ${variant === 'feature' ? 'cover-feature' : ''} ${hasRealArtwork ? 'cover-has-image' : `cover-generated-artwork cover-${generatedCoverVariant(book.id)}`}`} aria-hidden="true">
-      {visibleImage && <img className="cover-art" src={visibleImage} alt="" decoding="async" loading={variant === 'feature' ? 'eager' : 'lazy'} onLoad={() => setImageLoaded(true)} onError={() => { setFailedImage(true); setImageLoaded(false); }} />}
+      {visibleImage && <img className="cover-art" src={visibleImage} alt="" decoding="async" loading={variant === 'feature' ? 'eager' : 'lazy'} onLoad={() => { setImageLoaded(true); onArtworkStateChange?.(book.id, true); }} onError={() => { setFailedImage(true); setImageLoaded(false); onArtworkStateChange?.(book.id, false); }} />}
       {!hasRealArtwork && <>
         <span className="cover-ornament" aria-hidden="true">✦</span>
         <span className="cover-lilies" aria-hidden="true">❦</span>
@@ -464,7 +471,7 @@ export default function LibraryDashboard({
           {showEditorialHome && <EditorialHome books={books} collections={collections}
             onBrowseAll={() => goTo('all')} onBrowseShelf={goTo} onBrowseCollection={browseCollection}
             onOpen={onOpen} onRead={onRead} onBrowseTag={browseTag}
-            cover={(book, isFeatured) => <Cover book={book} variant={isFeatured ? 'feature' : 'normal'} cloudRepo={cloudRepo} cloudSession={cloudSession} />} />}
+            cover={(book, isFeatured, onArtworkStateChange) => <Cover book={book} variant={isFeatured ? 'feature' : 'normal'} cloudRepo={cloudRepo} cloudSession={cloudSession} onArtworkStateChange={onArtworkStateChange} />} />}
 
           {!showEditorialHome && !isMasterControls && <section id="library-full-catalogue" className="library-section" aria-label="Book collection"><div className="section-titlebar"><div><div className="section-overline">{globalMode ? 'ALL NOVELS' : selectedCollection ? 'YOUR COLLECTION' : selectedTag ? 'BROWSING TAG' : selectedAuthor ? 'BROWSING AUTHOR' : 'THE COLLECTION'}</div><h2>{globalMode ? 'Global search results' : selectedCollection ? selectedCollection.name : selectedTag ? 'Novels' : selectedAuthor ? 'Books by ' + selectedAuthor : filter === 'all' ? 'All your stories' : navEntries.find((i) => i.id === filter)?.name}<span className="title-count">{visible.length}</span></h2></div><span className="library-description">A little world on every shelf</span></div>
             {selectedCollection && !globalMode && <div className="tag-collection-head collection-heading">

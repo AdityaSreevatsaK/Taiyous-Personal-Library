@@ -1,4 +1,4 @@
-import { useMemo, type ReactNode } from 'react';
+import { useCallback, useMemo, useState, type ReactNode } from 'react';
 import { ArrowRight, BookOpen, Bookmark, Feather, Sparkles } from 'lucide-react';
 import { bookTags, tagCounts } from '../lib/tags';
 import type { BookCollection } from '../lib/collections';
@@ -16,7 +16,7 @@ interface Props {
   onOpen: (book: LibraryBook) => void;
   onRead: (book: LibraryBook) => void;
   onBrowseTag: (tag: string) => void;
-  cover: (book: LibraryBook, featured?: boolean) => ReactNode;
+  cover: (book: LibraryBook, featured?: boolean, onArtworkStateChange?: (id: string, loaded: boolean) => void) => ReactNode;
 }
 
 function readingStatus(book: LibraryBook): string {
@@ -37,16 +37,29 @@ export default function EditorialHome({
   const { featured, continueReading, journal } = useMemo(() => selectHomeBooks(books), [books]);
   const readingCount = useMemo(() =>
     books.filter(isCurrentlyReading).length, [books]);
-  // Display the reader's real jacket where possible, otherwise its elegant
-  // temporary library-edition design. Never mistake missing images for errors.
-  const displayBooks = useMemo(() => {
+  // Gallery is different from the catalogue: show ONLY successfully decoded
+  // real book covers. A coverPath may be stale, so render a bounded shortlist
+  // of candidates and reveal only the first three whose images actually load.
+  const [loadedGalleryIds, setLoadedGalleryIds] = useState<ReadonlySet<string>>(() => new Set());
+  const handleGalleryArtwork = useCallback((id: string, loaded: boolean) => {
+    setLoadedGalleryIds(previous => {
+      if (previous.has(id) === loaded) return previous;
+      const next = new Set(previous);
+      if (loaded) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  }, []);
+  const galleryCandidates = useMemo(() => {
     const seen = new Set<string>();
     return [featured, ...journal, ...books].filter((book): book is LibraryBook => {
-      if (!book || seen.has(book.id)) return false;
+      if (!book?.coverPath || seen.has(book.id)) return false;
       seen.add(book.id);
       return true;
-    }).slice(0, 3);
+    }).slice(0, 12);
   }, [featured, journal, books]);
+  const visibleGalleryIds = galleryCandidates.filter(book => loadedGalleryIds.has(book.id))
+    .slice(0, 3).map(book => book.id);
   const shelves = useMemo(() => selectHomeShelves(books, collections, 4), [books, collections]);
   const commonTags = useMemo(() => tagCounts(books).slice(0, 5), [books]);
   const trialCount = books.filter(book => book.shelfStatus === 'trying').length;
@@ -78,14 +91,19 @@ export default function EditorialHome({
             </button>
           </div>
         </div>
-        <div className="editorial-grand-gallery" aria-label="Featured books">
+        <div className={`editorial-grand-gallery editorial-gallery-count-${visibleGalleryIds.length}`} aria-label="Featured books">
           <div className="editorial-art-halo" aria-hidden="true" />
-          {displayBooks.map((book, index) => <button
-            className={'editorial-art-book editorial-art-book-' + index}
-            type="button" key={book.id}
-            aria-label={'Featured cover for ' + book.title}
-            onClick={() => onOpen(book)}
-          >{cover(book, true)}</button>)}
+          {galleryCandidates.map(book => {
+            const index = visibleGalleryIds.indexOf(book.id);
+            return <button
+              className={'editorial-art-book ' + (index < 0 ? 'editorial-art-book-pending' : 'editorial-art-book-' + index)}
+              type="button" key={book.id}
+              aria-label={'Featured cover for ' + book.title}
+              tabIndex={index < 0 ? -1 : 0}
+              aria-hidden={index < 0 ? true : undefined}
+              onClick={() => onOpen(book)}
+            >{cover(book, true, handleGalleryArtwork)}</button>;
+          })}
           <span className="editorial-art-caption">{books.length} WORLDS · YOUR COLLECTION</span>
         </div>
       </div>
@@ -158,10 +176,10 @@ export default function EditorialHome({
           </section>
           <section className="editorial-margin-stats">
             <span className="editorial-eyebrow">YOUR READING RECORD</span>
-            <button type="button" onClick={onBrowseAll}><strong>{books.length}</strong><span>STORIES</span></button>
-            <button type="button" onClick={() => onBrowseShelf('reading')}><strong>{readingCount}</strong><span>IN PROGRESS</span></button>
-            <button type="button" onClick={() => onBrowseShelf('trying')}><strong>{trialCount}</strong><span>TRYING OUT</span></button>
-            <button type="button" onClick={() => onBrowseShelf('finished')}><strong>{completedCount}</strong><span>FINISHED</span></button>
+            <button type="button" onClick={onBrowseAll} aria-label={`Browse all ${books.length} stories`}><strong>{books.length}</strong><span>STORIES</span><ArrowRight className="editorial-stat-arrow" size={15} aria-hidden="true" /></button>
+            <button type="button" onClick={() => onBrowseShelf('reading')} aria-label={`Browse ${readingCount} novels in progress`}><strong>{readingCount}</strong><span>IN PROGRESS</span><ArrowRight className="editorial-stat-arrow" size={15} aria-hidden="true" /></button>
+            <button type="button" onClick={() => onBrowseShelf('trying')} aria-label={`Browse ${trialCount} novels trying out`}><strong>{trialCount}</strong><span>TRYING OUT</span><ArrowRight className="editorial-stat-arrow" size={15} aria-hidden="true" /></button>
+            <button type="button" onClick={() => onBrowseShelf('finished')} aria-label={`Browse ${completedCount} finished novels`}><strong>{completedCount}</strong><span>FINISHED</span><ArrowRight className="editorial-stat-arrow" size={15} aria-hidden="true" /></button>
           </section>
           {commonTags.length > 0 && <section className="editorial-margin-topics">
             <span className="editorial-eyebrow">EXPLORE THE SHELVES</span>
