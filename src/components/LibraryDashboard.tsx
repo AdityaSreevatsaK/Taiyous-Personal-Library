@@ -434,8 +434,24 @@ export default function LibraryDashboard({
 
       <main className="main-panel">
         <header className="topbar"><a className="library-wordmark" href="/" aria-label="Taiyou's Personal Library home" onClick={event => openInternalLinkInCurrentTab(event, goHome)}><span className="library-wordmark-mark"><BrandMark size={36} theme={theme}/></span><span className="library-wordmark-text"><strong>TAIYOU'S</strong><small>PERSONAL LIBRARY</small></span></a><section className="cloud-connect" aria-label="Cloud library storage" ref={cloudRoot}>
-            <div className="cloud-connect-head"><span><Cloud size={16} /><strong>Cloud library</strong><small className={cloudRepo && cloudSession ? 'connection-badge is-connected' : 'connection-badge'}>{cloudRepo && cloudSession && <span className="cloud-connected-dot" aria-hidden="true" />}{cloudRepo && cloudSession ? 'Connected' : cloudRepo ? 'Disconnected' : 'Not set up'}</small></span>{syncProblem && <span className="cloud-sync-flag" role="status" title={syncProblem}>Needs sync</span>}{!cloudSession && online && <button type="button" className="secondary-button oauth-header-login" onClick={() => window.location.assign('/api/oauth/login')}><LogIn size={14}/> Sign in with HF</button>}<button type="button" className="secondary-button" aria-expanded={showCloud} onClick={() => setShowCloud(v => !v)}>{showCloud ? 'Close' : 'Settings'}</button></div>
-            {showCloud && <div className="cloud-connect-body">
+            <div className="cloud-connect-head">
+              <button type="button" className="cloud-status-toggle"
+                aria-label={cloudRepo && cloudSession && online ? 'Cloud settings, connected' : 'Cloud settings, disconnected'}
+                title={cloudRepo && cloudSession && online ? 'Cloud connected · Open settings' : 'Cloud disconnected · Open settings'}
+                aria-expanded={showCloud} aria-controls={showCloud ? 'cloud-settings-panel' : undefined}
+                onClick={() => setShowCloud(current => !current)}>
+                <span className="cloud-status-icon" aria-hidden="true">
+                  <Cloud size={25} strokeWidth={1.9} />
+                  <span className={'cloud-status-dot ' + (cloudRepo && cloudSession && online ? 'is-connected' : 'is-disconnected')} />
+                </span>
+              </button>
+            </div>
+            {showCloud && <div id="cloud-settings-panel" className="cloud-connect-body">
+              <h2 className="cloud-settings-heading">Cloud library settings</h2>
+              <p className="cloud-settings-state" role="status">
+                <span className={'cloud-settings-dot ' + (cloudRepo && cloudSession && online ? 'is-connected' : 'is-disconnected')} aria-hidden="true" />
+                {cloudRepo && cloudSession && online ? 'Connected' : 'Disconnected'}
+              </p>
               <p>Use one private Hugging Face dataset as the shared <code>data/</code> folder on PC and mobile. When connected, importing a ZIP saves its original archive, EPUB and catalogue to that repository.</p>
               {cloudSession?.via === 'oauth' ? <p className="cloud-access-connected"><LockKeyhole size={15}/> Signed in with Hugging Face. Your private dataset token is kept in an encrypted server-side session cookie, not saved by this page.</p> : <form onSubmit={event => {event.preventDefault(); onCloudRepo(repoDraft); }} className="cloud-repo-form"><label htmlFor="cloud-repo-input">Private dataset repository</label><input id="cloud-repo-input" value={repoDraft} onChange={event => setRepoDraft(event.target.value)} placeholder="your-username/taiyous-novels" autoComplete="off" /><button type="submit" className="secondary-button">Save</button></form>}
               <div className="cloud-actions">
