@@ -779,14 +779,47 @@ try {
     await page.getByRole('button',{name:'Browse novels tagged Slow Burn'}).waitFor();
     await page.getByRole('link', { name: "Taiyou's Personal Library home" }).click();
     await page.locator('.editorial-grand').waitFor({ state: 'visible' });
-    // Dedicated advanced search must work with loaded novels on desktop and mobile.
+    // Both search boxes must represent ONE live query. Previously the header
+    // could say "Martial World" while Advanced Search misleadingly showed all books.
+    const globalSearchInput = page.getByRole('textbox', { name:'Search all novels' });
+    await globalSearchInput.fill('Sample Library');
     await page.locator('.advanced-search-launch').click();
+    await page.waitForURL('**/advanced-search');
     await page.getByRole('region', { name: 'Advanced novel search' }).waitFor();
-    await page.getByRole('textbox', { name: 'Search by novel name or author' }).fill('Sample Library');
+    const advancedNameInput = page.getByRole('textbox', { name: 'Search by novel name or author' });
+    if (await advancedNameInput.inputValue() !== 'Sample Library') {
+      throw new Error('Advanced search ignored the global query when opened');
+    }
     await page.getByRole('link', { name: 'View details for Sample Library Book' }).waitFor();
-    if (await page.getByText('Unrated', { exact: true }).count()) throw new Error('Unrated should not be repeated across search results');
-    await page.getByRole('textbox', { name: 'Search by novel name or author' }).fill('No such book');
+    await globalSearchInput.fill('No such book');
     await page.getByRole('heading', { name: 'No matching books' }).waitFor();
+    if (await advancedNameInput.inputValue() !== 'No such book') {
+      throw new Error('Advanced search did not respond to a changed header query');
+    }
+    await advancedNameInput.fill('Sample Library');
+    if (await globalSearchInput.inputValue() !== 'Sample Library') {
+      throw new Error('Header query did not respond to a changed advanced search field');
+    }
+    await page.getByRole('link', { name: 'View details for Sample Library Book' }).waitFor();
+    if (await page.getByText('Unrated', { exact: true }).count()) {
+      throw new Error('Unrated should not be repeated across search results');
+    }
+    await page.getByRole('button', { name: 'Clear global search' }).click();
+    if (await advancedNameInput.inputValue() !== '') {
+      throw new Error('Clear global search left a hidden advanced name filter');
+    }
+    await advancedNameInput.fill('No such book');
+    await page.getByRole('heading', { name: 'No matching books' }).waitFor();
+    await page.getByRole('button', { name:'Reset filters' }).click();
+    if (await globalSearchInput.inputValue() !== '' || await advancedNameInput.inputValue() !== '') {
+      throw new Error('Reset filters left a stale header or advanced query');
+    }
+    await advancedNameInput.fill('No such book');
+    await page.getByRole('heading', { name: 'No matching books' }).waitFor();
+    await page.getByRole('button', { name:'Clear all' }).click();
+    if (await globalSearchInput.inputValue() !== '' || await advancedNameInput.inputValue() !== '') {
+      throw new Error('Clear all left a stale header or advanced query');
+    }
     await page.getByRole('button', { name: 'Back to shelf' }).click();
     // Local EPUBs must be listed on the Offline tab without requiring a cloud token.
     await navigateShelf(/Available offline/, 'offline');
