@@ -28,7 +28,7 @@ import {
   type CloudEntry, type CloudSession,
 } from './lib/cloud';
 import type { LibraryBook, ReaderSettings } from './types';
-import { fetchCloudCollections, mergeCollections, readLocalCollections, saveCloudCollections, writeLocalCollections, readCollectionsPending, writeCollectionsPending, type BookCollection } from './lib/collections';
+import { fetchCloudCollections, mergeCollections, readLocalCollections, saveCloudCollections, writeLocalCollections, readCollectionsPending, writeCollectionsPending, collectionChildren, moveCollection, deleteCollectionPreservingChildren, type BookCollection } from './lib/collections';
 
 export default function App() {
   const [books, setBooks] = useState<LibraryBook[]>([]);
@@ -910,13 +910,22 @@ export default function App() {
     }
   }, [cloudRepo, cloudSession]);
 
-  const createCollection = useCallback(async (name: string) => {
+  const createCollection = useCallback(async (name: string, parentId?: string) => {
     const cleaned = name.trim().slice(0, 90);
     if (!cleaned) return;
     await changeCollections(current => {
-      if (current.some(c => !c.deleted && c.name.toLocaleLowerCase() === cleaned.toLocaleLowerCase())) return current;
-      return [...current, { id: crypto.randomUUID(), name: cleaned, bookIds: [], updatedAt: Date.now() }];
+      if (parentId && !current.some(c => !c.deleted && c.id === parentId))
+        throw new Error('Parent collection no longer exists.');
+      // Names need only be unique among siblings; nested series can reuse names.
+      if (collectionChildren(current, parentId || null).some(c =>
+        c.name.toLocaleLowerCase() === cleaned.toLocaleLowerCase())) return current;
+      return [...current, { id: crypto.randomUUID(), name: cleaned, bookIds: [],
+        ...(parentId ? { parentId } : {}), updatedAt: Date.now() }];
     });
+  }, [changeCollections]);
+
+  const changeCollectionParent = useCallback(async (collectionId: string, parentId: string | null) => {
+    await changeCollections(current => moveCollection(current, collectionId, parentId));
   }, [changeCollections]);
 
   const changeCollectionMembership = useCallback(async (collectionId: string, bookId: string, include: boolean) => {
@@ -936,8 +945,7 @@ export default function App() {
   }, [changeCollections]);
 
   const deleteCollection = useCallback(async (collectionId: string) => {
-    await changeCollections(current => current.map(c => c.id === collectionId
-      ? { ...c, deleted: true, updatedAt: Math.max(Date.now(), c.updatedAt + 1) } : c));
+    await changeCollections(current => deleteCollectionPreservingChildren(current, collectionId));
   }, [changeCollections]);
 
   const openBook = useCallback((book: LibraryBook, chapterHref?: string) => {
@@ -1049,7 +1057,7 @@ export default function App() {
     const collection = collectionsRef.current.find(item => item.id === request.id && !item.deleted);
     if (!collection || collection.name !== request.title) throw new Error('Collection changed; deletion cancelled.');
     await deleteCollection(collection.id);
-    setNotice(`Collection “${collection.name}” deleted. Its novels remain untouched.`);
+    setNotice(`Collection “${collection.name}” deleted. Its novels and subcollections remain untouched.`);
     setError(null);
   }, [cloudRepo, cloudSession, deleteCollection]);
 
@@ -1312,6 +1320,7 @@ export default function App() {
         collectionsSyncPending={collectionsSyncPending}
         collections={collections.filter(c => !c.deleted)}
         onCreateCollection={createCollection}
+        onMoveCollection={changeCollectionParent}
         onRenameCollection={renameCollection}
         onDeleteCollection={requestDeleteCollection}
         onCollectionMembership={changeCollectionMembership}
