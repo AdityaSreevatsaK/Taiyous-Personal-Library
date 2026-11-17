@@ -68,6 +68,7 @@ describe('nested personal collections', () => {
     expect(() => moveCollection(original,root.id,grandchild.id)).toThrow(/cannot be moved/);
     expect(() => moveCollection(original,root.id,'missing_parent_1')).toThrow(/no longer exists/);
     expect(() => validateCollections({ version:1, collections:[{ ...root,parentId:root.id }] })).toThrow();
+    expect(() => validateCollections({ version:1, collections:[{ ...root,parentId:12345678 }] })).toThrow();
     expect(() => validateCollections({ version:1, collections:[
       { ...root,parentId:child.id },child,
     ] })).toThrow(/cycle/);
