@@ -434,3 +434,73 @@
     background:linear-gradient(110deg,#0814265e,transparent 85%);
   }
 }
+
+
+/* Mobile novel hero: make the cover a substantial visual anchor, and use the
+ * formerly empty right-hand column for facts + ALL genres. Both columns grow
+ * naturally to content; title stays full-width and actions remain below. */
+@media(max-width:700px) {
+  .details-shell .details-hero.details-hero-photographic {
+    display:grid;
+    grid-template-columns:minmax(118px,44%) minmax(0,1fr);
+    gap:13px;align-items:start;
+    padding:16px 15px 18px;
+  }
+  .details-shell .details-hero .details-hero-heading {
+    grid-column:1 / -1;grid-row:1;
+    justify-self:center;max-width:100%;
+  }
+  .details-shell .details-hero .details-cover-wrap {
+    grid-column:1;grid-row:2;align-self:start;
+    width:100%;max-width:none;min-width:0;margin:0;
+  }
+  .details-shell .details-hero .details-cover-wrap .cover-feature {
+    width:100%;max-width:100%;min-width:0;
+    height:auto;aspect-ratio:2/3;
+  }
+  .details-shell .details-hero .details-hero-facts {
+    display:flex;flex-direction:column;
+    grid-column:2;grid-row:2;
+    align-self:start;align-items:stretch;
+    width:100%;min-width:0;padding:0;gap:10px;
+    position:relative;z-index:3;
+  }
+  .details-shell .details-hero .details-meta-row {
+    display:flex;flex-wrap:wrap;flex-direction:column;
+    align-items:flex-start;gap:7px;
+    position:relative;z-index:3;
+    width:100%;max-width:100%;min-width:0;box-sizing:border-box;
+    margin:0;padding:10px;border-radius:9px;
+  }
+  .details-shell .details-hero .details-meta-row span {
+    display:inline-flex;align-items:center;gap:6px;
+    max-width:100%;font-size:11px;line-height:1.4;
+    overflow-wrap:anywhere;
+  }
+  .details-shell .details-hero .details-hero-tags {
+    display:flex;flex-wrap:wrap;align-items:flex-start;
+    gap:6px;position:relative;z-index:3;
+    grid-column:auto;grid-row:auto;
+    min-width:0;max-width:100%;
+    width:100%;margin:0;padding:0;
+  }
+  .details-shell .details-hero .details-hero-tags button,
+  .details-shell .details-hero .details-hero-tags button:nth-child(n+4) {
+    display:inline-flex;flex:0 1 auto;align-items:center;
+    font-size:10px;line-height:1.25;
+    min-height:28px;padding:5px 7px;
+    white-space:normal;overflow-wrap:anywhere;
+    max-width:100%;
+  }
+  .details-shell .details-hero .details-hero-actions {
+    grid-column:1 / -1;grid-row:3;margin:5px 0 0;
+  }
+}
+@media(max-width:360px) {
+  .details-shell .details-hero.details-hero-photographic {
+    grid-template-columns:minmax(110px,43%) minmax(0,1fr);
+    gap:10px;padding:14px 12px;
+  }
+  .details-shell .details-hero .details-meta-row {padding:8px}
+  .details-shell .details-hero .details-meta-row span {font-size:10px}
+}
