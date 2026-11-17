@@ -86,11 +86,14 @@ interface Props {
 
 
 
-export function Cover({ book, variant = 'normal', cloudRepo = '', cloudSession = null }: {
+export function Cover({ book, variant = 'normal', cloudRepo = '', cloudSession = null, onArtworkStateChange }: {
   book: LibraryBook;
   variant?: 'normal' | 'feature';
   cloudRepo?: string;
   cloudSession?: CloudSession | null;
+  // The homepage uses this only for its floating gallery: a cover is genuine
+  // once the stored image has decoded, never merely because coverPath exists.
+  onArtworkStateChange?: (id: string, loaded: boolean) => void;
 }) {
   const wrapper = useRef<HTMLDivElement>(null);
   const [visible, setVisible] = useState(variant === 'feature');
@@ -110,12 +113,16 @@ export function Cover({ book, variant = 'normal', cloudRepo = '', cloudSession =
   const imageUrl = useCoverArt(book, cloudRepo, cloudSession, visible);
   const [failedImage, setFailedImage] = useState(false);
   const [imageLoaded, setImageLoaded] = useState(false);
-  useEffect(() => { setFailedImage(false); setImageLoaded(false); }, [book.id, book.coverPath, imageUrl]);
+  useEffect(() => {
+    setFailedImage(false);
+    setImageLoaded(false);
+    onArtworkStateChange?.(book.id, false);
+  }, [book.id, book.coverPath, imageUrl, onArtworkStateChange]);
   const visibleImage = failedImage ? null : imageUrl;
   const hasRealArtwork = Boolean(visibleImage && imageLoaded);
   return (
     <div ref={wrapper} className={`cover ${variant === 'feature' ? 'cover-feature' : ''} ${hasRealArtwork ? 'cover-has-image' : `cover-generated-artwork cover-${generatedCoverVariant(book.id)}`}`} aria-hidden="true">
-      {visibleImage && <img className="cover-art" src={visibleImage} alt="" decoding="async" loading={variant === 'feature' ? 'eager' : 'lazy'} onLoad={() => setImageLoaded(true)} onError={() => { setFailedImage(true); setImageLoaded(false); }} />}
+      {visibleImage && <img className="cover-art" src={visibleImage} alt="" decoding="async" loading={variant === 'feature' ? 'eager' : 'lazy'} onLoad={() => { setImageLoaded(true); onArtworkStateChange?.(book.id, true); }} onError={() => { setFailedImage(true); setImageLoaded(false); onArtworkStateChange?.(book.id, false); }} />}
       {!hasRealArtwork && <>
         <span className="cover-ornament" aria-hidden="true">✦</span>
         <span className="cover-lilies" aria-hidden="true">❦</span>
