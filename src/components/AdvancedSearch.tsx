@@ -30,7 +30,9 @@ export function matchesAdvancedSearch(book: LibraryBook, criteria: SearchCriteri
   const tests: boolean[] = [];
   const name = criteria.name.trim().toLocaleLowerCase();
   const comments = criteria.comments.trim().toLocaleLowerCase();
-  if (name) tests.push((book.title + ' ' + book.author).toLocaleLowerCase().includes(name));
+  // A typed title/author query is always required to match. "Match any"
+  // only affects the optional filters; it must not show unrelated novels.
+  if (name && !(book.title + ' ' + book.author).toLocaleLowerCase().includes(name)) return false;
   if (comments) tests.push((book.personalReview || '').toLocaleLowerCase().includes(comments));
   if (criteria.tags.length) {
     const owned = new Set(bookTags(book).map(tag => tag.toLocaleLowerCase()));
@@ -154,7 +156,8 @@ export default function AdvancedSearch({ books, allBooks, offlineIds, nameQuery,
           </select></label>
         </div>
         <p className="advanced-mode-hint">{criteria.mode === 'all'
-          ? 'A book must meet every active filter.' : 'A book may meet any active filter.'}</p>
+          ? 'Title or author must match, together with every active filter.'
+          : 'Title or author must match. Other filters may match individually.'}</p>
         {results.length ? <div className="advanced-results-grid">
           {results.map(book => <article className="advanced-result" key={book.id}>
             <a href={namedNovelUrl(book, allBooks)} className="advanced-result-cover"
