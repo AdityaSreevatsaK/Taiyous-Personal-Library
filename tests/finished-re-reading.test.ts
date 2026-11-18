@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isFinished, isCurrentlyReading, withUpdatedReadingPosition } from '../src/lib/reading-status';
+import { isFinished, isCurrentlyReading, isOngoingNovel, readingProgressLabel, withUpdatedReadingPosition } from '../src/lib/reading-status';
 import { applyCloudReadingProgress, validateReadingProgress } from '../src/lib/cloud';
 import { selectHomeBooks } from '../src/lib/home-curation';
 import type { LibraryBook } from '../src/types';
@@ -47,4 +47,67 @@ describe('finished status survives re-reading',()=>{
    lastCfi:null,lastOpenedAt:null,updatedAt:900};
   expect(()=>validateReadingProgress(invalid,book.id)).toThrow();
  });
+});
+
+describe('ongoing serialisation: caught up is not finished', () => {
+  const ongoing: LibraryBook = {
+    ...book, title: 'Tales of Demons and Gods', status: 'Ongoing',
+    progress: 100, currentChapterNumber: 507, chapterCount: 507,
+  };
+
+  it('keeps a 100% ongoing novel in Currently Reading, even with a stale completedAt marker', () => {
+    expect(isOngoingNovel(ongoing)).toBe(true);
+    expect(isFinished(ongoing)).toBe(false);
+    expect(isCurrentlyReading(ongoing)).toBe(true);
+    expect(readingProgressLabel(ongoing)).toBe('Caught up');
+    expect(selectHomeBooks([ongoing]).continueReading).toEqual([ongoing]);
+  });
+
+  it('recognises common ongoing and hiatus source statuses without misreading completed titles', () => {
+    for (const status of ['ongoing', 'On-going', 'On Going', 'updating', 'Serializing', 'Serialising', 'In Progress', 'Hiatus', 'On hold']) {
+      expect(isOngoingNovel({ status })).toBe(true);
+    }
+    for (const status of ['Completed', 'Complete', 'Finished', 'Unknown', undefined]) {
+      expect(isOngoingNovel({ status })).toBe(false);
+    }
+  });
+
+  it('does not automatically stamp completedAt when reaching 100% on an ongoing novel', () => {
+    const fresh = { ...ongoing, progress: 99, completedAt: undefined };
+    const next = withUpdatedReadingPosition(fresh, { progress: 100 }, 600);
+    expect(next.progress).toBe(100);
+    expect(next.completedAt).toBeUndefined();
+    expect(next.pendingProgressSync).toBe(true);
+    expect(readingProgressLabel(next)).toBe('Caught up');
+  });
+
+  it('retains prior completion metadata without displaying ongoing books as Finished', () => {
+    const revisited = withUpdatedReadingPosition(ongoing, { progress: 12 }, 600);
+    expect(revisited.completedAt).toBe(400);
+    expect(revisited.progress).toBe(12);
+    expect(isFinished(revisited)).toBe(false);
+    expect(readingProgressLabel(revisited)).toBe('Currently reading');
+  });
+
+  it('does not invent completion when restoring legacy 100% cloud progress for an ongoing novel', () => {
+    const legacy = validateReadingProgress({
+      version: 1, bookId: ongoing.id, progress: 100, currentChapter: 'Chapter 507',
+      currentChapterIndex: 506, currentChapterNumber: 507, lastCfi: null,
+      lastOpenedAt: 500, updatedAt: 500,
+    }, ongoing.id);
+    const restored = applyCloudReadingProgress({
+      ...ongoing, progress: 12, completedAt: undefined, progressUpdatedAt: 200,
+    }, legacy);
+    expect(restored.completedAt).toBeUndefined();
+    expect(restored.progress).toBe(100);
+    expect(isCurrentlyReading(restored)).toBe(true);
+    expect(readingProgressLabel(restored)).toBe('Caught up');
+  });
+
+  it('preserves completed and unknown-status legacy behaviour', () => {
+    const finished = { ...ongoing, status: 'Completed', completedAt: undefined };
+    expect(isFinished(finished)).toBe(true);
+    expect(readingProgressLabel(finished)).toBe('Finished');
+    expect(isFinished({ ...finished, status: undefined })).toBe(true);
+  });
 });
