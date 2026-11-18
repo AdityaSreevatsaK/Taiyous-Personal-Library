@@ -1075,7 +1075,7 @@ try {
         overflow:getComputedStyle(element).overflowY,focusable:element.tabIndex};
     });
     if (innerScroll.available<50 || innerScroll.scrollTop<30 ||
-        innerScroll.height>Math.min(window.innerHeight * .6,440) ||
+        innerScroll.height>Math.min(viewport.height * .6,440) ||
         innerScroll.overflow!=='auto' || innerScroll.focusable!==0) {
       throw new Error('Long synopsis must have bounded keyboard-scrollable text: '+
         JSON.stringify(innerScroll));
