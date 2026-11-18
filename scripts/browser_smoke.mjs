@@ -1031,6 +1031,18 @@ try {
 
     // Confirmations use the app's accessible, themed dialog, not browser prompts.
     await page.getByRole('button', { name: 'Edit summary' }).click();
+    // The screenshot regression: both bottom actions share one baseline and height.
+    const summaryActions = await page.locator('.summary-form-actions').evaluate(row => {
+      const buttons = [...row.querySelectorAll('button')].map(button => button.getBoundingClientRect());
+      return {count:buttons.length,deltaTop:Math.abs(buttons[0].top-buttons[1].top),
+        deltaHeight:Math.abs(buttons[0].height-buttons[1].height),
+        rightGap:Math.abs(row.getBoundingClientRect().right-buttons[1].right)};
+    });
+    if (summaryActions.count!==2 || summaryActions.deltaTop>1 ||
+        summaryActions.deltaHeight>1 || summaryActions.rightGap>2) {
+      throw new Error('Summary form actions must align flush and match heights: '+
+        JSON.stringify(summaryActions));
+    }
     await page.locator('#summary-editor').fill('My confirmed synopsis');
     await page.getByRole('button', { name: 'Save summary' }).click();
     const synopsisDialog = page.getByRole('dialog', { name: 'Save revised synopsis?' });
@@ -1042,6 +1054,42 @@ try {
     await page.getByRole('dialog', { name: 'Save revised synopsis?' })
       .getByRole('button', { name: 'Save synopsis' }).click();
     await page.getByText('My confirmed synopsis').waitFor();
+    // A genuinely lengthy synopsis must scroll inside its card, while chapter
+    // browsing remains directly below it. Short synopses need no inner scroll.
+    const longSynopsis = Array.from({ length: 75 }, (_, i) =>
+      `A long but readable synopsis, paragraph ${i + 1}. The traveller opens a new chapter.`).join('\n');
+    await page.getByRole('button', { name: 'Edit summary' }).click();
+    await page.locator('#summary-editor').fill(longSynopsis);
+    await page.getByRole('button', { name: 'Save summary' }).click();
+    await page.getByRole('dialog', { name: 'Save revised synopsis?' })
+      .getByRole('button', { name: 'Save synopsis' }).click();
+    const synopsis = page.locator('.details-synopsis');
+    await page.waitForFunction(() => {
+      const element = document.querySelector('.details-synopsis');
+      return element && element.scrollHeight > element.clientHeight + 50;
+    });
+    const innerScroll = await synopsis.evaluate(element => {
+      const max = element.scrollHeight-element.clientHeight;
+      element.scrollTop=max;
+      return {height:element.clientHeight,available:max,scrollTop:element.scrollTop,
+        overflow:getComputedStyle(element).overflowY,focusable:element.tabIndex};
+    });
+    if (innerScroll.available<50 || innerScroll.scrollTop<30 ||
+        innerScroll.height>Math.min(viewport.height * .6,440) ||
+        innerScroll.overflow!=='auto' || innerScroll.focusable!==0) {
+      throw new Error('Long synopsis must have bounded keyboard-scrollable text: '+
+        JSON.stringify(innerScroll));
+    }
+    await page.locator('.chapter-browser').waitFor();
+    await page.evaluate(() => window.scrollTo({top:500,behavior:'instant'}));
+    await page.waitForFunction(() => Number(document.querySelector('.details-page-scroll-meter')?.dataset.progress) > 0);
+    const pageMeter = await page.locator('.details-page-scroll-meter').evaluate(el => ({
+      percentage:Number(el.dataset.progress),visible:getComputedStyle(el).opacity,
+    }));
+    if (pageMeter.percentage<=0 || pageMeter.visible==='0') {
+      throw new Error('Details page scroll progress indicator did not move: '+JSON.stringify(pageMeter));
+    }
+    await page.evaluate(() => window.scrollTo({top:0,behavior:'instant'}));
 
     // Personal tags stay in draft after cancel and save on explicit confirmation.
     await page.getByRole('textbox', { name: 'New personal tag' }).fill('Worth a try');

@@ -14,6 +14,7 @@ import { libraryCollectionUrl } from '../lib/library-routes';
 import './details-palettes.css';
 import type { CloudSession } from '../lib/cloud';
 import ChapterBrowser from './ChapterBrowser';
+import DetailsScrollProgress from './DetailsScrollProgress';
 import { bookTags, normalisePersonalTags, suggestExistingTags, tagKey } from '../lib/tags';
 import { ratingLabel, ratingSummary, ratingToneClass } from '../lib/ratings';
 import './site-footer.css';
@@ -155,6 +156,7 @@ export default function BookDetails({ book, availableTags, theme, onThemeChange,
   const [failedBackdropId, setFailedBackdropId] = useState<string | null>(null);
 
   return <div className={`details-shell theme-${theme}`}>
+    <DetailsScrollProgress />
     <header className="details-topbar">
       <a className="details-brand-link" href="/" aria-label="Taiyou's Personal Library home" onClick={event => {
         // Preserve real link behaviour: middle-click, Ctrl/Cmd-click, and copy URL.
@@ -344,7 +346,7 @@ export default function BookDetails({ book, availableTags, theme, onThemeChange,
           <section className="details-card details-description" aria-labelledby="detail-summary-heading">
             <div className="details-section-header"><div><span className="details-label">ABOUT THE STORY</span><h2 id="detail-summary-heading">Synopsis</h2></div><button className="details-text-action" onClick={() => { if (editingSummary) setSummaryDraft(book.userDescription || book.description || ''); setEditingSummary(!editingSummary); }} type="button"><Pencil size={15} /> {editingSummary ? 'Cancel' : 'Edit summary'}</button></div>
             {editingSummary ? <form onSubmit={(e) => void saveSummary(e)} className="summary-form"><label htmlFor="summary-editor" className="setting-help">Your version is stored only in this browser; the imported summary remains available.</label><textarea id="summary-editor" value={summaryDraft} onChange={(e) => setSummaryDraft(e.target.value)} maxLength={24000} rows={9} placeholder="Write a short summary of the story..." /><div className="summary-form-actions"><button type="button" className="secondary-button" onClick={() => setEditingSummary(false)}>Cancel</button><button type="submit" className="primary-button" disabled={saving}><Check size={16} /> Save summary</button></div></form>
-              : summary ? <p className="details-synopsis">{summary}</p>
+              : summary ? <p className="details-synopsis" role="region" aria-label="Novel synopsis text" tabIndex={0}>{summary}</p>
                 : <p className="details-muted">No synopsis is present in this EPUB. You can add your own with <strong>Edit summary</strong>.</p>}
           </section>
 
