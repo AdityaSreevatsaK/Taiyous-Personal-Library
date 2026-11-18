@@ -1,0 +1,34 @@
+# ONE-TIME release trigger. Approved by the owner on 18 November 2026.
+# Delete this workflow after its guarded Cloudflare deployment succeeds.
+name: "One-time approved synopsis UX release"
+on:
+  push:
+    branches: [master]
+    paths:
+      - .github/workflows/one-time-approved-synopsis-deploy-20261118.yml
+
+permissions:
+  contents: read
+  actions: write
+
+jobs:
+  request-owner-approved-release:
+    if: github.repository == 'AdityaSreevatsaK/Taiyous-Personal-Library' && github.ref == 'refs/heads/master'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      EXPECTED_SHA: ${{ github.sha }}
+    steps:
+      - name: Require the exact approved master revision
+        shell: bash
+        run: |
+          set -euo pipefail
+          actual="$(gh api "repos/$GH_REPO/git/ref/heads/master" --jq '.object.sha')"
+          if [ "$actual" != "$EXPECTED_SHA" ]; then
+            echo '::error::Master changed. Refusing to deploy a stale revision.'
+            exit 1
+          fi
+          gh workflow run deploy-standalone.yml --repo "$GH_REPO" --ref master -f publish=true
+          echo "Requested the existing independently validated, manual Cloudflare Pages production deployment for $EXPECTED_SHA. No HF data mutation or release tag." >> "$GITHUB_STEP_SUMMARY"
