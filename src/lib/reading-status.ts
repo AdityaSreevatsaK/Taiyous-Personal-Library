@@ -1,9 +1,12 @@
 import type { LibraryBook } from '../types';
+import { normalisePublicationStatus } from './publication-status';
 
 /** Serialised novels may be caught up at 100% without being finished. */
 export function isOngoingNovel(book: Pick<LibraryBook, 'status'>): boolean {
-  const status = (book.status || '').normalize('NFKC').trim().toLowerCase();
-  return /^(?:on[ -]?going|updating|seriali[sz]ing|publishing|in[ -]?progress|hiatus|on[ -]?hiatus|on[ -]?hold)(?:\s*\([^)]*\))?$/.test(status);
+  // Historical exported name kept for cloud-sync compatibility. This
+  // includes paused/abandoned publications, none of which are completed.
+  const status = normalisePublicationStatus(book.status);
+  return status === 'Ongoing' || status === 'Hiatus' || status === 'Dropped';
 }
 
 /** Finishing a novel is a durable status, not its current reading cursor. */
@@ -25,7 +28,8 @@ export function readingProgressLabel(book: Pick<LibraryBook, 'status' | 'progres
     // saved position reached 100%. Never call such a position "Caught up".
     if (book.chapterCount && book.currentChapterNumber &&
         book.currentChapterNumber < book.chapterCount) return 'New chapters available';
-    return 'Caught up';
+    return normalisePublicationStatus(book.status) === 'Dropped'
+      ? 'All available chapters read' : 'Caught up';
   }
   if (isFinished(book)) return 'Finished';
   return book.progress > 0 ? 'Currently reading' : 'Not started';
