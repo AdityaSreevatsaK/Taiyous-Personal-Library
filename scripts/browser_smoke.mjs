@@ -967,16 +967,16 @@ try {
       const mobileRating = page.getByRole('combobox', { name: 'Rate this novel' });
       const labels = await mobileRating.locator('option').allTextContents();
       const expectedLabels = [
-        'Unrated', '1/10 · Terrible', '2/10 · Very poor',
-        '3/10 · Poor', '4/10 · Below average', '5/10 · Average',
-        '6/10 · Decent', '7/10 · Good', '8/10 · Very good',
+        'Unrated', '1/10 · Terrible', '2/10 · Very Poor',
+        '3/10 · Poor', '4/10 · Below Average', '5/10 · Average',
+        '6/10 · Decent', '7/10 · Good', '8/10 · Very Good',
         '9/10 · Excellent', '10/10 · Masterpiece',
       ];
       if (JSON.stringify(labels) !== JSON.stringify(expectedLabels)) {
         throw new Error('The mobile rating picker has lost the descriptive rating labels: ' + JSON.stringify(labels));
       }
       await mobileRating.selectOption('8');
-      await page.locator('.details-mobile-rating-label').getByText('8/10 · Very good').waitFor();
+      await page.locator('.details-mobile-rating-label').getByText('8/10 · Very Good').waitFor();
       const mobileRatingLayout = await page.locator('.details-mobile-rating').evaluate(element => {
         const select = element.querySelector('select');
         const button = element.querySelector('button[type="submit"]');
@@ -998,9 +998,9 @@ try {
       // Scope to the visible selected-rating preview, not a second matching
       // text node inside the native option list.
       await page.locator('.details-mobile-rating-label strong')
-        .getByText('8/10 · Very good', {exact:true}).waitFor();
+        .getByText('8/10 · Very Good', {exact:true}).waitFor();
     } else {
-      await page.locator('.details-hero').getByText('8/10').waitFor();
+      await page.locator('.details-hero .hero-rating-saved').getByText('· 8/10 · Very Good', { exact: true }).waitFor();
     }
     // A real browser download should be offered in novel details, distinct from opening to read.
     const downloadStarted = page.waitForEvent('download');

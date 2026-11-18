@@ -15,7 +15,7 @@ import './details-palettes.css';
 import type { CloudSession } from '../lib/cloud';
 import ChapterBrowser from './ChapterBrowser';
 import { bookTags, normalisePersonalTags, suggestExistingTags, tagKey } from '../lib/tags';
-import { ratingLabel, ratingToneClass } from '../lib/ratings';
+import { ratingLabel, ratingSummary, ratingToneClass } from '../lib/ratings';
 import './site-footer.css';
 import { isFinished, isOngoingNovel, readingProgressLabel } from '../lib/reading-status';
 import { openInternalLinkInCurrentTab, openNovelInCurrentTab, revealClippedLinkTitle } from '../lib/novel-links';
@@ -214,7 +214,7 @@ export default function BookDetails({ book, availableTags, theme, onThemeChange,
           </div>
           <form className="hero-rating" aria-label="Personal novel rating" onSubmit={(event) => void saveReview(event)}>
             <fieldset className="hero-rating-fieldset">
-              <legend><Star size={15} fill="currentColor" className={'rating-star ' + ratingToneClass(ratingDraft)} /> My rating {book.personalRating ? `· ${book.personalRating}/10` : ''}</legend>
+              <legend><Star size={15} fill="currentColor" aria-hidden="true" className={'rating-star ' + ratingToneClass(ratingDraft)} /> My rating {ratingSummary(book.personalRating) && <span className="hero-rating-saved">· {ratingSummary(book.personalRating)}</span>}</legend>
               <div className="hero-rating-choices">
                 {Array.from({ length: 10 }, (_, index) => index + 1).map(value =>
                   <button key={value} type="button" className={ratingDraft === value ? 'hero-rating-choice selected' : 'hero-rating-choice'} onClick={() => setRatingDraft(value)} aria-label={`Rate ${value} out of 10: ${ratingLabel(value)}`} title={ratingLabel(value)} aria-pressed={ratingDraft === value}>{value}</button>
@@ -325,7 +325,7 @@ export default function BookDetails({ book, availableTags, theme, onThemeChange,
         <section className="details-card details-mobile-rating" aria-label="Personal novel rating on mobile">
           <div className="details-mobile-rating-label"><Star size={16} fill="currentColor" className={ratingToneClass(ratingDraft)} aria-hidden="true" />
             <span>My rating</span>
-            {ratingDraft != null && <strong aria-live="polite">{ratingDraft}/10 · {ratingLabel(ratingDraft)}</strong>}
+            {ratingSummary(ratingDraft) && <strong aria-live="polite">{ratingSummary(ratingDraft)}</strong>}
           </div>
           <form className="details-mobile-rating-controls" onSubmit={(event) => void saveReview(event)}>
             <label htmlFor="mobile-novel-rating" className="sr-only">Rate this novel</label>
@@ -334,7 +334,7 @@ export default function BookDetails({ book, availableTags, theme, onThemeChange,
                 setRatingDraft(event.target.value ? Number(event.target.value) : undefined)}>
               <option value="">Unrated</option>
               {Array.from({ length: 10 }, (_, index) => index + 1).map(value =>
-                <option value={value} key={value}>{value}/10 · {ratingLabel(value)}</option>)}
+                <option value={value} key={value}>{ratingSummary(value)}</option>)}
             </select>
             <button type="submit" className="hero-rating-save" disabled={saving}>Save rating</button>
           </form>

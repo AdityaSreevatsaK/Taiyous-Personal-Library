@@ -6,7 +6,7 @@ import BrandMark from './BrandMark';
 import UsageDashboard from './UsageDashboard';
 import MasterControls from './MasterControls';
 import { useAppDialogs } from './AppDialogs';
-import { ratingToneClass } from '../lib/ratings';
+import { ratingSummary, ratingToneClass } from '../lib/ratings';
 import './top-navigation.css';
 import { useCoverArt } from './useCoverArt';
 import { generatedCoverVariant } from '../lib/novel-hero';
@@ -745,7 +745,7 @@ export default function LibraryDashboard({
               {selectedCollection?.bookIds.includes(book.id) && <button type="button" onClick={() => void onCollectionMembership(selectedCollection.id, book.id, false)} aria-label={`Remove ${book.title} from collection`}>Remove from this collection</button>}
             </div>}<div className="tile-bottom" aria-label={book.progress > 0 ? `${Math.round(book.progress)}% read` : book.shelfStatus === 'trying' ? 'Trying out' : 'Not started'}>
               {book.shelfStatus === 'trying' && <span className="tile-trying-status">TRYING</span>}
-              {book.personalRating && <span className={'book-rating-pill ' + ratingToneClass(book.personalRating)}><Star size={12} fill="currentColor" /> {book.personalRating}/10</span>}
+              {ratingSummary(book.personalRating) && <span className={'book-rating-pill ' + ratingToneClass(book.personalRating)}><Star size={12} fill="currentColor" aria-hidden="true" /> {ratingSummary(book.personalRating)}</span>}
               {book.progress > 0 && <><div className="mini-progress" aria-hidden="true"><i style={{ width: `${Math.min(100, Math.max(0, book.progress))}%` }} /></div><span className="tile-progress-value">{Math.round(book.progress)}%</span></>}
               </div></div></article>)}</div> : <div className="no-results"><BookOpen size={27} /><h3>{filter === 'offline' ? 'No novels saved offline' : selectedCollection ? 'No novels directly in this collection' : books.length ? 'No novels on this shelf' : 'Your library is waiting'}</h3><p>{filter === 'offline' ? 'While connected, choose Save offline on a novel to make it available here.' : books.length ? 'Try a different search or tag.' : 'Import a novel ZIP, then connect your private cloud dataset to use the same collection on other devices.'}</p>{!books.length && <button className="secondary-button" onClick={onImportClick}><Upload size={17} /> Choose a ZIP or EPUB</button>}</div>}
             {filter === 'offline' && !globalMode && !selectedTag && localBackups.some(book => cachedEpubIds.includes(book.id)) &&
