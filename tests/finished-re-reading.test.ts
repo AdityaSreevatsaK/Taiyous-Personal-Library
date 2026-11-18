@@ -104,6 +104,15 @@ describe('ongoing serialisation: caught up is not finished', () => {
     expect(readingProgressLabel(restored)).toBe('Caught up');
   });
 
+  it('indicates new chapters when the source grows beyond the saved chapter', () => {
+    const updatedSource = { ...ongoing, chapterCount: 508 };
+    expect(updatedSource.progress).toBe(100); // Preserve the exact saved cursor.
+    expect(isFinished(updatedSource)).toBe(false);
+    expect(readingProgressLabel(updatedSource)).toBe('New chapters available');
+    expect(isCurrentlyReading(updatedSource)).toBe(true);
+    expect(readingProgressLabel({ ...updatedSource, currentChapterNumber: 508 })).toBe('Caught up');
+  });
+
   it('preserves completed and unknown-status legacy behaviour', () => {
     const finished = { ...ongoing, status: 'Completed', completedAt: undefined };
     expect(isFinished(finished)).toBe(true);
