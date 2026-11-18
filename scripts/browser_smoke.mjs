@@ -432,7 +432,8 @@ try {
         await page.locator('.editorial-shelf-card').count() > 4) {
       throw new Error('Curated home exceeded its small, bounded selections');
     }
-    await page.getByRole('button', { name: 'Browse tag Action' }).waitFor();
+    // Discovery shelves vary per visit; any genuine non-empty shelf is valid.
+    await page.locator('.editorial-shelf-card').first().waitFor();
     // Tags and their counts must BOTH fit in the mobile viewport. Previously
     // the absolute menu opened to the left of the small header Tags button.
     const tagsMenu = page.locator('.top-nav-menu[aria-label="Novel tags"]');
@@ -593,7 +594,11 @@ try {
     await page.getByRole('link', { name: "Taiyou's Personal Library home" }).click();
     await page.waitForURL('**/');
     await page.locator('.editorial-grand').waitFor();
-    await page.getByRole('button', { name: 'Browse tag Action' }).click();
+    // Navigate to a known tag through persistent navigation instead of
+    // assuming a randomly selected discovery card contains the Action tag.
+    const tagNav = page.locator('.top-nav-menu[aria-label="Novel tags"]');
+    await tagNav.locator('summary').click();
+    await tagNav.getByRole('link', { name: 'Browse novels tagged Action' }).click();
     await page.waitForURL('**/tags/action');
     if (await page.locator('.tag-collection-head:not(.collection-heading)').count()) {
       throw new Error('Filtered tag page repeats the selected tag in an unnecessary full-width bar');
