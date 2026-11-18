@@ -64,7 +64,10 @@ export default function EditorialHome({
   }, [featured, journal, books]);
   const visibleGalleryIds = galleryCandidates.filter(book => loadedGalleryIds.has(book.id))
     .slice(0, 3).map(book => book.id);
-  const shelves = useMemo(() => selectHomeShelves(books, collections, 4), [books, collections]);
+  // Randomise only this four-card discovery section, once per page visit.
+  // Preserve the canonical shelves, catalogue order and all deep links.
+  const [shelfSeed] = useState(() => (Math.floor(Math.random() * 0xffffffff) || 1));
+  const shelves = useMemo(() => selectHomeShelves(books, collections, 4, shelfSeed), [books, collections, shelfSeed]);
   const commonTags = useMemo(() => tagCounts(books).slice(0, 5), [books]);
   const trialCount = books.filter(book => book.shelfStatus === 'trying').length;
   const completedCount = books.filter(book => book.shelfStatus !== 'trying' && isFinished(book)).length;
@@ -107,7 +110,7 @@ export default function EditorialHome({
               tabIndex={index < 0 ? -1 : 0}
               aria-hidden={index < 0 ? true : undefined}
               onClick={event => openNovelInCurrentTab(event, () => onOpen(book))}
-            >{cover(book, true, handleGalleryArtwork)}</a>;
+            >{cover(book, true, handleGalleryArtwork)}<span className="editorial-art-hover-label" aria-hidden="true">{book.title}</span></a>;
           })}
           <span className="editorial-art-caption">{books.length} WORLDS · YOUR COLLECTION</span>
         </div>

@@ -18,6 +18,7 @@ import { bookTags, normalisePersonalTags, suggestExistingTags, tagKey } from '..
 import { ratingLabel, ratingSummary, ratingToneClass } from '../lib/ratings';
 import './site-footer.css';
 import { isFinished, isOngoingNovel, readingProgressLabel } from '../lib/reading-status';
+import { publicationStatusDisplay, publicationStatusTone } from '../lib/publication-status';
 import { openInternalLinkInCurrentTab, openNovelInCurrentTab, revealClippedLinkTitle } from '../lib/novel-links';
 import type { ChapterItem, LibraryBook, ReaderTheme } from '../types';
 
@@ -207,7 +208,7 @@ export default function BookDetails({ book, availableTags, theme, onThemeChange,
           <div className="details-hero-facts">
             <div className="details-meta-row">
             <span><BookOpen size={16} /> {book.chapterCount ? `${book.chapterCount.toLocaleString()} chapters` : 'EPUB edition'}</span>
-            {book.status && <span><Check size={16} /> {book.status}</span>}
+            {book.status && <span className={'publication-status ' + publicationStatusTone(book.status)}><Info size={15} aria-hidden="true" /> {publicationStatusDisplay(book.status)}</span>}
             {book.language && <span>{book.language.toUpperCase()}</span>}
           </div>
             {allTags.length > 0 && <div className="details-hero-tags" aria-label="Novel tags">{allTags.map((tag) => <button type="button" key={tag} onClick={() => onBrowseTag(tag)} aria-label={`Browse novels tagged ${tag}`}>{tag}</button>)}</div>}

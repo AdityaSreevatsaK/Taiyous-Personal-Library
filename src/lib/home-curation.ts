@@ -67,7 +67,7 @@ export function selectHomeBooks(books: readonly LibraryBook[]): HomeBookSelectio
  * than one tag, but its preview appears at most once across these cards.
  */
 export function selectHomeShelves(
-  books: readonly LibraryBook[], collections: readonly BookCollection[], limit = 4,
+  books: readonly LibraryBook[], collections: readonly BookCollection[], limit = 4, seed = 0,
 ): HomeShelf[] {
   if (!books.length || limit < 1) return [];
   type Candidate = Omit<HomeShelf, 'preview'> & { members: LibraryBook[] };
@@ -89,6 +89,28 @@ export function selectHomeShelves(
     if (members.length) candidates.push({
       kind: 'tag', id: tag, name: tag, count: members.length, members,
     });
+  }
+
+  // Seed 0 preserves established deterministic behaviour for existing callers.
+  // The homepage supplies one nonzero random seed per visit, not per render.
+  if (seed !== 0) {
+    let state = (seed >>> 0) || 1;
+    const random = () => {
+      state = (Math.imul(state, 1664525) + 1013904223) >>> 0;
+      return state / 0x100000000;
+    };
+    for (let i = candidates.length - 1; i > 0; i--) {
+      const j = Math.floor(random() * (i + 1));
+      [candidates[i], candidates[j]] = [candidates[j], candidates[i]];
+    }
+    // Each chosen shelf also varies its cover without ever reusing the same
+    // book as another shelf's preview (allocation below enforces uniqueness).
+    for (const candidate of candidates) {
+      for (let i = candidate.members.length - 1; i > 0; i--) {
+        const j = Math.floor(random() * (i + 1));
+        [candidate.members[i], candidate.members[j]] = [candidate.members[j], candidate.members[i]];
+      }
+    }
   }
 
   const owners = new Map<string, number>();

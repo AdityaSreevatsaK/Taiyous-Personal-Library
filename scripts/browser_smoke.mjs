@@ -432,7 +432,8 @@ try {
         await page.locator('.editorial-shelf-card').count() > 4) {
       throw new Error('Curated home exceeded its small, bounded selections');
     }
-    await page.getByRole('button', { name: 'Browse tag Action' }).waitFor();
+    // Discovery shelves vary per visit; any genuine non-empty shelf is valid.
+    await page.locator('.editorial-shelf-card').first().waitFor();
     // Tags and their counts must BOTH fit in the mobile viewport. Previously
     // the absolute menu opened to the left of the small header Tags button.
     const tagsMenu = page.locator('.top-nav-menu[aria-label="Novel tags"]');
@@ -593,7 +594,11 @@ try {
     await page.getByRole('link', { name: "Taiyou's Personal Library home" }).click();
     await page.waitForURL('**/');
     await page.locator('.editorial-grand').waitFor();
-    await page.getByRole('button', { name: 'Browse tag Action' }).click();
+    // Navigate to a known tag through persistent navigation instead of
+    // assuming a randomly selected discovery card contains the Action tag.
+    const tagNav = page.locator('.top-nav-menu[aria-label="Novel tags"]');
+    await tagNav.locator('summary').click();
+    await tagNav.getByRole('link', { name: 'Browse novels tagged Action' }).click();
     await page.waitForURL('**/tags/action');
     if (await page.locator('.tag-collection-head:not(.collection-heading)').count()) {
       throw new Error('Filtered tag page repeats the selected tag in an unnecessary full-width bar');
@@ -637,6 +642,20 @@ try {
     const readingPosition = await page.locator('.details-progress-card .details-location').innerText();
     if (/Under The Starry Night|Exploded\?|Chapter 1\s*-/i.test(readingPosition)) {
       throw new Error('Compact reading progress must not repeat full EPUB chapter titles');
+    }
+    // Only the photographic hero spans the desktop viewport. The main
+    // synopsis/management content below remains in its narrow reading column.
+    if (viewport.width >= 1000) {
+      const bounds = await page.locator('.details-hero').boundingBox();
+      const cover = await page.locator('.details-hero .details-cover-wrap').boundingBox();
+      if (!bounds || bounds.x > 40 || bounds.x + bounds.width < viewport.width - 40 ||
+          !cover || cover.width < 220) {
+        throw new Error('Novel details hero is not full bleed with a larger cover: ' +
+          JSON.stringify({ bounds, cover }));
+      }
+      const hasOverflow = await page.evaluate(() =>
+        document.documentElement.scrollWidth > window.innerWidth + 2);
+      if (hasOverflow) throw new Error('Full-bleed hero caused horizontal page overflow');
     }
     // All imported genres must remain visible, even on narrow mobile widths.
     // The old stylesheet hid everything after the first three tags.

@@ -1,6 +1,7 @@
 import JSZip from 'jszip';
 import type { ImportedBook } from '../types';
 import { normalizeTags } from './tags';
+import { normalisePublicationStatus } from './publication-status';
 
 const MAX_INPUT_BYTES = 120 * 1024 * 1024;
 const MAX_EPUB_BYTES = 120 * 1024 * 1024;
@@ -70,7 +71,7 @@ function extractedGenreList(values: unknown[]): string[] {
       for (const label of normalizeTags(value)) {
         // FanFicFare adds subjects such as Last Update and Completed. They're
         // not genres and shouldn't appear in the tag filter.
-        if (!/^(last update|updated|completed|complete|ongoing|in progress|status:|language:)/i.test(label)) result.push(label);
+        if (!/^(last update|updated|completed|complete|ongoing|on going|in progress|hiatus|on hiatus|on hold|dropped|discontinued|abandoned|status:|language:)(?:\b|:)/i.test(label)) result.push(label);
       }
     }
   }
@@ -95,7 +96,7 @@ export async function extractEpubMetadata(blob: Blob | ArrayBuffer | Uint8Array)
     .filter((el) => el.localName === name).map((el) => el.textContent?.trim()).filter((s): s is string => !!s);
   const first = (name: string) => all(name)[0];
   const subjects = all('subject');
-  const status = subjects.find((label) => /^(completed|complete|ongoing|in progress)$/i.test(label));
+  const status = subjects.map(normalisePublicationStatus).find(Boolean);
   // FanFicFare EPUBs include the exact chapter count in their title page,
   // while their OPF spine also contains a separate title-page item.
   const frontPage = Object.values(archive.files).find((entry) =>
@@ -127,7 +128,7 @@ export async function extractEpubMetadata(blob: Blob | ArrayBuffer | Uint8Array)
     title: first('title'), author: first('creator'), language: first('language'),
     description: summaryText(first('description')),
     sourceTags: extractedGenreList(subjects),
-    status: status ? (/^complete/i.test(status) ? 'Completed' : 'Ongoing') : undefined,
+    status,
     sourceUrl: safeSourceUrl(first('source')),
     chapterCount: titlePageCount || inferredChapterCount || undefined,
   };
@@ -192,7 +193,7 @@ export async function prepareImport(file: File): Promise<ImportedBook> {
       sourceTags: extractedGenreList([manifestMetadata.tags, manifestMetadata.genres, manifestMetadata.genre,
         manifestMetadata.categories, manifestMetadata.keywords, details.sourceTags]),
       personalTags: [],
-      status: stringValue(manifestMetadata.status) || details.status,
+      status: normalisePublicationStatus(manifestMetadata.status) || stringValue(manifestMetadata.status) || details.status,
       sourceUrl: safeSourceUrl(manifestMetadata.source_url) || details.sourceUrl,
       metadataScanned: true,
       originalFileName: file.name,

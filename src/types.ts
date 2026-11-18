@@ -1,4 +1,5 @@
 export type ReaderTheme = 'light' | 'dark' | 'sepia' | 'midnight' | 'ocean' | 'plum';
+import type { PublicationStatus } from './lib/publication-status';
 export type FontChoice = 'literary' | 'classic' | 'georgia' | 'sans' | 'clear';
 
 export interface ReaderSettings {
@@ -34,7 +35,8 @@ export interface LibraryBook {
   personalReviewUpdatedAt?: number;
   /** Saved locally and awaiting publication to the private dataset. */
   pendingReviewSync?: boolean;
-  status?: string;
+  /** Source publication state. Legacy unrecognised strings remain readable. */
+  status?: PublicationStatus | (string & {});
   sourceUrl?: string;
   /** Optional private dataset artwork, e.g. data/novels/<book-id>/cover.jpg. */
   coverPath?: string;

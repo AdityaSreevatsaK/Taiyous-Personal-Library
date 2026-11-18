@@ -113,6 +113,23 @@ describe('ongoing serialisation: caught up is not finished', () => {
     expect(readingProgressLabel({ ...updatedSource, currentChapterNumber: 508 })).toBe('Caught up');
   });
 
+  it('preserves Hiatus and Dropped when older progress-sync data says finished', () => {
+    for (const status of ['Hiatus', 'Dropped']) {
+      const old = validateReadingProgress({
+        version: 1, bookId: ongoing.id, progress: 100, completedAt: 400,
+        currentChapter: 'Chapter 507', currentChapterIndex: 506,
+        currentChapterNumber: 507, lastCfi: null,
+        lastOpenedAt: 600, updatedAt: 600,
+      }, ongoing.id);
+      const reconciled = applyCloudReadingProgress({
+        ...ongoing, status, progress: 12, completedAt: undefined,
+        progressUpdatedAt: 200,
+      }, old);
+      expect(isFinished(reconciled)).toBe(false);
+      expect(isCurrentlyReading(reconciled)).toBe(true);
+    }
+  });
+
   it('preserves completed and unknown-status legacy behaviour', () => {
     const finished = { ...ongoing, status: 'Completed', completedAt: undefined };
     expect(isFinished(finished)).toBe(true);

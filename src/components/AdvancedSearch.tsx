@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { ArrowLeft, BookOpen, Filter, Search, SlidersHorizontal, Star, Tag, X } from 'lucide-react';
 import { bookTags } from '../lib/tags';
 import { ratingLabel } from '../lib/ratings';
+import { normalisePublicationStatus, publicationStatusDisplay, publicationStatusRank, publicationStatusTone, type PublicationStatusFilter } from '../lib/publication-status';
 import { namedNovelUrl } from '../lib/routes';
 import { openNovelInCurrentTab, revealClippedLinkTitle } from '../lib/novel-links';
 import type { LibraryBook } from '../types';
@@ -17,12 +18,13 @@ export interface SearchCriteria {
   minRating: number;
   maxRating: number;
   offlineOnly: boolean;
+  publicationStatus: PublicationStatusFilter | 'all';
   mode: SearchMode;
 }
 
 export const defaultSearchCriteria: SearchCriteria = {
   name: '', comments: '', tags: [], minRating: 0, maxRating: 10,
-  offlineOnly: false, mode: 'all',
+  offlineOnly: false, publicationStatus: 'all', mode: 'all',
 };
 
 /** Search across only the active criteria. AND requires all; OR requires any. */
@@ -48,6 +50,9 @@ export function matchesAdvancedSearch(book: LibraryBook, criteria: SearchCriteri
     tests.push(rating !== undefined && rating >= criteria.minRating && rating <= criteria.maxRating);
   }
   if (criteria.offlineOnly) tests.push(offlineIds.has(book.id));
+  if (criteria.publicationStatus !== 'all') {
+    tests.push((normalisePublicationStatus(book.status) || 'Unknown') === criteria.publicationStatus);
+  }
   return !tests.length || (criteria.mode === 'all' ? tests.every(Boolean) : tests.some(Boolean));
 }
 
@@ -74,13 +79,15 @@ export default function AdvancedSearch({ books, allBooks, offlineIds, nameQuery,
     setCriteria({ ...defaultSearchCriteria });
     onNameQueryChange('');
   };
-  const [sort, setSort] = useState<'title' | 'rating' | 'recent'>('title');
+  const [sort, setSort] = useState<'title' | 'rating' | 'recent' | 'publication'>('title');
   const availableTags = useMemo(
     () => [...new Set(books.flatMap(bookTags))].sort((a, b) => a.localeCompare(b)), [books]);
   const cached = useMemo(() => new Set(offlineIds), [offlineIds]);
   const results = useMemo(() => books.filter(book => matchesAdvancedSearch(book, activeCriteria, cached)).sort((a, b) =>
     sort === 'rating' ? (b.personalRating ?? -1) - (a.personalRating ?? -1) || a.title.localeCompare(b.title)
       : sort === 'recent' ? (b.lastOpenedAt || 0) - (a.lastOpenedAt || 0)
+      : sort === 'publication' ? publicationStatusRank(a.status) - publicationStatusRank(b.status)
+        || a.title.localeCompare(b.title)
         : a.title.localeCompare(b.title)), [books, activeCriteria, cached, sort]);
   const update = <K extends keyof SearchCriteria>(key: K, value: SearchCriteria[K]) =>
     setCriteria(previous => ({ ...previous, [key]: value }));
@@ -128,6 +135,16 @@ export default function AdvancedSearch({ books, allBooks, offlineIds, nameQuery,
             ? 'All novels, including unrated ones, unless you set a range.'
             : 'Only novels with a saved personal rating in this range.'}</p>
         </div>
+        <label className="advanced-field">Publication status
+          <select aria-label="Filter by publication status" value={criteria.publicationStatus}
+            onChange={event => update('publicationStatus', event.target.value as SearchCriteria['publicationStatus'])}>
+            <option value="all">All publication statuses</option>
+            <option value="Completed">Completed</option><option value="Ongoing">Ongoing</option>
+            <option value="Hiatus">Hiatus</option><option value="Dropped">Dropped</option>
+            <option value="Unknown">Unknown / unrecognised</option>
+          </select>
+          <small className="advanced-filter-help">Source publication status, separate from your reading progress.</small>
+        </label>
         <fieldset className="advanced-tags"><legend><Tag size={15}/> Tags</legend>
           <p className="advanced-filter-help">Genres and labels attached to novels. Select any that interest you.</p>
           <div className="advanced-tag-options">
@@ -152,7 +169,7 @@ export default function AdvancedSearch({ books, allBooks, offlineIds, nameQuery,
           <label>Sort by <select aria-label="Sort advanced search results" value={sort}
             onChange={event => setSort(event.target.value as typeof sort)}>
             <option value="title">Title A–Z</option><option value="rating">Highest rated</option>
-            <option value="recent">Recently read</option>
+            <option value="recent">Recently read</option><option value="publication">Publication status</option>
           </select></label>
         </div>
         <p className="advanced-mode-hint">{criteria.mode === 'all'
@@ -169,6 +186,7 @@ export default function AdvancedSearch({ books, allBooks, offlineIds, nameQuery,
               <div className="advanced-result-meta">
                 {book.personalRating !== undefined && <span><Star size={13} fill="currentColor"/>{book.personalRating}/10</span>}
                 {cached.has(book.id) && <span><BookOpen size={13}/> Offline</span>}
+                {book.status && <span className={'publication-status ' + publicationStatusTone(book.status)}>{publicationStatusDisplay(book.status)}</span>}
               </div>
               {bookTags(book).length > 0 && <div className="advanced-result-tags">
                 {bookTags(book).slice(0, 5).map(tag => <button type="button" key={tag}

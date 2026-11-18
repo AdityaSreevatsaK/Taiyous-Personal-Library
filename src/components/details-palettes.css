@@ -559,3 +559,29 @@
 @media(prefers-reduced-motion:reduce) {
   .details-shell .details-hero .details-hero-membership {transition:none}
 }
+
+
+/* Only the desktop novel-details hero bleeds beyond the regular content
+   column. Everything below it retains the established readable width. */
+@media (min-width:1000px) {
+  .details-shell .details-layout > .details-hero {
+    width:calc(100vw - 48px);
+    margin-left:calc(50% - 50vw + 24px);
+    grid-template-columns:minmax(220px,290px) minmax(0,1fr);
+    column-gap:clamp(36px,5vw,94px);
+    padding:clamp(36px,4vw,70px);
+    min-height:485px;
+  }
+  .details-shell .details-layout > .details-hero .details-cover-wrap {
+    width:100%;max-width:290px;
+  }
+  .details-shell .details-layout > .details-hero .details-cover-wrap .cover-feature {
+    width:100%;max-width:290px;height:auto;aspect-ratio:2/3;
+  }
+  .details-shell .details-layout > .details-hero .details-hero-content {
+    width:100%;max-width:1000px;
+  }
+  .details-shell .details-layout > .details-hero h1{
+    font-size:clamp(38px,4vw,66px);
+  }
+}

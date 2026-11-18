@@ -1,0 +1,34 @@
+# SINGLE-USE production dispatcher. Owner explicitly approved this release
+# on 18 November 2026. Delete this workflow after successful publishing.
+name: "One-time approved Novel Library UX release"
+on:
+  push:
+    branches: [master]
+    paths:
+      - .github/workflows/one-time-approved-novel-ux-deploy-20261118.yml
+
+permissions:
+  contents: read
+  actions: write
+
+jobs:
+  request-verified-cloudflare-release:
+    if: github.repository == 'AdityaSreevatsaK/Taiyous-Personal-Library' && github.ref == 'refs/heads/master'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      EXPECTED_SHA: ${{ github.sha }}
+    steps:
+      - name: Verify master is still the exact approved commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          current="$(gh api "repos/$GH_REPO/git/ref/heads/master" --jq '.object.sha')"
+          if [ "$current" != "$EXPECTED_SHA" ]; then
+            echo '::error::Master changed: refusing a stale deployment.'
+            exit 1
+          fi
+          gh workflow run deploy-standalone.yml --repo "$GH_REPO" --ref master -f publish=true
+          echo "Requested guarded Cloudflare Pages deployment for $EXPECTED_SHA. The deployment workflow independently rechecks types, tests, audit, built-asset privacy and offline smoke before publishing. No HF catalogue modification." >> "$GITHUB_STEP_SUMMARY"
