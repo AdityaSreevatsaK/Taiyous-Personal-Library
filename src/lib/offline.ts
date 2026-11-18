@@ -8,8 +8,11 @@ export async function requestOfflineRetention(): Promise<'persistent' | 'best-ef
 
 /** Register the generated same-origin static app shell for offline navigation. */
 export function registerOfflineApp(): void {
-  if (!('serviceWorker' in navigator) || !window.isSecureContext) return;
-  window.addEventListener('load', () => {
+  if (typeof navigator === 'undefined' || typeof window === 'undefined' ||
+      typeof document === 'undefined' || !('serviceWorker' in navigator) ||
+      !window.isSecureContext) return;
+
+  const register = () => {
     void navigator.serviceWorker.register('/sw.js')
       .then(() => {
         window.dispatchEvent(new Event('taiyou-offline-shell-updated'));
@@ -18,5 +21,11 @@ export function registerOfflineApp(): void {
         // Private iframe sandbox settings can prevent SW registration.
         // EPUBs held in IndexedDB remain available to already-open sessions.
       });
-  }, { once: true });
+  };
+
+  // The entry point can execute after window.load (for example, delayed
+  // module initialisation). A load-only listener would then never register
+  // the offline shell, leaving the next cold start dependent on the network.
+  if (document.readyState === 'complete') register();
+  else window.addEventListener('load', register, { once: true });
 }
