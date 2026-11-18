@@ -1,5 +1,7 @@
 # Taiyou's Personal Library
 
+> **Five-repository ecosystem note (18 November 2026):** This repository remains the independent, working **Novel Library**. The optional [Taiyou Shared Core / Personal Hub](https://github.com/AdityaSreevatsaK/Taiyous-Shared-Core) is a separate private repo and is **not** a runtime dependency or a deployed replacement. See [AI-agent rules](AGENTS.md), [ecosystem architecture](docs/ECOSYSTEM_ARCHITECTURE.md), [integration contract](docs/ECOSYSTEM_INTEGRATION.md) and [agent handover](docs/SESSION_HANDOVER_PROMPT.md). The novel app source repository is currently **public**; the novel dataset is **private**. Four newly created ecosystem repos are private.
+
 A responsive, installable EPUB reader and personal novel library for desktop and mobile. The **application shell is public**, but the novels and selected synchronised personal data live in a **private Hugging Face Dataset**. EPUBs saved for offline reading stay in the browser's IndexedDB.
 
 **Application:** https://taiyous-personal-library.pages.dev  
@@ -10,7 +12,7 @@ A responsive, installable EPUB reader and personal novel library for desktop and
 
 - **`master`** is the production source branch. Deployment is **manual**, not automatic on push.
 - Short-lived feature/fix branches may open pull requests against `master`. The former long-lived `dev` branch was merged and deleted.
-- **[Draft PR #57](https://github.com/AdityaSreevatsaK/Taiyous-Personal-Library/pull/57)** is the current-master implementation of revision-safe personal-data sync and explicit conflict handling. Its automated tests include simulated two-browser conflicts, but **it has not been merged or deployed**; the real disposable-HF and authenticated browser release gates remain.
+- **[PR #57](https://github.com/AdityaSreevatsaK/Taiyous-Personal-Library/pull/57)** was closed without merge. It proposed revision-safe personal sync and explicit conflict handling, but those proposed changes **must not be treated as deployed**. Reassess the current code and real authenticated two-device behaviour before reviving that design.
 - There is **no published GitHub Release or version tag**. A package version is not a release announcement. **Do not create a `v1.0` tag or GitHub Release without the owner's explicit approval and acceptance testing.**
 
 ## Features
@@ -33,7 +35,7 @@ For complete behaviour, see [Capabilities and offline behaviour](docs/CAPABILITI
 | Browser localStorage | Collections and device-local preferences |
 | GitHub / Cloudflare Pages | Source and public app shell; **no private novels or Hugging Face credentials** |
 
-**Sign-in:** Hugging Face OAuth establishes an encrypted, Secure, HttpOnly server-side session; the HF token is not exposed to React. A fine-grained token entered manually is an **in-memory legacy fallback**, not the recommended method for editing cloud data. Draft PR #57 makes legacy token mode read-only for private dataset writes; revision-safe editing requires OAuth. This behaviour is **not deployed**.
+**Sign-in:** Hugging Face OAuth establishes an encrypted, Secure, HttpOnly server-side session; the HF token is not exposed to React. A fine-grained token entered manually is an **in-memory legacy fallback**, not the recommended method for editing cloud data. Closed, unmerged PR #57 proposed making legacy token mode read-only for private dataset writes. **This proposal was not deployed.** Do not claim that it is current behaviour.
 
 **Owner mode:** Deleting an *entire novel* or named collection requires a fresh owner session, separate Owner passphrase and exact-title confirmation. Removing just a locally downloaded EPUB **does not** require Owner mode. Full deletion remains disabled without the Owner secret.
 
