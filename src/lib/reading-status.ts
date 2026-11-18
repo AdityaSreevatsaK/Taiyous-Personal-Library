@@ -19,8 +19,14 @@ export function isCurrentlyReading(book: LibraryBook): boolean {
 }
 
 /** A 100% position in an ongoing novel means all available chapters are read. */
-export function readingProgressLabel(book: Pick<LibraryBook, 'status' | 'progress' | 'completedAt'>): string {
-  if (isOngoingNovel(book) && book.progress >= 99.5) return 'Caught up';
+export function readingProgressLabel(book: Pick<LibraryBook, 'status' | 'progress' | 'completedAt' | 'chapterCount' | 'currentChapterNumber'>): string {
+  if (isOngoingNovel(book) && book.progress >= 99.5) {
+    // A newer EPUB may contain more chapters than were available when the
+    // saved position reached 100%. Never call such a position "Caught up".
+    if (book.chapterCount && book.currentChapterNumber &&
+        book.currentChapterNumber < book.chapterCount) return 'New chapters available';
+    return 'Caught up';
+  }
   if (isFinished(book)) return 'Finished';
   return book.progress > 0 ? 'Currently reading' : 'Not started';
 }
