@@ -1718,3 +1718,24 @@ html::-webkit-scrollbar-thumb:hover { background: var(--library-scroll-hover); }
     grid-template-rows:38px 22px;height:66px;min-height:66px;flex-basis:66px;
   }
 }
+
+
+/* Source publication status is independent of the user's reading shelf. */
+.publication-status{
+  display:inline-flex;align-items:center;gap:5px;align-self:flex-start;
+  max-width:100%;padding:4px 9px;border-radius:999px;
+  font:700 11px/1.35 Inter,"Segoe UI",sans-serif;
+  border:1px solid currentColor;white-space:nowrap;text-shadow:none;
+}
+.publication-status--completed{color:#256347;background:#d9f2e4}
+.publication-status--ongoing{color:#184d83;background:#dcecff}
+.publication-status--hiatus{color:#78500b;background:#fff1c9}
+.publication-status--dropped{color:#8a2c49;background:#ffe0e8}
+.publication-status--unknown{color:#505a6a;background:#e7ebf0}
+.book-tile .tile-meta > .publication-status{margin:3px 0 8px}
+.details-shell .details-meta-row .publication-status{color:inherit}
+.details-shell .details-meta-row .publication-status--completed{color:#256347}
+.details-shell .details-meta-row .publication-status--ongoing{color:#184d83}
+.details-shell .details-meta-row .publication-status--hiatus{color:#78500b}
+.details-shell .details-meta-row .publication-status--dropped{color:#8a2c49}
+.details-shell .details-meta-row .publication-status--unknown{color:#505a6a}

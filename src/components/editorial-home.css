@@ -546,3 +546,35 @@
 .editorial-home .editorial-art-book:focus-visible {
   outline: 3px solid #e7d2a1; outline-offset: 4px;
 }
+
+
+/* Only the three floating, real-jacket gallery links disclose the full title
+   on hover / keyboard focus, outside the actual cover art. */
+.editorial-home .editorial-art-book .editorial-art-hover-label {
+  position:absolute;left:50%;top:calc(100% + 8px);z-index:10;
+  display:block;width:max-content;max-width:min(290px,43vw);
+  min-width:135px;padding:8px 11px;
+  border:1px solid #e7d2a1a6;border-radius:7px;
+  background:#101c30f2;color:#fff8e9;text-shadow:0 1px 3px #000;
+  box-shadow:0 7px 22px #0009;
+  font:650 12px/1.4 Inter,"Segoe UI",sans-serif;
+  white-space:normal;overflow-wrap:anywhere;text-align:center;
+  opacity:0;visibility:hidden;pointer-events:none;
+  transform:translateX(-50%);
+  transition:opacity .16s ease,visibility .16s;
+}
+.editorial-home .editorial-art-book-0 .editorial-art-hover-label{transform:translateX(-50%) rotate(11deg)}
+.editorial-home .editorial-art-book-1 .editorial-art-hover-label{transform:translateX(-50%) rotate(-4deg)}
+.editorial-home .editorial-art-book-2 .editorial-art-hover-label{transform:translateX(-50%) rotate(-12deg)}
+.editorial-home .editorial-art-book:is(:hover,:focus-visible) .editorial-art-hover-label{
+  visibility:visible;opacity:1;
+}
+@media(max-width:700px){
+  .editorial-home .editorial-art-book .editorial-art-hover-label {
+    top:calc(100% + 4px);max-width:175px;min-width:100px;font-size:10px;
+    padding:5px 7px;
+  }
+}
+@media(prefers-reduced-motion:reduce){
+  .editorial-home .editorial-art-book .editorial-art-hover-label {transition:none}
+}

@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import type { LibraryBook, ReaderTheme } from '../types';
 import { isFinished, isCurrentlyReading } from '../lib/reading-status';
+import { publicationStatusDisplay, publicationStatusRank, publicationStatusTone } from '../lib/publication-status';
 import { openNovelInCurrentTab, openInternalLinkInCurrentTab, revealClippedLinkTitle } from '../lib/novel-links';
 import { namedNovelUrl } from '../lib/routes';
 import { bookTags, includesTag, tagCounts } from '../lib/tags';
@@ -26,7 +27,7 @@ import { collectionAncestors, collectionChildren, collectionDescendantIds, colle
 import { libraryAuthorUrl, libraryCollectionUrl, libraryShelfUrl, libraryTagUrl, parseLibraryViewPath, type ShelfFilter } from '../lib/library-routes';
 
 type Filter = ShelfFilter;
-type Sort = 'recent' | 'title' | 'added';
+type Sort = 'recent' | 'title' | 'added' | 'publication';
 
 interface Props {
   books: LibraryBook[];
@@ -363,7 +364,10 @@ export default function LibraryDashboard({
       }
       return !q || `${book.title} ${book.author} ${bookTags(book).join(' ')}`.toLocaleLowerCase().includes(q);
     }).sort((a, b) => globalMode || selectedTag || selectedAuthor || selectedCollection || sort === 'title'
-      ? a.title.localeCompare(b.title, undefined, { sensitivity: 'base', numeric: true }) : sort === 'added' ? b.importedAt - a.importedAt
+      ? a.title.localeCompare(b.title, undefined, { sensitivity: 'base', numeric: true })
+      : sort === 'publication' ? publicationStatusRank(a.status) - publicationStatusRank(b.status)
+        || a.title.localeCompare(b.title, undefined, { sensitivity: 'base', numeric: true })
+      : sort === 'added' ? b.importedAt - a.importedAt
       : (b.lastOpenedAt ?? b.importedAt) - (a.lastOpenedAt ?? a.importedAt));
   }, [books, filter, sort, query, selectedTag, selectedAuthor, selectedCollection, globalSearch, globalMode, cachedEpubIds]);
   function browseAuthor(author: string) {
@@ -711,7 +715,7 @@ export default function LibraryDashboard({
                 </a>)}
               </div> : <p>No subcollections yet. Create one here, or move another collection under this one.</p>}
             </section>
-          </>}<div className="library-toolbar"><div className="toolbar-right"><label className="tag-filter"><Tag size={16} /><select aria-label="Filter novels by tag" value={selectedTag} onChange={(e) => browseTag(e.target.value)}><option value="">All tags</option>{availableTags.map(({tag, count}) => <option key={tag} value={tag}>{tag} ({count})</option>)}</select><ChevronDown size={14} /></label><label className="search-field"><Search size={17} /><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={selectedCollection ? `Search ${selectedCollection.name}…` : selectedTag ? `Search ${displayTag} novels…` : "Search this shelf…"} aria-label="Search within current list" />{query && <button aria-label="Clear search" onClick={() => setQuery('')}><X size={14} /></button>}</label><label className="sort-field"><Settings2 size={16} /><select value={selectedTag || selectedAuthor || selectedCollection || globalMode ? 'title' : sort} disabled={!!selectedTag || !!selectedAuthor || !!selectedCollection || globalMode} onChange={(e) => setSort(e.target.value as Sort)} aria-label="Sort books"><option value="title">Title A–Z</option><option value="recent">Recent</option><option value="added">Date added</option></select><ChevronDown size={14} /></label></div></div>
+          </>}<div className="library-toolbar"><div className="toolbar-right"><label className="tag-filter"><Tag size={16} /><select aria-label="Filter novels by tag" value={selectedTag} onChange={(e) => browseTag(e.target.value)}><option value="">All tags</option>{availableTags.map(({tag, count}) => <option key={tag} value={tag}>{tag} ({count})</option>)}</select><ChevronDown size={14} /></label><label className="search-field"><Search size={17} /><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={selectedCollection ? `Search ${selectedCollection.name}…` : selectedTag ? `Search ${displayTag} novels…` : "Search this shelf…"} aria-label="Search within current list" />{query && <button aria-label="Clear search" onClick={() => setQuery('')}><X size={14} /></button>}</label><label className="sort-field"><Settings2 size={16} /><select value={selectedTag || selectedAuthor || selectedCollection || globalMode ? 'title' : sort} disabled={!!selectedTag || !!selectedAuthor || !!selectedCollection || globalMode} onChange={(e) => setSort(e.target.value as Sort)} aria-label="Sort books"><option value="title">Title A–Z</option><option value="recent">Recent</option><option value="added">Date added</option><option value="publication">Publication status</option></select><ChevronDown size={14} /></label></div></div>
 
             {visible.length ? <div className="book-grid">{visible.map((book) => <article className="book-tile" key={book.id}><a className="cover-button" href={namedNovelUrl(book, allBooks)}
                   onClick={event => openNovelInCurrentTab(event, () => onOpen(book))}
@@ -722,7 +726,7 @@ export default function LibraryDashboard({
                   href={namedNovelUrl(book, allBooks)}
                   onClick={event => openNovelInCurrentTab(event, () => onOpen(book))}
                   onMouseEnter={event => revealClippedLinkTitle(event, book.title)}
-                  onFocus={event => revealClippedLinkTitle(event, book.title)}>{book.title}</a></div><button type="button" className="tile-author-link" onClick={() => browseAuthor(book.author)} aria-label={`View novels by ${book.author}`}>{book.author}</button>{filter === 'offline' && cachedEpubIds.includes(book.id) && <div className="offline-tile-actions">
+                  onFocus={event => revealClippedLinkTitle(event, book.title)}>{book.title}</a></div><button type="button" className="tile-author-link" onClick={() => browseAuthor(book.author)} aria-label={`View novels by ${book.author}`}>{book.author}</button>{book.status && <span className={'publication-status ' + publicationStatusTone(book.status)}>{publicationStatusDisplay(book.status)}</span>}{filter === 'offline' && cachedEpubIds.includes(book.id) && <div className="offline-tile-actions">
                 {book.cloud
                   ? <button type="button" className="offline-remove-button" onClick={() => onRemoveOffline(book)} aria-label={`Remove offline EPUB for ${book.title}`}>
                       <Trash2 size={14} /> Remove download
