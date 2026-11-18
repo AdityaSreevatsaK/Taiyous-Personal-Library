@@ -1,32 +1,35 @@
-# Guarded one-shot deployment trigger for mobile reader controls and chapter navigation.
-# Does not delete stored EPUBs, update private Hugging Face records or tag a release.
-name: "One-shot: deploy verified library updates"
+# SINGLE-USE RELEASE DISPATCHER, owner-approved 18 November 2026.
+# Remove this workflow immediately after the guarded deploy completes.
+# Must not run on ordinary pushes, merges, PRs or commits changing other paths.
+name: "One-time approved Cloudflare deployment, 18 November 2026"
 on:
   push:
     branches: [master]
     paths:
       - .github/workflows/one-shot-deploy-epub-preview-ui-20261116.yml
+
 permissions:
   contents: read
   actions: write
+
 jobs:
-  dispatch:
+  request-verified-production-deploy:
     if: github.repository == 'AdityaSreevatsaK/Taiyous-Personal-Library' && github.ref == 'refs/heads/master'
     runs-on: ubuntu-24.04
-    timeout-minutes: 8
+    timeout-minutes: 10
     env:
       GH_TOKEN: ${{ github.token }}
       GH_REPO: ${{ github.repository }}
       EXPECTED_SHA: ${{ github.sha }}
     steps:
-      - name: Guard master revision before deployment
+      - name: Require exactly the owner-approved master revision
         shell: bash
         run: |
           set -euo pipefail
           current="$(gh api "repos/$GH_REPO/git/ref/heads/master" --jq '.object.sha')"
           if [ "$current" != "$EXPECTED_SHA" ]; then
-            echo '::error::Master changed. Refusing to deploy stale revision.'
+            echo '::error::Master changed. Refusing stale production release.'
             exit 1
           fi
           gh workflow run deploy-standalone.yml --repo "$GH_REPO" --ref master -f publish=true
-          echo 'Guarded Cloudflare deployment requested for mobile reader header, library menu, Inter defaults and compact numeric chapter picker. No EPUB deletion or release tag.' >> "$GITHUB_STEP_SUMMARY"
+          echo "Dispatched the existing guarded Cloudflare PWA workflow for $EXPECTED_SHA. The deployment workflow runs fresh tests and deploys only after they pass. No Hugging Face dataset mutation or version tag." >> "$GITHUB_STEP_SUMMARY"
