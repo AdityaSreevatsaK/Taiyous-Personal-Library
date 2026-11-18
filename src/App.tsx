@@ -16,7 +16,7 @@ import { installUsageTracker } from './lib/usage-analytics';
 import { deleteBook, removeCachedEpub, getBookFile, getBooks, getCachedEpubIds, getArchivedBookRecords, archiveStaleBookRecords, restoreReappearedArchivedRecords, preserveNovelMetadataForDeletion, readSettings, saveBook, updateBook, writeSettings } from './lib/storage';
 import { staleMetadataCandidates } from './lib/stale-archive';
 import { resetReadingProgress } from './lib/progress-admin';
-import { withUpdatedReadingPosition } from './lib/reading-status';
+import { isOngoingNovel, withUpdatedReadingPosition } from './lib/reading-status';
 import { loadChapterCatalog } from './lib/catalog';
 import BackToTop from './components/BackToTop';
 import { useAppDialogs } from './components/AppDialogs';
@@ -775,6 +775,7 @@ export default function App() {
   const markNovelCompleted = useCallback(async (bookId: string) => {
     const current = booksRef.current.find(book => book.id === bookId);
     if (!current) throw new Error('Novel no longer exists');
+    if (isOngoingNovel(current)) throw new Error('This novel is still ongoing. Reaching its latest chapter means Caught up, not Finished.');
     if (current.completedAt) return;
     const updatedAt = Math.max(Date.now(), (current.progressUpdatedAt || 0) + 1);
     const updated: LibraryBook = { ...current, progress:100, completedAt:updatedAt, progressUpdatedAt:updatedAt,
