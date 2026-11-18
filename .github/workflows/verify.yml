@@ -171,20 +171,13 @@ jobs:
             console.log('::warning::Production metadata could not be fetched from GitHub Actions: ' + String(error));
           }
           JS
+      - name: Verify audit exception logic fails closed on new advisories
+        run: node --test scripts/check_dev_audit.test.cjs
       - name: Inventory development dependency advisories
         shell: bash
         run: |
+          # Always audit dev tools. Only one exact, documented unpatched
+          # picomatch finding (and its meta-dependencies) is non-blocking.
+          # Unexpected HIGH/CRITICAL findings still make CI red.
           npm audit --audit-level=low --json > /tmp/taiyou-audit.json || true
-          node - <<'JS'
-          const fs = require('fs');
-          const report = JSON.parse(fs.readFileSync('/tmp/taiyou-audit.json','utf8'));
-          for (const [name, v] of Object.entries(report.vulnerabilities || {})) {
-            console.log(`${v.severity.toUpperCase()} ${name} ${v.range || ''} fixAvailable=${JSON.stringify(v.fixAvailable)} direct=${v.isDirect}`);
-          }
-          const counts = report.metadata?.vulnerabilities || {};
-          console.log('Total vulnerabilities by severity: ' + JSON.stringify(counts));
-          if ((counts.high || 0) + (counts.critical || 0) > 0) {
-            console.error('CI blocked: high or critical npm advisories require remediation.');
-            process.exit(1);
-          }
-          JS
+          node scripts/check_dev_audit.cjs /tmp/taiyou-audit.json
