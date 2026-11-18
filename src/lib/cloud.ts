@@ -1,5 +1,6 @@
 import { uploadFiles } from '@huggingface/hub';
 import type { LibraryBook, ImportedBook } from '../types';
+import { isOngoingNovel } from './reading-status';
 import { coverPathForEntry, novelFolderFromEpubPath, parseNovelFilePath, readableNovelFolder, verifiedNovelFolder } from './novel-paths';
 
 /**
@@ -339,7 +340,7 @@ export function validateReadingProgress(value: unknown, bookId: string): CloudRe
 
 export function applyCloudReadingProgress(book: LibraryBook, remote: CloudReadingProgress): LibraryBook {
   if (book.id !== remote.bookId || remote.updatedAt < (book.progressUpdatedAt ?? 0)) return book;
-  const remoteFinishedAt = remote.completedAt ?? (remote.progress >= 99.5 ? remote.updatedAt : 0);
+  const remoteFinishedAt = remote.completedAt ?? (!isOngoingNovel(book) && remote.progress >= 99.5 ? remote.updatedAt : 0);
   const completedAt = Math.max(book.completedAt || 0, remoteFinishedAt || 0) || undefined;
   return { ...book, progress: remote.progress, completedAt,
     currentChapter: remote.currentChapter ?? undefined,
@@ -361,7 +362,7 @@ export async function saveCloudReadingProgress(repo: string, bookId: string, ses
   await assertPrivateDataset(repo, session);
   const progress = validateReadingProgress({
     version: 1, bookId, progress: book.progress,
-    completedAt: book.completedAt ?? (book.progress >= 99.5 ? (book.progressUpdatedAt || Date.now()) : null),
+    completedAt: book.completedAt ?? (!isOngoingNovel(book) && book.progress >= 99.5 ? (book.progressUpdatedAt || Date.now()) : null),
     currentChapter: book.currentChapter ?? null,
     currentChapterIndex: book.currentChapterIndex ?? null,
     currentChapterNumber: book.currentChapterNumber ?? null,

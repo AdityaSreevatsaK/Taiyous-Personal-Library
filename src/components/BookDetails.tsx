@@ -17,7 +17,7 @@ import ChapterBrowser from './ChapterBrowser';
 import { bookTags, normalisePersonalTags, suggestExistingTags, tagKey } from '../lib/tags';
 import { ratingLabel, ratingToneClass } from '../lib/ratings';
 import './site-footer.css';
-import { isFinished } from '../lib/reading-status';
+import { isFinished, isOngoingNovel, readingProgressLabel } from '../lib/reading-status';
 import { openInternalLinkInCurrentTab, openNovelInCurrentTab, revealClippedLinkTitle } from '../lib/novel-links';
 import type { ChapterItem, LibraryBook, ReaderTheme } from '../types';
 
@@ -249,10 +249,10 @@ export default function BookDetails({ book, availableTags, theme, onThemeChange,
           <section className="details-card details-progress-card" aria-label="Reading progress"><div className="details-section-header"><div><span className="details-label">YOUR JOURNEY</span><h2>Reading progress</h2></div><Bookmark size={20} className="details-section-icon" /></div>
             <div className="details-percent">{Math.round(book.progress)}<span>%</span></div>
             <div className="details-progress-track"><i style={{ width: `${Math.max(0, Math.min(book.progress, 100))}%` }} /></div>
-            <div className="details-progress-status">{isFinished(book) ? 'Finished' : book.progress <= 0 ? 'Not started' : 'Currently reading'}</div>
+            <div className="details-progress-status">{readingProgressLabel(book)}</div>
             <div className="details-location"><span>{book.currentChapterNumber ? 'Chapter' : 'Last reading position'}</span><strong>{chapterText}</strong></div>
             <a href={readHref} className="details-resume" onClick={event => openNovelInCurrentTab(event, onRead)}>{book.progress > 0 ? 'Resume at saved position' : 'Begin this novel'} <ArrowRight size={17} /></a>
-            {!isFinished(book) && <button type="button" className="details-mark-completed" disabled={markingCompleted}
+            {!isOngoingNovel(book) && !isFinished(book) && <button type="button" className="details-mark-completed" disabled={markingCompleted}
               onClick={() => {
                 void (async () => {
                   if (!await confirm({ title: 'Mark as completed?', message: '“' + book.title + '”', confirmLabel: 'Mark completed' })) return;
