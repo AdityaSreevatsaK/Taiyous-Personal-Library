@@ -64,6 +64,21 @@ describe('curated private library homepage', () => {
     expect(shelves.map(s => s.count)).toEqual([6, 6, 6, 6]);
     expect(selectHomeShelves(books, [])).toEqual(shelves);
   });
+  it('randomises just the four homepage shelf previews without losing links or reusing covers', () => {
+    const tags = ['Fantasy', 'Action', 'Adventure', 'Cultivation', 'Romance', 'Drama', 'Sci-Fi', 'Mystery'];
+    const novels = Array.from({ length: 15 }, (_, i) =>
+      book(i + 1, { sourceTags: tags, coverPath: 'cover-' + i + '.jpg' }));
+    const results = Array.from({ length: 32 }, (_, index) =>
+      selectHomeShelves(novels, [], 4, index + 1));
+    expect(new Set(results.map(items => items.map(item => item.id).join('|'))).size).toBeGreaterThan(1);
+    for (const shelves of results) {
+      expect(shelves).toHaveLength(4);
+      expect(new Set(shelves.map(item => item.preview.id)).size).toBe(4);
+      expect(shelves.every(item => tags.includes(item.name) && item.count === 15)).toBe(true);
+    }
+    expect(selectHomeShelves(novels, [], 4, 7)).toEqual(selectHomeShelves(novels, [], 4, 7));
+    expect(selectHomeShelves(novels, [], 4, 7)).not.toEqual(selectHomeShelves(novels, [], 4, 18));
+  });
   it('shows fewer shelf cards rather than reusing a cover with insufficient unique books', () => {
     const only = book(1, { sourceTags: ['Action', 'Fantasy', 'Martial Arts'] });
     const shelves = selectHomeShelves([only], []);

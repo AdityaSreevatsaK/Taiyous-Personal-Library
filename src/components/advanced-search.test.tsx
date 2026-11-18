@@ -50,6 +50,28 @@ describe('advanced novel search', () => {
     expect(matchesAdvancedSearch(first, criteria, offline)).toBe(true);
     expect(matchesAdvancedSearch(second, criteria, offline)).toBe(false);
   });
+  it('filters publication state independently of personal reading progress', () => {
+    const hiatus = { ...first, status: 'On Hiatus', progress: 100, completedAt: 900 };
+    const dropped = { ...first, status: 'Dropped', progress: 100 };
+    const ongoing = { ...first, status: 'Ongoing', progress: 0 };
+    const completed = { ...first, status: 'Completed', progress: 0 };
+    for (const [status, matching] of [
+      ['Hiatus', hiatus], ['Dropped', dropped], ['Ongoing', ongoing],
+      ['Completed', completed], ['Unknown', first],
+    ] as const) {
+      const criteria = { ...defaultSearchCriteria, publicationStatus: status };
+      expect(matchesAdvancedSearch(matching, criteria, offline)).toBe(true);
+      expect(matchesAdvancedSearch(completed, { ...criteria, publicationStatus: 'Hiatus' }, offline)).toBe(false);
+    }
+  });
+
+  it('combines status filters with match all/any without bypassing typed title', () => {
+    const hiatus = { ...first, status: 'Hiatus' };
+    const criteria = { ...defaultSearchCriteria, publicationStatus: 'Hiatus' as const, minRating: 10 };
+    expect(matchesAdvancedSearch(hiatus, criteria, offline)).toBe(false);
+    expect(matchesAdvancedSearch(hiatus, { ...criteria, mode: 'any' }, offline)).toBe(true);
+    expect(matchesAdvancedSearch(hiatus, { ...criteria, name: 'secret', mode: 'any' }, offline)).toBe(false);
+  });
   it('does not treat an unrated book as 0 out of 10', () => {
     const criteria = { ...defaultSearchCriteria, minRating: 1 };
     expect(matchesAdvancedSearch({ ...first, personalRating: undefined }, criteria, offline)).toBe(false);

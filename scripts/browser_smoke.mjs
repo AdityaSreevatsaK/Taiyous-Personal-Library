@@ -638,6 +638,20 @@ try {
     if (/Under The Starry Night|Exploded\?|Chapter 1\s*-/i.test(readingPosition)) {
       throw new Error('Compact reading progress must not repeat full EPUB chapter titles');
     }
+    // Only the photographic hero spans the desktop viewport. The main
+    // synopsis/management content below remains in its narrow reading column.
+    if (viewport.width >= 1000) {
+      const bounds = await page.locator('.details-hero').boundingBox();
+      const cover = await page.locator('.details-hero .details-cover-wrap').boundingBox();
+      if (!bounds || bounds.x > 40 || bounds.x + bounds.width < viewport.width - 40 ||
+          !cover || cover.width < 220) {
+        throw new Error('Novel details hero is not full bleed with a larger cover: ' +
+          JSON.stringify({ bounds, cover }));
+      }
+      const hasOverflow = await page.evaluate(() =>
+        document.documentElement.scrollWidth > window.innerWidth + 2);
+      if (hasOverflow) throw new Error('Full-bleed hero caused horizontal page overflow');
+    }
     // All imported genres must remain visible, even on narrow mobile widths.
     // The old stylesheet hid everything after the first three tags.
     const heroTags = page.locator('.details-hero .details-hero-tags button');
