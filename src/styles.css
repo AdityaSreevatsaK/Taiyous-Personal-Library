@@ -1773,8 +1773,8 @@ html::-webkit-scrollbar-thumb:hover { background: var(--library-scroll-hover); }
 @media(prefers-reduced-motion:reduce){.collection-change-toast{animation:none}}
 
 
-/* Thin corner marks, not badges. The underlying cover retains its dimensions,
-   decorative book artwork and halo. Publication never implies reading progress. */
+/* Compact, readable diagonal publication ribbons. The underlying cover
+   retains its dimensions, artwork and halo; do not infer personal progress. */
 .app-shell .book-grid .cover-button,
 .app-shell .advanced-result-cover {position:relative}
 .publication-corner-ribbon {
@@ -1784,8 +1784,11 @@ html::-webkit-scrollbar-thumb:hover { background: var(--library-scroll-hover); }
   border-radius:7px 0 0 0;
 }
 .publication-corner-ribbon::before {
-  content:'';position:absolute;top:15px;left:-27px;
-  width:100px;height:9px;
+  content:attr(data-label);position:absolute;top:20px;left:-22px;
+  width:110px;height:18px;display:flex;align-items:center;justify-content:center;
+  white-space:nowrap;box-sizing:border-box;
+  color:#152630;font:800 9px/1 Inter,"Segoe UI",system-ui,sans-serif;
+  letter-spacing:.12px;text-shadow:0 1px #ffffff55;
   background:var(--ribbon-tone);
   transform:rotate(-45deg);transform-origin:50% 50%;
   box-shadow:0 1px 3px #080e1d8c,inset 0 1px #ffffff44;
@@ -1798,11 +1801,13 @@ html::-webkit-scrollbar-thumb:hover { background: var(--library-scroll-hover); }
 /* Search result jackets are only 80px wide; the mark scales with them. */
 .app-shell .advanced-result-cover .publication-corner-ribbon{width:44px;height:44px}
 .app-shell .advanced-result-cover .publication-corner-ribbon::before{
-  width:75px;height:7px;left:-22px;top:11px;
+  width:78px;height:13px;left:-18px;top:11px;
+  font-size:7px;letter-spacing:0;
 }
 @media(max-width:550px){
   .app-shell .book-grid .publication-corner-ribbon{width:55px;height:55px}
   .app-shell .book-grid .publication-corner-ribbon::before{
-    width:82px;height:8px;left:-23px;top:13px;
+    width:92px;height:15px;left:-18px;top:16px;
+    font-size:8px;letter-spacing:0;
   }
 }

@@ -5,7 +5,10 @@ import { normalisePublicationStatus } from '../lib/publication-status';
  * This is publication state, never the reader's personal progress. */
 export default function PublicationCornerRibbon({ status }: { status?: string }) {
   if (!status?.trim()) return null;
-  const tone = normalisePublicationStatus(status)?.toLowerCase() || 'unknown';
+  const canonical = normalisePublicationStatus(status);
+  const tone = canonical?.toLowerCase() || 'unknown';
+  // The visible label is the novel's publication state, not reading progress.
+  // Unknown legacy strings have a short, safe display without changing storage.
   return <span className={`publication-corner-ribbon publication-corner-ribbon--${tone}`}
-    aria-hidden="true" />;
+    data-label={canonical || 'Unknown'} aria-hidden="true" />;
 }
