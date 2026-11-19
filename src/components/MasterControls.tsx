@@ -3,6 +3,7 @@ import { AlertTriangle, Check, LockKeyhole, Search, ShieldCheck, ShieldOff, Tras
 import type { LibraryBook, ReaderTheme } from '../types';
 import { normalisePersonalTags, suggestExistingTags, tagCounts } from '../lib/tags';
 import { ratingLabel } from '../lib/ratings';
+import { normalisePublicationStatus, type PublicationStatus } from '../lib/publication-status';
 import { useAppDialogs } from './AppDialogs';
 import { isFinished } from '../lib/reading-status';
 import { getOwnerStatus, ownerPost, type OwnerStatus } from '../lib/owner';
@@ -16,6 +17,7 @@ interface Props {
   onClearOffline: () => Promise<{ removed: number; kept: number }>;
   onSaveRating: (id: string, rating: number | undefined) => Promise<void>;
   onCorrectMetadata: (id: string, title: string, author: string) => Promise<void>;
+  onCorrectPublicationStatus: (id: string, status: PublicationStatus) => Promise<void>;
   onMarkCompleted: (id: string) => Promise<void>;
   onResetProgress: (id: string) => Promise<void>;
   onSaveTags: (id: string, tags: string[]) => Promise<void>;
@@ -26,7 +28,7 @@ interface Props {
   staleCount: number;
   onArchiveStale: () => Promise<number>;
 }
-type RowProps = Pick<Props, 'onSaveRating' | 'onCorrectMetadata' | 'onMarkCompleted' |
+type RowProps = Pick<Props, 'onSaveRating' | 'onCorrectMetadata' | 'onCorrectPublicationStatus' | 'onMarkCompleted' |
   'onResetProgress' | 'onSaveTags' | 'onSaveSummary' | 'onSaveReview' | 'onExportEpub' | 'onDeleteNovel'> &
   { book: LibraryBook; duplicate: boolean; libraryTags: string[] };
 
@@ -35,12 +37,14 @@ function errorMessage(reason: unknown) {
 }
 
 /** Each immutable record is managed independently. Edits never replace an EPUB. */
-function BookRow({ book, onCorrectMetadata, onMarkCompleted, onResetProgress,
+function BookRow({ book, onCorrectMetadata, onCorrectPublicationStatus, onMarkCompleted, onResetProgress,
   onSaveTags, onSaveSummary, onSaveReview, onExportEpub, onDeleteNovel, duplicate, libraryTags }: RowProps) {
   const [expanded, setExpanded] = useState(false);
   const [title, setTitle] = useState(book.title);
   const [author, setAuthor] = useState(book.author);
   const [rating, setRating] = useState(book.personalRating?.toString() ?? '');
+  const [publicationDraft, setPublicationDraft] = useState<PublicationStatus | ''>(
+    normalisePublicationStatus(book.status) || '');
   const [personalTags, setPersonalTags] = useState((book.personalTags || []).join(', '));
   const [summary, setSummary] = useState(book.userDescription || book.description || '');
   const [notes, setNotes] = useState(book.personalReview || '');
@@ -56,10 +60,11 @@ function BookRow({ book, onCorrectMetadata, onMarkCompleted, onResetProgress,
   useEffect(() => {
     setTitle(book.title); setAuthor(book.author);
     setRating(book.personalRating?.toString() ?? '');
+    setPublicationDraft(normalisePublicationStatus(book.status) || '');
     setPersonalTags((book.personalTags || []).join(', '));
     setSummary(book.userDescription || book.description || '');
     setNotes(book.personalReview || '');
-  }, [book.id, book.title, book.author, book.personalRating, book.personalTags,
+  }, [book.id, book.title, book.author, book.status, book.personalRating, book.personalTags,
     book.userDescription, book.description, book.personalReview]);
 
   async function run(action: () => Promise<void>, success: string) {
@@ -124,6 +129,29 @@ function BookRow({ book, onCorrectMetadata, onMarkCompleted, onResetProgress,
               void confirm({ title: 'Save corrected metadata?', message: 'Correct the title and author for “' + book.title + '”? The immutable ID, EPUB and reading data remain unchanged.', confirmLabel: 'Save changes' })
                 .then(ok => { if (ok) void run(() => onCorrectMetadata(book.id, newTitle, newAuthor), 'Title and author saved'); });
             }}>Save title and author</button>
+        </div>
+        <div className="master-editor-group">
+          <h3>Publication status</h3>
+          <p>The source novel's publication state. This does not mark you as having read or finished it.</p>
+          <label htmlFor={'master-publication-' + book.id}>Novel publication status</label>
+          <select id={'master-publication-' + book.id} value={publicationDraft}
+            onChange={event => setPublicationDraft(event.target.value as PublicationStatus | '')}>
+            <option value="">Select a verified status</option>
+            {(['Completed','Ongoing','Hiatus','Dropped'] as const).map(status =>
+              <option key={status} value={status}>{status}</option>)}
+          </select>
+          <button type="button" disabled={busy || !publicationDraft ||
+            (book.status === publicationDraft)}
+            onClick={() => {
+              void confirm({ title: 'Correct publication status?',
+                message:'Update publication status for “' + book.title + '” from “' +
+                  (book.status || 'Not supplied') + '” to “' + publicationDraft +
+                  '”? This changes source metadata only, not your reading progress.',
+                confirmLabel:'Save publication status' })
+                .then(ok => { if (ok && publicationDraft) void run(
+                  () => onCorrectPublicationStatus(book.id, publicationDraft),
+                  'Publication status saved as ' + publicationDraft); });
+            }}>Save publication status</button>
         </div>
         <div className="master-editor-group">
           <h3>Personal rating and notes</h3>
@@ -194,7 +222,7 @@ function BookRow({ book, onCorrectMetadata, onMarkCompleted, onResetProgress,
 }
 
 export default function MasterControls({
-  books, cachedEpubIds, theme, onExit, onClearOffline, onSaveRating, onCorrectMetadata,
+  books, cachedEpubIds, theme, onExit, onClearOffline, onSaveRating, onCorrectMetadata, onCorrectPublicationStatus,
   onMarkCompleted, onResetProgress, onSaveTags, onSaveSummary, onSaveReview, onExportEpub,
   onDeleteNovel, staleCount, onArchiveStale,
 }: Props) {
@@ -343,7 +371,7 @@ export default function MasterControls({
       </section>}
       <section className="master-panel" aria-labelledby="master-records-heading">
         <div className="master-record-heading"><div><h2 id="master-records-heading">Manage novel records</h2>
-          <p>Expand a novel to edit titles, authors, ratings, private notes, tags and progress. Hosted title corrections use an Owner-authorised, revision-safe catalogue commit; EPUBs remain unchanged.</p>
+          <p>Expand a novel to edit titles, authors, publication status, ratings, private notes, tags and progress. Hosted metadata corrections use an Owner-authorised, revision-safe catalogue commit; EPUBs remain unchanged.</p>
           {duplicateKeys.size > 0 && <p className="master-duplicate-guidance">Potential local/hosted duplicates detected. Both IDs and EPUB copies remain preserved. Export and compare before considering removal.</p>}</div>
           <label className="master-search"><Search size={16}/><input aria-label="Search master records"
             value={search} placeholder="Search title, author or ID…" onChange={event=>{setSearch(event.target.value);setVisibleCount(25);}} /></label>
@@ -353,6 +381,7 @@ export default function MasterControls({
           <tbody>{onPage.map((book, index) => <Fragment key={book.id}>
             <BookRow book={book} libraryTags={libraryTags} duplicate={isDuplicate(book)}
               onSaveRating={onSaveRating} onCorrectMetadata={onCorrectMetadata}
+              onCorrectPublicationStatus={onCorrectPublicationStatus}
               onMarkCompleted={onMarkCompleted} onResetProgress={onResetProgress}
               onSaveTags={onSaveTags} onSaveSummary={onSaveSummary}
               onSaveReview={onSaveReview} onExportEpub={onExportEpub}

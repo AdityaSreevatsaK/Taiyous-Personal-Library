@@ -33,7 +33,7 @@ interface Props {
   collections: BookCollection[];
   membershipPaths: Array<{ collection: BookCollection; path: string }>;
   onBrowseLibrary: (path: string) => void;
-  onAddToCollection: (collectionId: string) => Promise<void>;
+  onToggleCollection: (collectionId: string, include: boolean) => Promise<void>;
   onCreateCollectionForBook: (name: string, parentId?: string) => Promise<void>;
   onRead: () => void;
   readHref: string;
@@ -58,7 +58,7 @@ interface Props {
   error: string | null;
 }
 
-export default function BookDetails({ book, availableTags, theme, onThemeChange, onBack, collections, membershipPaths, onBrowseLibrary, onAddToCollection, onCreateCollectionForBook, onRead, readHref, onDownloadEpub, isCachedOffline, onSaveOffline, onRemoveOffline, onDeleteLocal, onDownloadArchive, cloudConnected, cloudRepo, cloudSession, onReadChapter, onLoadChapters, onSaveTags, onSaveSummary, onSaveReview, onSetTrial, onBrowseTag, onBrowseAuthor, onMarkCompleted, error }: Props) {
+export default function BookDetails({ book, availableTags, theme, onThemeChange, onBack, collections, membershipPaths, onBrowseLibrary, onToggleCollection, onCreateCollectionForBook, onRead, readHref, onDownloadEpub, isCachedOffline, onSaveOffline, onRemoveOffline, onDeleteLocal, onDownloadArchive, cloudConnected, cloudRepo, cloudSession, onReadChapter, onLoadChapters, onSaveTags, onSaveSummary, onSaveReview, onSetTrial, onBrowseTag, onBrowseAuthor, onMarkCompleted, error }: Props) {
   const [tagInput, setTagInput] = useState('');
   const [tagDraft, setTagDraft] = useState<string[]>(() => book.personalTags || []);
   const [editingSummary, setEditingSummary] = useState(false);
@@ -254,7 +254,7 @@ export default function BookDetails({ book, availableTags, theme, onThemeChange,
       </div>
 
       {showCollectionPicker && <NovelCollectionPicker bookTitle={book.title} bookId={book.id} theme={theme}
-        collections={collections} onAdd={onAddToCollection} onCreate={onCreateCollectionForBook}
+        collections={collections} onToggle={onToggleCollection} onCreate={onCreateCollectionForBook}
         onClose={() => {
           setShowCollectionPicker(false);
           window.requestAnimationFrame(() => collectionTriggerRef.current?.focus());

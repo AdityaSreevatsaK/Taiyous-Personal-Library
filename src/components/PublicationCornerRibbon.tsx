@@ -7,8 +7,12 @@ export default function PublicationCornerRibbon({ status }: { status?: string })
   if (!status?.trim()) return null;
   const canonical = normalisePublicationStatus(status);
   const tone = canonical?.toLowerCase() || 'unknown';
+  const label = canonical === 'Completed' ? 'Story Complete'
+    : canonical === 'Ongoing' ? 'Updating'
+    : canonical === 'Hiatus' ? 'On Hiatus'
+    : canonical || 'Unknown';
   // The visible label is the novel's publication state, not reading progress.
   // Unknown legacy strings have a short, safe display without changing storage.
   return <span className={`publication-corner-ribbon publication-corner-ribbon--${tone}`}
-    data-label={canonical || 'Unknown'} aria-hidden="true" />;
+    data-label={label} aria-hidden="true" />;
 }

@@ -7,7 +7,7 @@ interface Props {
   bookTitle: string;
   theme: ReaderTheme;
   collections: BookCollection[];
-  onAdd: (collectionId: string) => Promise<void>;
+  onToggle: (collectionId: string, include: boolean) => Promise<void>;
   onCreate: (name: string, parentId?: string) => Promise<void>;
   onClose: () => void;
 }
@@ -15,7 +15,7 @@ interface Props {
 /** Pick from existing nested collections or create one containing this novel.
  * Uses native in-app modal focus semantics and the existing collection store. */
 export default function NovelCollectionPicker({
-  bookId, bookTitle, theme, collections, onAdd, onCreate, onClose,
+  bookId, bookTitle, theme, collections, onToggle, onCreate, onClose,
 }: Props) {
   const dialogRef = useRef<HTMLDialogElement | null>(null);
   const searchRef = useRef<HTMLInputElement | null>(null);
@@ -35,10 +35,10 @@ export default function NovelCollectionPicker({
     return () => { if (dialog?.open) dialog.close(); };
   }, []);
 
-  async function add(id: string) {
+  async function toggle(id: string, include: boolean) {
     if (busy) return;
     setBusy(true); setError('');
-    try { await onAdd(id); onClose(); }
+    try { await onToggle(id, include); }
     catch (reason) { setError(reason instanceof Error ? reason.message : String(reason)); }
     finally { setBusy(false); }
   }
@@ -69,9 +69,12 @@ export default function NovelCollectionPicker({
         const included = collection.bookIds.includes(bookId);
         return <li key={collection.id}>
           <span>{path}</span>
-          <button type="button" disabled={busy || included}
-            aria-label={(included ? 'Already added to ' : 'Add novel to ') + path}
-            onClick={() => void add(collection.id)}>{included ? '✓ Added' : busy ? 'Saving…' : 'Add'}</button>
+          <button type="button" disabled={busy} aria-pressed={included}
+            className={included ? 'is-added' : ''}
+            aria-label={(included ? 'Remove novel from ' : 'Add novel to ') + path}
+            onClick={() => void toggle(collection.id, !included)}>
+            {busy ? 'Saving…' : included ? '✓ Added' : 'Add'}
+          </button>
         </li>;
       })}
       {!matching.length && <li><span>{query ? 'No matching collections.' : 'No collections yet. Create one below.'}</span></li>}
