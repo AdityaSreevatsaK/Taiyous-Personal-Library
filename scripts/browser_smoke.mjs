@@ -1759,6 +1759,9 @@ try {
               tone:marker?.className,
               barHeight:before ? parseFloat(before.height) : null,
               barColour:before?.backgroundColor,
+              ribbonText:marker?.dataset.label || null,
+              renderedText:before?.content || null,
+              ribbonFontSize:before ? parseFloat(before.fontSize) : null,
               hasDiagonal:!!before && before.transform !== 'none',
               nearTopLeft:!!markerRect && !!cover &&
                 Math.abs(markerRect.left - cover.left) < 2 &&
@@ -1776,9 +1779,12 @@ try {
         if (tagged.length !== 4 || marks.some(mark => mark.visualBadges !== 0 ||
             (mark.status ? (!mark.tone?.includes(expectedTones[mark.status]) ||
               !mark.nearTopLeft || !mark.hasDiagonal ||
-              mark.barHeight < 6 || mark.barHeight > 10 ||
+              mark.barHeight < 13 || mark.barHeight > 20 ||
+              mark.ribbonFontSize < 7 ||
+              mark.ribbonText !== mark.status.replace('Publication status: ', '') ||
+              !mark.renderedText?.includes(mark.ribbonText) ||
               !mark.barColour || mark.barColour === 'rgba(0, 0, 0, 0)')
-            : !!mark.tone))) {
+            : !!mark.tone || !!mark.ribbonText))) {
           throw new Error('Diagonal publication marks regress: ' + JSON.stringify({viewport, marks}));
         }
         const ribbonColourCount = new Set(tagged.map(mark => mark.barColour)).size;
