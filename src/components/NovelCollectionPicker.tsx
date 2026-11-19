@@ -59,8 +59,8 @@ export default function NovelCollectionPicker({
     <button type="button" className="novel-collection-close" aria-label="Close collection picker"
       onClick={onClose}>×</button>
     <h2 id="novel-collection-title">Add to collection</h2>
-    <p>Choose a collection for “{bookTitle}”, including nested collections.</p>
-    <label htmlFor="novel-collection-search">Find a collection</label>
+    <p className="novel-collection-context">{bookTitle}</p>
+    <label htmlFor="novel-collection-search">Search collections</label>
     <input ref={searchRef} id="novel-collection-search" type="search" value={query}
       placeholder="Search collection names…" autoComplete="off"
       onChange={event => setQuery(event.target.value)} />
@@ -76,19 +76,21 @@ export default function NovelCollectionPicker({
       })}
       {!matching.length && <li><span>{query ? 'No matching collections.' : 'No collections yet. Create one below.'}</span></li>}
     </ul>
-    <form className="novel-collection-create" onSubmit={event => void create(event)}>
-      <h3>Create a collection</h3>
-      <label htmlFor="novel-new-collection-name">New collection name</label>
-      <input id="novel-new-collection-name" maxLength={90} value={name} autoComplete="off"
-        onChange={event => setName(event.target.value)} placeholder="e.g. Favourite adventures" />
-      <label htmlFor="novel-new-collection-parent">Inside (optional)</label>
-      <select id="novel-new-collection-parent" value={parentId}
-        onChange={event => setParentId(event.target.value)}>
-        <option value="">Top-level collection</option>
-        {options.map(({ collection, path }) => <option key={collection.id} value={collection.id}>{path}</option>)}
-      </select>
-      <button type="submit" disabled={busy || !name.trim()}>{busy ? 'Saving…' : 'Create and add novel'}</button>
-    </form>
+    <details className="novel-collection-create">
+      <summary>Create a new collection</summary>
+      <form onSubmit={event => void create(event)}>
+        <label htmlFor="novel-new-collection-name">Collection name</label>
+        <input id="novel-new-collection-name" maxLength={90} value={name} autoComplete="off"
+          onChange={event => setName(event.target.value)} placeholder="e.g. Favourite adventures" />
+        <label htmlFor="novel-new-collection-parent">Place inside (optional)</label>
+        <select id="novel-new-collection-parent" value={parentId}
+          onChange={event => setParentId(event.target.value)}>
+          <option value="">Top-level collection</option>
+          {options.map(({ collection, path }) => <option key={collection.id} value={collection.id}>{path}</option>)}
+        </select>
+        <button type="submit" disabled={busy || !name.trim()}>{busy ? 'Saving…' : 'Create and add novel'}</button>
+      </form>
+    </details>
     {error && <p className="novel-collection-error" role="alert">{error}</p>}
   </dialog>;
 }
