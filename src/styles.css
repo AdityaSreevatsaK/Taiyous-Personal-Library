@@ -1739,3 +1739,29 @@ html::-webkit-scrollbar-thumb:hover { background: var(--library-scroll-hover); }
 .details-shell .details-meta-row .publication-status--hiatus{color:#78500b}
 .details-shell .details-meta-row .publication-status--dropped{color:#8a2c49}
 .details-shell .details-meta-row .publication-status--unknown{color:#505a6a}
+
+
+/* Non-blocking, actionable feedback for membership changes from either page.
+   Pending remote writes must never masquerade as cloud-synchronised success. */
+.collection-change-toast {
+  position:fixed;top:max(15px,env(safe-area-inset-top));right:max(15px,env(safe-area-inset-right));
+  z-index:20000;display:flex;align-items:flex-start;gap:10px;
+  width:max-content;max-width:min(440px,calc(100vw - 30px));box-sizing:border-box;
+  padding:13px 12px 13px 14px;border-radius:12px;
+  color:#f4fff7;background:#155f3d;border:1px solid #6ac99a;
+  box-shadow:0 12px 36px #0e1d2180;
+  font:650 13px/1.45 Inter,"Segoe UI",sans-serif;
+  animation:collection-toast-arrive .19s ease-out;
+}
+.collection-change-toast.pending {background:#765420;border-color:#e0b657;color:#fff6df}
+.collection-change-toast .collection-toast-symbol{
+  width:20px;height:20px;display:inline-grid;place-items:center;flex:0 0 20px;
+  border-radius:50%;background:#ffffff2c;font-weight:900;
+}
+.collection-change-toast button {
+  border:0;background:transparent;color:inherit;font-size:22px;line-height:18px;
+  cursor:pointer;padding:0 2px;align-self:flex-start;
+}
+.collection-change-toast button:focus-visible {outline:2px solid #fff;outline-offset:3px}
+@keyframes collection-toast-arrive {from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:none}}
+@media(prefers-reduced-motion:reduce){.collection-change-toast{animation:none}}

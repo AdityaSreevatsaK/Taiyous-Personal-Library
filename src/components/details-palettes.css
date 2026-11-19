@@ -653,3 +653,81 @@
   .details-shell .details-page-scroll-meter,
   .details-shell .details-page-scroll-fill {transition:none}
 }
+
+
+/* The source-status chip is never a tilted cover sticker. Reset competing
+   hero meta typography, keep the pill horizontal and legible on small screens. */
+.details-shell .details-hero .details-meta-row > .publication-status {
+  display:inline-flex;align-items:center;align-self:flex-start;justify-content:flex-start;
+  width:auto;min-width:0;max-width:100%;flex:0 0 auto;
+  box-sizing:border-box;padding:5px 9px;border-radius:8px;
+  font-style:normal;font-weight:750;letter-spacing:0;
+  line-height:1.25;text-transform:none;text-align:left;
+  transform:none;rotate:0deg;white-space:normal;word-break:normal;
+}
+.details-shell .details-hero .details-meta-row > .publication-status svg {
+  flex:0 0 14px;width:14px;height:14px;
+}
+
+/* Collection selection stays inside the app, not a browser alert. Native
+   showModal() provides backdrop, Escape handling and focus containment. */
+.details-shell .details-add-collection {
+  display:inline-flex;align-items:center;justify-content:center;gap:8px;
+  padding:11px 16px;min-height:45px;border-radius:9px;cursor:pointer;
+  border:1px solid #fff9;color:#fff;background:#0b1426dc;
+  font:700 12px/1.3 Inter,"Segoe UI",sans-serif;
+}
+.details-shell .details-add-collection:hover {background:#142942f3;border-color:#fff}
+.details-shell .details-add-collection:focus-visible {outline:2px solid #fff;outline-offset:3px}
+@media(max-width:700px) {
+  .details-shell .details-hero-actions .details-add-collection {
+    grid-column:1 / -1;grid-row:3;min-height:43px;padding:10px 12px;
+  }
+}
+.details-shell .novel-collection-dialog {
+  width:min(510px,calc(100vw - 24px));max-width:min(510px,calc(100vw - 24px));
+  max-height:min(85dvh,760px);box-sizing:border-box;margin:auto;
+  padding:24px;border-radius:17px;border:1px solid var(--border,#d8c9b5);
+  background:var(--surface,#fffaf1);color:var(--text,#292536);
+  box-shadow:0 24px 78px #0008;overflow-y:auto;
+}
+.details-shell .novel-collection-dialog::backdrop {background:rgba(7,14,25,.72);backdrop-filter:blur(4px)}
+.details-shell .novel-collection-dialog h2 {font:500 26px/1.2 Georgia,serif;margin:0 34px 8px 0}
+.details-shell .novel-collection-dialog p {margin:0 0 15px;font-size:13px;line-height:1.5;color:var(--subtext)}
+.details-shell .novel-collection-dialog label {display:block;font-size:12px;font-weight:700;margin-bottom:6px}
+.details-shell .novel-collection-dialog input,
+.details-shell .novel-collection-dialog select {
+  box-sizing:border-box;width:100%;min-height:41px;border-radius:8px;
+  border:1px solid var(--border,#cfc4b3);background:var(--bg,#fff);color:var(--text,#333);
+  padding:9px 11px;font:inherit;
+}
+.details-shell .novel-collection-dialog input:focus-visible,
+.details-shell .novel-collection-dialog select:focus-visible,
+.details-shell .novel-collection-dialog button:focus-visible {outline:2px solid var(--accent,#9f865f);outline-offset:2px}
+.details-shell .novel-collection-close {position:absolute;top:14px;right:13px;
+  color:var(--text);background:var(--pale);border:1px solid var(--border);
+  border-radius:8px;padding:6px 10px;cursor:pointer;font-size:17px}
+.details-shell .novel-collection-entries {display:grid;gap:7px;max-height:240px;
+  overflow-y:auto;scrollbar-width:thin;padding:4px 3px 4px 0;margin:12px 0 16px;list-style:none}
+.details-shell .novel-collection-entries li {display:flex;align-items:center;gap:10px;
+  background:var(--surface-soft,var(--pale));border:1px solid var(--border);
+  padding:8px 10px;border-radius:9px;min-width:0}
+.details-shell .novel-collection-entries li span {flex:1;min-width:0;overflow-wrap:anywhere;font-size:12px}
+.details-shell .novel-collection-entries button,
+.details-shell .novel-collection-create button {border:1px solid var(--border);
+  padding:8px 11px;border-radius:7px;background:var(--pale);color:var(--text);
+  font-weight:750;cursor:pointer;flex:0 0 auto}
+.details-shell .novel-collection-entries button:disabled {opacity:.67;cursor:default}
+.details-shell .novel-collection-create {border-top:1px solid var(--border);padding-top:15px;
+  display:grid;gap:9px;margin-top:7px}
+.details-shell .novel-collection-create h3 {font:600 17px Georgia,serif;margin:0}
+.details-shell .novel-collection-create button {background:var(--accent);color:var(--accent-ink,#fff);
+  justify-self:start;border-color:var(--accent)}
+.details-shell .novel-collection-error {color:#b3343d!important}
+@media(max-width:550px) {
+  .details-shell .novel-collection-dialog {padding:20px 16px}
+  .details-shell .novel-collection-entries {max-height:210px}
+}
+@media(prefers-reduced-motion:reduce) {
+  .details-shell .novel-collection-dialog::backdrop {backdrop-filter:none}
+}
