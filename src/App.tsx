@@ -1,3 +1,4 @@
+import CollectionToast, { type CollectionToastNotice } from './components/CollectionToast';
 import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState, useMemo, type ChangeEvent } from 'react';
 import LibraryDashboard from './components/LibraryDashboard';
 import BookDetails from './components/BookDetails';
@@ -59,7 +60,8 @@ export default function App() {
   const [importing, setImporting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  const [collectionToast, setCollectionToast] = useState<{ title: string; detail: string; id: number } | null>(null);
+  const [collectionToasts, setCollectionToasts] = useState<CollectionToastNotice[]>([]);
+  const nextCollectionToastId = useRef(0);
   // With an OAuth-backed catalogue, never render historical IndexedDB books
   // before the authoritative hosted catalogue has been checked.
   const [localLoaded, setLocalLoaded] = useState(false);
@@ -192,12 +194,7 @@ export default function App() {
     const id = window.setTimeout(() => setNotice(null), 5000);
     return () => window.clearTimeout(id);
   }, [notice]);
-  useEffect(() => {
-    if (!collectionToast) return;
-    const timeout = window.setTimeout(() => setCollectionToast(null), 4500);
-    return () => window.clearTimeout(timeout);
-  }, [collectionToast]);
-  useEffect(() => { writeSettings(settings); }, [settings]);
+   useEffect(() => { writeSettings(settings); }, [settings]);
   useEffect(() => {
     // Remove a short-lived OAuth session previously stored by older builds.
     clearCloudSession();
@@ -952,12 +949,13 @@ export default function App() {
   const notifyCollectionSaved = useCallback((collectionId: string, action: 'added' | 'removed') => {
     const collection = collectionsRef.current.find(item => item.id === collectionId && !item.deleted);
     const pendingCloud = Boolean(cloudRepo && cloudSession && readCollectionsPending());
-    setCollectionToast({
-      id: Date.now(),
+    const toast: CollectionToastNotice = {
+      id: ++nextCollectionToastId.current,
       title: action === 'added' ? `Added to ${collection?.name || 'collection'}` : `Removed from ${collection?.name || 'collection'}`,
       detail: pendingCloud ? 'Saved on this device. Cloud sync pending.'
         : cloudSession ? 'Saved to your private library.' : 'Saved on this device.',
-    });
+    };
+    setCollectionToasts(current => [toast, ...current].slice(0, 4));
   }, [cloudRepo, cloudSession]);
 
   const changeCollectionMembership = useCallback(async (collectionId: string, bookId: string, include: boolean) => {
@@ -1344,7 +1342,7 @@ export default function App() {
     ) : detailBook ? (
       <BookDetails book={detailBook} availableTags={tagCounts(books).map(({tag}) => tag)} theme={settings.theme} onThemeChange={theme => setSettings(current => ({ ...current, theme }))}
         collections={collections.filter(c => !c.deleted)} membershipPaths={detailMemberships} onBrowseLibrary={browseLibraryFromNovel}
-        onAddToCollection={collectionId => changeCollectionMembership(collectionId, detailBook.id, true)}
+        onToggleCollection={(collectionId, include) => changeCollectionMembership(collectionId, detailBook.id, include)}
         onCreateCollectionForBook={(name, parentId) => createCollectionWithNovel(detailBook.id, name, parentId)}
         onLoadChapters={() => loadChapterCatalog(detailBook.id, detailBook.chapterCount, async () => {
           try { return await getBookFile(detailBook.id); }
@@ -1415,13 +1413,9 @@ export default function App() {
         onCloudLogout={signOutOfCloud} onCloudRefresh={() => void refreshCloud()}
         onCloudPublishCached={publishCachedNovels} />
     )}
-    {collectionToast && <div key={collectionToast.id} className="collection-change-toast"
-      role="status" aria-live="polite" aria-label="Collection update">
-      <span className="collection-toast-symbol" aria-hidden="true">✓</span>
-      <span className="collection-toast-copy"><strong>{collectionToast.title}</strong>
-        <small>{collectionToast.detail}</small></span>
-      <button type="button" onClick={() => setCollectionToast(null)}
-        aria-label="Dismiss collection notification">×</button>
+    {collectionToasts.length > 0 && <div className="collection-toast-stack" aria-label="Recent collection updates">
+      {collectionToasts.map(toast => <CollectionToast key={toast.id} toast={toast}
+        onDismiss={() => setCollectionToasts(current => current.filter(item => item.id !== toast.id))} />)}
     </div>}
     {!readingId && <BackToTop theme={settings.theme} />}
     {ownerRequest && <OwnerActionDialog theme={settings.theme} request={ownerRequest}

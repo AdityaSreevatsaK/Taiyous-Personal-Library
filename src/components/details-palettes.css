@@ -746,3 +746,49 @@
 @media(prefers-reduced-motion:reduce) {
   .details-shell .novel-collection-dialog::backdrop {backdrop-filter:none}
 }
+
+
+/* Compact collection picker: native themed surface, quiet list separators,
+   no oversized blue cards. The complete row is comfortably tappable. */
+.details-shell .novel-collection-dialog {
+  width:min(465px,calc(100vw - 24px));
+  max-width:min(465px,calc(100vw - 24px));
+  padding:21px 22px;
+  border-radius:13px;
+  box-shadow:0 20px 50px #0006;
+}
+.details-shell .novel-collection-dialog h2 {font-size:23px;margin-bottom:5px}
+.details-shell .novel-collection-dialog .novel-collection-context {
+  border-left:0;padding-left:0;margin-bottom:15px;font-style:normal;
+  color:var(--subtext);font-size:12px;
+}
+.details-shell .novel-collection-entries {
+  gap:0;max-height:min(265px,38dvh);margin:9px 0 10px;
+  padding:0 4px 0 0;
+}
+.details-shell .novel-collection-entries li {
+  border:0;border-bottom:1px solid var(--border);
+  border-radius:0;background:transparent;padding:5px 2px 5px 7px;
+  min-height:36px;gap:8px;
+}
+.details-shell .novel-collection-entries li:hover {background:color-mix(in srgb,var(--accent) 6%,transparent)}
+.details-shell .novel-collection-entries li span {font-size:12px;line-height:1.35}
+.details-shell .novel-collection-entries button {
+  min-width:72px;min-height:34px;
+  padding:6px 9px;background:transparent;
+  border:1px solid transparent;color:var(--text);
+  font-size:12px;font-weight:650;
+}
+.details-shell .novel-collection-entries button:hover:not(:disabled) {
+  border-color:var(--border);background:var(--pale);
+}
+.details-shell .novel-collection-entries button.is-added {
+  color:var(--text);background:color-mix(in srgb,#4fa977 13%,var(--surface));
+  border-color:color-mix(in srgb,#4fa977 40%,var(--border));
+}
+.details-shell .novel-collection-create {padding-top:12px}
+.details-shell .novel-collection-create summary {font-size:12px;font-weight:650}
+@media(max-width:550px) {
+  .details-shell .novel-collection-dialog {padding:18px 15px}
+  .details-shell .novel-collection-entries {max-height:min(235px,35dvh)}
+}

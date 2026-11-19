@@ -1811,3 +1811,41 @@ html::-webkit-scrollbar-thumb:hover { background: var(--library-scroll-hover); }
     font-size:8px;letter-spacing:0;
   }
 }
+
+
+/* Translucent, quieter story-publication ribbons; not a personal Finished mark.
+   The four statuses remain distinguishable by text, not colour alone. */
+.publication-corner-ribbon::before {
+  height:16px;top:19px;
+  font-size:8px;font-weight:750;letter-spacing:0;
+  background:color-mix(in srgb,var(--ribbon-tone) 78%,transparent);
+  box-shadow:0 1px 2px #080e1d4d;
+}
+.publication-corner-ribbon--completed{--ribbon-tone:#8ab5a0}
+.publication-corner-ribbon--ongoing{--ribbon-tone:#8baec9}
+.publication-corner-ribbon--hiatus{--ribbon-tone:#c5aa85}
+.publication-corner-ribbon--dropped{--ribbon-tone:#c59da9}
+.app-shell .advanced-result-cover .publication-corner-ribbon::before{
+  height:13px;top:11px;font-size:6.5px;
+}
+@media(max-width:550px){
+  .app-shell .book-grid .publication-corner-ribbon::before {
+    height:15px;top:16px;font-size:7px;
+  }
+}
+
+/* Each toast owns its expiry timer; new notifications slot above old ones. */
+.collection-toast-stack {
+  position:fixed;top:max(66px,calc(56px + env(safe-area-inset-top)));
+  right:max(16px,env(safe-area-inset-right));
+  z-index:20000;pointer-events:none;
+  display:flex;flex-direction:column;gap:8px;align-items:flex-end;
+  max-width:min(340px,calc(100vw - 32px));
+}
+.collection-toast-stack .collection-change-toast {
+  position:relative;top:auto;right:auto;pointer-events:auto;
+  width:100%;max-width:100%;animation:collection-toast-arrive .18s ease-out;
+}
+@media(prefers-reduced-motion:reduce){
+  .collection-toast-stack .collection-change-toast{animation:none}
+}
