@@ -1752,12 +1752,14 @@ try {
             const before = marker ? getComputedStyle(marker,'::before') : null;
             const meta = card.querySelector('.tile-meta');
             return {
-              status:meta?.querySelector('.sr-only')?.textContent?.trim(),
+              status:[...meta.querySelectorAll('.sr-only')]
+                .map(item => item.textContent?.trim())
+                .find(label => label?.startsWith('Publication status:')) || null,
               visualBadges:meta?.querySelectorAll('.publication-status').length,
               tone:marker?.className,
               barHeight:before ? parseFloat(before.height) : null,
               barColour:before?.backgroundColor,
-              hasDiagonal:before?.transform !== 'none',
+              hasDiagonal:!!before && before.transform !== 'none',
               nearTopLeft:!!markerRect && !!cover &&
                 Math.abs(markerRect.left - cover.left) < 2 &&
                 Math.abs(markerRect.top - cover.top) < 2,
@@ -1770,15 +1772,16 @@ try {
           'Publication status: Hiatus':'publication-corner-ribbon--hiatus',
           'Publication status: Dropped':'publication-corner-ribbon--dropped',
         };
-        if (marks.length !== 4 || marks.some(mark =>
-            mark.visualBadges !== 0 ||
-            !mark.tone?.includes(expectedTones[mark.status]) ||
-            !mark.nearTopLeft || !mark.hasDiagonal ||
-            mark.barHeight < 6 || mark.barHeight > 10 ||
-            !mark.barColour || mark.barColour === 'rgba(0, 0, 0, 0)')) {
+        const tagged = marks.filter(mark => mark.status);
+        if (tagged.length !== 4 || marks.some(mark => mark.visualBadges !== 0 ||
+            (mark.status ? (!mark.tone?.includes(expectedTones[mark.status]) ||
+              !mark.nearTopLeft || !mark.hasDiagonal ||
+              mark.barHeight < 6 || mark.barHeight > 10 ||
+              !mark.barColour || mark.barColour === 'rgba(0, 0, 0, 0)')
+            : !!mark.tone))) {
           throw new Error('Diagonal publication marks regress: ' + JSON.stringify({viewport, marks}));
         }
-        const ribbonColourCount = new Set(marks.map(mark => mark.barColour)).size;
+        const ribbonColourCount = new Set(tagged.map(mark => mark.barColour)).size;
         if (ribbonColourCount !== 4) {
           throw new Error('Every canonical publication state needs a distinct colour: ' + JSON.stringify(marks));
         }
