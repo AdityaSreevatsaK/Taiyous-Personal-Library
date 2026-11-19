@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { X } from 'lucide-react';
+import { Check, Copy, X } from 'lucide-react';
 import './app-dialogs.css';
 
 type DialogOptions = {
@@ -12,6 +12,7 @@ type DialogOptions = {
   initialValue?: string;
   placeholder?: string;
   requiredText?: string;
+  copyableRequiredText?: boolean;
   maxLength?: number;
 };
 type DialogValue = boolean | string | null;
@@ -38,6 +39,7 @@ export function useAppDialogs(): DialogApi {
 export function AppDialogProvider({ children }: { children: ReactNode }) {
   const [dialog, setDialog] = useState<DialogRequest | null>(null);
   const [inputValue, setInputValue] = useState('');
+  const [copyFeedback, setCopyFeedback] = useState<'idle' | 'copied' | 'unavailable'>('idle');
   const active = useRef<DialogRequest | null>(null);
   const queue = useRef<DialogRequest[]>([]);
   const nextId = useRef(1);
@@ -76,6 +78,7 @@ export function AppDialogProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!dialog) return;
     setInputValue(dialog.options.initialValue || '');
+    setCopyFeedback('idle');
     lastFocus.current = document.activeElement instanceof HTMLElement
       ? document.activeElement : null;
     const previousOverflow = document.body.style.overflow;
@@ -118,6 +121,16 @@ export function AppDialogProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const copyRequiredText = async () => {
+    if (!dialog?.options.requiredText) return;
+    try {
+      await navigator.clipboard.writeText(dialog.options.requiredText);
+      setCopyFeedback('copied');
+    } catch {
+      setCopyFeedback('unavailable');
+    }
+  };
+
   const theme = typeof document === 'undefined' ? 'theme-sepia'
     : (document.querySelector('.details-shell, .reader-shell, .app-shell')
       ?.className.match(/theme-[a-z-]+/)?.[0] || 'theme-sepia');
@@ -139,8 +152,21 @@ export function AppDialogProvider({ children }: { children: ReactNode }) {
           <form onSubmit={submit}>
             {dialog.kind === 'prompt' && <>
               <label htmlFor="app-dialog-input">{dialog.options.requiredText
-                ? 'Type ' + dialog.options.requiredText + ' to confirm'
+                ? (dialog.options.copyableRequiredText ? 'Paste or type this confirmation text' : 'Type ' + dialog.options.requiredText + ' to confirm')
                 : 'New value'}</label>
+              {dialog.options.requiredText && dialog.options.copyableRequiredText && <>
+                <div className="app-dialog-copy-phrase" aria-label="Required confirmation text">
+                  <code>{dialog.options.requiredText}</code>
+                  <button type="button" className="app-dialog-copy-button"
+                    aria-label="Copy confirmation text" title="Copy confirmation text"
+                    onClick={() => void copyRequiredText()}>
+                    {copyFeedback === 'copied' ? <Check size={15} aria-hidden="true"/> : <Copy size={15} aria-hidden="true"/>}
+                  </button>
+                </div>
+                {copyFeedback !== 'idle' && <small className="app-dialog-copy-feedback" role="status">
+                  {copyFeedback === 'copied' ? 'Copied' : 'Copy unavailable. Please type the text.'}
+                </small>}
+              </>}
               <input id="app-dialog-input" value={inputValue} autoComplete="off"
                 maxLength={dialog.options.maxLength || 255} placeholder={dialog.options.placeholder}
                 onChange={event => setInputValue(event.target.value)}/>

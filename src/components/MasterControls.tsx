@@ -307,7 +307,8 @@ export default function MasterControls({
   async function clearSafeCache() {
     if (busy || !hostedCached) return;
     if (!await confirm({ title: 'Remove verified downloads?', message: 'Only hosted EPUB downloads verified in your cloud will be removed. Private novels, reading progress, notes and local-only EPUBs remain.', destructive: true, confirmLabel: 'Continue' })) return;
-    const typed = await prompt({ title: 'Confirm bulk removal', requiredText: 'REMOVE DOWNLOADS', destructive: true, confirmLabel: 'Remove downloads' });
+    const typed = await prompt({ title: 'Confirm bulk removal', requiredText: 'REMOVE DOWNLOADS',
+      copyableRequiredText: true, destructive: true, confirmLabel: 'Remove downloads' });
     if (typed !== 'REMOVE DOWNLOADS') return;
     setBusy(true); setError(''); setMessage('');
     try {
