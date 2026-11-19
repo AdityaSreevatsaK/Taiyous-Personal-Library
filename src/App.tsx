@@ -1,4 +1,5 @@
 import CollectionToast, { type CollectionToastNotice } from './components/CollectionToast';
+import type { PublicationStatus } from './lib/publication-status';
 import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState, useMemo, type ChangeEvent } from 'react';
 import LibraryDashboard from './components/LibraryDashboard';
 import BookDetails from './components/BookDetails';
@@ -1166,6 +1167,40 @@ export default function App() {
     setNotice('Updated title and author for “' + changed.title + '”. Original files and reading progress are unchanged.');
   }, [cloudRepo, cloudSession]);
 
+  const masterCorrectPublicationStatus = useCallback(async (id: string, status: PublicationStatus) => {
+    await ownerPost('verify');
+    const current = booksRef.current.find(book => book.id === id);
+    if (!current) throw new Error('Novel no longer exists; refresh Master Controls.');
+    if (!['Completed', 'Ongoing', 'Hiatus', 'Dropped'].includes(status)) {
+      throw new Error('Invalid publication status.');
+    }
+    if (current.status === status) return;
+    if (current.cloud) {
+      if (!navigator.onLine || cloudSession?.via !== 'oauth' || !cloudRepo) {
+        throw new Error('Hosted publication corrections require an online Hugging Face Owner session.');
+      }
+      const response = await fetch('/api/library?action=correct-publication-status', {
+        method:'POST', credentials:'same-origin', cache:'no-store',
+        headers:{ 'Content-Type':'application/json', 'X-Taiyou-Request':'owner-edit-publication-status' },
+        body:JSON.stringify({ id, expectedStatus:current.status || '', status }),
+      });
+      const outcome = await response.json().catch(() => ({})) as { saved?: boolean; error?: string };
+      if (!response.ok || outcome.saved !== true) {
+        throw new Error(outcome.error || 'Publication status correction was not committed');
+      }
+      const entry = cloudEntries.current.get(id);
+      if (entry) cloudEntries.current.set(id, {
+        ...entry, metadata:{ ...entry.metadata, status },
+      });
+    }
+    const updated: LibraryBook = { ...current, status };
+    await updateBook(updated);
+    booksRef.current = booksRef.current.map(book => book.id === id ? updated : book);
+    setBooks(booksRef.current);
+    setNotice('Publication status for “' + updated.title + '” updated to ' + status +
+      '. Your reading progress and EPUB remain unchanged.');
+  }, [cloudRepo, cloudSession]);
+
   const masterMarkCompleted = useCallback(async (id: string) => {
     await ownerPost('verify');
     await markNovelCompleted(id);
@@ -1400,6 +1435,7 @@ export default function App() {
         onRead={openBook} onRemoveOffline={requestRemoveOffline}
         allBooks={books} onMasterClearOffline={masterClearOffline}
         onMasterSaveRating={masterSaveRating} onMasterCorrectMetadata={masterCorrectMetadata}
+        onMasterCorrectPublicationStatus={masterCorrectPublicationStatus}
         onMasterMarkCompleted={masterMarkCompleted} onMasterResetProgress={masterResetProgress}
         onMasterSaveTags={masterSaveTags} onMasterSaveSummary={masterSaveSummary}
         onMasterSaveReview={masterSaveReview} onMasterExportEpub={masterExportEpub}

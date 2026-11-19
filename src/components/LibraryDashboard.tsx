@@ -18,7 +18,7 @@ import {
 } from 'lucide-react';
 import type { LibraryBook, ReaderTheme } from '../types';
 import { isFinished, isCurrentlyReading } from '../lib/reading-status';
-import { publicationStatusDisplay, publicationStatusRank } from '../lib/publication-status';
+import { publicationStatusDisplay, publicationStatusRank, type PublicationStatus } from '../lib/publication-status';
 import PublicationCornerRibbon from './PublicationCornerRibbon';
 import { openNovelInCurrentTab, openInternalLinkInCurrentTab, revealClippedLinkTitle } from '../lib/novel-links';
 import { namedNovelUrl } from '../lib/routes';
@@ -36,6 +36,7 @@ interface Props {
   onMasterClearOffline: () => Promise<{ removed:number; kept:number }>;
   onMasterSaveRating: (id:string, rating:number|undefined) => Promise<void>;
   onMasterCorrectMetadata: (id:string, title:string, author:string) => Promise<void>;
+  onMasterCorrectPublicationStatus: (id:string, status:PublicationStatus) => Promise<void>;
   onMasterMarkCompleted: (id:string) => Promise<void>;
   onMasterResetProgress: (id:string) => Promise<void>;
   onMasterSaveTags: (id:string, tags:string[]) => Promise<void>;
@@ -253,7 +254,7 @@ function CollectionQuickAdd({ collection, collections, books, onAddNovel, onMove
 }
 
 export default function LibraryDashboard({
-  books, allBooks, onMasterClearOffline, onMasterSaveRating, onMasterCorrectMetadata,
+  books, allBooks, onMasterClearOffline, onMasterSaveRating, onMasterCorrectMetadata, onMasterCorrectPublicationStatus,
   onMasterMarkCompleted, onMasterResetProgress, onMasterSaveTags, onMasterSaveSummary,
   onMasterSaveReview, onMasterExportEpub, onMasterDeleteNovel, staleCount, onMasterArchiveStale,
   localBackups, cachedEpubIds, online, offlineShellReady, bulkOfflineProgress, onCacheAllOffline, offlineRetention, pendingReviewCount, pendingProgressCount, collectionsSyncPending,
@@ -588,6 +589,7 @@ export default function LibraryDashboard({
           {isMasterControls && <MasterControls books={allBooks} cachedEpubIds={cachedEpubIds}
             theme={theme} onExit={() => goTo('all')} onClearOffline={onMasterClearOffline}
             onSaveRating={onMasterSaveRating} onCorrectMetadata={onMasterCorrectMetadata}
+            onCorrectPublicationStatus={onMasterCorrectPublicationStatus}
             onMarkCompleted={onMasterMarkCompleted} onResetProgress={onMasterResetProgress}
             onSaveTags={onMasterSaveTags} onSaveSummary={onMasterSaveSummary}
             onSaveReview={onMasterSaveReview} onExportEpub={onMasterExportEpub}

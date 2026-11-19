@@ -383,6 +383,71 @@ async function correctHostedMetadata(request: Request, token: string,
   }
 }
 
+/**
+ * Owner-only publication-status correction. Never use a personal reading
+ * progress/completion field to infer the canonical publishing state.
+ * Only the requested novel's metadata.status is changed in data/library.json.
+ */
+async function correctHostedPublicationStatus(request: Request, token: string,
+    env: PagesContext['env'], session: import('../_lib/oauth').OAuthSession): Promise<Response> {
+  const url = new URL(request.url);
+  if (request.headers.get('Origin') !== url.origin ||
+      request.headers.get('X-Taiyou-Request') !== 'owner-edit-publication-status' ||
+      !(await hasOwnerGrant(request, env, session))) {
+    return reject(403, 'A current Owner unlock and Hugging Face owner session are required');
+  }
+  if (!request.headers.get('Content-Type')?.startsWith('application/json') ||
+      Number(request.headers.get('Content-Length') || 0) > 1024) {
+    return reject(400, 'Invalid publication correction request');
+  }
+  let id = '', status = '', expectedStatus = '';
+  try {
+    const raw = await request.text();
+    if (raw.length > 1024) return reject(413, 'Publication correction request is too large');
+    const body = JSON.parse(raw) as Record<string, unknown>;
+    if (typeof body.id !== 'string' || !/^[a-f0-9]{24}$/.test(body.id) ||
+        typeof body.status !== 'string' ||
+        !['Completed', 'Ongoing', 'Hiatus', 'Dropped'].includes(body.status) ||
+        typeof body.expectedStatus !== 'string' || body.expectedStatus.length > 150) {
+      return reject(400, 'Invalid publication status fields');
+    }
+    id = body.id; status = body.status; expectedStatus = body.expectedStatus;
+  } catch { return reject(400, 'Invalid publication status JSON'); }
+
+  let snapshot: Awaited<ReturnType<typeof readCatalogueSnapshot>>;
+  try { snapshot = await readCatalogueSnapshot(DATASET_REPO, token); }
+  catch (error) {
+    return error instanceof CatalogueSafetyError
+      ? reject(error.code, error.message) : reject(502, 'Could not validate the remote catalogue');
+  }
+  if (snapshot.isNew) return reject(409, 'The remote library catalogue is empty');
+  const target = snapshot.catalogue.books.find(book => book.id === id);
+  if (!target || !verifiedNovelFolder(target) ||
+      String(target.metadata.status || '') !== expectedStatus) {
+    return reject(409, 'Novel publication status changed or storage paths are invalid; refresh before editing');
+  }
+  if (target.metadata.status === status) return json({ saved:true, id, status, unchanged:true });
+  const revised = {
+    ...snapshot.catalogue,
+    books:snapshot.catalogue.books.map(book => book.id === id
+      ? { ...book, metadata:{ ...book.metadata, status } } : book),
+  };
+  try { parseDatasetCatalogue(revised); }
+  catch { return reject(409, 'Corrected publication status failed catalogue validation'); }
+  try {
+    await commit({
+      repo:{ type:'dataset', name:DATASET_REPO }, accessToken:token,
+      parentCommit:snapshot.sha,
+      title:'Owner corrected publication status: ' + target.metadata.title.slice(0,65),
+      operations:[{ operation:'addOrUpdate', path:'data/library.json',
+        content:new Blob([JSON.stringify(revised,null,2) + '\\n'], {type:'application/json'}) }],
+    });
+    return json({ saved:true, id, status });
+  } catch {
+    return reject(409, 'Catalogue changed during publication correction; refresh before retrying');
+  }
+}
+
 export async function onRequest({ request, env }: PagesContext): Promise<Response> {
   if (!productionOnly(request)) return reject(403, 'Private API restricted to production');
   if (!configured(env)) return reject(503, 'OAuth session encryption is not configured');
@@ -434,6 +499,9 @@ export async function onRequest({ request, env }: PagesContext): Promise<Respons
   }
   if (request.method === 'POST' && action === 'correct-metadata') {
     return respond(await correctHostedMetadata(request, token, env, auth.session));
+  }
+  if (request.method === 'POST' && action === 'correct-publication-status') {
+    return respond(await correctHostedPublicationStatus(request, token, env, auth.session));
   }
   if (request.method === 'POST' && action === 'delete-novel') {
     return respond(await deleteHostedNovel(request, token, env, auth.session));
