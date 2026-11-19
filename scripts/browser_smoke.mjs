@@ -1715,13 +1715,13 @@ try {
           const transaction = db.transaction('books', 'readwrite');
           const cases = [
             { id:'cccccccccccccccccccccccc', title:'Long Cultivation: My Augmented Statuses Have Unlimited Duration', author:'Long Author Name and Another Name',
-              progress:0, sourceTags:['Action','Adventure','Fantasy','System','Martial Arts'], personalRating:8 },
+              progress:0, status:'Completed', sourceTags:['Action','Adventure','Fantasy','System','Martial Arts'], personalRating:8 },
             { id:'dddddddddddddddddddddddd', title:'Short Tale', author:'Writer', progress:46,
-              sourceTags:['Action','Fantasy'] },
+              status:'Ongoing', sourceTags:['Action','Fantasy'] },
             { id:'eeeeeeeeeeeeeeeeeeeeeeee', title:'A Novel Under Consideration', author:'Another Author',
-              progress:0, sourceTags:['Adventure'], shelfStatus:'trying' },
+              progress:0, status:'Hiatus', sourceTags:['Adventure'], shelfStatus:'trying' },
             { id:'ffffffffffffffffffffffff', title:'Novel With No Tags', author:'Longish Writer Name', progress:92,
-              sourceTags:[], personalRating:9 },
+              status:'Dropped', sourceTags:[], personalRating:9 },
           ];
           for (const [index, book] of cases.entries()) transaction.objectStore('books').put({
             originalFileName:'mock-not-downloaded.epub', importedAt:Date.now() + index,
@@ -1741,6 +1741,46 @@ try {
         if (await fiveTagTile.locator('.tile-tags button').count() !== 5 ||
             await fastPage.getByText('NOT STARTED', {exact:true}).count()) {
           throw new Error('Catalogue must show five tags and omit Not Started labels');
+        }
+        // Catalogue status lives on the cover corner as a slim coloured
+        // diagonal strip. Never reserve the old badge row below the author.
+        const marks = await fastPage.locator('.book-grid .book-tile').evaluateAll(cards =>
+          cards.map(card => {
+            const cover = card.querySelector('.cover-button')?.getBoundingClientRect();
+            const marker = card.querySelector('.publication-corner-ribbon');
+            const markerRect = marker?.getBoundingClientRect();
+            const before = marker ? getComputedStyle(marker,'::before') : null;
+            const meta = card.querySelector('.tile-meta');
+            return {
+              status:meta?.querySelector('.sr-only')?.textContent?.trim(),
+              visualBadges:meta?.querySelectorAll('.publication-status').length,
+              tone:marker?.className,
+              barHeight:before ? parseFloat(before.height) : null,
+              barColour:before?.backgroundColor,
+              hasDiagonal:before?.transform !== 'none',
+              nearTopLeft:!!markerRect && !!cover &&
+                Math.abs(markerRect.left - cover.left) < 2 &&
+                Math.abs(markerRect.top - cover.top) < 2,
+              coverRatio:cover ? cover.width/cover.height : null,
+            };
+          }));
+        const expectedTones = {
+          'Publication status: Completed':'publication-corner-ribbon--completed',
+          'Publication status: Ongoing':'publication-corner-ribbon--ongoing',
+          'Publication status: Hiatus':'publication-corner-ribbon--hiatus',
+          'Publication status: Dropped':'publication-corner-ribbon--dropped',
+        };
+        if (marks.length !== 4 || marks.some(mark =>
+            mark.visualBadges !== 0 ||
+            !mark.tone?.includes(expectedTones[mark.status]) ||
+            !mark.nearTopLeft || !mark.hasDiagonal ||
+            mark.barHeight < 6 || mark.barHeight > 10 ||
+            !mark.barColour || mark.barColour === 'rgba(0, 0, 0, 0)')) {
+          throw new Error('Diagonal publication marks regress: ' + JSON.stringify({viewport, marks}));
+        }
+        const ribbonColourCount = new Set(marks.map(mark => mark.barColour)).size;
+        if (ribbonColourCount !== 4) {
+          throw new Error('Every canonical publication state needs a distinct colour: ' + JSON.stringify(marks));
         }
         const metrics = await fastPage.locator('.book-grid .book-tile').evaluateAll(cards => cards.map(card => {
           const box = card.getBoundingClientRect();
