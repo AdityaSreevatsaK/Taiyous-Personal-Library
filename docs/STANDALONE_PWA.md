@@ -2,26 +2,28 @@
 
 Taiyou's Personal Library runs as a public static **app shell** on Cloudflare Pages and uses the **private** Hugging Face Dataset `AdityaSreevatsaK/Taiyous-Novels` for novels and selected synced personal metadata.
 
-## Current configuration (10 November 2026)
+## Current configuration (19 November 2026)
 
 - **Permanent application URL:** https://taiyous-personal-library.pages.dev
 - **Cloudflare Pages project:** `taiyous-personal-library`
 - **Cloudflare production branch:** `master`. Updated from `main` through the Pages API; production build published successfully on 10 November 2026.
 - **GitHub source:** `AdityaSreevatsaK/Taiyous-Personal-Library`, single active branch `master`; former GitHub `dev` branch deleted.
-- **Manual deployment:** GitHub Actions → [Build and optionally deploy standalone PWA](../.github/workflows/deploy-standalone.yml) → select `master` → check **Publish** → run.
+- **Automatic deployment after merge:** [Auto deploy verified master](../.github/workflows/auto-deploy-verified-master.yml) runs when a push-based Verify workflow on `master` succeeds, checks the same commit's CodeQL result and that the commit is still current, then dispatches [Deploy Application](../.github/workflows/deploy-standalone.yml) with Publish enabled. Manual dispatch remains a fallback.
 - **GitHub environment:** `standalone-staging` is an inherited environment *name* retaining the Cloudflare secrets. It still deploys production from `master`.
 - **CI:** `.github/workflows/verify.yml` validates pushes to master; standalone publishing additionally verifies types, tests, dependency audit, package privacy and synthetic EPUB offline browser cold-start before uploading.
 - **Retired hosting:** The HF production and staging Spaces are redundant legacy deployments. No HF Space deploy workflow remains on master. The HF Dataset is **essential** and must never be deleted as part of Space cleanup.
 
 ## Release workflow
 
-1. Implement changes on `master`; review the **Verify novel reader** CI result.
-2. Manually trigger the standalone PWA workflow from the `master` branch with **Publish** checked.
-3. Validation uploads the generated `dist/` artifact. Deploy uses restricted GitHub environment secrets `CF_ACCOUNT_ID`, `CF_API_TOKEN` and variable `CF_PAGES_PROJECT`.
-4. The production deployment command is `npx wrangler@4 pages deploy dist --project-name "$CF_PAGES_PROJECT" --branch master --commit-hash <sha>`. It publishes to the root hostname rather than a preview branch.
-5. Check `https://taiyous-personal-library.pages.dev` on desktop and phone, then verify offline startup and cached EPUB reading on the installed PWA.
+1. Implement changes on a short-lived branch, review the PR and merge after required PR checks pass. The owner has authorised routine merges and production releases without repeat permission requests; agents should proceed by default.
+2. The `master` push starts **Verify novel reader** and **CodeQL**. When Verify finishes successfully, the permanent **Auto deploy verified master** workflow waits for the exact commit's successful CodeQL result, confirms the head of `master` remains unchanged, and dispatches **Deploy Application** with Publish enabled. It never deploys failed or superseded commits.
+3. The existing deployment workflow **revalidates** the app, production dependency audit, package privacy, offline EPUB reader, and build, then uses restricted GitHub environment secrets `CF_ACCOUNT_ID`, `CF_API_TOKEN` and variable `CF_PAGES_PROJECT`.
+4. The production deployment command is `npx wrangler@4 pages deploy dist --project-name "$CF_PAGES_PROJECT" --branch master --commit-hash <sha>`. It publishes to the production hostname.
+5. Confirm the deployment job succeeded and public OAuth JSON remains accessible. Check `https://taiyous-personal-library.pages.dev` on desktop and mobile, and verify offline startup/cached EPUB reading where possible.
 
-The one-time automatic migration trigger and Cloudflare API production-branch patch have already been removed from the normal deployment workflow. Future production releases remain manually gated.
+**Fallback:** GitHub Actions → [Deploy Application](../.github/workflows/deploy-standalone.yml) → `master` → Publish, for deliberate recovery/retries. The `standalone-staging` environment's approval/secrets protections remain intact. Do not create temporary one-shot deployment workflows.
+
+**Not covered by standing approval:** destructive production Hugging Face dataset operations, security/owner bypasses, publishing private data or creating version tags/releases. These require separate explicit authorisation.
 
 ## Transition from the old URL
 

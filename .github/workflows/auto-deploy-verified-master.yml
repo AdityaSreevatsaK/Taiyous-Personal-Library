@@ -1,0 +1,88 @@
+# Permanent owner-authorised release dispatcher. On routine merges, deployment
+# follows successful master CI and CodeQL without another human approval.
+# No checkout, arbitrary PR code, HF access or secrets are used here.
+name: Auto deploy verified master
+
+on:
+  workflow_run:
+    workflows:
+      - Verify novel reader
+    types:
+      - completed
+    branches:
+      - master
+
+permissions:
+  contents: read
+  actions: write
+
+concurrency:
+  group: verified-master-cloudflare-dispatch
+  cancel-in-progress: false
+
+jobs:
+  request-release:
+    if: >-
+      github.repository == 'AdityaSreevatsaK/Taiyous-Personal-Library' &&
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.head_branch == 'master' &&
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.repository.full_name == github.repository
+    runs-on: ubuntu-24.04
+    timeout-minutes: 18
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      VERIFIED_SHA: ${{ github.event.workflow_run.head_sha }}
+    steps:
+      - name: Match the verified commit to the current production branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          current="$(gh api "repos/$GH_REPO/git/ref/heads/master" --jq '.object.sha')"
+          if [ "$current" != "$VERIFIED_SHA" ]; then
+            echo "::error::Verified commit $VERIFIED_SHA is superseded by master $current. Refusing a stale release."
+            exit 1
+          fi
+          echo "Verified master revision: $VERIFIED_SHA"
+
+      - name: Require successful CodeQL push scan for this same commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 90); do
+            current="$(gh api "repos/$GH_REPO/git/ref/heads/master" --jq '.object.sha')"
+            if [ "$current" != "$VERIFIED_SHA" ]; then
+              echo "::error::Master changed while awaiting CodeQL. Refusing a stale release."
+              exit 1
+            fi
+            conclusion="$(gh api "repos/$GH_REPO/actions/workflows/codeql.yml/runs?branch=master&event=push&per_page=50" \
+              --jq ".workflow_runs[] | select(.head_sha == \"$VERIFIED_SHA\") | .conclusion" | head -n 1)"
+            if [ "$conclusion" = success ]; then
+              echo "CodeQL security analysis passed for $VERIFIED_SHA."
+              exit 0
+            fi
+            if [ -n "$conclusion" ] && [ "$conclusion" != null ]; then
+              echo "::error::CodeQL concluded $conclusion for $VERIFIED_SHA. Refusing release."
+              exit 1
+            fi
+            sleep 10
+          done
+          echo "::error::No successful CodeQL push scan for $VERIFIED_SHA within 15 minutes."
+          exit 1
+
+      - name: Dispatch the existing independent production validation and deployment
+        shell: bash
+        run: |
+          set -euo pipefail
+          current="$(gh api "repos/$GH_REPO/git/ref/heads/master" --jq '.object.sha')"
+          if [ "$current" != "$VERIFIED_SHA" ]; then
+            echo "::error::Master changed before dispatch. Refusing stale release."
+            exit 1
+          fi
+          gh workflow run deploy-standalone.yml --repo "$GH_REPO" --ref master -f publish=true
+          {
+            echo "Cloudflare deployment requested for verified master $VERIFIED_SHA."
+            echo "Follow the independent Deploy Application run: it still rechecks tests, audit, privacy and offline reading before publishing."
+            echo "Production success must be checked separately; a successful dispatch alone is not a deployment."
+          } >> "$GITHUB_STEP_SUMMARY"
