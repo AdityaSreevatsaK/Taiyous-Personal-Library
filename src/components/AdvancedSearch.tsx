@@ -2,7 +2,8 @@ import { useMemo, useState } from 'react';
 import { ArrowLeft, BookOpen, Filter, Search, SlidersHorizontal, Star, Tag, X } from 'lucide-react';
 import { bookTags } from '../lib/tags';
 import { ratingLabel } from '../lib/ratings';
-import { normalisePublicationStatus, publicationStatusDisplay, publicationStatusRank, publicationStatusTone, type PublicationStatusFilter } from '../lib/publication-status';
+import { normalisePublicationStatus, publicationStatusDisplay, publicationStatusRank, type PublicationStatusFilter } from '../lib/publication-status';
+import PublicationCornerRibbon from './PublicationCornerRibbon';
 import { namedNovelUrl } from '../lib/routes';
 import { openNovelInCurrentTab, revealClippedLinkTitle } from '../lib/novel-links';
 import type { LibraryBook } from '../types';
@@ -179,14 +180,14 @@ export default function AdvancedSearch({ books, allBooks, offlineIds, nameQuery,
           {results.map(book => <article className="advanced-result" key={book.id}>
             <a href={namedNovelUrl(book, allBooks)} className="advanced-result-cover"
               onClick={event => openNovelInCurrentTab(event, () => onOpen(book))}
-              aria-label={`View details for ${book.title}`}><Cover book={book} cloudRepo={cloudRepo} cloudSession={cloudSession}/></a>
+              aria-label={`View details for ${book.title}`}><Cover book={book} cloudRepo={cloudRepo} cloudSession={cloudSession}/><PublicationCornerRibbon status={book.status}/></a>
             <div className="advanced-result-details">
               <a href={namedNovelUrl(book, allBooks)} className="advanced-result-title" onClick={event => openNovelInCurrentTab(event, () => onOpen(book))} onMouseEnter={event => revealClippedLinkTitle(event, book.title)} onFocus={event => revealClippedLinkTitle(event, book.title)}>{book.title}</a>
               <p>{book.author || 'Unknown author'}</p>
               <div className="advanced-result-meta">
                 {book.personalRating !== undefined && <span><Star size={13} fill="currentColor"/>{book.personalRating}/10</span>}
                 {cached.has(book.id) && <span><BookOpen size={13}/> Offline</span>}
-                {book.status && <span className={'publication-status ' + publicationStatusTone(book.status)}>{publicationStatusDisplay(book.status)}</span>}
+                {book.status && <span className="sr-only">Publication status: {publicationStatusDisplay(book.status)}</span>}
               </div>
               {bookTags(book).length > 0 && <div className="advanced-result-tags">
                 {bookTags(book).slice(0, 5).map(tag => <button type="button" key={tag}

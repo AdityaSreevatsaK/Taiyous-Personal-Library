@@ -1771,3 +1771,38 @@ html::-webkit-scrollbar-thumb:hover { background: var(--library-scroll-hover); }
 .collection-change-toast button:focus-visible {outline:2px solid #fff;outline-offset:3px}
 @keyframes collection-toast-arrive {from{opacity:0;transform:translateY(-7px)}to{opacity:1;transform:none}}
 @media(prefers-reduced-motion:reduce){.collection-change-toast{animation:none}}
+
+
+/* Thin corner marks, not badges. The underlying cover retains its dimensions,
+   decorative book artwork and halo. Publication never implies reading progress. */
+.app-shell .book-grid .cover-button,
+.app-shell .advanced-result-cover {position:relative}
+.publication-corner-ribbon {
+  --ribbon-tone:#a3acbb;
+  position:absolute;top:0;left:0;width:66px;height:66px;
+  overflow:hidden;pointer-events:none;z-index:8;
+  border-radius:7px 0 0 0;
+}
+.publication-corner-ribbon::before {
+  content:'';position:absolute;top:15px;left:-27px;
+  width:100px;height:9px;
+  background:var(--ribbon-tone);
+  transform:rotate(-45deg);transform-origin:50% 50%;
+  box-shadow:0 1px 3px #080e1d8c,inset 0 1px #ffffff44;
+}
+.publication-corner-ribbon--completed{--ribbon-tone:#6ac796}
+.publication-corner-ribbon--ongoing{--ribbon-tone:#78b5ee}
+.publication-corner-ribbon--hiatus{--ribbon-tone:#e4ba70}
+.publication-corner-ribbon--dropped{--ribbon-tone:#e593a3}
+.publication-corner-ribbon--unknown{--ribbon-tone:#a3acbb}
+/* Search result jackets are only 80px wide; the mark scales with them. */
+.app-shell .advanced-result-cover .publication-corner-ribbon{width:44px;height:44px}
+.app-shell .advanced-result-cover .publication-corner-ribbon::before{
+  width:75px;height:7px;left:-22px;top:11px;
+}
+@media(max-width:550px){
+  .app-shell .book-grid .publication-corner-ribbon{width:55px;height:55px}
+  .app-shell .book-grid .publication-corner-ribbon::before{
+    width:82px;height:8px;left:-23px;top:13px;
+  }
+}
