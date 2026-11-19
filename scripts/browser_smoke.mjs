@@ -1341,7 +1341,7 @@ try {
       return { top: bounds.top, right: window.innerWidth - bounds.right, bg };
     });
     if (toastStyle.top < 40 || toastStyle.top > 120 || toastStyle.right < 0 ||
-        !/rgb\\(20, 60, 44\\)/.test(toastStyle.bg)) {
+        toastStyle.bg !== 'rgb(20, 60, 44)') {
       throw new Error('Collection confirmation is not a subtle green top-right toast: ' +
         JSON.stringify(toastStyle));
     }
