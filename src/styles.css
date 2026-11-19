@@ -1739,3 +1739,35 @@ html::-webkit-scrollbar-thumb:hover { background: var(--library-scroll-hover); }
 .details-shell .details-meta-row .publication-status--hiatus{color:#78500b}
 .details-shell .details-meta-row .publication-status--dropped{color:#8a2c49}
 .details-shell .details-meta-row .publication-status--unknown{color:#505a6a}
+
+
+/* Quiet top-right confirmation, with a separate truthful sync detail.
+   It never steals focus or blocks the reader. */
+.collection-change-toast {
+  position:fixed;top:max(66px,calc(56px + env(safe-area-inset-top)));right:max(16px,env(safe-area-inset-right));
+  z-index:20000;display:flex;align-items:center;gap:11px;
+  width:max-content;max-width:min(340px,calc(100vw - 32px));box-sizing:border-box;
+  padding:11px 12px;border-radius:11px;
+  color:#dcffec;background:#143c2c;border:1px solid #4b9f75;
+  box-shadow:0 9px 26px #05121a73;
+  font:600 12px/1.4 Inter,"Segoe UI",sans-serif;
+  animation:collection-toast-arrive .19s ease-out;
+}
+.collection-change-toast .collection-toast-symbol {
+  width:27px;height:27px;display:inline-grid;place-items:center;flex:0 0 27px;
+  border-radius:50%;background:#2d8057;color:#eafff3;font-size:16px;font-weight:850;
+}
+.collection-change-toast .collection-toast-copy {display:grid;gap:2px;min-width:0}
+.collection-change-toast .collection-toast-copy strong {
+  font-size:13px;font-weight:750;overflow-wrap:anywhere;
+}
+.collection-change-toast .collection-toast-copy small {
+  font-size:11px;color:#b6dfc7;font-weight:450;
+}
+.collection-change-toast button {
+  border:0;background:transparent;color:#c5e4d2;font-size:21px;line-height:19px;
+  cursor:pointer;padding:2px 4px;align-self:flex-start;
+}
+.collection-change-toast button:focus-visible {outline:2px solid #fff;outline-offset:3px}
+@keyframes collection-toast-arrive {from{opacity:0;transform:translateY(-7px)}to{opacity:1;transform:none}}
+@media(prefers-reduced-motion:reduce){.collection-change-toast{animation:none}}

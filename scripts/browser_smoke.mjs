@@ -1310,6 +1310,45 @@ try {
       throw new Error('Collection chips are not visible at top-right or overlap the hero: '
         + JSON.stringify(membershipLayout));
     }
+    // Collection updates are available from a novel itself. The in-app
+    // picker keeps nesting, prevents duplicate membership and is accessible.
+    const addFromDetails = page.getByRole('button', { name: 'Add to collection' });
+    await addFromDetails.click();
+    const picker = page.getByRole('dialog', { name: 'Add to collection' });
+    await picker.waitFor();
+    await picker.getByRole('searchbox', { name: 'Search collections' }).fill('Arc A');
+    const alreadyAdded = picker.getByRole('button', {
+      name: 'Already added to Example Series / Volume One / Arc A',
+    });
+    if (!(await alreadyAdded.isDisabled())) {
+      throw new Error('Collection picker must prevent duplicate membership');
+    }
+    await picker.getByRole('button', { name: 'Close collection picker' }).click();
+    await picker.waitFor({ state: 'detached' });
+    await addFromDetails.click();
+    await picker.getByText('Create a new collection').click();
+    await picker.getByRole('textbox', { name: 'Collection name' }).fill('Pocket Shelf');
+    await picker.getByRole('combobox', { name: 'Place inside (optional)' })
+      .selectOption({ label: 'Example Series' });
+    await picker.getByRole('button', { name: 'Create and add novel' }).click();
+    await picker.waitFor({ state: 'detached' });
+    const toast = page.getByRole('status', { name: 'Collection update' });
+    await toast.getByText('Added to Pocket Shelf').waitFor();
+    await toast.getByText('Saved on this device.').waitFor();
+    const toastStyle = await toast.evaluate(element => {
+      const bounds = element.getBoundingClientRect();
+      const bg = getComputedStyle(element).backgroundColor;
+      return { top: bounds.top, right: window.innerWidth - bounds.right, bg };
+    });
+    if (toastStyle.top < 40 || toastStyle.top > 120 || toastStyle.right < 0 ||
+        toastStyle.bg !== 'rgb(20, 60, 44)') {
+      throw new Error('Collection confirmation is not a subtle green top-right toast: ' +
+        JSON.stringify(toastStyle));
+    }
+    await toast.getByRole('button', { name: 'Dismiss collection notification' }).click();
+    await page.reload({ waitUntil: 'networkidle' });
+    await page.getByRole('navigation', { name: 'Collections containing this novel' })
+      .getByRole('link', { name: 'Open collection Example Series / Pocket Shelf' }).waitFor();
     // Collection links remain functional without fetching a new catalogue.
     await nestedMembership.click();
     await page.waitForURL('**' + arcUrl);

@@ -59,6 +59,7 @@ export default function App() {
   const [importing, setImporting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [collectionToast, setCollectionToast] = useState<{ title: string; detail: string; id: number } | null>(null);
   // With an OAuth-backed catalogue, never render historical IndexedDB books
   // before the authoritative hosted catalogue has been checked.
   const [localLoaded, setLocalLoaded] = useState(false);
@@ -191,6 +192,11 @@ export default function App() {
     const id = window.setTimeout(() => setNotice(null), 5000);
     return () => window.clearTimeout(id);
   }, [notice]);
+  useEffect(() => {
+    if (!collectionToast) return;
+    const timeout = window.setTimeout(() => setCollectionToast(null), 4500);
+    return () => window.clearTimeout(timeout);
+  }, [collectionToast]);
   useEffect(() => { writeSettings(settings); }, [settings]);
   useEffect(() => {
     // Remove a short-lived OAuth session previously stored by older builds.
@@ -943,14 +949,51 @@ export default function App() {
     await changeCollections(current => moveCollection(current, collectionId, parentId));
   }, [changeCollections]);
 
+  const notifyCollectionSaved = useCallback((collectionId: string, action: 'added' | 'removed') => {
+    const collection = collectionsRef.current.find(item => item.id === collectionId && !item.deleted);
+    const pendingCloud = Boolean(cloudRepo && cloudSession && readCollectionsPending());
+    setCollectionToast({
+      id: Date.now(),
+      title: action === 'added' ? `Added to ${collection?.name || 'collection'}` : `Removed from ${collection?.name || 'collection'}`,
+      detail: pendingCloud ? 'Saved on this device. Cloud sync pending.'
+        : cloudSession ? 'Saved to your private library.' : 'Saved on this device.',
+    });
+  }, [cloudRepo, cloudSession]);
+
   const changeCollectionMembership = useCallback(async (collectionId: string, bookId: string, include: boolean) => {
+    const target = collectionsRef.current.find(c => c.id === collectionId && !c.deleted);
+    if (!target) throw new Error('Collection no longer exists.');
+    if (!booksRef.current.some(b => b.id === bookId)) throw new Error('Novel no longer exists.');
+    if (target.bookIds.includes(bookId) === include) return;
     await changeCollections(current => current.map(c => {
       if (c.id !== collectionId || c.deleted) return c;
       const ids = new Set(c.bookIds);
       if (include) ids.add(bookId); else ids.delete(bookId);
       return { ...c, bookIds: [...ids], updatedAt: Math.max(Date.now(), c.updatedAt + 1) };
     }));
-  }, [changeCollections]);
+    notifyCollectionSaved(collectionId, include ? 'added' : 'removed');
+  }, [changeCollections, notifyCollectionSaved]);
+
+  const createCollectionWithNovel = useCallback(async (bookId: string, name: string, parentId?: string) => {
+    const cleaned = name.normalize('NFKC').trim().slice(0, 90);
+    if (!cleaned) throw new Error('Enter a collection name.');
+    if (!booksRef.current.some(b => b.id === bookId)) throw new Error('Novel no longer exists.');
+    const id = crypto.randomUUID();
+    await changeCollections(current => {
+      if (parentId && !current.some(item => item.id === parentId && !item.deleted)) {
+        throw new Error('Parent collection no longer exists.');
+      }
+      if (collectionChildren(current, parentId || null).some(item =>
+        item.name.toLocaleLowerCase() === cleaned.toLocaleLowerCase())) {
+        throw new Error('A collection with this name already exists at that level.');
+      }
+      return [...current, {
+        id, name: cleaned, bookIds: [bookId],
+        ...(parentId ? { parentId } : {}), updatedAt: Date.now(),
+      }];
+    });
+    notifyCollectionSaved(id, 'added');
+  }, [changeCollections, notifyCollectionSaved]);
 
   const renameCollection = useCallback(async (collectionId: string, name: string) => {
     const cleaned = name.trim().slice(0, 90);
@@ -1301,6 +1344,8 @@ export default function App() {
     ) : detailBook ? (
       <BookDetails book={detailBook} availableTags={tagCounts(books).map(({tag}) => tag)} theme={settings.theme} onThemeChange={theme => setSettings(current => ({ ...current, theme }))}
         collections={collections.filter(c => !c.deleted)} membershipPaths={detailMemberships} onBrowseLibrary={browseLibraryFromNovel}
+        onAddToCollection={collectionId => changeCollectionMembership(collectionId, detailBook.id, true)}
+        onCreateCollectionForBook={(name, parentId) => createCollectionWithNovel(detailBook.id, name, parentId)}
         onLoadChapters={() => loadChapterCatalog(detailBook.id, detailBook.chapterCount, async () => {
           try { return await getBookFile(detailBook.id); }
           catch { /* Preview can read a hosted EPUB without caching it. */ }
@@ -1370,6 +1415,14 @@ export default function App() {
         onCloudLogout={signOutOfCloud} onCloudRefresh={() => void refreshCloud()}
         onCloudPublishCached={publishCachedNovels} />
     )}
+    {collectionToast && <div key={collectionToast.id} className="collection-change-toast"
+      role="status" aria-live="polite" aria-label="Collection update">
+      <span className="collection-toast-symbol" aria-hidden="true">✓</span>
+      <span className="collection-toast-copy"><strong>{collectionToast.title}</strong>
+        <small>{collectionToast.detail}</small></span>
+      <button type="button" onClick={() => setCollectionToast(null)}
+        aria-label="Dismiss collection notification">×</button>
+    </div>}
     {!readingId && <BackToTop theme={settings.theme} />}
     {ownerRequest && <OwnerActionDialog theme={settings.theme} request={ownerRequest}
       initialBackupExported={ownerRequest.fromMaster === true && masterExportedEpubs.current.has(ownerRequest.id)}
