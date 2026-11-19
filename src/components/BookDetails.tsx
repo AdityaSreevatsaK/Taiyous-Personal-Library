@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import {
   ArrowRight, BookOpen, Bookmark, Check, Download, ExternalLink, Hash,
   Info, Library, LockKeyhole, Pencil, Plus, Star, Tag, Trash2, X,
@@ -70,6 +70,7 @@ export default function BookDetails({ book, availableTags, theme, onThemeChange,
   const [markingCompleted, setMarkingCompleted] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
   const [showCollectionPicker, setShowCollectionPicker] = useState(false);
+  const collectionTriggerRef = useRef<HTMLButtonElement>(null);
   const { confirm } = useAppDialogs();
   const originalTags = book.sourceTags || [];
   const customTags = tagDraft;
@@ -215,7 +216,7 @@ export default function BookDetails({ book, availableTags, theme, onThemeChange,
           <div className="details-hero-facts">
             <div className="details-meta-row">
             <span><BookOpen size={16} /> {book.chapterCount ? `${book.chapterCount.toLocaleString()} chapters` : 'EPUB edition'}</span>
-            {book.status && <span className={'publication-status ' + publicationStatusTone(book.status)}><Info size={15} aria-hidden="true" /> {publicationStatusDisplay(book.status)}</span>}
+            {book.status && <span className={'publication-status ' + publicationStatusTone(book.status)}>{publicationStatusDisplay(book.status)}</span>}
             {book.language && <span>{book.language.toUpperCase()}</span>}
           </div>
             {allTags.length > 0 && <div className="details-hero-tags" aria-label="Novel tags">{allTags.map((tag) => <button type="button" key={tag} onClick={() => onBrowseTag(tag)} aria-label={`Browse novels tagged ${tag}`}>{tag}</button>)}</div>}
@@ -245,8 +246,8 @@ export default function BookDetails({ book, availableTags, theme, onThemeChange,
               setDownloading(true); setFeedback(null);
               void onDownloadEpub().catch(reason => setFeedback(`Download failed: ${String(reason)}`)).finally(() => setDownloading(false));
             }}><Download size={17} /> {downloading ? 'Preparing…' : 'Download EPUB'}</button>
-            <button type="button" className="details-add-collection" onClick={() => setShowCollectionPicker(true)}>
-              <Library size={17} aria-hidden="true" /> Add to collection
+            <button ref={collectionTriggerRef} type="button" className="details-add-collection" onClick={() => setShowCollectionPicker(true)}>
+              <Plus size={16} aria-hidden="true" /> Add to collection
             </button>
           </div>
         </div>
@@ -254,7 +255,10 @@ export default function BookDetails({ book, availableTags, theme, onThemeChange,
 
       {showCollectionPicker && <NovelCollectionPicker bookTitle={book.title} bookId={book.id} theme={theme}
         collections={collections} onAdd={onAddToCollection} onCreate={onCreateCollectionForBook}
-        onClose={() => setShowCollectionPicker(false)} />}
+        onClose={() => {
+          setShowCollectionPicker(false);
+          window.requestAnimationFrame(() => collectionTriggerRef.current?.focus());
+        }} />}
       {error && <div className="alert error-alert" role="alert">{error}</div>}
       {feedback && <p className="details-feedback" role="status">{feedback}</p>}
 
