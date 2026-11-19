@@ -1315,17 +1315,39 @@ try {
         + JSON.stringify(membershipLayout));
     }
     // Collection updates are available from a novel itself. The in-app
-    // picker keeps nesting, prevents duplicate membership and is accessible.
+    // picker keeps nesting, toggles membership in both directions and is accessible.
     const addFromDetails = page.getByRole('button', { name: 'Add to collection' });
     await addFromDetails.click();
     const picker = page.getByRole('dialog', { name: 'Add to collection' });
     await picker.waitFor();
     await picker.getByRole('searchbox', { name: 'Search collections' }).fill('Arc A');
     const alreadyAdded = picker.getByRole('button', {
-      name: 'Already added to Example Series / Volume One / Arc A',
+      name: 'Remove novel from Example Series / Volume One / Arc A',
     });
-    if (!(await alreadyAdded.isDisabled())) {
-      throw new Error('Collection picker must prevent duplicate membership');
+    if (!(await alreadyAdded.isEnabled()) ||
+        await alreadyAdded.getAttribute('aria-pressed') !== 'true') {
+      throw new Error('Existing collection must offer a reversible selected state');
+    }
+    await alreadyAdded.click();
+    const reAdd = picker.getByRole('button', {
+      name: 'Add novel to Example Series / Volume One / Arc A',
+    });
+    await reAdd.waitFor();
+    if (await reAdd.getAttribute('aria-pressed') !== 'false') {
+      throw new Error('Removal did not update collection membership in the open picker');
+    }
+    await reAdd.click();
+    await alreadyAdded.waitFor();
+    const stackedToasts = page.locator('.collection-toast-stack .collection-change-toast');
+    await stackedToasts.nth(1).waitFor();
+    const stacked = await stackedToasts.evaluateAll(toasts =>
+      toasts.map(toast => ({ title: toast.querySelector('strong')?.textContent,
+        top:toast.getBoundingClientRect().top })));
+    if (stacked[0].title !== 'Added to Arc A' ||
+        stacked[1].title !== 'Removed from Arc A' ||
+        stacked[0].top >= stacked[1].top) {
+      throw new Error('Newest collection toast must appear above the previous one: ' +
+        JSON.stringify(stacked));
     }
     await picker.getByRole('button', { name: 'Close collection picker' }).click();
     await picker.waitFor({ state: 'detached' });
@@ -1336,7 +1358,7 @@ try {
       .selectOption({ label: 'Example Series' });
     await picker.getByRole('button', { name: 'Create and add novel' }).click();
     await picker.waitFor({ state: 'detached' });
-    const toast = page.getByRole('status', { name: 'Collection update' });
+    const toast = page.locator('.collection-toast-stack .collection-change-toast').first();
     await toast.getByText('Added to Pocket Shelf').waitFor();
     await toast.getByText('Saved on this device.').waitFor();
     const toastStyle = await toast.evaluate(element => {
@@ -1779,13 +1801,19 @@ try {
           'Publication status: Hiatus':'publication-corner-ribbon--hiatus',
           'Publication status: Dropped':'publication-corner-ribbon--dropped',
         };
+        const ribbonLabels = {
+          'Publication status: Completed':'Story Complete',
+          'Publication status: Ongoing':'Updating',
+          'Publication status: Hiatus':'On Hiatus',
+          'Publication status: Dropped':'Dropped',
+        };
         const tagged = marks.filter(mark => mark.status);
         if (tagged.length !== 4 || marks.some(mark => mark.visualBadges !== 0 ||
             (mark.status ? (!mark.tone?.includes(expectedTones[mark.status]) ||
               !mark.nearTopLeft || !mark.hasDiagonal ||
               mark.barHeight < 13 || mark.barHeight > 20 ||
               mark.ribbonFontSize < 7 ||
-              mark.ribbonText !== mark.status.replace('Publication status: ', '') ||
+              mark.ribbonText !== ribbonLabels[mark.status] ||
               !mark.renderedText?.includes(mark.ribbonText) ||
               !mark.barColour || mark.barColour === 'rgba(0, 0, 0, 0)')
             : !!mark.tone || !!mark.ribbonText))) {
