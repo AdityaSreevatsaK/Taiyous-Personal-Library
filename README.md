@@ -10,7 +10,7 @@ A responsive, installable EPUB reader and personal novel library for desktop and
 
 ## Development and release status
 
-- **`master`** is the production source branch. Deployment is **manual**, not automatic on push.
+- **`master`** is the production source branch. Verified merges deploy **automatically** to Cloudflare after successful `master` Verify + CodeQL checks. The owner has granted standing approval for routine reviewed PR merges and releases (19 November 2026); see [AGENTS.md](AGENTS.md).
 - Short-lived feature/fix branches may open pull requests against `master`. The former long-lived `dev` branch was merged and deleted.
 - **[PR #57](https://github.com/AdityaSreevatsaK/Taiyous-Personal-Library/pull/57)** was closed without merge. It proposed revision-safe personal sync and explicit conflict handling, but those proposed changes **must not be treated as deployed**. Reassess the current code and real authenticated two-device behaviour before reviving that design.
 - There is **no published GitHub Release or version tag**. A package version is not a release announcement. **Do not create a `v1.0` tag or GitHub Release without the owner's explicit approval and acceptance testing.**
@@ -61,10 +61,12 @@ The [Verify novel reader](.github/workflows/verify.yml) workflow runs TypeScript
 
 ## Production deployment
 
-1. Merge approved code into `master` after completing the required checks.
-2. Open GitHub Actions → [Deploy Application](.github/workflows/deploy-standalone.yml), select `master` and enable **Publish** only for an intentional production deployment.
-3. The workflow validates the app and deploys the static PWA **and** private Cloudflare Pages Functions to https://taiyous-personal-library.pages.dev.
-4. After deployment, verify OAuth sign-in, private dataset access, desktop/mobile reading and offline PWA startup.
+1. Agents implement on feature branches, open and review PRs, and **merge routine changes without asking again** once the required PR checks pass, unless the owner explicitly opts out.
+2. After a successful `master` push-based [Verify novel reader](.github/workflows/verify.yml) run, [Auto deploy verified master](.github/workflows/auto-deploy-verified-master.yml) checks the exact current commit and successful CodeQL result, then dispatches [Deploy Application](.github/workflows/deploy-standalone.yml) with **Publish** enabled.
+3. The existing guarded deployment workflow independently rechecks TypeScript, tests, production audit, build privacy and offline reader, deploys the static PWA **and** private Cloudflare Pages Functions, and verifies publicly accessible OAuth client metadata.
+4. Check the **completed deployment job**, then verify OAuth sign-in, desktop/mobile reading and offline PWA startup at https://taiyous-personal-library.pages.dev. A green PR or merge alone is not proof of publishing.
+
+A manual `master` deploy with Publish enabled remains available as a **recovery fallback**, not the normal release process. Destructive dataset changes, owner/auth/permission changes, public-data exposure, and version tags/releases still require separate explicit owner approval.
 
 The workflow uses Cloudflare secrets `CF_ACCOUNT_ID` and `CF_API_TOKEN` plus variable `CF_PAGES_PROJECT` in the inherited GitHub environment `standalone-staging` (**despite that name, this workflow publishes production**). OAuth and Owner mode need `HF_OAUTH_SESSION_KEY` and `TAIYOU_OWNER_PASSPHRASE` as documented. The previous Hugging Face Spaces are historical app deployments; **do not delete the private Hugging Face Dataset**.
 

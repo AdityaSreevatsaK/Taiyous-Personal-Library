@@ -10,7 +10,7 @@ This repository owns production Novel Library documentation additions only. Refe
 4. Create a short-lived branch from latest master. Keep the diff focused.
 5. Implement with unit tests and appropriate browser/integration evidence; update docs as source contracts evolve.
 6. Open a PR explaining problem, approach, tests, compatibility, security impact and rollback. Never claim unrun tests passed.
-7. Merge only when acceptable under current owner policy and after correctly assessing CI outcomes. Record actual merge SHA and deployment separately.
+7. **Standing owner approval (19 November 2026):** merge routine PRs into `master` without another permission request once review and required checks pass, unless the owner instructs otherwise. Following a verified merge, Cloudflare deployment is automatic via `auto-deploy-verified-master.yml`, gated on successful `master` Verify, matching CodeQL and full deploy validation. Follow the actual deployment until success and report merge SHA and deployment separately. Destructive dataset changes, authorisation/security changes, private-data publication and release tags still require separate explicit approval.
 
 ## Local validation
 Node 22+, run `npm ci`, `npm run typecheck`, `npm test`, `npm run build`; preserve existing offline/PWA and Cloudflare security tests.
