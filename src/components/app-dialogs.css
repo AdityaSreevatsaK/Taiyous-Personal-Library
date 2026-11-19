@@ -25,3 +25,21 @@
 .app-dialog :is(button,input):focus-visible {outline:2px solid var(--accent,#b38551);outline-offset:3px}
 @media (prefers-reduced-motion:reduce) {.app-dialog-overlay {backdrop-filter:none}}
 @media (max-width:550px) {.app-dialog{padding:24px 20px}.app-dialog-actions button{flex:1}}
+
+/* Compact copyable confirmation phrase for protected bulk actions. */
+.app-dialog-copy-phrase {
+  display:inline-flex;align-items:center;gap:8px;justify-self:start;
+  max-width:100%;min-height:31px;padding:3px 4px 3px 10px;
+  border:1px solid #354352;border-radius:7px;background:#202b36;color:#f4f5f7;
+}
+.app-dialog-copy-phrase code {
+  font:600 11px/1.35 ui-monospace,SFMono-Regular,Consolas,"Liberation Mono",monospace;
+  letter-spacing:.035em;white-space:nowrap;
+}
+.app-dialog-copy-phrase .app-dialog-copy-button {
+  display:grid;place-items:center;flex:none;
+  width:27px;height:26px;padding:0;border:1px solid #536273;
+  border-radius:5px;background:#344353;color:#fff;cursor:pointer;
+}
+.app-dialog-copy-phrase .app-dialog-copy-button:hover {background:#485d70}
+.app-dialog-copy-feedback {font-size:11px;color:var(--subtext,#655e67)}
