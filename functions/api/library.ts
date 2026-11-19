@@ -440,7 +440,7 @@ async function correctHostedPublicationStatus(request: Request, token: string,
       parentCommit:snapshot.sha,
       title:'Owner corrected publication status: ' + target.metadata.title.slice(0,65),
       operations:[{ operation:'addOrUpdate', path:'data/library.json',
-        content:new Blob([JSON.stringify(revised,null,2) + '\\n'], {type:'application/json'}) }],
+        content:new Blob([JSON.stringify(revised,null,2) + '\n'], {type:'application/json'}) }],
     });
     return json({ saved:true, id, status });
   } catch {
