@@ -162,12 +162,16 @@ try {
         return {
           red,green,contrast:(Math.max(a,bg)+.05)/(Math.min(a,bg)+.05),
           touch:b.width>=40&&b.height>=40,
+          // Keep the colour indicator comfortably inside the cloud outline;
+          // it must not become a large overlapping green/red badge.
+          dotSize:{width:d.width,height:d.height},
           inside:d.left>i.left+i.width*.25&&d.right<i.right-i.width*.25&&
             d.top>i.top+i.height*.25&&d.bottom<i.bottom-i.height*.19,
         };
       });
       if(!iconState||iconState.red===iconState.green||!iconState.touch||
-         !iconState.inside||iconState.contrast<4.5) {
+         !iconState.inside||iconState.dotSize.width!==6||
+         iconState.dotSize.height!==6||iconState.contrast<4.5) {
         throw new Error('Two-state cloud icon not readable in '+name+': '+JSON.stringify(iconState));
       }
       const expectedLogo = ['Sepia','Paper','Ocean'].includes(name) ? 'sun-light.webp' : 'sun-dark.webp';
