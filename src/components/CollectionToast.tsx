@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 
 export interface CollectionToastNotice {
   id: number;
@@ -9,10 +9,14 @@ export interface CollectionToastNotice {
 export default function CollectionToast({
   toast, onDismiss,
 }: { toast: CollectionToastNotice; onDismiss: () => void }) {
+  // The callback changes when the stack is reordered. Preserve each toast's
+  // original expiry instead of restarting its timer on every sibling update.
+  const latestDismiss = useRef(onDismiss);
+  latestDismiss.current = onDismiss;
   useEffect(() => {
-    const handle = window.setTimeout(onDismiss, 4500);
+    const handle = window.setTimeout(() => latestDismiss.current(), 4500);
     return () => window.clearTimeout(handle);
-  }, [onDismiss, toast.id]);
+  }, [toast.id]);
   return <div className="collection-change-toast" role="status"
       aria-live="polite" aria-label="Collection update">
     <span className="collection-toast-symbol" aria-hidden="true">✓</span>
