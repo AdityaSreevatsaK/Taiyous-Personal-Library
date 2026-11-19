@@ -949,7 +949,7 @@ export default function App() {
     await changeCollections(current => moveCollection(current, collectionId, parentId));
   }, [changeCollections]);
 
-  const notifyCollectionSaved = useCallback((bookId: string, collectionId: string, action: 'added' | 'removed') => {
+  const notifyCollectionSaved = useCallback((collectionId: string, action: 'added' | 'removed') => {
     const collection = collectionsRef.current.find(item => item.id === collectionId && !item.deleted);
     const pendingCloud = Boolean(cloudRepo && cloudSession && readCollectionsPending());
     setCollectionToast({
@@ -971,7 +971,7 @@ export default function App() {
       if (include) ids.add(bookId); else ids.delete(bookId);
       return { ...c, bookIds: [...ids], updatedAt: Math.max(Date.now(), c.updatedAt + 1) };
     }));
-    notifyCollectionSaved(bookId, collectionId, include ? 'added' : 'removed');
+    notifyCollectionSaved(collectionId, include ? 'added' : 'removed');
   }, [changeCollections, notifyCollectionSaved]);
 
   const createCollectionWithNovel = useCallback(async (bookId: string, name: string, parentId?: string) => {
@@ -992,7 +992,7 @@ export default function App() {
         ...(parentId ? { parentId } : {}), updatedAt: Date.now(),
       }];
     });
-    notifyCollectionSaved(bookId, id, 'added');
+    notifyCollectionSaved(id, 'added');
   }, [changeCollections, notifyCollectionSaved]);
 
   const renameCollection = useCallback(async (collectionId: string, name: string) => {
