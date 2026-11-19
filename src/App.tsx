@@ -59,7 +59,7 @@ export default function App() {
   const [importing, setImporting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  const [collectionToast, setCollectionToast] = useState<{ text: string; tone: 'success' | 'pending'; id: number } | null>(null);
+  const [collectionToast, setCollectionToast] = useState<{ title: string; detail: string; id: number } | null>(null);
   // With an OAuth-backed catalogue, never render historical IndexedDB books
   // before the authoritative hosted catalogue has been checked.
   const [localLoaded, setLocalLoaded] = useState(false);
@@ -950,16 +950,13 @@ export default function App() {
   }, [changeCollections]);
 
   const notifyCollectionSaved = useCallback((bookId: string, collectionId: string, action: 'added' | 'removed') => {
-    const novel = booksRef.current.find(book => book.id === bookId);
     const collection = collectionsRef.current.find(item => item.id === collectionId && !item.deleted);
     const pendingCloud = Boolean(cloudRepo && cloudSession && readCollectionsPending());
-    const name = novel?.title || 'Novel';
     setCollectionToast({
       id: Date.now(),
-      tone: pendingCloud ? 'pending' : 'success',
-      text: action === 'added'
-        ? `“${name}” added to “${collection?.name || 'collection'}”${pendingCloud ? ' on this device; cloud sync pending.' : cloudSession ? ' and saved.' : ' on this device.'}`
-        : `“${name}” removed from “${collection?.name || 'collection'}”${pendingCloud ? ' on this device; cloud sync pending.' : '.'}`,
+      title: action === 'added' ? `Added to ${collection?.name || 'collection'}` : `Removed from ${collection?.name || 'collection'}`,
+      detail: pendingCloud ? 'Saved on this device. Cloud sync pending.'
+        : cloudSession ? 'Saved to your private library.' : 'Saved on this device.',
     });
   }, [cloudRepo, cloudSession]);
 
@@ -1418,11 +1415,13 @@ export default function App() {
         onCloudLogout={signOutOfCloud} onCloudRefresh={() => void refreshCloud()}
         onCloudPublishCached={publishCachedNovels} />
     )}
-    {collectionToast && <div key={collectionToast.id} className={'collection-change-toast ' + collectionToast.tone}
+    {collectionToast && <div key={collectionToast.id} className="collection-change-toast"
       role="status" aria-live="polite" aria-label="Collection update">
-      <span className="collection-toast-symbol" aria-hidden="true">{collectionToast.tone === 'success' ? '✓' : '!'}</span>
-      <span>{collectionToast.text}</span>
-      <button type="button" onClick={() => setCollectionToast(null)} aria-label="Dismiss collection notification">×</button>
+      <span className="collection-toast-symbol" aria-hidden="true">✓</span>
+      <span className="collection-toast-copy"><strong>{collectionToast.title}</strong>
+        <small>{collectionToast.detail}</small></span>
+      <button type="button" onClick={() => setCollectionToast(null)}
+        aria-label="Dismiss collection notification">×</button>
     </div>}
     {!readingId && <BackToTop theme={settings.theme} />}
     {ownerRequest && <OwnerActionDialog theme={settings.theme} request={ownerRequest}
