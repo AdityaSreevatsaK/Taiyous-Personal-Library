@@ -1511,6 +1511,43 @@ try {
     if (!headerBox || !titleBox || Math.abs(titleBox.x + titleBox.width / 2 - (headerBox.x + headerBox.width / 2)) > 2) {
       throw new Error('Novel title is not geometrically centred in the reader header');
     }
+    // Regression: four ungrouped grid children previously wrapped the TOC,
+    // theme and preferences controls onto a second row at the far LEFT.
+    // Verify the actual header geometry at normal desktop and wide desktop.
+    if (viewport.width > 700) {
+      const assertReaderHeaderControls = async (mode) => {
+        const placement = await page.locator('.reader-header').evaluate(header => {
+          const rect = (selector) => header.querySelector(selector)?.getBoundingClientRect();
+          const bounds = header.getBoundingClientRect();
+          const left = rect('.reader-head-left');
+          const centre = rect('.reader-head-center');
+          const actions = rect('.reader-head-actions');
+          const library = rect('.reader-head-actions .quick-nav');
+          const controls = rect('.reader-head-actions .reader-head-right');
+          const wide = window.innerWidth >= 1400;
+          const allPresent = !!left && !!centre && !!actions && !!library && !!controls;
+          return {
+            allPresent,
+            rightAligned:!!actions && actions.right >= bounds.right - 32 &&
+              actions.right <= bounds.right + 1 && !!controls && controls.left > bounds.width * 0.55,
+            sameTopRow:!!left && !!actions && Math.abs(left.top - actions.top) <= 15,
+            together:!!library && !!controls && Math.abs(library.top - controls.top) <= 12 &&
+              library.right <= controls.left + 1,
+            titleClear:!!centre && !!actions && !!left && (wide
+              ? centre.right <= actions.left + 2 && left.right <= centre.left + 2
+              : centre.top >= Math.max(actions.bottom, left.bottom) - 3),
+          };
+        });
+        if (Object.values(placement).some(ok => !ok)) {
+          throw new Error('Reader controls not grouped at top-right ' + mode + ': ' +
+            JSON.stringify(placement));
+        }
+      };
+      await assertReaderHeaderControls('1366px desktop');
+      await page.setViewportSize({ width: 1650, height: 900 });
+      await assertReaderHeaderControls('1650px desktop');
+      await page.setViewportSize(viewport);
+    }
     if (await page.locator('.reader-home-link').getByText("Taiyou's Personal Library").count()) {
       throw new Error('Reader home control should use the symbol alone');
     }
