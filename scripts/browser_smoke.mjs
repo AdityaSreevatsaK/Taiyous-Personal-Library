@@ -1685,19 +1685,27 @@ try {
         const chapterColour = frame.contentWindow.getComputedStyle(heading).backgroundColor;
         const titleRule = frame.contentWindow.getComputedStyle(heading).borderBottomColor;
         const titleRuleWidth = parseFloat(frame.contentWindow.getComputedStyle(heading).borderBottomWidth);
-        const finalRule = frame.contentWindow.getComputedStyle(doc.body, '::after');
+        const marker = doc.body.querySelector('[data-taiyou-chapter-end]');
+        if (!marker) return null;
+        const finalRule = frame.contentWindow.getComputedStyle(marker);
         const inlineWidth = doc.documentElement.clientWidth;
         const bodyStyle = frame.contentWindow.getComputedStyle(doc.body);
+        // EPUB.js 0.3.x uses this precise Range for scrolled-doc height.
+        // A CSS body::after can style perfectly and still be omitted here.
+        const range = doc.createRange();
+        range.selectNodeContents(doc.body);
         return {
           headerColour, paperColour, chapterColour, titleRule,
           lastRule: finalRule.borderTopColor,
           titleRuleWidth, lastRuleWidth: parseFloat(finalRule.borderTopWidth),
           titleWidth: heading.getBoundingClientRect().width,
           lastWidth: parseFloat(finalRule.width), inlineWidth,
-          afterTop: parseFloat(finalRule.marginTop),
-          afterBottom: parseFloat(finalRule.marginBottom),
+          beforeEndRule: parseFloat(finalRule.marginTop),
+          afterEndRule: parseFloat(finalRule.height),
           bodyPadding: parseFloat(bodyStyle.paddingBottom),
-          endRuleContent: finalRule.content,
+          markerIsLast: doc.body.lastElementChild === marker,
+          markerBottom: marker.getBoundingClientRect().bottom,
+          measuredRangeBottom: range.getBoundingClientRect().bottom,
         };
       });
       const expectedInk = ['dark', 'midnight', 'plum'].includes(theme)
@@ -1709,8 +1717,9 @@ try {
           found.titleRuleWidth < 2 || found.lastRuleWidth < 2 ||
           found.titleWidth < found.inlineWidth - 3 ||
           found.lastWidth < found.inlineWidth - 3 ||
-          found.afterTop < 60 || found.afterBottom < 40 || found.bodyPadding < 20 ||
-          found.endRuleContent === 'none') {
+          found.beforeEndRule < 60 || found.afterEndRule < 105 ||
+          found.bodyPadding < 20 || !found.markerIsLast ||
+          found.measuredRangeBottom < found.markerBottom - 3) {
         throw new Error('Reader chapter separation failed for ' + theme + ': ' + JSON.stringify(found));
       }
     };
@@ -1741,6 +1750,49 @@ try {
       .getByRole('button', { name:/Chapter 1/ }).click();
     await page.getByText('Chapter 1 of 2').waitFor();
     await page.waitForURL('**/novels/sample-library-book/read/chapter-1');
+    await page.waitForFunction(() => {
+      const frame = document.querySelector('.reader-page iframe');
+      return frame?.contentDocument?.querySelectorAll('p').length >= 90;
+    });
+    // Regression: the previous 0-height body::after looked valid in computed
+    // CSS, but EPUB.js measured a shorter Range and clipped the last text.
+    // Scroll the ACTUAL chapter container to its maximum on desktop/mobile,
+    // then check visible pixel clearance from the bottom navigation bar.
+    const chapterScroller = page.locator('.reader-page .epub-container');
+    await chapterScroller.evaluate(el => { el.scrollTop = el.scrollHeight; });
+    await page.waitForTimeout(150);
+    const chapterEnd = await page.evaluate(() => {
+      const scroller = document.querySelector('.reader-page .epub-container');
+      const frame = document.querySelector('.reader-page .epub-view iframe');
+      const doc = frame?.contentDocument;
+      const marker = doc?.body?.querySelector('[data-taiyou-chapter-end]');
+      const lastText = [...(doc?.querySelectorAll('p') || [])]
+        .find(p => p.textContent?.startsWith('Paragraph 90:'));
+      const footer = document.querySelector('.reader-chapter-footer');
+      if (!scroller || !frame || !doc || !marker || !lastText || !footer) return null;
+      const view = frame.getBoundingClientRect();
+      const markerRect = marker.getBoundingClientRect();
+      const lastTextRect = lastText.getBoundingClientRect();
+      const footerRect = footer.getBoundingClientRect();
+      const viewportRect = scroller.getBoundingClientRect();
+      return {
+        scrollTop: scroller.scrollTop,
+        scrollable: scroller.scrollHeight - scroller.clientHeight,
+        endGapBeforeRule: markerRect.top - lastTextRect.bottom,
+        visibleSpaceAfterText: footerRect.top - (view.top + lastTextRect.bottom),
+        visibleEndRuleOffset: footerRect.top - (view.top + markerRect.top),
+        endRuleInsideViewport: view.top + markerRect.top > viewportRect.top - 2 &&
+          view.top + markerRect.top < viewportRect.bottom - 10,
+        bottomAligned: Math.abs(scroller.scrollTop - (scroller.scrollHeight - scroller.clientHeight)) < 3,
+      };
+    });
+    if (!chapterEnd || chapterEnd.scrollable < 150 || chapterEnd.scrollTop < 80 ||
+        !chapterEnd.bottomAligned || !chapterEnd.endRuleInsideViewport ||
+        chapterEnd.endGapBeforeRule < 54 || chapterEnd.visibleEndRuleOffset < 84 ||
+        chapterEnd.visibleSpaceAfterText < 140) {
+      throw new Error('EPUB text touches chapter footer at end of scroll: '
+        + JSON.stringify({ viewport, chapterEnd }));
+    }
 
     // The URL must select an explicit chapter even when the stored CFI
     // points to chapter 1. Verify direct links, reload and browser history.
