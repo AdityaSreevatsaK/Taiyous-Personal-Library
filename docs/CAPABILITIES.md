@@ -1,6 +1,6 @@
 # Capabilities and offline behaviour — `master` (Cloudflare standalone PWA)
 
-**Scope:** This file describes the current `master` code deployed as a standalone PWA on Cloudflare Pages. The private novel dataset's 89 existing folders were migrated to readable names on 14 November 2026; see [migration sign-off](READABLE_FOLDER_MIGRATION_SIGNOFF_2026-11-14.md). The Hugging Face Spaces are legacy application deployments; the private Hugging Face Dataset remains the book/metadata backend. Use `.github/workflows/deploy-standalone.yml` for manual Cloudflare publication after checks.
+**Scope:** This document records capabilities and historical context; live behaviour must be checked against current `master` and [UX contract](UX_BEHAVIOUR_CONTRACT.md). The private novel dataset's 89 existing folders were migrated to readable names on 14 November 2026; see [migration sign-off](READABLE_FOLDER_MIGRATION_SIGNOFF_2026-11-14.md). The Hugging Face Spaces are legacy application deployments; the private Hugging Face Dataset remains the book/metadata backend. **Routine verified merges now deploy automatically** via `.github/workflows/auto-deploy-verified-master.yml`; the standalone deploy workflow remains the guarded manual fallback.
 
 ## Features in master
 
@@ -17,12 +17,12 @@
 | EPUB and ZIP download | **Download EPUB** saves a real `.epub` file through the browser. Uses a cached EPUB, or obtains one from the authorised private dataset if missing. **Original ZIP** is offered only when a hosted archive exists and requires a network fetch |
 | Book imports | Local EPUB/ZIP imports and IndexedDB caching. When connected, may publish EPUB, ZIP (when provided) and catalogue to the separate private dataset |
 | Cloud session | Hugging Face OAuth with encrypted HttpOnly cookie and automatic reconnection (after the production secret is configured and the updated app deployed); the manual fine-grained HF token remains available in memory as a fallback |
-| Standalone PWA deployment | Production Cloudflare Pages workflow on `master`, with manually gated publish. The Pages app shell is deliberately **public**, while novels, reading progress and personal notes remain protected by the **private Hugging Face dataset token**. **Live, with manual master-branch deployments.** |
+| Standalone PWA deployment | Production Cloudflare Pages workflow on `master`, automatically gated by current-master Verify and matching CodeQL success. The Pages app shell is deliberately **public**, while novels, reading progress and personal notes remain protected by the **private Hugging Face dataset token**. **Live, with verification-gated automatic master deployments and a manual fallback.** |
 | Offline library management | Offline tab holds download count, PWA readiness and **Save all offline**. The Novel Details storage card manages individual downloads. A cached EPUB can be removed with a normal confirmation (no Owner passphrase), but only after the private server confirms the hosted replacement exists. Local-only EPUBs cannot be cleared this way. |
 | Protected Owner mode | Additional Cloudflare passphrase Secret, independent of HF OAuth; 10-minute encrypted HttpOnly owner cookie, exact-title confirmation for deleting any entire local/hosted novel or a collection. The hosted deletion is an exact-novel, revision-guarded HF commit (catalogue plus book folder and private notes). No arbitrary-path deletion is exposed. |
 | Bulk offline library | **Save all offline** downloads missing EPUBs sequentially with progress and per-book failure reporting |
 | Reading-position sync | Per-book private progress JSON, local pending queue and timestamp-based restore/retry when connected |
-| Build/deploy | TypeScript, Vitest, Vite build, production dependency audit, browser smoke tests and manually approved deployment to **Cloudflare Pages** from `master` |
+| Build/deploy | TypeScript, Vitest, Vite build, production dependency audit, browser smoke tests and automatic verified deployment to **Cloudflare Pages** from `master` |
 
 ### Storage map
 
@@ -71,7 +71,7 @@ The dedicated **Offline tab** displays connectivity, downloaded EPUB count, PWA 
 
 ### Standalone installation
 
-The standalone production Cloudflare PWA is deployed at https://taiyous-personal-library.pages.dev (production branch `master`). The previous `dev`-prefixed address is a retired preview origin. The user validated Android offline cold startup and reading on that older origin on 10 November 2026; fresh offline validation is recommended after installing the permanent hostname. Publishing is manually gated from GitHub `master`. See [Standalone operations](STANDALONE_PWA.md).
+The standalone production Cloudflare PWA is deployed at https://taiyous-personal-library.pages.dev (production branch `master`). The previous `dev`-prefixed address is a retired preview origin. The user validated Android offline cold startup and reading on that older origin on 10 November 2026; fresh offline validation is recommended after installing the permanent hostname. Routine publishing is automatically gated by passing `master` Verify and matching CodeQL; manual deployment is a fallback. See [Standalone operations](STANDALONE_PWA.md).
 
 ### Outstanding offline work
 
@@ -79,7 +79,7 @@ Test actual cross-device private Dataset sync and reconnection using authorised 
 
 ## Release and production safety
 
-- `master` is the only active source branch. Pushes run `.github/workflows/verify.yml`; the standalone Cloudflare workflow must be run manually with Publish enabled.
+- `master` is the only active production source branch. Pushes run `.github/workflows/verify.yml` and CodeQL, then successful exact-commit verification triggers automatic guarded Cloudflare publication. The manual Publish workflow is a fallback.
 - The historic Hugging Face Space staging deployment workflow is retired from `master`; the private Dataset is retained.
 - Validate cross-device collections/reviews and novel reading before major releases.
 - Never write real book files or the private dataset as part of CI smoke tests.

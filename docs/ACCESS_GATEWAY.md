@@ -50,9 +50,9 @@ The page is a public, non-sensitive OAuth descriptor. It must be available over 
 
 ### 3. Deploy after the secret is saved
 
-GitHub → [Build and optionally deploy standalone PWA](../.github/workflows/deploy-standalone.yml) → choose **`master`**, enable **Publish**, and run.
+Routine verified PR merges now **automatically** trigger the guarded Cloudflare deployment after exact-commit `master` Verify and CodeQL checks. If the new secret is added **without a code change**, a deliberate manual recovery/refresh deploy remains available: GitHub → [Deploy Application](../.github/workflows/deploy-standalone.yml) → choose **`master`**, enable **Publish**, and run.
 
-The workflow tests the app, builds the frontend and private Pages Functions, and deploys to the existing **Cloudflare Pages** project. No novel files or secrets enter GitHub CI.
+The workflow tests the app, builds the frontend and private Pages Functions, and deploys to the existing **Cloudflare Pages** project. See [testing and release](TESTING_RELEASE_RUNBOOK.md) for current deployment gates. No novel files or secrets enter GitHub CI.
 
 No `CF_ACCESS_AUD`, `CF_ACCESS_TEAM_DOMAIN`, `CF_ACCESS_ALLOWED_EMAIL`, or `HF_DATASET_TOKEN` variables are needed for this OAuth implementation. Those belonged to the previous, un-deployed Cloudflare Access design. You can remove them after verifying OAuth, if you had already configured them.
 
