@@ -1361,9 +1361,11 @@ try {
       name: 'Remove novel from Example Series / Volume One / Arc A',
     });
     if (!(await alreadyAdded.isEnabled()) ||
-        await alreadyAdded.getAttribute('aria-pressed') !== 'true') {
-      throw new Error('Existing collection must offer a reversible selected state');
+        await alreadyAdded.getAttribute('aria-pressed') !== 'true' ||
+        (await alreadyAdded.innerText()).trim() !== 'Remove') {
+      throw new Error('Existing collection must have an explicit, enabled Remove button');
     }
+    await picker.locator('.novel-collection-member-state').getByText('Added').waitFor();
     await alreadyAdded.click();
     const reAdd = picker.getByRole('button', {
       name: 'Add novel to Example Series / Volume One / Arc A',
@@ -1385,6 +1387,35 @@ try {
       throw new Error('Newest collection toast must appear above the previous one: ' +
         JSON.stringify(stacked));
     }
+    await picker.getByRole('button', { name: 'Close collection picker' }).click();
+    await picker.waitFor({ state: 'detached' });
+    // A previously saved membership must still be removable after reopening
+    // the picker, and removal must survive a full browser reload.
+    await addFromDetails.click();
+    await picker.getByRole('searchbox', { name:'Search collections' }).fill('Arc A');
+    await picker.getByRole('button', {
+      name:'Remove novel from Example Series / Volume One / Arc A',
+    }).click();
+    await picker.getByRole('button', {
+      name:'Add novel to Example Series / Volume One / Arc A',
+    }).waitFor();
+    await picker.getByRole('button', { name:'Close collection picker' }).click();
+    await page.reload({ waitUntil: 'networkidle' });
+    await page.getByRole('heading', { name: 'Sample Library Book' }).waitFor();
+    if (await page.getByRole('navigation', { name:'Collections containing this novel' })
+      .getByRole('link', { name:'Open collection Example Series / Volume One / Arc A' }).count()) {
+      throw new Error('Removed membership returned after a page reload');
+    }
+    await page.getByRole('button', { name:'Add to collection' }).click();
+    await picker.getByRole('searchbox', { name:'Search collections' }).fill('Arc A');
+    const restoredAdd = picker.getByRole('button', {
+      name:'Add novel to Example Series / Volume One / Arc A',
+    });
+    await restoredAdd.waitFor();
+    await restoredAdd.click();
+    await picker.getByRole('button', {
+      name:'Remove novel from Example Series / Volume One / Arc A',
+    }).waitFor();
     await picker.getByRole('button', { name: 'Close collection picker' }).click();
     await picker.waitFor({ state: 'detached' });
     await addFromDetails.click();

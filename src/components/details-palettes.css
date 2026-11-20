@@ -792,3 +792,21 @@
   .details-shell .novel-collection-dialog {padding:18px 15px}
   .details-shell .novel-collection-entries {max-height:min(235px,35dvh)}
 }
+
+/* Make membership reversible: an already-added novel has a passive state
+   indicator and a separate visible Remove action, including on mobile. */
+.details-shell .novel-collection-entries .novel-collection-member-state {
+  flex:0 0 auto;white-space:nowrap;font-size:10px;font-weight:650;
+  color:var(--subtext);letter-spacing:0;
+}
+.details-shell .novel-collection-entries button.is-added {
+  min-width:74px;background:transparent;
+  color:var(--text);border-color:var(--border);
+}
+.details-shell .novel-collection-entries button.is-added:hover:not(:disabled) {
+  border-color:var(--accent);background:var(--pale);
+}
+@media(max-width:480px) {
+  .details-shell .novel-collection-entries .novel-collection-member-state {font-size:9px}
+  .details-shell .novel-collection-entries button.is-added {min-width:65px}
+}
