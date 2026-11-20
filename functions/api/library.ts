@@ -206,6 +206,12 @@ async function upload(request: Request, repo: string, token: string): Promise<Re
   // Sidecar notes/collections are independent and never carry book files.
   if (hasCatalogue) return uploadCatalogueAddition(repo, token, files, title);
   if (hasNovelData) return reject(403, 'Direct novel-file replacement is not permitted');
+  // The browser's visibility check is advisory only. Enforce privacy at the
+  // actual write boundary as well, including for direct API callers. A dataset
+  // accidentally made public must never receive private reading notes.
+  if (!(await isPrivateDataset(token))) {
+    return reject(403, 'Private reading data was not uploaded because the dataset is inaccessible or not private');
+  }
   await uploadFiles({
     repo: { type: 'dataset', name: repo },
     accessToken: token,
