@@ -171,6 +171,18 @@ button, input, select { -webkit-tap-highlight-color: transparent; }
 .reader-main { flex: 1 1 auto; min-height: 0; display: flex; align-items: stretch; justify-content: center; overflow: hidden; background: var(--reader-paper); position: relative; }
 .reader-content { width: calc(100% - clamp(20px, 4vw, 80px)); max-width: var(--reading-width); height: 100%; position: relative; min-height: 0; }
 .reader-page { width: 100%; height: 100%; overflow: hidden; overscroll-behavior: contain; }
+/* A clearly differentiated title bar and footer for every reader palette.
+   Use the theme's own ink/paper for contrast, without repainting EPUB text. */
+.reader-shell {
+  --reader-chrome-surface: color-mix(in srgb, var(--reader-paper) 76%, var(--text) 24%);
+  --reader-chrome-edge: color-mix(in srgb, var(--reader-paper) 35%, var(--text) 65%);
+}
+.reader-shell .reader-header,
+.reader-shell .reader-chapter-footer {
+  background: var(--reader-chrome-surface);
+  border-color: var(--reader-chrome-edge);
+}
+.reader-shell .reader-head-center small { color: var(--text); opacity: .92; }
 .reader-page iframe { border: none !important; }
 /* EPUB.js handles vertical scrolling within the current chapter. */
 .reader-page .epub-container { overscroll-behavior-y: contain; scrollbar-width: thin; scrollbar-color: #8a9c8b transparent; }

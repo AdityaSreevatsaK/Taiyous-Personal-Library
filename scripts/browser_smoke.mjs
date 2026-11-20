@@ -1653,6 +1653,11 @@ try {
       return heading ? frame.contentWindow?.getComputedStyle(heading).textAlign : '';
     });
     if (headingAligned !== 'center') throw new Error('EPUB h2 chapter heading not centred');
+    const h2Rule = await page.locator('.reader-page iframe').first().evaluate(frame => {
+      const title = frame.contentDocument?.querySelector('h2');
+      return title ? frame.contentWindow?.getComputedStyle(title).borderBottomWidth : '';
+    });
+    if (h2Rule !== '2px') throw new Error('EPUB h2 chapter title has no full-width rule');
     await numericSearch.press('Enter');
     await chapterDialog.waitFor({ state: 'detached' });
     await page.getByText('Chapter 2 of 2').waitFor();
@@ -1663,6 +1668,72 @@ try {
       return paragraph ? frame.contentWindow?.getComputedStyle(paragraph).textAlign : '';
     });
     if (paragraphAligned !== 'center') throw new Error('EPUB paragraph chapter heading not centred');
+    // Layout regression for all six colour themes, especially Plum: the
+    // title bar, chapter title band and actual EPUB paper must differ.
+    // The two horizontal rules must be opaque, true black/white and span
+    // the whole iframe, with enough room after the final paragraph.
+    const verifyChapterSeparators = async (theme) => {
+      const found = await page.evaluate(() => {
+        const header = document.querySelector('.reader-header');
+        const main = document.querySelector('.reader-main');
+        const frame = document.querySelector('.reader-page iframe');
+        const doc = frame?.contentDocument;
+        const heading = doc?.querySelector('.taiyou-chapter-heading');
+        if (!header || !main || !frame || !doc?.body || !heading) return null;
+        const headerColour = getComputedStyle(header).backgroundColor;
+        const paperColour = getComputedStyle(main).backgroundColor;
+        const chapterColour = frame.contentWindow.getComputedStyle(heading).backgroundColor;
+        const titleRule = frame.contentWindow.getComputedStyle(heading).borderBottomColor;
+        const titleRuleWidth = parseFloat(frame.contentWindow.getComputedStyle(heading).borderBottomWidth);
+        const finalRule = frame.contentWindow.getComputedStyle(doc.body, '::after');
+        const inlineWidth = doc.documentElement.clientWidth;
+        const bodyStyle = frame.contentWindow.getComputedStyle(doc.body);
+        return {
+          headerColour, paperColour, chapterColour, titleRule,
+          lastRule: finalRule.borderTopColor,
+          titleRuleWidth, lastRuleWidth: parseFloat(finalRule.borderTopWidth),
+          titleWidth: heading.getBoundingClientRect().width,
+          lastWidth: parseFloat(finalRule.width), inlineWidth,
+          afterTop: parseFloat(finalRule.marginTop),
+          afterBottom: parseFloat(finalRule.marginBottom),
+          bodyPadding: parseFloat(bodyStyle.paddingBottom),
+          endRuleContent: finalRule.content,
+        };
+      });
+      const expectedInk = ['dark', 'midnight', 'plum'].includes(theme)
+        ? 'rgb(255, 255, 255)' : 'rgb(0, 0, 0)';
+      if (!found || found.headerColour === found.paperColour ||
+          found.chapterColour === found.paperColour ||
+          found.chapterColour === found.headerColour ||
+          found.titleRule !== expectedInk || found.lastRule !== expectedInk ||
+          found.titleRuleWidth < 2 || found.lastRuleWidth < 2 ||
+          found.titleWidth < found.inlineWidth - 3 ||
+          found.lastWidth < found.inlineWidth - 3 ||
+          found.afterTop < 60 || found.afterBottom < 40 || found.bodyPadding < 20 ||
+          found.endRuleContent === 'none') {
+        throw new Error('Reader chapter separation failed for ' + theme + ': ' + JSON.stringify(found));
+      }
+    };
+    const initialReaderTheme = await page.locator('.reader-shell').evaluate(shell =>
+      [...shell.classList].find(name => name.startsWith('theme-'))?.slice(6));
+    if (!initialReaderTheme) throw new Error('Missing active reader theme');
+    await verifyChapterSeparators(initialReaderTheme);
+    for (const [themeName, themeId] of [['Plum', 'plum'], ['Paper', 'light'], ['Ocean', 'ocean'],
+      ['Charcoal', 'dark'], ['Midnight', 'midnight'], ['Sepia', 'sepia']]) {
+      await page.getByRole('button', { name:/Choose colour theme, currently/ }).click();
+      await page.getByRole('button', { name:'Use ' + themeName + ' theme' }).click();
+      await page.locator('.reader-shell.theme-' + themeId).waitFor();
+      // Reader appearance propagates to the independently styled EPUB iframe
+      // in a React effect; wait for the new ink rather than racing that effect.
+      const expected = ['dark', 'midnight', 'plum'].includes(themeId)
+        ? 'rgb(255, 255, 255)' : 'rgb(0, 0, 0)';
+      await page.waitForFunction(ink => {
+        const iframe = document.querySelector('.reader-page iframe');
+        const heading = iframe?.contentDocument?.querySelector('.taiyou-chapter-heading');
+        return !!heading && iframe.contentWindow.getComputedStyle(heading).borderBottomColor === ink;
+      }, expected);
+      await verifyChapterSeparators(themeId);
+    }
     await chapterJump.click();
     await page.getByRole('dialog', { name: 'Choose chapter' })
       .getByRole('searchbox', { name:'Search chapter number' }).fill('1');
