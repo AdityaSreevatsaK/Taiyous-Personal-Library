@@ -46,6 +46,15 @@
 .editorial-section-heading .editorial-eyebrow{color:#938265;margin:0 0 7px}
 .editorial-section-heading h2,.editorial-section-heading h3{font:500 clamp(27px,2.7vw,37px)/1.1 Georgia,serif;letter-spacing:-.035em;margin:0}
 .editorial-section-aside{font-size:12px;color:var(--subtext)}
+.editorial-reading-view-all{
+  display:inline-flex;align-items:center;justify-content:flex-end;gap:6px;
+  border:0;background:none;padding:6px 0;
+  color:var(--text);font:650 12px/1.4 Inter,"Segoe UI",sans-serif;
+  cursor:pointer;text-align:right;text-decoration:underline;text-underline-offset:3px;
+}
+.editorial-reading-view-all:hover{color:var(--accent)}
+.editorial-reading-view-all:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:3px}
+
 .editorial-continue-rail{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;gap:14px;padding:3px 2px 15px;scrollbar-width:thin;scrollbar-color:var(--border) transparent}
 .editorial-continue-card{flex:0 0 min(315px,85vw);min-width:0;display:grid;grid-template-columns:84px minmax(0,1fr);gap:16px;scroll-snap-align:start;padding:13px;background:var(--surface);border:1px solid var(--border);border-radius:5px;box-shadow:var(--shadow)}
 .editorial-continue-cover{border:0;background:none;padding:0;min-width:0}
