@@ -1037,6 +1037,33 @@ html, body, #root { max-width: 100%; overflow-x: clip; }
   height: 38px;
   padding: 0;
 }
+/* Small, permanent ambient glow on the reader's book-shaped Home shortcut.
+   Tint its existing outline with each theme's ink/accent, without enlarging
+   the icon, covering the header, or introducing an attention-grabbing pulse. */
+.reader-shell .reader-header .reader-home-link {
+  color: color-mix(in srgb, var(--text) 62%, var(--accent) 38%);
+  transition: color .2s ease;
+}
+.reader-shell .reader-header .reader-home-link svg {
+  filter:
+    drop-shadow(0 0 3px color-mix(in srgb, var(--accent) 46%, transparent))
+    drop-shadow(0 0 7px color-mix(in srgb, var(--accent) 24%, transparent));
+  transition: filter .2s ease;
+}
+.reader-shell .reader-header .reader-home-link:is(:hover, :focus-visible) {
+  color: var(--accent);
+}
+.reader-shell .reader-header .reader-home-link:is(:hover, :focus-visible) svg {
+  filter:
+    drop-shadow(0 0 4px color-mix(in srgb, var(--accent) 62%, transparent))
+    drop-shadow(0 0 9px color-mix(in srgb, var(--accent) 33%, transparent));
+}
+@media (prefers-reduced-motion: reduce) {
+  .reader-shell .reader-header .reader-home-link,
+  .reader-shell .reader-header .reader-home-link svg {
+    transition: none;
+  }
+}
 .reader-novel-link { font-size: 14px; }
 @media (max-width: 700px) {
   .reader-header {
