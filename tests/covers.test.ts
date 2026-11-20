@@ -23,6 +23,21 @@ describe('private novel cover images', () => {
     expect(merged[0].personalRating).toBe(8);
     expect(merged[0].progress).toBe(48);
   });
+  it('avoids the redundant OAuth dataset visibility round-trip when loading catalogue', async () => {
+    const oauthSession: CloudSession = {
+      via: 'oauth', accessToken: '', username: 'Hugging Face', expiresAt: Number.MAX_SAFE_INTEGER,
+    };
+    const fetcher = vi.fn(async (url: RequestInfo | URL) => {
+      if (String(url).startsWith('/api/library?action=file&path=')) {
+        return new Response(JSON.stringify({ version: 1, books: [entry] }));
+      }
+      throw Error('Unexpected extra dataset visibility request');
+    });
+    vi.stubGlobal('fetch', fetcher);
+    const result = await fetchCloudCatalog(repo, oauthSession);
+    expect(result.books[0].id).toBe(id);
+    expect(fetcher).toHaveBeenCalledOnce();
+  });
   it('validates a new coverPath on older version-1 catalogues', async () => {
     const fetcher = vi.fn(async (url: RequestInfo | URL) => {
       const name = String(url);
