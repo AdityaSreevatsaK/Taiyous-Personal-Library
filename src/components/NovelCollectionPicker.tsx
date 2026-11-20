@@ -69,11 +69,13 @@ export default function NovelCollectionPicker({
         const included = collection.bookIds.includes(bookId);
         return <li key={collection.id}>
           <span>{path}</span>
+          {included && <small className="novel-collection-member-state" aria-label="Already in this collection">✓ Added</small>}
           <button type="button" disabled={busy} aria-pressed={included}
             className={included ? 'is-added' : ''}
             aria-label={(included ? 'Remove novel from ' : 'Add novel to ') + path}
+            title={included ? 'Remove novel from this collection' : 'Add novel to this collection'}
             onClick={() => void toggle(collection.id, !included)}>
-            {busy ? 'Saving…' : included ? '✓ Added' : 'Add'}
+            {busy ? 'Saving…' : included ? 'Remove' : 'Add'}
           </button>
         </li>;
       })}
