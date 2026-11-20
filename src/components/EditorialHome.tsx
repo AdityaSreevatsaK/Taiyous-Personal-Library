@@ -2,7 +2,7 @@ import { useCallback, useMemo, useState, type ReactNode } from 'react';
 import { ArrowRight, BookOpen, Bookmark, Feather, Sparkles } from 'lucide-react';
 import { bookTags, tagCounts } from '../lib/tags';
 import type { BookCollection } from '../lib/collections';
-import { selectHomeBooks, selectHomeShelves } from '../lib/home-curation';
+import { selectHomeBooks, selectHomeGalleryCovers, selectHomeShelves } from '../lib/home-curation';
 import { isFinished, isCurrentlyReading } from '../lib/reading-status';
 import { namedNovelUrl } from '../lib/routes';
 import { openNovelInCurrentTab, revealClippedLinkTitle } from '../lib/novel-links';
@@ -38,7 +38,11 @@ function readingStatus(book: LibraryBook): string {
 export default function EditorialHome({
   books, allBooks, collections, onBrowseCollection, onBrowseAll, onBrowseShelf, onOpen, onRead, onBrowseTag, cover,
 }: Props) {
-  const { featured, continueReading, journal } = useMemo(() => selectHomeBooks(books), [books]);
+  // One seed per home visit keeps the hero and three cover positions stable
+  // through metadata/progress rerenders, while returning home gives new novels.
+  const [heroSeed] = useState(() => Math.floor(Math.random() * 0xffffffff) || 1);
+  const { featured, continueReading, journal } = useMemo(
+    () => selectHomeBooks(books, heroSeed), [books, heroSeed]);
   const readingCount = useMemo(() =>
     books.filter(isCurrentlyReading).length, [books]);
   // Gallery is different from the catalogue: show ONLY successfully decoded
@@ -54,14 +58,9 @@ export default function EditorialHome({
       return next;
     });
   }, []);
-  const galleryCandidates = useMemo(() => {
-    const seen = new Set<string>();
-    return [featured, ...journal, ...books].filter((book): book is LibraryBook => {
-      if (!book?.coverPath || seen.has(book.id)) return false;
-      seen.add(book.id);
-      return true;
-    }).slice(0, 12);
-  }, [featured, journal, books]);
+  const galleryCandidates = useMemo(
+    () => selectHomeGalleryCovers(books, featured?.id, heroSeed ^ 0x6c8e9cf5),
+    [books, featured?.id, heroSeed]);
   const visibleGalleryIds = galleryCandidates.filter(book => loadedGalleryIds.has(book.id))
     .slice(0, 3).map(book => book.id);
   // Randomise only this four-card discovery section, once per page visit.
@@ -72,6 +71,10 @@ export default function EditorialHome({
   const trialCount = books.filter(book => book.shelfStatus === 'trying').length;
   const completedCount = books.filter(book => book.shelfStatus !== 'trying' && isFinished(book)).length;
   if (!featured) return null;
+  const featuredFinished = isFinished(featured);
+  const featuredReading = isCurrentlyReading(featured);
+  const featuredAction = featuredFinished ? 'Read again'
+    : featured.progress > 0 ? 'Continue reading' : 'Begin reading';
 
   return <div className="editorial-home" aria-label="Your library front page">
     <section className="editorial-grand" aria-labelledby="editorial-grand-heading">
@@ -81,7 +84,8 @@ export default function EditorialHome({
           <h1 id="editorial-grand-heading">Where worlds <em>unfold.</em></h1>
           <p className="editorial-grand-tagline">A home for extraordinary stories and all the places they take you.</p>
           <div className="editorial-featured-book">
-            <span className="editorial-eyebrow">YOUR NEXT CHAPTER</span>
+            <span className="editorial-eyebrow">{featuredReading ? 'YOUR NEXT CHAPTER'
+              : featuredFinished ? 'REDISCOVER A STORY' : 'DISCOVER A STORY'}</span>
             <h2>{featured.title}</h2>
             <p className="editorial-featured-author">by {featured.author}</p>
             <p className="editorial-featured-synopsis">{featured.userDescription || featured.description || 'Your next reading journey is ready when you are.'}</p>
@@ -91,7 +95,7 @@ export default function EditorialHome({
           </div>
           <div className="editorial-grand-actions">
             <a href={namedNovelUrl(featured, allBooks, true)} className="editorial-primary" onClick={event => openNovelInCurrentTab(event, () => onRead(featured))}>
-              <BookOpen size={18} /> {featured.progress > 0 ? 'Continue reading' : 'Begin reading'} <ArrowRight size={16} />
+              <BookOpen size={18} /> {featuredAction} <ArrowRight size={16} />
             </a>
             <a href={namedNovelUrl(featured, allBooks)} className="editorial-secondary" title={featured.title} onClick={event => openNovelInCurrentTab(event, () => onOpen(featured))}>
               Explore this novel <ArrowRight size={15} />
