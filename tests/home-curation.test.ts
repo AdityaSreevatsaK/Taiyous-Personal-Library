@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { selectHomeBooks, selectHomeShelves } from '../src/lib/home-curation';
+import { selectHomeBooks, selectHomeGalleryCovers, selectHomeShelves } from '../src/lib/home-curation';
 import type { LibraryBook } from '../src/types';
 
 const book = (n: number, extra: Partial<LibraryBook> = {}): LibraryBook => ({
@@ -25,6 +25,48 @@ describe('curated private library homepage', () => {
     expect(new Set([chosen.featured!.id, ...chosen.continueReading.map(b => b.id),
       ...chosen.journal.map(b => b.id)]).size).toBe(9);
   });
+  it('randomises the hero on each visit without changing the reading desk', () => {
+    const novels = Array.from({ length: 30 }, (_, i) => book(i + 1, {
+      coverPath: 'data/covers/' + i + '.jpg',
+      ...(i % 3 === 0 ? { progress: 20, lastOpenedAt: 1000 + i } : {}),
+    }));
+    const results = Array.from({ length: 64 }, (_, i) => selectHomeBooks(novels, i + 1));
+    expect(new Set(results.map(item => item.featured!.id)).size).toBeGreaterThan(10);
+    expect(results.every(item => novels.includes(item.featured!))).toBe(true);
+    for (const result of results) {
+      expect(result.continueReading.map(item => item.id))
+        .toEqual(results[0].continueReading.map(item => item.id));
+      expect(new Set(result.journal.map(item => item.id)).size).toBe(result.journal.length);
+      expect(result.journal.every(item => item.id !== result.featured?.id)).toBe(true);
+    }
+    expect(selectHomeBooks([...novels].reverse(), 15).featured?.id)
+      .toBe(selectHomeBooks(novels, 15).featured?.id);
+    expect(selectHomeBooks(novels, 15)).toEqual(selectHomeBooks(novels, 15));
+  });
+
+  it('shuffles the floating gallery and does not duplicate the featured cover when avoidable', () => {
+    const novels = Array.from({ length: 26 }, (_, i) =>
+      book(i + 1, { coverPath: 'data/novels/' + i + '/cover.jpg' }));
+    const featuredId = novels[2].id;
+    const samples = Array.from({ length: 32 }, (_, i) =>
+      selectHomeGalleryCovers(novels, featuredId, i + 1));
+    expect(new Set(samples.map(items => items.slice(0, 3).map(book => book.id).join('|'))).size)
+      .toBeGreaterThan(12);
+    for (const covers of samples) {
+      expect(covers).toHaveLength(12);
+      expect(new Set(covers.map(book => book.id)).size).toBe(12);
+      expect(covers.every(book => !!book.coverPath && book.id !== featuredId)).toBe(true);
+    }
+    expect(selectHomeGalleryCovers([...novels].reverse(), featuredId, 42))
+      .toEqual(selectHomeGalleryCovers(novels, featuredId, 42));
+    expect(selectHomeGalleryCovers(novels, featuredId, 42))
+      .toEqual(selectHomeGalleryCovers(novels, featuredId, 42));
+    expect(selectHomeGalleryCovers([], featuredId, 42)).toEqual([]);
+    expect(selectHomeGalleryCovers([book(1)], featuredId, 42)).toEqual([]);
+    expect(selectHomeGalleryCovers([novels[2]], featuredId, 42)).toEqual([novels[2]]);
+    expect(selectHomeGalleryCovers(novels, featuredId, 42, 0)).toEqual([]);
+  });
+
   it('handles empty and one-novel libraries gracefully', () => {
     expect(selectHomeBooks([])).toEqual({ featured: undefined, continueReading: [], journal: [] });
     const only = book(1);
