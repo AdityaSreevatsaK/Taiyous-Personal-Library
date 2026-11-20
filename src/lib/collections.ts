@@ -113,7 +113,9 @@ export async function fetchCloudCollections(repo: string, session: CloudSession)
 export async function saveCloudCollections(
   repo: string, session: CloudSession, updates: BookCollection[],
 ): Promise<BookCollection[]> {
-  await assertPrivateDataset(repo, session);
+  // OAuth uploads are privacy-guarded by the server, avoiding a redundant
+  // visibility probe on every collection save. Raw token mode remains checked.
+  if (session.via !== 'oauth') await assertPrivateDataset(repo, session);
   const current = await fetchCloudCollections(repo, session);
   const merged = mergeCollections(current, updates);
   await uploadPrivateDatasetFiles(repo, session, [

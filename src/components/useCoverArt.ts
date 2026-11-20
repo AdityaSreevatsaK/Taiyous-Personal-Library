@@ -1,11 +1,16 @@
 import { useEffect, useState } from 'react';
 import { fetchCloudCover, type CloudSession } from '../lib/cloud';
 import { cacheCover, getCachedCover } from '../lib/storage';
+import { createRequestLimiter } from '../lib/network-pool';
 import type { LibraryBook } from '../types';
 
 // Share pending cover downloads, not object URLs. Object URLs pin decoded images
 // in browser memory and must be released when the last rendering component exits.
 const inFlight = new Map<string, Promise<Blob | null>>();
+// IntersectionObserver stops off-screen starts, but a fast scroll or several
+// galleries can still mount dozens of covers at once. Keep remote private
+// gateway fetches bounded; cache hits do not wait for a network slot.
+const downloadCover = createRequestLimiter(4);
 
 export function useCoverArt(book: LibraryBook, repo: string, session: CloudSession | null, enabled = true): string | null {
   const [url, setUrl] = useState<string | null>(null);
@@ -27,7 +32,7 @@ export function useCoverArt(book: LibraryBook, repo: string, session: CloudSessi
       task = (async () => {
         let cover = await getCachedCover(book.id).catch(() => null);
         if (!cover && repo && session && navigator.onLine) {
-          cover = await fetchCloudCover(repo, book, session).catch(() => null);
+          cover = await downloadCover(() => fetchCloudCover(repo, book, session)).catch(() => null);
           if (cover) await cacheCover(book.id, cover).catch(() => {});
         }
         return cover;
