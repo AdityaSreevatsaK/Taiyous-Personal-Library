@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { blendCloudAndLocal, fetchCloudCatalog, fetchCloudCover, type CloudEntry, type CloudSession } from '../src/lib/cloud';
 import type { LibraryBook } from '../src/types';
 import { isAllowedDatasetPath } from '../functions/api/library';
+import { isSafeCachedCover } from '../src/lib/storage';
 
 const id = 'a'.repeat(24);
 const repo = 'Example/Taiyous-Novels';
@@ -13,6 +14,18 @@ const entry: CloudEntry = { id, metadata: { ...book, cloud: true }, epubPath: 'd
 afterEach(() => vi.unstubAllGlobals());
 
 describe('private novel cover images', () => {
+  it('validates JPEG, PNG and WebP signatures for offline cover caching', async () => {
+    const jpeg = new Blob([new Uint8Array([255,216,255,224,0,0])], {type:'image/jpeg'});
+    const png = new Blob([new Uint8Array([137,80,78,71,13,10,26,10,0,0,0,0])], {type:'image/png'});
+    const webp = new Blob([new Uint8Array([82,73,70,70,0,0,0,0,87,69,66,80])], {type:'image/webp'});
+    expect(await isSafeCachedCover(jpeg)).toBe(true);
+    expect(await isSafeCachedCover(png)).toBe(true);
+    expect(await isSafeCachedCover(webp)).toBe(true);
+    expect(await isSafeCachedCover(new Blob(['<svg/>'], {type:'image/svg+xml'}))).toBe(false);
+    expect(await isSafeCachedCover(new Blob(['<script/>'], {type:'image/png'}))).toBe(false);
+    expect(await isSafeCachedCover(new Blob([new Uint8Array([255,216,255])], {type:'image/png'}))).toBe(false);
+    expect(await isSafeCachedCover(new Blob([new Uint8Array(8 * 1024 * 1024 + 1)], {type:'image/jpeg'}))).toBe(false);
+  });
   it('accepts the uploader cover path without changing a novel ID', () => {
     expect(isAllowedDatasetPath(coverPath)).toBe(true);
     expect(isAllowedDatasetPath('data/novels/' + id + '/../cover.jpg')).toBe(false);
