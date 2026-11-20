@@ -234,6 +234,36 @@ async function privateGetAfterPossibleMove(
   return privateGet(repo, nextPath, session);
 }
 
+/** Avoid buffering a large or incorrectly labelled remote "cover" into memory.
+ * Content-Length can be absent/forged, so stop the body stream itself once
+ * the image cap is reached. Valid artwork retains its original MIME type.
+ */
+export async function readBoundedCoverResponse(
+  response: Response, maxBytes = 8 * 1024 * 1024,
+): Promise<Blob | null> {
+  const declared = Number(response.headers.get('Content-Length') || 0);
+  if (Number.isFinite(declared) && declared > maxBytes) return null;
+  if (!response.body) return null;
+  const reader = response.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let bytes = 0;
+  try {
+    while (true) {
+      const next = await reader.read();
+      if (next.done) break;
+      bytes += next.value.byteLength;
+      if (bytes > maxBytes) {
+        await reader.cancel().catch(() => undefined);
+        return null;
+      }
+      chunks.push(next.value);
+    }
+  } finally {
+    reader.releaseLock();
+  }
+  return new Blob(chunks, { type: response.headers.get('Content-Type') || '' });
+}
+
 /** Retrieve cover artwork from the same private dataset; never expose a bearer token as an image URL. */
 export async function fetchCloudCover(repo: string, book: Pick<LibraryBook, 'id' | 'coverPath'>, session: CloudSession): Promise<Blob | null> {
   const path = book.coverPath;
@@ -244,7 +274,8 @@ export async function fetchCloudCover(repo: string, book: Pick<LibraryBook, 'id'
   );
   if (response.status === 404) return null;
   if (!response.ok) throw new Error(`Unable to retrieve private cover (${response.status}).`);
-  const blob = await response.blob();
+  const blob = await readBoundedCoverResponse(response);
+  if (!blob) return null;
   // Limit to passive, signature-verified image types. Reject SVG/HTML even if
   // an upstream response falsely labels it as an image.
   if (blob.size < 4 || blob.size > 8 * 1024 * 1024) return null;
