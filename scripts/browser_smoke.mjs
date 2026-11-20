@@ -1717,8 +1717,8 @@ try {
       });
       await browseAllReading.click();
       await page.waitForURL('**/currently-reading');
-      await page.goBack({waitUntil:'networkidle'});
-      await page.locator('.editorial-home').waitFor();
+      await page.goBack({waitUntil:'domcontentloaded'});
+      await page.locator('.editorial-home').waitFor({state:'visible'});
     }
     await navigateShelf(/All books/, 'all');
     await page.waitForURL('**/library');
