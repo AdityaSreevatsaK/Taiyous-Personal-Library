@@ -54,16 +54,36 @@ export async function getBookFile(id: string): Promise<Blob> {
   return asset.epub;
 }
 
+/** Signature-check passive cover formats before persisting private artwork.
+ * Keep the historical IndexedDB 'jpeg' property for backwards compatibility:
+ * older data are JPEG, newer values can also be PNG or WebP.
+ */
+export async function isSafeCachedCover(image: Blob): Promise<boolean> {
+  if (image.size < 4 || image.size > 8 * 1024 * 1024 ||
+      !['image/jpeg', 'image/png', 'image/webp'].includes(image.type)) return false;
+  const header = new Uint8Array(await image.slice(0, 12).arrayBuffer());
+  if (image.type === 'image/jpeg') {
+    return header.length >= 3 && header[0] === 255 && header[1] === 216 && header[2] === 255;
+  }
+  if (image.type === 'image/png') {
+    return header.length >= 8 &&
+      [137, 80, 78, 71, 13, 10, 26, 10].every((byte, index) => header[index] === byte);
+  }
+  return header.length >= 12 &&
+    String.fromCharCode(...header.slice(0, 4)) === 'RIFF' &&
+    String.fromCharCode(...header.slice(8, 12)) === 'WEBP';
+}
+
 /** Cover art is downloaded only after authentication and stored for offline display. */
 export async function getCachedCover(id: string): Promise<Blob | null> {
   return (await (await db()).get('covers', id))?.jpeg || null;
 }
 
-export async function cacheCover(id: string, jpeg: Blob): Promise<void> {
-  if (!/^[0-9a-f]{24}$/.test(id) || jpeg.type !== 'image/jpeg' || jpeg.size > 8 * 1024 * 1024) {
+export async function cacheCover(id: string, image: Blob): Promise<void> {
+  if (!/^[0-9a-f]{24}$/.test(id) || !(await isSafeCachedCover(image))) {
     throw new Error('Invalid private cover artwork');
   }
-  await (await db()).put('covers', { id, jpeg });
+  await (await db()).put('covers', { id, jpeg: image });
 }
 
 export async function updateBook(book: LibraryBook): Promise<void> {
