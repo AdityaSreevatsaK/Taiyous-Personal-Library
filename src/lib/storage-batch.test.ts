@@ -22,7 +22,8 @@ describe('efficient cloud metadata persistence', () => {
     }));
     await updateBooks(records);
     expect(openDB).toHaveBeenCalledOnce();
-    expect(transaction).toHaveBeenCalledExactlyOnceWith('books', 'readwrite');
+    expect(transaction).toHaveBeenCalledOnce();
+    expect(transaction).toHaveBeenCalledWith('books', 'readwrite');
     expect(objectStore).toHaveBeenCalledOnce();
     expect(put).toHaveBeenCalledTimes(records.length);
     expect(saved).toEqual(records.map(book => book.id));
