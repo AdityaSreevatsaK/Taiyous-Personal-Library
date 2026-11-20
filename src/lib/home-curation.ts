@@ -26,18 +26,56 @@ function activity(book: LibraryBook): number {
 
 const recentFirst = (a: LibraryBook, b: LibraryBook) => activity(b) - activity(a) || titleOrder(a, b);
 
+/** Seeded Fisher-Yates so one visit stays stable while subsequent visits vary. */
+function shuffleForVisit<T>(items: readonly T[], seed: number): T[] {
+  const result = [...items];
+  let state = (seed >>> 0) ^ 0x9e3779b9;
+  state ^= state >>> 16;
+  state = Math.imul(state, 0x85ebca6b);
+  state ^= state >>> 13;
+  state = Math.imul(state, 0xc2b2ae35);
+  state = (state ^ (state >>> 16)) >>> 0 || 1;
+  for (let i = result.length - 1; i > 0; i--) {
+    state ^= state << 13;
+    state ^= state >>> 17;
+    state ^= state << 5;
+    const j = (state >>> 0) % (i + 1);
+    [result[i], result[j]] = [result[j], result[i]];
+  }
+  return result;
+}
+
+/** Choose real, distinct covers; prefer novels other than the hero. */
+export function selectHomeGalleryCovers(
+  books: readonly LibraryBook[], featuredId: string | undefined, seed: number, limit = 12,
+): LibraryBook[] {
+  if (limit < 1) return [];
+  const seen = new Set<string>();
+  const covered = [...books].sort(titleOrder).filter(book => {
+    if (!book.coverPath || seen.has(book.id)) return false;
+    seen.add(book.id);
+    return true;
+  });
+  const gallery = shuffleForVisit(covered.filter(book => book.id !== featuredId), seed);
+  const featuredCover = covered.find(book => book.id === featuredId);
+  if (featuredCover) gallery.push(featuredCover);
+  return gallery.slice(0, limit);
+}
+
 /**
- * A small, deterministic home selection from existing private catalogue data.
- * Reading recency determines the hero; trials, personal ratings and recent
- * imports inform the journal. No external recommendations or network calls.
+ * Curate a reading desk and journal from private catalogue data. A nonzero
+ * visit seed randomises only the featured hero, never reading history, shelf
+ * membership or the reading-desk order. No external recommendations.
  */
-export function selectHomeBooks(books: readonly LibraryBook[]): HomeBookSelection {
+export function selectHomeBooks(books: readonly LibraryBook[], heroSeed = 0): HomeBookSelection {
   const active = books.filter(isCurrentlyReading)
     .sort((a, b) => (b.lastOpenedAt || b.progressUpdatedAt || 0) -
       (a.lastOpenedAt || a.progressUpdatedAt || 0) || recentFirst(a, b));
-  const featured = active[0] ||
-    [...books].filter(book => book.shelfStatus !== 'trying').sort(recentFirst)[0] ||
-    [...books].sort(recentFirst)[0];
+  const featured = heroSeed !== 0
+    ? shuffleForVisit([...books].sort(titleOrder), heroSeed)[0]
+    : active[0] ||
+      [...books].filter(book => book.shelfStatus !== 'trying').sort(recentFirst)[0] ||
+      [...books].sort(recentFirst)[0];
   // Include the featured novel too: the count and the reading desk must agree.
   // Do not arbitrarily omit active titles when there are more than three.
   const continueReading = active;
