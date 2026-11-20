@@ -25,6 +25,29 @@ describe('curated private library homepage', () => {
     expect(new Set([chosen.featured!.id, ...chosen.continueReading.map(b => b.id),
       ...chosen.journal.map(b => b.id)]).size).toBe(9);
   });
+  it('previews only the last three active novels without dropping any from the full shelf', () => {
+    const novels = Array.from({ length: 8 }, (_, i) => book(i + 1, {
+      progress: 15 + i, lastOpenedAt: 1000 + i * 50,
+    }));
+    const expected = [novels[7].id, novels[6].id, novels[5].id];
+    const picked = selectHomeBooks(novels, 77);
+    expect(picked.continueReading).toHaveLength(3);
+    expect(picked.continueReading.map(item => item.id)).toEqual(expected);
+    // A newer progress update beats an older last-open timestamp.
+    const updated = novels.map(item => ({ ...item }));
+    updated[1].progressUpdatedAt = 5000;
+    expect(selectHomeBooks(updated, 77).continueReading.map(item => item.id))
+      .toEqual([novels[1].id, novels[7].id, novels[6].id]);
+    expect(novels[1].progressUpdatedAt).toBeUndefined();
+    // Trying, unread and finished titles never enter the Home desk.
+    updated[0].shelfStatus = 'trying';
+    updated[2].shelfStatus = 'finished';
+    const remainingActive = updated.filter(item => !['trying', 'finished'].includes(item.shelfStatus || ''));
+    expect(remainingActive.length).toBeGreaterThan(3);
+    expect(selectHomeBooks(updated, 77).continueReading).toHaveLength(3);
+    expect(selectHomeBooks(updated.slice(0, 2))).toMatchObject({ continueReading: [updated[1]] });
+  });
+
   it('randomises the hero on each visit without changing the reading desk', () => {
     const novels = Array.from({ length: 30 }, (_, i) => book(i + 1, {
       coverPath: 'data/covers/' + i + '.jpg',
