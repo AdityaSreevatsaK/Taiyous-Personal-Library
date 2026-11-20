@@ -16,7 +16,7 @@ import type { CloudSession } from '../lib/cloud';
 import ChapterBrowser from './ChapterBrowser';
 import DetailsScrollProgress from './DetailsScrollProgress';
 import NovelCollectionPicker from './NovelCollectionPicker';
-import { bookTags, normalisePersonalTags, suggestExistingTags, tagKey } from '../lib/tags';
+import { alphabeticalBookTags, normalisePersonalTags, suggestExistingTags, tagKey } from '../lib/tags';
 import { ratingLabel, ratingSummary, ratingToneClass } from '../lib/ratings';
 import './site-footer.css';
 import { isFinished, isOngoingNovel, readingProgressLabel } from '../lib/reading-status';
@@ -75,9 +75,10 @@ export default function BookDetails({ book, availableTags, theme, onThemeChange,
   const originalTags = book.sourceTags || [];
   const customTags = tagDraft;
   const tagsChanged = JSON.stringify(tagDraft) !== JSON.stringify(book.personalTags || []);
-  const allTags = bookTags(book);
+  const allTags = alphabeticalBookTags(book);
   const existingTagSuggestions = suggestExistingTags(tagInput, availableTags);
-  const editableTags = bookTags({ sourceTags: originalTags, personalTags: tagDraft });
+  // React re-renders this A–Z list immediately on add/remove, and again after save.
+  const editableTags = alphabeticalBookTags({ sourceTags: originalTags, personalTags: tagDraft });
   const summary = book.userDescription || book.description;
   // Show a compact, language-neutral position instead of a possibly long
   // EPUB chapter title. Chapter names remain available in chapter navigation.
