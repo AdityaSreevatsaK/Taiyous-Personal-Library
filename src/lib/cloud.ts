@@ -261,7 +261,16 @@ export async function readBoundedCoverResponse(
   } finally {
     reader.releaseLock();
   }
-  return new Blob(chunks, { type: response.headers.get('Content-Type') || '' });
+  // TS 5.9's BlobPart requires an ArrayBuffer rather than an
+  // ArrayBufferLike-backed Uint8Array (which may also be shared).
+  const output = new ArrayBuffer(bytes);
+  const combined = new Uint8Array(output);
+  let offset = 0;
+  for (const chunk of chunks) {
+    combined.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return new Blob([output], { type: response.headers.get('Content-Type') || '' });
 }
 
 /** Retrieve cover artwork from the same private dataset; never expose a bearer token as an image URL. */
