@@ -1581,7 +1581,10 @@ try {
       await page.mouse.move(0, 0);
       await page.emulateMedia({ reducedMotion:'reduce' });
       const reduced = await homeButton.locator('svg').evaluate(icon => getComputedStyle(icon).transitionDuration);
-      if (reduced !== '0s') throw new Error('Reader glow ignores reduced-motion preference: ' + reduced);
+      // Chromium may normalise transition:none to a near-zero 1e-06s.
+      if (!Number.isFinite(parseFloat(reduced)) || parseFloat(reduced) > .001) {
+        throw new Error('Reader glow ignores reduced-motion preference: ' + reduced);
+      }
       await page.emulateMedia({ reducedMotion:'no-preference' });
     }
     if (viewport.width <= 700) {
