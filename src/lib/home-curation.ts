@@ -81,7 +81,9 @@ export function selectHomeBooks(books: readonly LibraryBook[], heroSeed = 0): Ho
   // The full Currently Reading shelf retains all active novels, including
   // any randomly featured in the home hero.
   const continueReading = active.slice(0, 3);
-  const used = new Set([featured?.id, ...continueReading.map(book => book.id)]);
+  // Keep the journal distinct from the complete active shelf, even though
+  // the Home reading desk only previews three of those novels.
+  const used = new Set([featured?.id, ...active.map(book => book.id)]);
   const score = (book: LibraryBook) => {
     if (book.shelfStatus === 'trying') return 50;
     if ((book.personalRating || 0) >= 8) return 40 + (book.personalRating || 0);
