@@ -46,6 +46,8 @@ const FONT_STYLESHEET = 'https://fonts.googleapis.com/css2?family=Atkinson+Hyper
 function applyAppearance(rendition: any, settings: ReaderSettings) {
   const current = themeById(settings.theme);
   const tone = { foreground: current.ink, background: current.paper, muted: current.muted };
+  // Pure white/black, at full opacity, gives the dividers maximum contrast.
+  const ruleInk = ['dark', 'midnight', 'plum'].includes(settings.theme) ? '#ffffff' : '#000000';
   const font = FONTS[settings.font] || FONTS.literary;
   // EPUB content is rendered inside an iframe. Its width and internal padding
   // must be controlled here: the app's ordinary CSS cannot style that document.
@@ -60,7 +62,7 @@ function applyAppearance(rendition: any, settings: ReaderSettings) {
       'overflow-x': 'hidden !important',
       // EPUB chapters are independent iframe documents. These variables
       // refresh when the selected reader colour theme changes.
-      '--taiyou-rule-ink': `${tone.foreground} !important`,
+      '--taiyou-rule-ink': `${ruleInk} !important`,
       '--taiyou-chapter-surface': `color-mix(in srgb, ${tone.background} 84%, ${tone.foreground} 16%) !important`,
       '--taiyou-gutter': narrow ? '8px !important' : '14px !important',
     },
