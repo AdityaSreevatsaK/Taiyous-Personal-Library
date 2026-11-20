@@ -368,6 +368,7 @@ try {
     // Its new cover-led home and editorial index must work on desktop and mobile.
     const grand = page.locator('.editorial-grand');
     await grand.waitFor({ state: 'visible' });
+    if (await page.title() !== 'TNL - Home Page') throw new Error('Home tab title is not concise');
     await page.locator('.editorial-journal').waitFor({ state: 'visible' });
     await page.locator('.editorial-index-row').first().waitFor();
     await page.getByText('Keep the story close.', {exact:true}).waitFor({state:'visible'});
@@ -642,6 +643,7 @@ try {
     // The existing detail action first resolves EPUB availability asynchronously.
     await page.waitForURL('**/novels/sample-library-book');
     await page.getByRole('heading', { name: 'Sample Library Book' }).waitFor();
+    await page.waitForFunction(() => document.title === 'TNL - Sample Library Book');
     await page.locator('.site-credit-footer').getByText(/Created by Taiyou/).waitFor();
     const readingPosition = await page.locator('.details-progress-card .details-location').innerText();
     if (/Under The Starry Night|Exploded\?|Chapter 1\s*-/i.test(readingPosition)) {
@@ -1435,6 +1437,7 @@ try {
     await page.getByRole('link', { name: 'Start reading' }).click();
     // EPUB loading is asynchronous: verify the URL after the read action commits.
     await page.waitForURL('**/novels/sample-library-book/read/chapter-1');
+    await page.waitForFunction(() => document.title === 'TNL - Sample Library Book');
     if (new URL(page.url()).pathname !== '/novels/sample-library-book/read/chapter-1') {
       throw new Error('Reader URL must use the title slug AND actual chapter number');
     }
