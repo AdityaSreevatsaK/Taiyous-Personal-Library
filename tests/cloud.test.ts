@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { assertPrivateDataset, blendCloudAndLocal, createCloudSession, validateDatasetRepo } from '../src/lib/cloud';
+import { assertPrivateDataset, blendCloudAndLocal, createCloudSession, fetchCloudEpub, validateDatasetRepo, type CloudSession } from '../src/lib/cloud';
 import type { LibraryBook } from '../src/types';
 
 const id = '0123456789abcdef01234567';
@@ -56,5 +56,35 @@ describe('private dataset credential session', () => {
   it('rejects missing or unexpected tokens', () => {
     expect(() => createCloudSession('reader/taiyous-novels', 'x')).toThrow();
     expect(() => createCloudSession('reader/taiyous-novels', 'Bearer hf_ABCDEF1234567890')).toThrow();
+  });
+});
+
+describe('private hosted EPUB download safety', () => {
+  const oauth: CloudSession = {
+    via: 'oauth', accessToken: '', expiresAt: Number.MAX_SAFE_INTEGER, username: 'Hugging Face',
+  };
+  it('returns a valid streaming EPUB ZIP to the caller for offline caching', async () => {
+    const payload = new Uint8Array([80,75,3,4,0,0,0,0,1,2,3,4]);
+    const fetcher = vi.fn(async () => new Response(payload, {
+      headers: { 'Content-Type': 'application/epub+zip' },
+    }));
+    vi.stubGlobal('fetch', fetcher);
+    const result = await fetchCloudEpub('reader/taiyous-novels', entry, oauth);
+    expect(Array.from(new Uint8Array(await result.arrayBuffer()))).toEqual(Array.from(payload));
+    expect(fetcher).toHaveBeenCalledOnce();
+  });
+  it('rejects a successful HTTP response containing HTML instead of an EPUB', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('<html>Login page</html>', {
+      headers: { 'Content-Type': 'text/html' },
+    })));
+    await expect(fetchCloudEpub('reader/taiyous-novels', entry, oauth))
+      .rejects.toThrow(/not a valid EPUB ZIP file/);
+  });
+  it('rejects EPUB responses exceeding the allowed size before caching', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(new Uint8Array([80,75,3,4]), {
+      headers: { 'Content-Length': String(120 * 1024 * 1024 + 1) },
+    })));
+    await expect(fetchCloudEpub('reader/taiyous-novels', entry, oauth))
+      .rejects.toThrow(/safety limit/);
   });
 });

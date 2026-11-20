@@ -90,6 +90,19 @@ export async function updateBook(book: LibraryBook): Promise<void> {
   await (await db()).put('books', book);
 }
 
+/** Persist one cloud refresh's metadata in a single IndexedDB transaction.
+ * Previously hundreds of individual readwrite transactions were launched
+ * simultaneously, adding scheduling overhead and write contention.
+ * A failed batch rejects as one operation; nothing touches EPUBs or covers.
+ */
+export async function updateBooks(books: readonly LibraryBook[]): Promise<void> {
+  if (!books.length) return;
+  const tx = (await db()).transaction('books', 'readwrite');
+  const store = tx.objectStore('books');
+  await Promise.all(books.map(book => store.put(book)));
+  await tx.done;
+}
+
 /** Remove only the browser's EPUB copy. Metadata and cover remain unchanged.
  * The caller must first verify a working hosted backup and Owner mode.
  */

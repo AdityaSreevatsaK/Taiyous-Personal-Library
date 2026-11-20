@@ -58,7 +58,7 @@ describe('reader recovery while Storage Controller migrates novel batches', () =
       path === oldA + '/source.epub'
         ? new Response(null, { status: 404 })
         : path === movedA + '/source.epub'
-          ? new Response(new Uint8Array([1,2,3,4]))
+          ? new Response(new Uint8Array([80,75,3,4]))
           : new Response(null, { status: 404 }),
     );
     expect((await fetchCloudEpub(repo, originalA, oauth)).size).toBe(4);
@@ -151,7 +151,7 @@ describe('reader recovery while Storage Controller migrates novel batches', () =
         return new Response(JSON.stringify({ version: 1, books: [movedEntryA] }));
       if (uri.includes('/' + a + '/source.epub'))
         return new Response(null, { status: 404 });
-      return new Response(new Uint8Array([1,2,3,4]));
+      return new Response(new Uint8Array([80,75,3,4]));
     }));
     expect((await fetchCloudEpub(repo, originalA, manual)).size).toBe(4);
     expect(seen.filter(uri => uri.includes('/resolve/'))).toHaveLength(3);

@@ -20,6 +20,7 @@ A responsive, installable EPUB reader and personal novel library for desktop and
 | [Architecture and Data Lifecycle](docs/ARCHITECTURE_AND_DATA_LIFECYCLE.md) | Code map, EPUB/Catalogue/IndexedDB/HF paths, authentication, sync and immutable identity |
 | [Testing and Release Runbook](docs/TESTING_RELEASE_RUNBOOK.md) | Commands, verification matrix, exact automatic Cloudflare deployment and release gates |
 | [Operations, Decisions and Backlog](docs/OPERATIONS_DECISIONS_AND_BACKLOG.md) | Recovery procedures, known incidents, decisions, pending cross-device sync work |
+| [Comprehensive Repository Audit (20 November 2026)](docs/COMPREHENSIVE_REPOSITORY_AUDIT_2026-11-20.md) | Evidence-based security, performance and correctness findings, fixes, tests and remaining risks |
 | [Session Handover Prompt](docs/SESSION_HANDOVER_PROMPT.md) | Copyable brief to initialise a fresh assistant session |
 
 **Critical:** `PROJECT_HANDOVER.md` and `STAGING.md` describe retired deployment infrastructure and remain historical only. The current application is public Cloudflare Pages with a private Hugging Face **Dataset**, not an HF Space. New agents must verify the latest SHA, open PRs and workflow status, not assume this README is live telemetry.

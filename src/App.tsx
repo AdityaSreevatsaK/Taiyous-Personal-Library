@@ -17,7 +17,7 @@ import { reconcileCompletedCloudRefresh } from './lib/cloud-refresh-merge';
 import { partitionLocalBackups } from './lib/local-backups';
 import { requestOfflineRetention } from './lib/offline';
 import { installUsageTracker } from './lib/usage-analytics';
-import { deleteBook, removeCachedEpub, getBookFile, getBooks, getCachedEpubIds, getArchivedBookRecords, archiveStaleBookRecords, restoreReappearedArchivedRecords, preserveNovelMetadataForDeletion, readSettings, saveBook, updateBook, writeSettings } from './lib/storage';
+import { deleteBook, removeCachedEpub, getBookFile, getBooks, getCachedEpubIds, getArchivedBookRecords, archiveStaleBookRecords, restoreReappearedArchivedRecords, preserveNovelMetadataForDeletion, readSettings, saveBook, updateBook, updateBooks, writeSettings } from './lib/storage';
 import { staleMetadataCandidates } from './lib/stale-archive';
 import { resetReadingProgress } from './lib/progress-admin';
 import { isOngoingNovel, withUpdatedReadingPosition } from './lib/reading-status';
@@ -360,7 +360,7 @@ export default function App() {
       const currentBooks = reconcileCompletedCloudRefresh(merged, withProgress, booksRef.current);
       booksRef.current = currentBooks;
       setBooks(currentBooks);
-      await Promise.all(currentBooks.filter(book => book.cloud).map(book => updateBook(book)));
+      await updateBooks(currentBooks.filter(book => book.cloud));
       // Separate private collections data is merged by record timestamp;
       // offline edits are retained, and newer local edits are published on reconnection.
       let collectionsWarning = false;

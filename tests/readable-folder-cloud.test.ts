@@ -47,7 +47,7 @@ describe('hosted readable novel folders in browser', () => {
     const urls: string[] = [];
     vi.stubGlobal('fetch', vi.fn(async (url: RequestInfo | URL) => {
       urls.push(String(url));
-      return new Response(new Uint8Array([69, 80, 85, 66, 0, 1, 2]));
+      return new Response(new Uint8Array([80, 75, 3, 4, 0, 1, 2]));
     }));
     expect((await fetchCloudEpub(repo, entry, manual)).size).toBe(7);
     expect((await fetchCloudArchive(repo, entry, manual)).size).toBe(7);
