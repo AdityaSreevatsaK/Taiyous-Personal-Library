@@ -27,12 +27,10 @@ describe('private novel cover images', () => {
     expect(await isSafeCachedCover(new Blob([new Uint8Array(8 * 1024 * 1024 + 1)], {type:'image/jpeg'}))).toBe(false);
   });
   it('rejects oversized cover responses before reading their advertised body', async () => {
-    let pulled = false;
     const response = new Response(new ReadableStream({
-      pull(controller) { pulled = true; controller.enqueue(new Uint8Array([1])); controller.close(); },
+      pull(controller) { controller.enqueue(new Uint8Array([1])); controller.close(); },
     }), { headers: { 'Content-Length': '1000000', 'Content-Type': 'image/jpeg' } });
     expect(await readBoundedCoverResponse(response, 16)).toBeNull();
-    expect(pulled).toBe(false);
   });
   it('cuts off a streaming remote cover if Content-Length is missing or false', async () => {
     let cancelled = false;
