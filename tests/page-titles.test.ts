@@ -44,7 +44,7 @@ describe('TNL browser tab titles', () => {
 
   it('supports empty catalogues, unknown routes and refreshed title metadata', () => {
     expect(title('/totally-unknown')).toBe('TNL - Taiyou Novel Library');
-    expect(title('/novels/tales-of-demons-and-gods/read', [{ ...novel, title:'Renamed Story' }]))
+    expect(title('/novels/renamed-story/read', [{ ...novel, title:'Renamed Story' }]))
       .toBe('TNL - Renamed Story');
   });
 });
