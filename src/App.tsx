@@ -13,6 +13,7 @@ import { namedNovelUrl, parseLibraryRoute, resolveNovelRoute } from './lib/route
 import { libraryAuthorUrl, libraryTagUrl } from './lib/library-routes';
 import { novelLibraryPageTitle } from './lib/page-titles';
 import { mapWithConcurrency, retryTransientRead } from './lib/network-pool';
+import { reconcileCompletedCloudRefresh } from './lib/cloud-refresh-merge';
 import { partitionLocalBackups } from './lib/local-backups';
 import { requestOfflineRetention } from './lib/offline';
 import { installUsageTracker } from './lib/usage-analytics';
@@ -353,9 +354,13 @@ export default function App() {
         }
         return book;
       });
-      booksRef.current = withProgress;
-      setBooks(withProgress);
-      await Promise.all(withProgress.filter(book => book.cloud).map(book => updateBook(book)));
+      // Reviews/progress can take many requests for a large library. Merge
+      // results with the LIVE in-reader state, not only the snapshot taken
+      // before the scan, or a newly saved chapter / local tag is lost.
+      const currentBooks = reconcileCompletedCloudRefresh(merged, withProgress, booksRef.current);
+      booksRef.current = currentBooks;
+      setBooks(currentBooks);
+      await Promise.all(currentBooks.filter(book => book.cloud).map(book => updateBook(book)));
       // Separate private collections data is merged by record timestamp;
       // offline edits are retained, and newer local edits are published on reconnection.
       let collectionsWarning = false;
