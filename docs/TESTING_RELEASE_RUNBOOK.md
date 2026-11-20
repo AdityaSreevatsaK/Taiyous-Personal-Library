@@ -63,7 +63,7 @@ Do not treat unit-test success as proof of real OAuth or actual two-device confl
 - Novel details: tags in A–Z, immediate newly added tag placement, no delete crosses on details, save with confirmation.
 - Collection picker: explicit Add/Remove, saved nested membership persists after reload, new-to-old toast stacking.
 - Reader header: contents/theme/preferences stay top-right, title centred, mobile collision-free.
-- EPUB iframe: correct body width, themed chapter title band, full-width 2px black/white heading rule, full-width end rule, space above/below, normal prose alignment.
+- EPUB iframe: correct body width, themed chapter title band, full-width 2px black/white heading rule and an actual range-measurable end marker (not a CSS-only pseudo-element). Scroll to the maximum **actual `.epub-container` scrollTop** and check the real last paragraph clears the fixed footer, with the end divider visible and space below it on desktop/mobile.
 - Reader: Previous left, centred chapter chooser, Next right, direct chapter URL, Back/Forward, CFI restore and no horizontal overflow.
 - Offline: downloaded EPUB can be read with network disabled; public app shell cold launches after service worker registration; local-only copies cannot be accidentally bulk removed.
 - Cloud denied state, public OAuth JSON, CSP headers, no secrets in assets.
