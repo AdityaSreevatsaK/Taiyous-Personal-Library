@@ -1551,6 +1551,42 @@ try {
     if (await page.locator('.reader-home-link').getByText("Taiyou's Personal Library").count()) {
       throw new Error('Reader home control should use the symbol alone');
     }
+    // The small book/Home shortcut is intentionally visible (but not animated)
+    // on desktop. Theme-derived colour and SVG drop-shadow make the icon
+    // easier to find without changing its size or reader header geometry.
+    if (viewport.width > 700) {
+      const homeButton = page.getByRole('button', { name: 'Go to library home' });
+      await homeButton.waitFor({ state:'visible' });
+      const original = await homeButton.evaluate(button => {
+        const icon = button.querySelector('svg');
+        const back = document.querySelector('.reader-header .reader-back');
+        return icon && back ? {
+          glow:getComputedStyle(icon).filter,
+          colour:getComputedStyle(button).color,
+          backColour:getComputedStyle(back).color,
+          animation:getComputedStyle(icon).animationName,
+          width:icon.getBoundingClientRect().width,
+          height:icon.getBoundingClientRect().height,
+        } : null;
+      });
+      if (!original || original.glow === 'none' ||
+          original.colour === original.backColour || original.animation !== 'none' ||
+          Math.abs(original.width - 20) > 1 || Math.abs(original.height - 20) > 1) {
+        throw new Error('Book shortcut must have a subtle static icon-only glow: ' +
+          JSON.stringify(original));
+      }
+      await homeButton.hover();
+      const hoverFilter = await homeButton.locator('svg').evaluate(icon => getComputedStyle(icon).filter);
+      if (hoverFilter === 'none') throw new Error('Book shortcut loses its glow on hover');
+      await page.mouse.move(0, 0);
+      await page.emulateMedia({ reducedMotion:'reduce' });
+      const reduced = await homeButton.locator('svg').evaluate(icon => getComputedStyle(icon).transitionDuration);
+      // Chromium may normalise transition:none to a near-zero 1e-06s.
+      if (!Number.isFinite(parseFloat(reduced)) || parseFloat(reduced) > .001) {
+        throw new Error('Reader glow ignores reduced-motion preference: ' + reduced);
+      }
+      await page.emulateMedia({ reducedMotion:'no-preference' });
+    }
     if (viewport.width <= 700) {
       const layout = await page.locator('.reader-header').evaluate(header => {
         const title = header.querySelector('.reader-head-center')?.getBoundingClientRect();

@@ -121,7 +121,7 @@ Source: `src/components/Reader.tsx`, `src/styles.css`, `src/lib/chapters.ts`.
 
 ### Reader header (previously regressed)
 
-- On desktop, **Back** and the book/Library return shortcut remain on the left.
+- On desktop, **Back** and the book/Library return shortcut remain on the left. Give the existing book outline a **soft, static, theme-tinted glow**, with a slightly brighter hover/focus state but **no pulsing animation** or layout shift. Keep the 20px symbol, its accessible name and reduced-motion behaviour.
 - Keep the novel title and chapter/progress information centred and readable.
 - Keep **Library, chapter contents, theme switch and reading preferences at the top-right**; do not let controls wrap to a second row at the far left.
 - Intermediate-width layouts may give the title a separate centred row while keeping the controls top-right.
