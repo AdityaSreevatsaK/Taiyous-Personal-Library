@@ -56,10 +56,6 @@
 .details-shell .details-top-read:hover,
 .details-shell .details-resume:hover {filter:brightness(1.09)}
 .details-shell .details-trial-toggle {background:var(--surface-soft);color:var(--text);border-color:var(--border)}
-.details-shell .details-tag.personal-tag {
-  background:var(--pale);
-  border-color:var(--border);
-}
 .details-shell .details-progress-track i {background:var(--accent,#678dc2)}
 
 
