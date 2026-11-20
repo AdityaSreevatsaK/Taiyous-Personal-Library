@@ -11,6 +11,7 @@ import { extractEpubMetadata, prepareImport } from './lib/importer';
 import { bookTags, normalisePersonalTags, tagCounts, tagKey } from './lib/tags';
 import { namedNovelUrl, parseLibraryRoute, resolveNovelRoute } from './lib/routes';
 import { libraryAuthorUrl, libraryTagUrl } from './lib/library-routes';
+import { novelLibraryPageTitle } from './lib/page-titles';
 import { mapWithConcurrency, retryTransientRead } from './lib/network-pool';
 import { partitionLocalBackups } from './lib/local-backups';
 import { requestOfflineRetention } from './lib/offline';
@@ -58,6 +59,9 @@ export default function App() {
   const [globalSearch, setGlobalSearch] = useState('');
   const [collections, setCollections] = useState<BookCollection[]>(readLocalCollections);
   const [collectionsSyncPending, setCollectionsSyncPending] = useState(readCollectionsPending);
+  // Update tab titles on navigation, browser Back/Forward and metadata renames.
+  useEffect(() => { document.title = novelLibraryPageTitle(routePath, books, collections); },
+    [routePath, books, collections]);
   const [importing, setImporting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
