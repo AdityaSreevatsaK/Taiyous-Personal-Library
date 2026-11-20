@@ -130,7 +130,11 @@ export default function EditorialHome({
     {continueReading.length > 0 && <section className="editorial-continue" aria-label="Continue reading shelf">
       <div className="editorial-section-heading">
         <div><span className="editorial-eyebrow">01 / THE READING DESK</span><h2>Continue your journey</h2></div>
-        <span className="editorial-section-aside">All {readingCount} novels in progress</span>
+        <button type="button" className="editorial-section-aside editorial-reading-view-all"
+          onClick={() => onBrowseShelf('reading')}
+          aria-label={`View all ${readingCount} in-progress novels`}>
+          View all {readingCount} in progress <ArrowRight size={14} aria-hidden="true"/>
+        </button>
       </div>
       <div className="editorial-continue-rail">
         {continueReading.map(book => <article className="editorial-continue-card" key={book.id}>
