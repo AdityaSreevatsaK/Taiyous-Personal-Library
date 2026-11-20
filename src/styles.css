@@ -1040,23 +1040,26 @@ html, body, #root { max-width: 100%; overflow-x: clip; }
 /* Small, permanent ambient glow on the reader's book-shaped Home shortcut.
    Tint its existing outline with each theme's ink/accent, without enlarging
    the icon, covering the header, or introducing an attention-grabbing pulse. */
+/* Resolve the accent on the theme root. A legacy header-level
+   --accent declaration references itself and cannot safely supply the tint. */
+.reader-shell { --reader-book-glow-ink: var(--accent); }
 .reader-shell .reader-header .reader-home-link {
-  color: color-mix(in srgb, var(--text) 62%, var(--accent) 38%);
+  color: color-mix(in srgb, var(--text) 62%, var(--reader-book-glow-ink) 38%);
   transition: color .2s ease;
 }
 .reader-shell .reader-header .reader-home-link svg {
   filter:
-    drop-shadow(0 0 3px color-mix(in srgb, var(--accent) 46%, transparent))
-    drop-shadow(0 0 7px color-mix(in srgb, var(--accent) 24%, transparent));
+    drop-shadow(0 0 3px color-mix(in srgb, var(--reader-book-glow-ink) 46%, transparent))
+    drop-shadow(0 0 7px color-mix(in srgb, var(--reader-book-glow-ink) 24%, transparent));
   transition: filter .2s ease;
 }
 .reader-shell .reader-header .reader-home-link:is(:hover, :focus-visible) {
-  color: var(--accent);
+  color: var(--reader-book-glow-ink);
 }
 .reader-shell .reader-header .reader-home-link:is(:hover, :focus-visible) svg {
   filter:
-    drop-shadow(0 0 4px color-mix(in srgb, var(--accent) 62%, transparent))
-    drop-shadow(0 0 9px color-mix(in srgb, var(--accent) 33%, transparent));
+    drop-shadow(0 0 4px color-mix(in srgb, var(--reader-book-glow-ink) 62%, transparent))
+    drop-shadow(0 0 9px color-mix(in srgb, var(--reader-book-glow-ink) 33%, transparent));
 }
 @media (prefers-reduced-motion: reduce) {
   .reader-shell .reader-header .reader-home-link,
