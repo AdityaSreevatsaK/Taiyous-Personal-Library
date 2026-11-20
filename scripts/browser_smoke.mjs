@@ -1653,6 +1653,21 @@ try {
       return heading ? frame.contentWindow?.getComputedStyle(heading).textAlign : '';
     });
     if (headingAligned !== 'center') throw new Error('EPUB h2 chapter heading not centred');
+    const h2Rule = await page.locator('.reader-page iframe').first().evaluate(frame => {
+      const title = frame.contentDocument?.querySelector('h2');
+      return title ? frame.contentWindow?.getComputedStyle(title).borderBottomWidth : '';
+    });
+    if (h2Rule !== '2px') throw new Error('EPUB h2 chapter title has no full-width rule');
+    await numericSearch.press('Enter');
+    await chapterDialog.waitFor({ state: 'detached' });
+    await page.getByText('Chapter 2 of 2').waitFor();
+    await page.waitForURL('**/novels/sample-library-book/read/chapter-2');
+    const paragraphAligned = await page.locator('.reader-page iframe').first().evaluate(frame => {
+      const paragraph = Array.from(frame.contentDocument?.querySelectorAll('p') || [])
+        .find(el => el.textContent?.includes('Chapter 2: The Next Step'));
+      return paragraph ? frame.contentWindow?.getComputedStyle(paragraph).textAlign : '';
+    });
+    if (paragraphAligned !== 'center') throw new Error('EPUB paragraph chapter heading not centred');
     // Layout regression for all six colour themes, especially Plum: the
     // title bar, chapter title band and actual EPUB paper must differ.
     // The two horizontal rules must be opaque, true black/white and span
@@ -1707,16 +1722,6 @@ try {
       await page.locator('.reader-shell.theme-' + themeId).waitFor();
       await verifyChapterSeparators(themeId);
     }
-    await numericSearch.press('Enter');
-    await chapterDialog.waitFor({ state: 'detached' });
-    await page.getByText('Chapter 2 of 2').waitFor();
-    await page.waitForURL('**/novels/sample-library-book/read/chapter-2');
-    const paragraphAligned = await page.locator('.reader-page iframe').first().evaluate(frame => {
-      const paragraph = Array.from(frame.contentDocument?.querySelectorAll('p') || [])
-        .find(el => el.textContent?.includes('Chapter 2: The Next Step'));
-      return paragraph ? frame.contentWindow?.getComputedStyle(paragraph).textAlign : '';
-    });
-    if (paragraphAligned !== 'center') throw new Error('EPUB paragraph chapter heading not centred');
     await chapterJump.click();
     await page.getByRole('dialog', { name: 'Choose chapter' })
       .getByRole('searchbox', { name:'Search chapter number' }).fill('1');
