@@ -69,16 +69,18 @@ export function selectHomeGalleryCovers(
  */
 export function selectHomeBooks(books: readonly LibraryBook[], heroSeed = 0): HomeBookSelection {
   const active = books.filter(isCurrentlyReading)
-    .sort((a, b) => (b.lastOpenedAt || b.progressUpdatedAt || 0) -
-      (a.lastOpenedAt || a.progressUpdatedAt || 0) || recentFirst(a, b));
+    // Reading activity, not import dates, determines the three most recent.
+    .sort((a, b) => Math.max(b.lastOpenedAt || 0, b.progressUpdatedAt || 0) -
+      Math.max(a.lastOpenedAt || 0, a.progressUpdatedAt || 0) || titleOrder(a, b));
   const featured = heroSeed !== 0
     ? shuffleForVisit([...books].sort(titleOrder), heroSeed)[0]
     : active[0] ||
       [...books].filter(book => book.shelfStatus !== 'trying').sort(recentFirst)[0] ||
       [...books].sort(recentFirst)[0];
-  // Include the featured novel too: the count and the reading desk must agree.
-  // Do not arbitrarily omit active titles when there are more than three.
-  const continueReading = active;
+  // Home previews only the three most recently read in-progress novels.
+  // The full Currently Reading shelf retains all active novels, including
+  // any randomly featured in the home hero.
+  const continueReading = active.slice(0, 3);
   const used = new Set([featured?.id, ...continueReading.map(book => book.id)]);
   const score = (book: LibraryBook) => {
     if (book.shelfStatus === 'trying') return 50;
