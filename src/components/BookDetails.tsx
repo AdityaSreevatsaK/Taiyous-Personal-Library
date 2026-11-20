@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import {
   ArrowRight, BookOpen, Bookmark, Check, Download, ExternalLink, Hash,
-  Info, Library, LockKeyhole, Pencil, Plus, Star, Tag, Trash2, X,
+  Info, Library, LockKeyhole, Pencil, Plus, Star, Tag, Trash2,
 } from 'lucide-react';
 import { Cover } from './LibraryDashboard';
 import ThemeSwitcher from './ThemeSwitcher';
@@ -77,7 +77,7 @@ export default function BookDetails({ book, availableTags, theme, onThemeChange,
   const tagsChanged = JSON.stringify(tagDraft) !== JSON.stringify(book.personalTags || []);
   const allTags = alphabeticalBookTags(book);
   const existingTagSuggestions = suggestExistingTags(tagInput, availableTags);
-  // React re-renders this A–Z list immediately on add/remove, and again after save.
+  // React re-renders this A–Z list immediately on add, and again after save.
   const editableTags = alphabeticalBookTags({ sourceTags: originalTags, personalTags: tagDraft });
   const summary = book.userDescription || book.description;
   // Show a compact, language-neutral position instead of a possibly long
@@ -108,18 +108,16 @@ export default function BookDetails({ book, availableTags, theme, onThemeChange,
     addTagValue(tagInput);
   }
 
-  function removeTag(tag: string) {
-    if (saving) return;
-    setTagDraft(current => current.filter(existing => tagKey(existing) !== tagKey(tag)));
-    setFeedback('Tag removed from your draft. Save changes after you finish editing.');
-  }
-
   async function saveTags() {
     if (saving || !tagsChanged) return;
-    if (!await confirm({ title: 'Save tag changes?', message: 'All tag additions and removals will be saved together.', confirmLabel: 'Save tags' })) return;
+    if (!await confirm({ title: 'Save tag additions?', message: 'Add these personal tags to this novel? Existing tags will be preserved. To remove tags, use Master Controls.', confirmLabel: 'Save tags' })) return;
     setSaving(true); setFeedback(null);
     try {
-      await onSaveTags(tagDraft);
+      // The details page is add-only. Even a stale draft can never remove a
+      // personal tag that is already saved; removal stays in Master Controls.
+      const savedTags = book.personalTags || [];
+      const additions = tagDraft.filter(tag => !savedTags.some(saved => tagKey(saved) === tagKey(tag)));
+      await onSaveTags([...savedTags, ...additions]);
       setFeedback('Tag changes saved.');
     } catch (error) {
       setFeedback(error instanceof Error ? error.message : 'Unable to save tag changes.');
@@ -287,13 +285,11 @@ export default function BookDetails({ book, availableTags, theme, onThemeChange,
           </section>
           <section className="details-card details-tags-card" aria-labelledby="detail-tags-heading">
             <div className="details-section-header"><div><span className="details-label">ORGANISE YOUR READING</span><h2 id="detail-tags-heading">Tags & genres</h2></div><Tag size={20} className="details-section-icon" /></div>
-            <p className="details-help">Browse all tags together. Imported genres are protected; personal tags can be added or removed.</p>
-            <div className="details-tag-row" aria-label="All novel tags">{editableTags.length ? editableTags.map((tag) => {
-              const imported = originalTags.some(value => tagKey(value) === tagKey(tag));
-              return imported
-                ? <button type="button" className="details-tag imported-tag" key={tag} onClick={() => onBrowseTag(tag)} title="Imported genre, preserved from original metadata" aria-label={`Browse imported genre ${tag}`}><Hash size={13} />{tag}</button>
-                : <span className="details-tag personal-tag" key={tag}><button className="tag-browse-button" type="button" onClick={() => onBrowseTag(tag)} aria-label={`Browse novels tagged ${tag}`}>{tag}</button><button type="button" disabled={saving} onClick={() => removeTag(tag)} title={`Remove personal tag ${tag}`} aria-label={`Remove personal tag ${tag}`}><X size={14}/></button></span>;
-            }) : <span className="details-muted small">No tags yet. Add one below.</span>}</div>
+            <p className="details-help">Browse all tags together and add personal tags here. To remove personal tags, use Master Controls. Imported genres are protected.</p>
+            <div className="details-tag-row" aria-label="All novel tags">{editableTags.length ? editableTags.map((tag) =>
+              <button type="button" className="details-tag tag-browse" key={tag} onClick={() => onBrowseTag(tag)}
+                aria-label={`Browse novels tagged ${tag}`}><Hash size={13} aria-hidden="true" />{tag}</button>
+            ) : <span className="details-muted small">No tags yet. Add one below.</span>}</div>
             <form className="details-tag-form" onSubmit={(e) => void addTag(e)}><label htmlFor="new-novel-tag" className="sr-only">New personal tag</label><input id="new-novel-tag" value={tagInput} maxLength={45} onChange={(e) => setTagInput(e.target.value)} placeholder="e.g. Favourite, Cultivation, Slow burn..." /><button className="primary-button" type="submit" disabled={saving || !tagInput.trim() || customTags.length >= 50}><Plus size={18} /> Add tag</button></form>
             {existingTagSuggestions.length > 0 && <div className="details-tag-suggestions" role="group" aria-label="Suggested existing tags">
               <span>Existing tags: select one to avoid duplicates</span>

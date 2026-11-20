@@ -1116,9 +1116,22 @@ try {
     if (initialTags.join('|') !== 'Action|Adventure|Fantasy|Martial Arts|Romance') {
       throw new Error('Imported tag fixture was changed: ' + JSON.stringify(initialTags));
     }
+    const verifyTagsAreBrowseOnly = async (stage) => {
+      const displayed = page.locator('.details-tags-card .details-tag-row > .details-tag');
+      const count = await displayed.count();
+      if (!count || await page.locator('.details-tags-card [aria-label^="Remove personal tag"]').count()) {
+        throw new Error('Tags must not offer direct removal ' + stage);
+      }
+      const buttons = await displayed.evaluateAll(items => items.every(item =>
+        item.tagName === 'BUTTON' && item.classList.contains('tag-browse') &&
+        item.querySelector('svg') !== null && item.querySelectorAll('button').length === 0));
+      if (!buttons) throw new Error('Imported and personal tags must render identically ' + stage);
+    };
+    await verifyTagsAreBrowseOnly('on initial load');
     await page.getByRole('textbox', { name: 'New personal tag' }).fill('Aardvark');
     await page.getByRole('button', { name: 'Add tag' }).click();
     const afterAdd = await assertAlphabeticalTags('after adding a draft');
+    await verifyTagsAreBrowseOnly('after adding');
     if (afterAdd[0] !== 'Aardvark') {
       throw new Error('Personal tag did not move to its alphabetical position: ' + JSON.stringify(afterAdd));
     }
@@ -1131,15 +1144,16 @@ try {
     }
     await page.getByText('Unsaved tag changes').waitFor();
     await page.getByRole('button', { name: 'Review & save tags' }).click();
-    const tagsDialog = page.getByRole('dialog', { name: 'Save tag changes?' });
+    const tagsDialog = page.getByRole('dialog', { name: 'Save tag additions?' });
     await tagsDialog.waitFor();
     await tagsDialog.getByRole('button', { name: 'Cancel' }).click();
     await page.getByText('Unsaved tag changes').waitFor();
     await page.getByRole('button', { name: 'Review & save tags' }).click();
-    await page.getByRole('dialog', { name: 'Save tag changes?' })
+    await page.getByRole('dialog', { name: 'Save tag additions?' })
       .getByRole('button', { name: 'Save tags' }).click();
     await page.getByText('Your tags are saved').waitFor();
     const afterSave = await assertAlphabeticalTags('after saving');
+    await verifyTagsAreBrowseOnly('after saving');
     if (JSON.stringify(afterSave) !== JSON.stringify(beforeSave)) {
       throw new Error('Saving changed the alphabetical tag order: ' +
         JSON.stringify({ beforeSave, afterSave }));
