@@ -35,3 +35,27 @@ export async function retryTransientRead<T>(
   }
   throw new Error('Retry exhausted');
 }
+
+/** Bounded FIFO limiter for independent lazy requests (not a bulk map).
+ * A failed fetch releases its slot so other visible covers can load.
+ */
+export function createRequestLimiter(limit: number) {
+  if (!Number.isInteger(limit) || limit < 1 || limit > 32) {
+    throw new Error('Invalid request concurrency limit');
+  }
+  let active = 0;
+  const queued: Array<() => void> = [];
+  return function runLimited<T>(operation: () => Promise<T>): Promise<T> {
+    return new Promise<T>((resolve, reject) => {
+      const start = () => {
+        active++;
+        void Promise.resolve().then(operation).then(resolve, reject).finally(() => {
+          active--;
+          queued.shift()?.();
+        });
+      };
+      if (active < limit) start();
+      else queued.push(start);
+    });
+  };
+}
