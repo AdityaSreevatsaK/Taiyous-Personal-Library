@@ -3,6 +3,10 @@
 ## Project scope
 This repository owns production Novel Library documentation additions only. Refer to `AGENTS.md` and all `docs/*.md` before editing. Other Taiyou repositories have independent owners and release processes.
 
+## Canonical working documentation
+
+Future AI agents must read the [end-to-end playbook](docs/AI_AGENT_PLAYBOOK.md), [UX contract](docs/UX_BEHAVIOUR_CONTRACT.md), [architecture and data](docs/ARCHITECTURE_AND_DATA_LIFECYCLE.md), [testing/release](docs/TESTING_RELEASE_RUNBOOK.md) and [operations/backlog](docs/OPERATIONS_DECISIONS_AND_BACKLOG.md). The current code and exact CI SHA take precedence over historical notes; update relevant docs when behaviour changes.
+
 ## Starting a task
 1. Inspect latest `master`, branches, open PRs and CI; identify whether a previous session is already modifying these files.
 2. Read `README.md`, `AGENTS.md`, architecture, data contracts, security, roadmap and the dedicated session handover.
