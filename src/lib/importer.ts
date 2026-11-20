@@ -29,7 +29,15 @@ export async function readBoundedZipBytes(
     const chunks: Uint8Array[] = [];
     let size = 0;
     let done = false;
-    const stream = entry.internalStream('uint8array');
+    // JSZip exposes internalStream at runtime, though its public TS typings
+    // omit the stream interface. A small explicit adapter preserves the
+    // ability to stop inflation immediately when our byte cap is exceeded.
+    const stream = (entry as unknown as {
+      internalStream: (type: string) => {
+        on: (type: 'data' | 'error' | 'end', listener: (...args: any[]) => void) => void;
+        pause: () => void; resume: () => void;
+      };
+    }).internalStream('uint8array');
     const fail = (reason: unknown) => {
       if (done) return;
       done = true;
