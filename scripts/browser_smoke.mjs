@@ -1720,6 +1720,15 @@ try {
       await page.getByRole('button', { name:/Choose colour theme, currently/ }).click();
       await page.getByRole('button', { name:'Use ' + themeName + ' theme' }).click();
       await page.locator('.reader-shell.theme-' + themeId).waitFor();
+      // Reader appearance propagates to the independently styled EPUB iframe
+      // in a React effect; wait for the new ink rather than racing that effect.
+      const expected = ['dark', 'midnight', 'plum'].includes(themeId)
+        ? 'rgb(255, 255, 255)' : 'rgb(0, 0, 0)';
+      await page.waitForFunction(ink => {
+        const iframe = document.querySelector('.reader-page iframe');
+        const heading = iframe?.contentDocument?.querySelector('.taiyou-chapter-heading');
+        return !!heading && iframe.contentWindow.getComputedStyle(heading).borderBottomColor === ink;
+      }, expected);
       await verifyChapterSeparators(themeId);
     }
     await chapterJump.click();
