@@ -58,6 +58,11 @@ function applyAppearance(rendition: any, settings: ReaderSettings) {
       margin: '0 !important',
       'box-sizing': 'border-box !important',
       'overflow-x': 'hidden !important',
+      // EPUB chapters are independent iframe documents. These variables
+      // refresh when the selected reader colour theme changes.
+      '--taiyou-rule-ink': `${tone.foreground} !important`,
+      '--taiyou-chapter-surface': `color-mix(in srgb, ${tone.background} 84%, ${tone.foreground} 16%) !important`,
+      '--taiyou-gutter': narrow ? '8px !important' : '14px !important',
     },
     body: {
       background: `${tone.background} !important`,
@@ -185,6 +190,30 @@ export default function Reader({ book, settings, onSettings, onBack, collections
               .taiyou-chapter-heading *, h1 *, h2 *, h3 *, h4 * {
                 text-align: center !important;
               }
+              /* One heading band for the actual chapter title. Its fully
+                 opaque divider spans the iframe width, not just the text. */
+              .taiyou-chapter-heading {
+                display: block !important;
+                box-sizing: border-box !important;
+                width: calc(100% + var(--taiyou-gutter) + var(--taiyou-gutter)) !important;
+                max-width: none !important;
+                margin: 12px calc(0px - var(--taiyou-gutter)) 32px !important;
+                padding: 22px var(--taiyou-gutter) 25px !important;
+                background: var(--taiyou-chapter-surface) !important;
+                border-bottom: 2px solid var(--taiyou-rule-ink) !important;
+              }
+              /* True end-of-chapter rule with breathing room. A pseudo-element
+                 leaves EPUB nodes and existing CFI bookmarks unchanged. */
+              body::after {
+                content: '' !important;
+                display: block !important;
+                box-sizing: border-box !important;
+                height: 0 !important;
+                width: calc(100% + var(--taiyou-gutter) + var(--taiyou-gutter)) !important;
+                margin: 66px calc(0px - var(--taiyou-gutter)) 48px !important;
+                border-top: 2px solid var(--taiyou-rule-ink) !important;
+                clear: both !important;
+              }
               iframe:not([src]):not([srcdoc]),
               iframe[src=""]:not([srcdoc]) {
                 display: none !important;
@@ -205,14 +234,22 @@ export default function Reader({ book, settings, onSettings, onBack, collections
           const openingBlocks = Array.from(
             doc.body?.querySelectorAll('h1, h2, h3, h4, p, div') || [],
           ).slice(0, 24);
+          let chapterHeading: Element | undefined;
           for (const node of openingBlocks) {
             const title = (node.textContent || '').replace(/\s+/g, ' ').trim();
             if (title.length > 140 || title.length < 3) continue;
             if (/^(?:chap(?:ter)?\.?|ch\.)\s*(?:\d+|[IVXLCDM]+)\b|^第.{1,20}[章节回]|^(?:prologue|epilogue)\b/i.test(title)) {
-              node.classList.add('taiyou-chapter-heading');
+              chapterHeading = node;
               break;
             }
           }
+          // Titles without a "Chapter N" prefix can still be semantic or
+          // classed headings. Avoid styling ordinary narrative paragraphs.
+          chapterHeading ||= openingBlocks.find(node => node.matches(
+            '.chapter-title, .chapterTitle, .chapter-heading, .chapterHeading, .chapter_name, .chapterName, .chap-title',
+          ));
+          chapterHeading ||= openingBlocks.find(node => /^(H1|H2)$/i.test(node.tagName));
+          chapterHeading?.classList.add('taiyou-chapter-heading');
 
           // Browser/system font fallbacks keep the reader functional offline.
           if (!doc.querySelector('link[data-taiyou-fonts]')) {
