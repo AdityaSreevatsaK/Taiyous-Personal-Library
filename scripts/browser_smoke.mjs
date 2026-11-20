@@ -1095,6 +1095,31 @@ try {
     }
     await page.evaluate(() => window.scrollTo({top:0,behavior:'instant'}));
 
+    // Tags & genres are one A–Z list: source genres and personal drafts should
+    // reorder immediately, with the same order after confirmed save.
+    const tagLabels = async () =>
+      (await page.locator('.details-tags-card .details-tag-row > .details-tag').allTextContents())
+        .map(label => label.trim());
+    const assertAlphabeticalTags = async (stage) => {
+      const displayed = await tagLabels();
+      const sorted = [...displayed].sort((a, b) => a.localeCompare(b, undefined, {
+        sensitivity: 'base', numeric: true,
+      }) || a.localeCompare(b));
+      if (JSON.stringify(displayed) !== JSON.stringify(sorted)) {
+        throw new Error('Novel tags not alphabetised ' + stage + ': ' + JSON.stringify(displayed));
+      }
+      return displayed;
+    };
+    const initialTags = await assertAlphabeticalTags('on initial load');
+    if (initialTags.join('|') !== 'Action|Adventure|Fantasy|Martial Arts|Romance') {
+      throw new Error('Imported tag fixture was changed: ' + JSON.stringify(initialTags));
+    }
+    await page.getByRole('textbox', { name: 'New personal tag' }).fill('Aardvark');
+    await page.getByRole('button', { name: 'Add tag' }).click();
+    const afterAdd = await assertAlphabeticalTags('after adding a draft');
+    if (afterAdd[0] !== 'Aardvark') {
+      throw new Error('Personal tag did not move to its alphabetical position: ' + JSON.stringify(afterAdd));
+    }
     // Personal tags stay in draft after cancel and save on explicit confirmation.
     await page.getByRole('textbox', { name: 'New personal tag' }).fill('Worth a try');
     await page.getByRole('button', { name: 'Add tag' }).click();
