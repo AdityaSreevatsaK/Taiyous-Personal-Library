@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import {
   ArrowRight, BookOpen, Bookmark, Check, Download, ExternalLink, Hash,
-  Info, Library, LockKeyhole, Pencil, Plus, Star, Tag, Trash2, X,
+  Info, Library, LockKeyhole, Pencil, Plus, Star, Tag, Trash2,
 } from 'lucide-react';
 import { Cover } from './LibraryDashboard';
 import ThemeSwitcher from './ThemeSwitcher';
