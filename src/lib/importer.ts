@@ -5,6 +5,79 @@ import { normalisePublicationStatus } from './publication-status';
 
 const MAX_INPUT_BYTES = 120 * 1024 * 1024;
 const MAX_EPUB_BYTES = 120 * 1024 * 1024;
+const MAX_PACKAGE_XML_BYTES = 16 * 1024 * 1024;
+const MAX_SMALL_METADATA_BYTES = 8 * 1024 * 1024;
+const MAX_ZIP_ENTRIES = 30000;
+
+/** JSZip v3 exposes the declared uncompressed length on loaded entries.
+ * Check BEFORE inflation, then enforce the same limit while streaming
+ * because an untrusted ZIP header can lie about that length.
+ */
+export function assertZipEntrySize(entry: JSZip.JSZipObject, maxBytes: number): void {
+  const size = (entry as unknown as { _data?: { uncompressedSize?: unknown } })
+    ._data?.uncompressedSize;
+  if (typeof size !== 'number' || !Number.isSafeInteger(size) || size < 0 || size > maxBytes) {
+    throw new Error('A ZIP entry has an invalid or oversized uncompressed length.');
+  }
+}
+
+export async function readBoundedZipBytes(
+  entry: JSZip.JSZipObject, maxBytes: number,
+): Promise<Uint8Array> {
+  assertZipEntrySize(entry, maxBytes);
+  return new Promise((resolve, reject) => {
+    const chunks: Uint8Array[] = [];
+    let size = 0;
+    let done = false;
+    // JSZip exposes internalStream at runtime, though its public TS typings
+    // omit the stream interface. A small explicit adapter preserves the
+    // ability to stop inflation immediately when our byte cap is exceeded.
+    const stream = (entry as unknown as {
+      internalStream: (type: string) => {
+        on: (type: 'data' | 'error' | 'end', listener: (...args: any[]) => void) => void;
+        pause: () => void; resume: () => void;
+      };
+    }).internalStream('uint8array');
+    const fail = (reason: unknown) => {
+      if (done) return;
+      done = true;
+      stream.pause();
+      reject(reason);
+    };
+    stream.on('data', (chunk: Uint8Array) => {
+      if (done) return;
+      size += chunk.byteLength;
+      if (size > maxBytes) {
+        fail(new Error('A ZIP entry exceeded the safe decompression limit.'));
+        return;
+      }
+      chunks.push(chunk);
+    });
+    stream.on('error', fail);
+    stream.on('end', () => {
+      if (done) return;
+      done = true;
+      const output = new Uint8Array(size);
+      let offset = 0;
+      for (const chunk of chunks) {
+        output.set(chunk, offset);
+        offset += chunk.byteLength;
+      }
+      resolve(output);
+    });
+    stream.resume();
+  });
+}
+
+async function readBoundedZipText(entry: JSZip.JSZipObject, maxBytes: number): Promise<string> {
+  return new TextDecoder().decode(await readBoundedZipBytes(entry, maxBytes));
+}
+
+function guardZipIndex(archive: JSZip): void {
+  if (Object.keys(archive.files).length > MAX_ZIP_ENTRIES) {
+    throw new Error('This archive contains too many files to import safely.');
+  }
+}
 
 interface NovelZipMetadata {
   title?: unknown; author?: unknown; language?: unknown; chapter_count?: unknown;
@@ -79,17 +152,20 @@ function extractedGenreList(values: unknown[]): string[] {
 }
 
 export async function extractEpubMetadata(blob: Blob | ArrayBuffer | Uint8Array): Promise<ExtractedMetadata> {
+  const size = blob instanceof Blob ? blob.size : blob.byteLength;
+  if (!size || size > MAX_EPUB_BYTES) throw new Error('EPUB is empty or exceeds 120 MB.');
   const bytes = blob instanceof Blob ? await blob.arrayBuffer() : blob;
   const archive = await JSZip.loadAsync(bytes);
+  guardZipIndex(archive);
   if (!archive.file('mimetype') || !archive.file('META-INF/container.xml')) {
     throw new Error('This file is not a valid EPUB archive (missing required metadata).');
   }
-  const container = parseXml(await archive.file('META-INF/container.xml')!.async('text'));
+  const container = parseXml(await readBoundedZipText(archive.file('META-INF/container.xml')!, MAX_SMALL_METADATA_BYTES));
   const rootfile = localElements(container, 'rootfile')[0]?.getAttribute('full-path');
   if (!rootfile) throw new Error('This EPUB is missing its package manifest.');
   const manifest = archive.file(rootfile);
   if (!manifest) throw new Error('This EPUB has an invalid package manifest path.');
-  const opf = parseXml(await manifest.async('text'));
+  const opf = parseXml(await readBoundedZipText(manifest, MAX_PACKAGE_XML_BYTES));
   const metadata = localElements(opf, 'metadata')[0];
   if (!metadata) throw new Error('This EPUB has no metadata section.');
   const all = (name: string) => Array.from(metadata.getElementsByTagName('*'))
@@ -104,7 +180,7 @@ export async function extractEpubMetadata(blob: Blob | ArrayBuffer | Uint8Array)
   let titlePageCount: number | undefined;
   if (frontPage) {
     try {
-      const text = await frontPage.async('text');
+      const text = await readBoundedZipText(frontPage, MAX_SMALL_METADATA_BYTES);
       const document = new DOMParser().parseFromString(text, 'application/xml');
       const match = document.documentElement?.textContent?.match(/Chapters?\s*:\s*([\d,]+)/i);
       const count = Number(match?.[1]?.replace(/,/g, ''));
@@ -142,21 +218,22 @@ export async function prepareImport(file: File): Promise<ImportedBook> {
   let chapterCount: number | undefined;
   if (lower.endsWith('.zip')) {
     const archive = await JSZip.loadAsync(await file.arrayBuffer());
+    guardZipIndex(archive);
     const source = Object.values(archive.files).find((entry) => !entry.dir && /(^|\/)source\.epub$/i.test(entry.name));
     if (!source) throw new Error(`${file.name}: no source.epub found. Import an EPUB or a novel ZIP containing source.epub.`);
     const metadataEntry = Object.values(archive.files).find((entry) => !entry.dir && /(^|\/)metadata\.json$/i.test(entry.name));
     if (metadataEntry) {
-      try { manifestMetadata = JSON.parse(await metadataEntry.async('text')) as NovelZipMetadata; }
+      try { manifestMetadata = JSON.parse(await readBoundedZipText(metadataEntry, MAX_SMALL_METADATA_BYTES)) as NovelZipMetadata; }
       catch { /* EPUB metadata remains the fallback */ }
     }
     const chaptersEntry = Object.values(archive.files).find((entry) => !entry.dir && /(^|\/)chapters\.json$/i.test(entry.name));
     if (chaptersEntry) {
       try {
-        const chapterList: unknown = JSON.parse(await chaptersEntry.async('text'));
+        const chapterList: unknown = JSON.parse(await readBoundedZipText(chaptersEntry, MAX_SMALL_METADATA_BYTES));
         if (Array.isArray(chapterList)) chapterCount = chapterList.length;
       } catch { /* optional metadata */ }
     }
-    bytes = await source.async('uint8array');
+    bytes = await readBoundedZipBytes(source, MAX_EPUB_BYTES);
   } else if (lower.endsWith('.epub')) {
     bytes = new Uint8Array(await file.arrayBuffer());
   } else {

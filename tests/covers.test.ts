@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { blendCloudAndLocal, fetchCloudCatalog, fetchCloudCover, type CloudEntry, type CloudSession } from '../src/lib/cloud';
+import { blendCloudAndLocal, fetchCloudCatalog, fetchCloudCover, readBoundedCoverResponse, type CloudEntry, type CloudSession } from '../src/lib/cloud';
 import type { LibraryBook } from '../src/types';
 import { isAllowedDatasetPath } from '../functions/api/library';
 import { isSafeCachedCover } from '../src/lib/storage';
@@ -25,6 +25,31 @@ describe('private novel cover images', () => {
     expect(await isSafeCachedCover(new Blob(['<script/>'], {type:'image/png'}))).toBe(false);
     expect(await isSafeCachedCover(new Blob([new Uint8Array([255,216,255])], {type:'image/png'}))).toBe(false);
     expect(await isSafeCachedCover(new Blob([new Uint8Array(8 * 1024 * 1024 + 1)], {type:'image/jpeg'}))).toBe(false);
+  });
+  it('rejects oversized cover responses before reading their advertised body', async () => {
+    const response = new Response(new ReadableStream({
+      pull(controller) { controller.enqueue(new Uint8Array([1])); controller.close(); },
+    }), { headers: { 'Content-Length': '1000000', 'Content-Type': 'image/jpeg' } });
+    expect(await readBoundedCoverResponse(response, 16)).toBeNull();
+  });
+  it('cuts off a streaming remote cover if Content-Length is missing or false', async () => {
+    let cancelled = false;
+    const response = new Response(new ReadableStream({
+      start(controller) {
+        controller.enqueue(new Uint8Array([255, 216, 255]));
+        controller.enqueue(new Uint8Array(100));
+      },
+      cancel() { cancelled = true; },
+    }), { headers: { 'Content-Type': 'image/jpeg' } });
+    expect(await readBoundedCoverResponse(response, 16)).toBeNull();
+    expect(cancelled).toBe(true);
+  });
+  it('preserves a valid small JPEG cover streamed through the byte cap', async () => {
+    const bytes = new Uint8Array([255,216,255,224,0,0,0,0]);
+    const response = new Response(bytes, { headers: { 'Content-Type': 'image/jpeg' } });
+    const image = await readBoundedCoverResponse(response, 16);
+    expect(image?.size).toBe(bytes.length);
+    expect(image?.type).toBe('image/jpeg');
   });
   it('accepts the uploader cover path without changing a novel ID', () => {
     expect(isAllowedDatasetPath(coverPath)).toBe(true);
