@@ -1095,9 +1095,38 @@ try {
     }
     await page.evaluate(() => window.scrollTo({top:0,behavior:'instant'}));
 
+    // Tags & genres are one A–Z list: source genres and personal drafts should
+    // reorder immediately, with the same order after confirmed save.
+    const tagLabels = async () =>
+      (await page.locator('.details-tags-card .details-tag-row > .details-tag').allTextContents())
+        .map(label => label.trim());
+    const assertAlphabeticalTags = async (stage) => {
+      const displayed = await tagLabels();
+      const sorted = [...displayed].sort((a, b) => a.localeCompare(b, undefined, {
+        sensitivity: 'base', numeric: true,
+      }) || a.localeCompare(b));
+      if (JSON.stringify(displayed) !== JSON.stringify(sorted)) {
+        throw new Error('Novel tags not alphabetised ' + stage + ': ' + JSON.stringify(displayed));
+      }
+      return displayed;
+    };
+    const initialTags = await assertAlphabeticalTags('on initial load');
+    if (initialTags.join('|') !== 'Action|Adventure|Fantasy|Martial Arts|Romance') {
+      throw new Error('Imported tag fixture was changed: ' + JSON.stringify(initialTags));
+    }
+    await page.getByRole('textbox', { name: 'New personal tag' }).fill('Aardvark');
+    await page.getByRole('button', { name: 'Add tag' }).click();
+    const afterAdd = await assertAlphabeticalTags('after adding a draft');
+    if (afterAdd[0] !== 'Aardvark') {
+      throw new Error('Personal tag did not move to its alphabetical position: ' + JSON.stringify(afterAdd));
+    }
     // Personal tags stay in draft after cancel and save on explicit confirmation.
     await page.getByRole('textbox', { name: 'New personal tag' }).fill('Worth a try');
     await page.getByRole('button', { name: 'Add tag' }).click();
+    const beforeSave = await assertAlphabeticalTags('after adding another draft');
+    if (beforeSave[0] !== 'Aardvark' || beforeSave.at(-1) !== 'Worth A Try') {
+      throw new Error('Tags did not sort after adding the second draft: ' + JSON.stringify(beforeSave));
+    }
     await page.getByText('Unsaved tag changes').waitFor();
     await page.getByRole('button', { name: 'Review & save tags' }).click();
     const tagsDialog = page.getByRole('dialog', { name: 'Save tag changes?' });
@@ -1108,6 +1137,11 @@ try {
     await page.getByRole('dialog', { name: 'Save tag changes?' })
       .getByRole('button', { name: 'Save tags' }).click();
     await page.getByText('Your tags are saved').waitFor();
+    const afterSave = await assertAlphabeticalTags('after saving');
+    if (JSON.stringify(afterSave) !== JSON.stringify(beforeSave)) {
+      throw new Error('Saving changed the alphabetical tag order: ' +
+        JSON.stringify({ beforeSave, afterSave }));
+    }
 
     // Trial shelf changes are explicit, and do not alter genre tags.
     await page.getByRole('button', { name: 'Add to Trying out' }).click();

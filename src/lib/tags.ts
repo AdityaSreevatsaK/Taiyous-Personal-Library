@@ -21,6 +21,15 @@ export function bookTags(book: Pick<LibraryBook, 'sourceTags' | 'personalTags'>)
   return normalizeTags([...(book.sourceTags || []), ...(book.personalTags || [])]);
 }
 
+/** A–Z display for both protected imported genres and editable personal tags.
+ * Sort only the merged display list; do not rewrite the original metadata or
+ * reorder personal tags stored in the cloud. */
+export function alphabeticalBookTags(book: Pick<LibraryBook, 'sourceTags' | 'personalTags'>): string[] {
+  return bookTags(book).sort((a, b) => a.localeCompare(b, undefined, {
+    sensitivity: 'base', numeric: true,
+  }) || a.localeCompare(b));
+}
+
 export function includesTag(book: Pick<LibraryBook, 'sourceTags' | 'personalTags'>, tag: string): boolean {
   return bookTags(book).some((value) => value.toLocaleLowerCase() === tag.toLocaleLowerCase());
 }
