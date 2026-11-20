@@ -407,12 +407,14 @@ export default function Reader({ book, settings, onSettings, onBack, collections
           <button type="button" className="reader-novel-link" onClick={onNovelDetails} title="Go to novel details" aria-label={`Go to ${book.title} details`}>{book.title}</button>
           <small>{currentChapterIndex >= 0 ? `Chapter ${displayedChapterIndex} of ${displayedChapterCount}` : chapter} <span className="reader-progress-percent"> · {Math.round(progress)}% read</span></small>
         </div>
-        <QuickNavigation compact collections={collections} onNavigate={onBrowseLibrary} />
-        <nav className="reader-head-right" aria-label="Reader controls">
-          <button className={`icon-button reader-toc-toggle ${panel === 'toc' ? 'reader-active' : ''}`} onClick={() => setPanel(panel === 'toc' ? null : 'toc')} title="Table of contents" aria-label="Table of contents"><List size={20} /></button>
-          <ThemeSwitcher compact value={settings.theme} onChange={theme => change({ theme })} />
-           <button className={`icon-button ${panel === 'settings' ? 'reader-active' : ''}`} onClick={() => setPanel(panel === 'settings' ? null : 'settings')} title="Reading preferences" aria-label="Reading preferences"><Settings2 size={19} /></button>
-        </nav>
+        <div className="reader-head-actions">
+          <QuickNavigation compact collections={collections} onNavigate={onBrowseLibrary} />
+          <nav className="reader-head-right" aria-label="Reader controls">
+            <button className={`icon-button reader-toc-toggle ${panel === 'toc' ? 'reader-active' : ''}`} onClick={() => setPanel(panel === 'toc' ? null : 'toc')} title="Table of contents" aria-label="Table of contents"><List size={20} /></button>
+            <ThemeSwitcher compact value={settings.theme} onChange={theme => change({ theme })} />
+            <button className={`icon-button ${panel === 'settings' ? 'reader-active' : ''}`} onClick={() => setPanel(panel === 'settings' ? null : 'settings')} title="Reading preferences" aria-label="Reading preferences"><Settings2 size={19} /></button>
+          </nav>
+        </div>
         <div className="reader-header-progress" role="progressbar" aria-label="Book progress" aria-valuenow={Math.round(progress)} aria-valuemin={0} aria-valuemax={100}>
           <div style={{ width: `${Math.max(0, Math.min(progress, 100))}%` }} />
         </div>
