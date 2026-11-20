@@ -1714,7 +1714,10 @@ try {
         throw new Error('Reader chapter separation failed for ' + theme + ': ' + JSON.stringify(found));
       }
     };
-    await verifyChapterSeparators('sepia');
+    const initialReaderTheme = await page.locator('.reader-shell').evaluate(shell =>
+      [...shell.classList].find(name => name.startsWith('theme-'))?.slice(6));
+    if (!initialReaderTheme) throw new Error('Missing active reader theme');
+    await verifyChapterSeparators(initialReaderTheme);
     for (const [themeName, themeId] of [['Plum', 'plum'], ['Paper', 'light'], ['Ocean', 'ocean'],
       ['Charcoal', 'dark'], ['Midnight', 'midnight'], ['Sepia', 'sepia']]) {
       await page.getByRole('button', { name:/Choose colour theme, currently/ }).click();
