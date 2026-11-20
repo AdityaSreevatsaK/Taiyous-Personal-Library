@@ -983,16 +983,39 @@ html, body, #root { max-width: 100%; overflow-x: clip; }
 }
  
 
-/* 2026-11 reader polish: balanced sides keep the novel title exactly centred
-   in the viewport, regardless of the controls on either side. */
+/* Reader header: THREE actual grid children. The previous layout gave the
+   fourth child (reader controls) an implicit second row at the far left.
+   Keep library navigation + all appearance controls in the same right slot,
+   with symmetrical side tracks so the novel title stays centred. */
 .reader-header {
   display: grid;
-  grid-template-columns: minmax(88px, 1fr) minmax(0, 3fr) minmax(88px, 1fr);
+  grid-template-columns: minmax(0, 1fr) minmax(0, 2.2fr) minmax(0, 1fr);
   column-gap: 6px;
 }
-.reader-head-left { flex: none; justify-self: start; min-width: 0; }
+.reader-head-left { grid-column: 1; grid-row: 1; flex: none; justify-self: start; min-width: 0; }
+.reader-head-center { grid-column: 2; grid-row: 1; flex: none; width: 100%; max-width: 100%; justify-self: center; min-width: 0; }
+.reader-head-actions {
+  grid-column: 3; grid-row: 1; display: flex; align-items: center;
+  justify-self: end; justify-content: flex-end; gap: 10px; min-width: 0;
+}
 .reader-head-right { flex: none; justify-self: end; min-width: 0; }
-.reader-head-center { flex: none; width: 100%; max-width: 100%; justify-self: center; min-width: 0; }
+/* On intermediate widths the controls remain top-right and the title gets
+   its own centred row rather than competing for space. */
+@media (min-width: 701px) and (max-width: 1399px) {
+  .reader-shell .reader-header {
+    grid-template-rows: 43px minmax(29px, auto);
+    height: 83px; min-height: 83px; flex: 0 0 83px;
+    padding-top: 2px; padding-bottom: 5px;
+    align-content: center; row-gap: 0;
+  }
+  .reader-shell .reader-head-actions {
+    grid-column: 2 / -1; grid-row: 1; justify-self: end;
+  }
+  .reader-shell .reader-head-center {
+    grid-column: 1 / -1; grid-row: 2;
+    width: 100%; max-width: 100%; justify-self: center;
+  }
+}
 .reader-home-link {
   display: inline-flex;
   flex: 0 0 38px;
@@ -1656,12 +1679,19 @@ html::-webkit-scrollbar-thumb:hover { background: var(--library-scroll-hover); }
   }
   .reader-shell .reader-header .reader-home-link {display:none;}
   .reader-shell .reader-header .reader-divider {display:none;}
-  .reader-shell .reader-header .quick-nav {
-    grid-column:2;grid-row:1;justify-self:start;align-self:center;
+  /* Mobile keeps back on the left, library + preferences on the first row,
+     and the novel title on the second row without collisions. */
+  .reader-shell .reader-head-actions {
+    grid-column:2 / -1;grid-row:1;justify-self:stretch;align-self:center;
+    display:grid;grid-template-columns:minmax(0,1fr) auto;
+    align-items:center;column-gap:4px;width:100%;min-width:0;
+  }
+  .reader-shell .reader-head-actions .quick-nav {
+    grid-column:1;grid-row:1;justify-self:start;align-self:center;
     width:auto;min-width:0;flex:none;
   }
-  .reader-shell .reader-head-right {
-    grid-column:3;grid-row:1;justify-self:end;align-self:center;
+  .reader-shell .reader-head-actions .reader-head-right {
+    grid-column:2;grid-row:1;justify-self:end;align-self:center;
     display:flex;align-items:center;gap:2px;flex:none;min-width:0;
   }
   /* Table of contents is already available through the bottom chapter picker. */
