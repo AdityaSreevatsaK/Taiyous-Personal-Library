@@ -204,17 +204,25 @@ export default function Reader({ book, settings, onSettings, onBack, collections
                 background: var(--taiyou-chapter-surface) !important;
                 border-bottom: 2px solid var(--taiyou-rule-ink) !important;
               }
-              /* True end-of-chapter rule with breathing room. A pseudo-element
-                 leaves EPUB nodes and existing CFI bookmarks unchanged. */
-              body::after {
-                content: '' !important;
+              /* EPUB.js scrolled-doc measures an actual DOM Range to size its
+                 iframe. body::after and trailing body padding are NOT counted
+                 by that Range, so a zero-height pseudo-rule gets clipped at the
+                 footer. Use a real, inert, last-child marker instead. */
+              .taiyou-chapter-end {
                 display: block !important;
-                box-sizing: border-box !important;
-                height: 0 !important;
-                width: calc(100% + var(--taiyou-gutter) + var(--taiyou-gutter)) !important;
-                margin: 66px calc(0px - var(--taiyou-gutter)) 48px !important;
-                border-top: 2px solid var(--taiyou-rule-ink) !important;
+                position: static !important;
+                float: none !important;
                 clear: both !important;
+                box-sizing: border-box !important;
+                width: calc(100% + var(--taiyou-gutter) + var(--taiyou-gutter)) !important;
+                max-width: none !important;
+                height: 112px !important;
+                min-height: 112px !important;
+                margin: 66px calc(0px - var(--taiyou-gutter)) 0 !important;
+                padding: 0 !important;
+                border: 0 !important;
+                border-top: 2px solid var(--taiyou-rule-ink) !important;
+                pointer-events: none !important;
               }
               iframe:not([src]):not([srcdoc]),
               iframe[src=""]:not([srcdoc]) {
@@ -252,6 +260,23 @@ export default function Reader({ book, settings, onSettings, onBack, collections
           ));
           chapterHeading ||= openingBlocks.find(node => /^(H1|H2)$/i.test(node.tagName));
           chapterHeading?.classList.add('taiyou-chapter-heading');
+
+          // EPUB.js measures the DOM Range of the section's real children
+          // (Contents.textHeight), not CSS pseudo-elements or body padding.
+          // Append just one empty presentation-only element AFTER all original
+          // nodes so its 66px pre-rule gap and 112px post-rule gap contribute
+          // to the measured iframe height. Existing nodes and CFI paths remain
+          // unchanged, including when the reader switches chapters or themes.
+          if (doc.body && !doc.body.querySelector('[data-taiyou-chapter-end]')) {
+            const end = doc.createElementNS(
+              doc.body.namespaceURI || 'http://www.w3.org/1999/xhtml', 'div',
+            );
+            end.classList.add('taiyou-chapter-end');
+            end.setAttribute('data-taiyou-chapter-end', '');
+            end.setAttribute('aria-hidden', 'true');
+            end.setAttribute('role', 'presentation');
+            doc.body.appendChild(end);
+          }
 
           // Browser/system font fallbacks keep the reader functional offline.
           if (!doc.querySelector('link[data-taiyou-fonts]')) {
