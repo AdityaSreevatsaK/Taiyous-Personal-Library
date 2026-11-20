@@ -1705,6 +1705,21 @@ try {
       await page.getByRole('button', { name: 'Go to library home' }).click();
     }
     await page.getByRole('navigation', { name: 'Library sections' }).waitFor();
+    // Home is a recent-three preview, not a second unlimited reading shelf.
+    const readingDesk = page.locator('.editorial-continue');
+    if (await readingDesk.count()) {
+      const previewCount = await readingDesk.locator('.editorial-continue-card').count();
+      if (previewCount < 1 || previewCount > 3) {
+        throw new Error('Home must show at most three active reading cards: ' + previewCount);
+      }
+      const browseAllReading = readingDesk.getByRole('button', {
+        name: /View all \d+ in-progress novels/,
+      });
+      await browseAllReading.click();
+      await page.waitForURL('**/currently-reading');
+      await page.goBack({waitUntil:'networkidle'});
+      await page.locator('.editorial-home').waitFor();
+    }
     await navigateShelf(/All books/, 'all');
     await page.waitForURL('**/library');
     await page.locator('.book-rating-pill').getByText('8/10').waitFor();
