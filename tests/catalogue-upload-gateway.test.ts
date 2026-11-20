@@ -138,6 +138,28 @@ describe('Hugging Face catalogue upload integrity', () => {
     expect(response.status).toBe(409);
     expect(commit).toHaveBeenCalledOnce();
   });
+  it('refuses a personal sidecar upload if the hosted dataset becomes public', async () => {
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
+      if (String(input) === 'https://huggingface.co/api/datasets/' + repo) {
+        return new Response(JSON.stringify({ private: false, sha }));
+      }
+      throw Error('A public dataset must not be written');
+    }));
+    const path = 'data/personal/reviews/' + id + '.json';
+    const response = await req('POST', 'upload', { paths: { [path]: '{"notes":"private"}' } });
+    expect(response.status).toBe(403);
+    expect((await response.json()).error).toMatch(/not private/);
+    expect(uploadFiles).not.toHaveBeenCalled();
+    expect(commit).not.toHaveBeenCalled();
+  });
+  it('refuses personal sidecar writes when Hugging Face visibility verification fails', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(null, { status: 503 })));
+    const response = await req('POST', 'upload', {
+      paths: { ['data/personal/progress/' + id + '.json']: '{"progress":77}' },
+    });
+    expect(response.status).toBe(403);
+    expect(uploadFiles).not.toHaveBeenCalled();
+  });
   it('preserves small personal sidecar writes without Owner mode', async () => {
     remoteMock();
     vi.mocked(uploadFiles).mockResolvedValue(undefined);
