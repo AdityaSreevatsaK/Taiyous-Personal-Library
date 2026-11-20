@@ -1,7 +1,7 @@
 # Contributing and AI Agent Collaboration
 
 ## Project scope
-This repository owns production Novel Library documentation additions only. Refer to `AGENTS.md` and all `docs/*.md` before editing. Other Taiyou repositories have independent owners and release processes.
+This repository owns the production Novel Library application, its private-data gateway, CI/deployment integration, tests and documentation. Refer to `AGENTS.md` and all `docs/*.md` before editing. Other Taiyou repositories have independent owners and release processes.
 
 ## Canonical working documentation
 
