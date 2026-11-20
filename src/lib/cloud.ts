@@ -340,8 +340,17 @@ export async function fetchCloudEpub(repo: string, entry: CloudEntry, session: C
     repo, session, entry.id, entry.epubPath, current => current.epubPath,
   );
   if (!response.ok) throw new Error(`Unable to download ${entry.metadata.title} (${response.status}).`);
-  const blob = await response.blob();
-  if (!blob.size || blob.size > 120 * 1024 * 1024) throw new Error('The hosted EPUB is empty or too large.');
+  // The private gateway can return a successful HTTP status while an
+  // upstream service supplies the wrong bytes (for example, an HTML page).
+  // Never save such data to the browser's durable offline EPUB store.
+  // Bound the real body size *during* download, not after Response.blob().
+  const blob = await readBoundedCoverResponse(response, 120 * 1024 * 1024);
+  if (!blob?.size) throw new Error('The hosted EPUB is empty or exceeds the 120 MB safety limit.');
+  const magic = new Uint8Array(await blob.slice(0, 4).arrayBuffer());
+  if (magic.length !== 4 || magic[0] !== 0x50 || magic[1] !== 0x4b ||
+      magic[2] !== 0x03 || magic[3] !== 0x04) {
+    throw new Error('The downloaded novel was not a valid EPUB ZIP file. Offline storage was not changed.');
+  }
   return blob;
 }
 
