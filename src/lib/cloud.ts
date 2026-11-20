@@ -169,7 +169,10 @@ function validEntry(entry: unknown): entry is CloudEntry {
 }
 
 export async function fetchCloudCatalog(repo: string, session: CloudSession): Promise<CloudCatalog> {
-  await assertPrivateDataset(repo, session);
+  // OAuth's catalogue gateway checks the fixed private dataset on the server
+  // using its exact revision. Avoid an extra client -> Worker -> HF visibility
+  // round trip before every refresh. Direct-token mode still checks privacy.
+  if (session.via !== 'oauth') await assertPrivateDataset(repo, session);
   const response = await privateGet(repo, 'data/library.json', session);
   if (response.status === 404) {
     // The hosted Pages Function verifies that no data/ files remain before it
@@ -359,7 +362,9 @@ export async function fetchCloudReadingProgress(repo: string, bookId: string, se
 }
 
 export async function saveCloudReadingProgress(repo: string, bookId: string, session: CloudSession, book: LibraryBook): Promise<CloudReadingProgress> {
-  await assertPrivateDataset(repo, session);
+  // The OAuth gateway now fails closed for EVERY personal-data write; manual
+  // token writes cannot rely on that server-side privacy check.
+  if (session.via !== 'oauth') await assertPrivateDataset(repo, session);
   const progress = validateReadingProgress({
     version: 1, bookId, progress: book.progress,
     completedAt: book.completedAt ?? (!isOngoingNovel(book) && book.progress >= 99.5 ? (book.progressUpdatedAt || Date.now()) : null),
@@ -417,7 +422,7 @@ export async function saveCloudPersonalReview(
   repo: string, bookId: string, session: CloudSession, rating: number | undefined, comments: string, updatedAt: number,
   shelfStatus?: 'trying',
 ): Promise<CloudPersonalReview> {
-  await assertPrivateDataset(repo, session);
+  if (session.via !== 'oauth') await assertPrivateDataset(repo, session);
   const value = parseCloudPersonalReview({
     version: 1, bookId, rating: rating ?? null, comments: comments.trim().slice(0, 10000), updatedAt,
     shelfStatus: shelfStatus ?? null,
