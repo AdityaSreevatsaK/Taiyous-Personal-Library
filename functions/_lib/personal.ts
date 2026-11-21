@@ -309,7 +309,7 @@ export async function personalRequest(
   if (typeof path !== 'string' || !PERSONAL_PATH.test(path)) {
     return json({ error: 'Invalid personal sync path' }, 400);
   }
-  if (request.method === 'POST' && !validDocument(path, value)) {
+  if ((request.method === 'POST' || request.method === 'PATCH') && !validDocument(path, value)) {
     return json({ error: 'Invalid private document' }, 400);
   }
   try {
