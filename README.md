@@ -16,7 +16,7 @@ A responsive, installable EPUB reader and personal novel library for desktop and
 | Document | Purpose |
 | --- | --- |
 | [AI Agent Playbook](docs/AI_AGENT_PLAYBOOK.md) | End-to-end orientation, ownership, guardrails, implementation and reporting workflow |
-| [UI/UX Behaviour Contract](docs/UX_BEHAVIOUR_CONTRACT.md) | Eight destinations, six themes, Home, tags, collections, ribbons, reader layout and detailed regression cases |
+| [UI/UX Behaviour Contract](docs/UX_BEHAVIOUR_CONTRACT.md) | Six primary destinations, Analytics inside Master Controls, themes, Home, tags, collections, ribbons, reader layout and regressions |
 | [Architecture and Data Lifecycle](docs/ARCHITECTURE_AND_DATA_LIFECYCLE.md) | Code map, EPUB/Catalogue/IndexedDB/HF paths, authentication, sync and immutable identity |
 | [Testing and Release Runbook](docs/TESTING_RELEASE_RUNBOOK.md) | Commands, verification matrix, exact automatic Cloudflare deployment and release gates |
 | [Operations, Decisions and Backlog](docs/OPERATIONS_DECISIONS_AND_BACKLOG.md) | Recovery procedures, known incidents, decisions, pending cross-device sync work |

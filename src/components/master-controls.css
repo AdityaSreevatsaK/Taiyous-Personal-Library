@@ -226,3 +226,28 @@
  .details-shell .details-tag-suggestions button,
  .master-controls .master-tag-suggestions button {transition:none}
 }
+
+/* Master Controls navigation: Analytics remains available without Owner
+   credentials; only library edits require the existing server-side grant. */
+.master-subnavigation {
+  display:flex;flex-wrap:wrap;gap:8px;margin:0 0 22px;
+  padding:4px;border:1px solid var(--border);border-radius:11px;
+  background:var(--surface);
+}
+.master-subnavigation button {
+  flex:0 1 auto;min-height:40px;padding:9px 15px;border:1px solid transparent;
+  border-radius:8px;color:var(--text);background:transparent;
+  font:650 13px/1.4 Inter,"Segoe UI",sans-serif;cursor:pointer;
+}
+.master-subnavigation button.is-active {
+  background:var(--pale);border-color:var(--border);
+}
+.master-subnavigation button:hover:not(.is-active) {
+  background:color-mix(in srgb,var(--accent) 9%,var(--surface));
+}
+.master-subnavigation button:focus-visible {
+  outline:2px solid var(--accent);outline-offset:2px;
+}
+@media(max-width:480px) {
+  .master-subnavigation button {flex:1 1 auto;}
+}

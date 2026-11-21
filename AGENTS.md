@@ -60,7 +60,7 @@ The user's existing library and progress remain readable on desktop and mobile; 
 
 ## Mandatory owner-approved UX invariants (20 November 2026)
 
-- **Eight logical destinations** in order: Home; Currently Reading; Trying Out; Available Offline; Finished; To Be Read; All Books; Analytics. Keep collections, tags and Master Controls as additional navigation. Browser tabs use `TNL - Page Name`, including the actual novel title.
+- **Six primary navigation destinations** in order: Home; Currently Reading; Trying Out; Available Offline; Finished; All Books. Remove To Be Read from primary navigation (keep the old URL valid). Put password-free Analytics inside Master Controls, with protected Library management under a separate internal choice; preserve legacy `/analytics` URLs. Keep collections, tags and search accessible. Browser tabs use `TNL - Page Name`, including the actual novel title.
 - **Home:** select the featured novel and real cover gallery afresh on each Home visit, not every rerender; show only the **three most recent in-progress** novels in "Continue your journey" and provide a link to the full Currently Reading shelf. Never truncate persisted progress or the full shelf.
 - **Reading status vs publication:** source ribbons stay slim/muted (`Story Complete`, `Updating`, `On Hiatus`, `Dropped`). A source `Completed` correction is not a personal `Finished` action. Privileged publication corrections belong in Master Controls.
 - **Tags:** all imported/personal tags appear as visually identical A–Z browse chips on novel details; add personal tags with confirmation and **re-sort immediately**. There are **no inline removal crosses**. Remove personal tags only in Master Controls and preserve imported genres. Details save is add-only.

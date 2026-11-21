@@ -18,9 +18,9 @@ Use shared theme tokens and existing component patterns rather than one-off colo
 - Use British English for new UI text where applicable. Avoid gratuitous wording, repeated explanatory copy and huge labels.
 - UI must work on desktop and mobile, including portrait narrow screens, at standard and enlarged text sizes.
 
-## 2. Navigation and eight primary destinations
+## 2. Navigation and six primary destinations
 
-**Logical order (do not reorder casually):**
+**Primary navigation order:**
 
 | Order | Destination | Canonical route | Meaning |
 | --- | --- | --- | --- |
@@ -29,11 +29,9 @@ Use shared theme tokens and existing component patterns rather than one-off colo
 | 3 | Trying out | `/trying-out` | Explicit trial/consideration shelf |
 | 4 | Available offline | `/offline` | EPUBs downloaded on this device |
 | 5 | Finished | `/finished` | Personally finished or eligible reading-completed novels |
-| 6 | To be read | `/to-be-read` | Unstarted books |
-| 7 | All books | `/library` | Complete novel catalogue |
-| 8 | Analytics | `/analytics` | Device-local usage statistics |
+| 6 | All books | `/library` | Complete novel catalogue |
 
-Collections, Tags, Authors, Advanced Search and Master Controls are additional routes/actions, not replacements for those eight logical destinations. The seventh tab is **All books** in the novel implementation; do not blindly rename it to Manga, Series or All Media.
+**Master Controls** contains two internal choices: `Analytics` (available immediately, without Owner password) and `Library management` (server-protected Owner passphrase required for editing). The old `/analytics` URL must still open Analytics inside Master Controls; old `/to-be-read` bookmarks remain readable although the shelf no longer appears in the main navigation. Collections, Tags, Authors and Advanced Search remain accessible separately. Do not add Analytics or To Be Read back to the top or mobile shelf menus.
 
 The top-level navigation must be comprehensible without opening multiple menus. Use the available space efficiently for links to Home, Currently Reading, collections and search. Preserve accessible names, visible focus, hover contrast and native links for open-in-new-tab. The reader's compact Library navigation offers useful routes without forcing a return to an unrelated page.
 
