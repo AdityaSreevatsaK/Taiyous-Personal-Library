@@ -16,6 +16,7 @@ import { mapWithConcurrency, retryTransientRead } from './lib/network-pool';
 import { reconcileCompletedCloudRefresh } from './lib/cloud-refresh-merge';
 import { partitionLocalBackups } from './lib/local-backups';
 import { requestOfflineRetention } from './lib/offline';
+import { readEpubWithoutCaching } from './lib/epub-access';
 import { installUsageTracker } from './lib/usage-analytics';
 import { deleteBook, removeCachedEpub, getBookFile, getBooks, getCachedEpubIds, getArchivedBookRecords, archiveStaleBookRecords, restoreReappearedArchivedRecords, preserveNovelMetadataForDeletion, readSettings, saveBook, updateBook, updateBooks, writeSettings } from './lib/storage';
 import { staleMetadataCandidates } from './lib/stale-archive';
@@ -84,6 +85,10 @@ export default function App() {
   const [ownerRequest, setOwnerRequest] = useState<OwnerRemovalRequest | null>(null);
   const [loadingBook, setLoadingBook] = useState<string | null>(null);
   const [cachedEpubIds, setCachedEpubIds] = useState<string[]>([]);
+  // Only explicit Save offline/import writes EPUBs to IndexedDB. Reading and
+  // reader bookmarks use a single short-lived in-memory Blob instead.
+  const [readerFile, setReaderFile] = useState<{ id: string; epub: Blob } | null>(null);
+  const readerFileRef = useRef<{ id: string; epub: Blob } | null>(null);
   const [online, setOnline] = useState(() => navigator.onLine);
   const [offlineShellReady, setOfflineShellReady] = useState(false);
   const [, setCachingId] = useState<string | null>(null);
@@ -103,7 +108,7 @@ export default function App() {
   const deepLinkFetches = useRef(new Set<string>());
   const readingForUsage = useRef<string | null>(null);
   const onlineForUsage = useRef(online);
-  readingForUsage.current = readingId && cachedEpubIds.includes(readingId) ? readingId : null;
+  readingForUsage.current = readingId && readerFile?.id === readingId ? readingId : null;
   onlineForUsage.current = online;
   // One tracker for the entire SPA lifetime. Never run trackers per rerender.
   useEffect(() => installUsageTracker(
@@ -622,46 +627,71 @@ export default function App() {
     })();
   }, [cloudRepo, cloudSession, refreshCloud]);
 
-  const ensureCached = useCallback(async (book: LibraryBook) => {
-    try { await getBookFile(book.id); return; }
-    catch { /* this novel may exist only in the hosted dataset */ }
-    if (!cloudRepo || !cloudSession) throw new Error('Connect your private dataset to download this hosted EPUB.');
-    // The in-memory entry map can be stale after reconnection or an older local
-    // import may have a different EPUB hash from the hosted copy.
-    let entry = findCloudEntryForBook([...cloudEntries.current.values()], book);
-    if (!entry) {
-      const catalog = await fetchCloudCatalog(validateDatasetRepo(cloudRepo), cloudSession);
-      cloudEntries.current = new Map(catalog.books.map(item => [item.id, item]));
-      entry = findCloudEntryForBook(catalog.books, book);
-    }
-    if (!entry) {
-      throw new Error(`No matching hosted EPUB was found for "${book.title}" after refreshing the private catalogue. Check the catalogue and original files; do not re-upload or delete anything yet.`);
-    }
-    const file = await fetchCloudEpub(cloudRepo, entry, cloudSession);
-    const current = booksRef.current.find(item => item.id === book.id) || book;
-    await saveBook(current, file);
-    setCachedEpubIds(ids => ids.includes(book.id) ? ids : [...ids, book.id]);
+  // Reading a hosted EPUB is not an opt-in download. Prefer any existing
+  // offline copy, otherwise fetch a VERIFIED cloud EPUB into memory only.
+  // Never call saveBook(), and never change the Available offline shelf here.
+  const getReadableEpub = useCallback(async (book: LibraryBook): Promise<Blob> => {
+    if (readerFileRef.current?.id === book.id) return readerFileRef.current.epub;
+    return readEpubWithoutCaching(book,
+      getBookFile,
+      async () => {
+        if (!cloudRepo || !cloudSession) {
+          throw new Error('Connect your private library to read this hosted EPUB.');
+        }
+        let entry = findCloudEntryForBook([...cloudEntries.current.values()], book);
+        if (!entry) {
+          const catalog = await fetchCloudCatalog(validateDatasetRepo(cloudRepo), cloudSession);
+          cloudEntries.current = new Map(catalog.books.map(item => [item.id, item]));
+          entry = findCloudEntryForBook(catalog.books, book);
+        }
+        if (!entry) {
+          throw new Error(`No matching hosted EPUB was found for "${book.title}" after refreshing the private catalogue. Check the catalogue and original files; do not re-upload or delete anything yet.`);
+        }
+        return fetchCloudEpub(cloudRepo, entry, cloudSession);
+      },
+    );
   }, [cloudRepo, cloudSession]);
 
-  // Opening a saved reader URL in a new browser/tab must fetch the EPUB first.
-  // The router waits until a verified local EPUB is present before mounting epub.js.
+  // ONLY these explicit Save offline operations persist an EPUB. A previous
+  // reader session may already have the Blob in memory, so avoid fetching it
+  // again, but do not mistake a transient read for an offline save.
+  const ensureCached = useCallback(async (book: LibraryBook) => {
+    try { await getBookFile(book.id); return; }
+    catch { /* This novel may be hosted but not explicitly saved for offline use. */ }
+    const epub = await getReadableEpub(book);
+    const current = booksRef.current.find(item => item.id === book.id) || book;
+    await saveBook(current, epub);
+    setCachedEpubIds(ids => ids.includes(book.id) ? ids : [...ids, book.id]);
+  }, [getReadableEpub]);
+
+  // Deep links must work even when a book has never been saved offline.
+  // Keep the returned Blob for this tab only; do not persist it to IndexedDB.
   useEffect(() => {
-    if (!readingId || !books.length || cachedEpubIds.includes(readingId) ||
+    if (!readingId || !books.length || readerFile?.id === readingId ||
         deepLinkFetches.current.has(readingId)) return;
     const target = books.find(book => book.id === readingId);
     if (!target) return;
     deepLinkFetches.current.add(readingId);
     setLoadingBook(target.title);
-    void ensureCached(target).catch(reason => {
+    let active = true;
+    void getReadableEpub(target).then(epub => {
+      if (!active) return;
+      const prepared = { id: target.id, epub };
+      readerFileRef.current = prepared;
+      setReaderFile(prepared);
+      setError(null);
+    }).catch(reason => {
+      if (!active) return;
       setError('Unable to open this bookmark: ' + String(reason));
       setReadingId(null);
       setDetailsId(target.id);
       navigate(namedNovelUrl(target, booksRef.current), true);
     }).finally(() => {
-      setLoadingBook(null);
       deepLinkFetches.current.delete(readingId);
+      if (active) setLoadingBook(null);
     });
-  }, [readingId, books, cachedEpubIds, ensureCached]);
+    return () => { active = false; };
+  }, [readingId, books, readerFile?.id, getReadableEpub]);
 
   const makeAvailableOffline = useCallback(async (book: LibraryBook) => {
     setCachingId(book.id);
@@ -688,13 +718,20 @@ export default function App() {
     }
     if (bulkOfflineProgress) return;
     setError(null);
-    setNotice(null);
     const locallyAvailable = new Set(await getCachedEpubIds());
     const needed = booksRef.current.filter(book => !locallyAvailable.has(book.id));
     if (!needed.length) {
       setNotice('Every novel is already available offline on this device.');
       return;
     }
+    // Hundreds of EPUBs may consume gigabytes. Never begin a bulk offline
+    // download through an accidental tap or without an explicit decision.
+    if (!await confirm({
+      title: 'Save all novels offline?',
+      message: `Download ${needed.length} EPUBs into this browser for offline reading? This can use substantial storage. You can remove hosted copies individually later.`,
+      confirmLabel: `Save ${needed.length} offline`,
+    })) return;
+    setNotice(null);
     setBulkOfflineProgress({ done: 0, total: needed.length });
     const failures: string[] = [];
     let done = 0;
@@ -724,11 +761,11 @@ export default function App() {
     } finally {
       setBulkOfflineProgress(null);
     }
-  }, [bulkOfflineProgress, ensureCached]);
+  }, [bulkOfflineProgress, ensureCached, confirm]);
 
   // Details are catalogue metadata. Never block page navigation on fetching an
-  // EPUB (which can exceed 100 MB). The reader and explicit chapter download
-  // retain their existing verified EPUB caching flow.
+  // EPUB (which can exceed 100 MB). Chapter previews and ordinary reading
+  // fetch transiently; only explicitly chosen offline actions persist files.
   const showDetails = useCallback((book: LibraryBook) => {
     setError(null);
     setNotice(null);
@@ -889,13 +926,14 @@ export default function App() {
     setError(null);
     setLoadingBook(`Preparing ${book.title} download`);
     try {
-      await ensureCached(book);
-      downloadFile(await getBookFile(book.id), book.title, 'epub');
+      // An exported EPUB goes to the user's normal Downloads folder. It does
+      // not silently create a second permanent browser-side offline copy.
+      downloadFile(await getReadableEpub(book), book.title, 'epub');
     } catch (error) {
       setError(`Unable to download EPUB: ${String(error)}`);
       throw error;
     } finally { setLoadingBook(null); }
-  }, [ensureCached, downloadFile]);
+  }, [getReadableEpub, downloadFile]);
 
   const downloadArchive = useCallback(async (book: LibraryBook) => {
     if (!cloudRepo || !cloudSession) throw new Error('Connect your private dataset to download its original ZIP.');
@@ -1018,7 +1056,10 @@ export default function App() {
     setLoadingBook(book.title);
     void (async () => {
       try {
-        await ensureCached(book);
+        const epub = await getReadableEpub(book);
+        const prepared = { id: book.id, epub };
+        readerFileRef.current = prepared;
+        setReaderFile(prepared);
         const current = booksRef.current.find(item => item.id === book.id) || book;
         const updated = { ...current, lastOpenedAt: Date.now() };
         booksRef.current = booksRef.current.map(item => item.id === book.id ? updated : item);
@@ -1033,7 +1074,7 @@ export default function App() {
       } catch (reason) { setError(`Unable to open novel: ${String(reason)}`); }
       finally { setLoadingBook(null); }
     })();
-  }, [ensureCached]);
+  }, [getReadableEpub]);
 
   const recordProgress = useCallback((patch: Partial<LibraryBook>) => {
     if (!readingId) return;
@@ -1361,14 +1402,14 @@ export default function App() {
         <strong>Taiyou's Novel Library</strong>
         <span>{cloudSession ? 'Checking your private catalogue…' : 'Opening your library…'}</span>
       </main>
-    ) : activeBook && !cachedEpubIds.includes(activeBook.id) ? (
+    ) : activeBook && readerFile?.id !== activeBook.id ? (
       <div className={`reader-route-loading theme-${settings.theme}`} role="status">
         {error || `Preparing “${activeBook.title}” for reading…`}
         <button type="button" onClick={goLibrary}>Return to library</button>
       </div>
     ) : activeBook ? (
       <Suspense fallback={<main className="reader-route-loading" role="status">Opening your reader…</main>}>
-      <Reader key={activeBook.id} book={activeBook} settings={settings} onSettings={setSettings}
+      <Reader key={activeBook.id} book={activeBook} epub={readerFile!.epub} settings={settings} onSettings={setSettings}
         initialChapterHref={startChapterHref || undefined}
         initialChapterNumber={requestedChapter}
         onChapterChange={chapter => {
@@ -1389,6 +1430,7 @@ export default function App() {
         onToggleCollection={(collectionId, include) => changeCollectionMembership(collectionId, detailBook.id, include)}
         onCreateCollectionForBook={(name, parentId) => createCollectionWithNovel(detailBook.id, name, parentId)}
         onLoadChapters={() => loadChapterCatalog(detailBook.id, detailBook.chapterCount, async () => {
+          if (readerFileRef.current?.id === detailBook.id) return readerFileRef.current.epub;
           try { return await getBookFile(detailBook.id); }
           catch { /* Preview can read a hosted EPUB without caching it. */ }
           if (!detailBook.cloud || !cloudRepo || !cloudSession) {
@@ -1401,8 +1443,8 @@ export default function App() {
             entry = findCloudEntryForBook(latest.books, detailBook);
           }
           if (!entry) throw new Error('Novel EPUB is missing from the verified private catalogue.');
-          // Deliberately omit saveBook(): only explicit offline/download/reader
-          // actions should persist the full EPUB in browser IndexedDB.
+          // Deliberately omit saveBook(): only explicit Save offline and
+          // direct user imports should persist EPUBs in browser IndexedDB.
           return fetchCloudEpub(cloudRepo, entry, cloudSession);
         })}
         onBack={goLibrary} onRead={() => openBook(detailBook)} readHref={namedNovelUrl(detailBook, books, true)}
