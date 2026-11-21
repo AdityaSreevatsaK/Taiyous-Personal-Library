@@ -115,8 +115,21 @@ try {
     if (await page.locator('.sort-field select').inputValue() !== 'title') {
       throw new Error('Library should default to alphabetical Title A–Z sorting');
     }
-    if (!rootText.includes('TAIYOU') || !rootText.includes('PERSONAL LIBRARY')) {
+    if (!rootText.includes('TAIYOU') || !rootText.includes('NOVEL LIBRARY')) {
       throw new Error('Top navigation brand is absent from the library shell');
+    }
+    // Chromium exposes the customised main scrollbar, while Firefox uses its
+    // standard (wider-than-thin) system scrollbar. Never enlarge list scrollers.
+    const scrollbarStyles = await page.evaluate(() => ({
+      pageWidth: getComputedStyle(document.documentElement).scrollbarWidth,
+      webkitTrackWidth: getComputedStyle(document.documentElement, '::-webkit-scrollbar').width,
+      nestedWidth: getComputedStyle(document.querySelector('.top-nav-links')).scrollbarWidth,
+    }));
+    if (scrollbarStyles.pageWidth !== 'auto' ||
+        scrollbarStyles.webkitTrackWidth !== '18px' ||
+        scrollbarStyles.nestedWidth !== 'thin') {
+      throw new Error('Main scrollbar must be wider than nested controls: ' +
+        JSON.stringify(scrollbarStyles));
     }
     if (await page.locator('.sidebar').count()) {
       throw new Error('The new full-width library must not render a permanent sidebar');
@@ -224,7 +237,7 @@ try {
       }
     };
     await openInNewTab(
-      page.getByRole('link', { name: "Taiyou's Personal Library home" }), '/');
+      page.getByRole('link', { name: "Taiyou's Novel Library home" }), '/');
     await openInNewTab(
       viewport.width <= 700
         ? nav.locator('.mobile-shelf-nav').getByRole('link', { name: 'Trying' })
@@ -378,7 +391,7 @@ try {
       db.close();
     }, epubBytes);
     // Seeded catalogue was opened on /library; return to the separately addressable Home.
-    await page.getByRole('link', { name: "Taiyou's Personal Library home" }).click();
+    await page.getByRole('link', { name: "Taiyou's Novel Library home" }).click();
     await page.waitForURL('**/');
     await page.reload({ waitUntil: 'networkidle' });
     // The integrated redesign uses the REAL IndexedDB books, not design fixtures.
@@ -613,7 +626,7 @@ try {
     await page.getByRole('link', { name: 'View details for Sample Library Book' }).waitFor();
     // Author deep-link navigation adds a history entry. Explicit Home remains
     // the stable way to return to the curated front page from any catalogue.
-    await page.getByRole('link', { name: "Taiyou's Personal Library home" }).click();
+    await page.getByRole('link', { name: "Taiyou's Novel Library home" }).click();
     await page.waitForURL('**/');
     await page.locator('.editorial-grand').waitFor();
     // Navigate to a known tag through persistent navigation instead of
@@ -654,7 +667,7 @@ try {
     if (await page.locator('.filter-tabs').count()) {
       throw new Error('Tag pages must not duplicate the main shelf navigation');
     }
-    await page.getByRole('link', { name: "Taiyou's Personal Library home" }).click();
+    await page.getByRole('link', { name: "Taiyou's Novel Library home" }).click();
     await page.waitForURL('**/');
     await page.getByRole('link', { name: 'Explore this novel' }).click();
     // The existing detail action first resolves EPUB availability asynchronously.
@@ -849,7 +862,7 @@ try {
     await tagInput.fill('sLOW bURN');
     await page.getByRole('button',{name:'Add tag'}).click();
     await page.getByRole('button',{name:'Browse novels tagged Slow Burn'}).waitFor();
-    await page.getByRole('link', { name: "Taiyou's Personal Library home" }).click();
+    await page.getByRole('link', { name: "Taiyou's Novel Library home" }).click();
     await page.locator('.editorial-grand').waitFor({ state: 'visible' });
     // Both search boxes must represent ONE live query. Previously the header
     // could say "Martial World" while Advanced Search misleadingly showed all books.
@@ -910,7 +923,7 @@ try {
     await page.getByRole('button', { name: 'Back to shelf' }).click();
     // Home from a search must always be the curated Home, never an old result or shelf.
     await page.getByRole('textbox', { name:'Search all novels' }).fill('Sample Library');
-    await page.getByRole('link', { name:"Taiyou's Personal Library home" }).click();
+    await page.getByRole('link', { name:"Taiyou's Novel Library home" }).click();
     await page.waitForURL('**/');
     await page.locator('.editorial-grand').waitFor({ state:'visible' });
     if (await page.getByRole('textbox', { name:'Search all novels' }).inputValue() !== '') {
@@ -929,7 +942,7 @@ try {
         await page.locator('.top-nav-links .top-nav-link.active').count() !== 1) {
       throw new Error('Shelf navigation has duplicate selected tabs');
     }
-    await page.getByRole('link', { name:"Taiyou's Personal Library home" }).click();
+    await page.getByRole('link', { name:"Taiyou's Novel Library home" }).click();
     await page.waitForURL('**/');
     await page.locator('.editorial-grand').waitFor({ state:'visible' });
     // Local EPUBs must be listed on the Offline tab without requiring a cloud token.
@@ -949,7 +962,7 @@ try {
     await page.goto(baseUrl + '/book/aaaaaaaaaaaaaaaaaaaaaaaa', { waitUntil: 'networkidle' });
     await page.getByRole('heading', { name: 'Sample Library Book' }).waitFor();
     await page.waitForURL('**/novels/sample-library-book');
-    const libraryTitle = page.getByRole('link', { name: "Taiyou's Personal Library home" });
+    const libraryTitle = page.getByRole('link', { name: "Taiyou's Novel Library home" });
     if (await libraryTitle.getAttribute('href') !== '/') {
       throw new Error('Sun wordmark must link to the Library homepage');
     }
@@ -992,7 +1005,7 @@ try {
     await page.getByRole('heading', { name: 'Sample Library Book' }).waitFor();
     if (viewport.width <= 700) {
       // The long brand link is hidden on narrow screens; use the visible home button.
-      await page.getByRole('link', { name: "Taiyou's Personal Library home" }).click();
+      await page.getByRole('link', { name: "Taiyou's Novel Library home" }).click();
     } else {
       await libraryTitle.click();
     }
@@ -1197,7 +1210,7 @@ try {
     await page.getByRole('button', { name: 'Move to regular library' }).waitFor();
     if (viewport.width <= 700) {
       // The long brand link is hidden on narrow screens; use the visible home button.
-      await page.getByRole('link', { name: "Taiyou's Personal Library home" }).click();
+      await page.getByRole('link', { name: "Taiyou's Novel Library home" }).click();
     } else {
       await libraryTitle.click();
     }
