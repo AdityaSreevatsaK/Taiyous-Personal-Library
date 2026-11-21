@@ -163,7 +163,7 @@ export default function BookDetails({ book, availableTags, theme, onThemeChange,
   return <div className={`details-shell theme-${theme}`}>
     <DetailsScrollProgress />
     <header className="details-topbar">
-      <a className="details-brand-link" href="/" aria-label="Taiyou's Personal Library home" onClick={event => {
+      <a className="details-brand-link" href="/" aria-label="Taiyou's Novel Library home" onClick={event => {
         // Preserve real link behaviour: middle-click, Ctrl/Cmd-click, and copy URL.
         if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
         event.preventDefault();
@@ -171,7 +171,7 @@ export default function BookDetails({ book, availableTags, theme, onThemeChange,
       }}>
         <BrandMark size={32} theme={theme} />
         <span className="details-brand-wordmark">
-          <span className="details-brand-full">Taiyou's Personal Library</span>
+          <span className="details-brand-full">Taiyou's Novel Library</span>
           <span className="details-brand-short">Taiyou's Library</span>
         </span>
       </a>
@@ -368,6 +368,6 @@ export default function BookDetails({ book, availableTags, theme, onThemeChange,
         </div>
       </div>
     </main>
-    <footer className="site-credit-footer">© {new Date().getFullYear()} Taiyou's Personal Library <span aria-hidden="true">·</span> Created by Taiyou</footer>
+    <footer className="site-credit-footer">© {new Date().getFullYear()} Taiyou's Novel Library <span aria-hidden="true">·</span> Created by Taiyou</footer>
   </div>;
 }
