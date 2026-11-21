@@ -741,7 +741,7 @@ export async function writeRevisionedPersonal<T>(
     throw new Error('Safe cross-device editing requires Hugging Face OAuth sign-in; your local changes are preserved.');
   }
   const response = await fetch('/api/library?action=personal', {
-    method: 'POST', credentials: 'same-origin', cache: 'no-store',
+    method: 'PATCH', credentials: 'same-origin', cache: 'no-store',
     headers: { 'Content-Type': 'application/json', 'X-Taiyou-Request': 'personal-sync' },
     body: JSON.stringify({ path, baseRevision, value }),
   });
