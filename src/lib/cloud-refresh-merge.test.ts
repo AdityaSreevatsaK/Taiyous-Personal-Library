@@ -54,6 +54,48 @@ describe('cloud refresh cannot clobber live reading and annotations', () => {
     expect(result[0].progress).toBe(70);
     expect(result[0].personalReview).toBe('New remote');
   });
+  it('adopts newer cloud revisions even when the other device clock runs behind', () => {
+    const initial = {
+      ...book, progress: 79, progressUpdatedAt: 9300,
+      progressCloudRevision: 'a'.repeat(64), pendingProgressSync: false,
+      personalRating: 9, personalReview: 'Old local note', personalReviewUpdatedAt: 9300,
+      reviewCloudRevision: 'a'.repeat(64), pendingReviewSync: false,
+    };
+    const next = {
+      ...initial, progress: 80, progressUpdatedAt: 1700,
+      progressCloudRevision: 'b'.repeat(64),
+      personalRating: 7, personalReview: 'Approved latest cloud note',
+      personalReviewUpdatedAt: 1700, reviewCloudRevision: 'b'.repeat(64),
+    };
+    const result = reconcileCompletedCloudRefresh([initial], [next], [initial]);
+    expect(result[0]).toMatchObject({
+      progress: 80, progressCloudRevision: 'b'.repeat(64),
+      personalRating: 7, personalReview: 'Approved latest cloud note',
+      reviewCloudRevision: 'b'.repeat(64),
+      pendingProgressSync: false, pendingReviewSync: false,
+    });
+  });
+  it('keeps an actual concurrent local edit over an adopted cloud revision', () => {
+    const initial = {
+      ...book, progressCloudRevision: 'a'.repeat(64),
+      reviewCloudRevision: 'a'.repeat(64),
+    };
+    const remote = {
+      ...initial, progress: 22, progressCloudRevision: 'b'.repeat(64),
+      personalReview: 'Remote update', reviewCloudRevision: 'b'.repeat(64),
+    };
+    const live = {
+      ...initial, progress: 91, pendingProgressSync: true,
+      progressUpdatedAt: 101, personalReview: 'Edited while refreshing',
+      pendingReviewSync: true, personalReviewUpdatedAt: 101,
+    };
+    const result = reconcileCompletedCloudRefresh([initial], [remote], [live]);
+    expect(result[0].progress).toBe(91);
+    expect(result[0].personalReview).toBe('Edited while refreshing');
+    expect(result[0].pendingProgressSync).toBe(true);
+    expect(result[0].pendingReviewSync).toBe(true);
+  });
+
   it('does not resurrect deleted books or discard a new local import', () => {
     const newBook: LibraryBook = { ...book, id: addedId, title: 'New offline import', cloud: false };
     const results = reconcileCompletedCloudRefresh([book], [book], [newBook]);
