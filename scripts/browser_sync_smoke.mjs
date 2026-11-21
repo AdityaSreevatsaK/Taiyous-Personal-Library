@@ -162,7 +162,7 @@ try {
   await seedDeviceA(pageA);
   connectedA = true;
   await pageA.reload({waitUntil: 'domcontentloaded'});
-  await pageA.getByRole('button', {name: 'Settings', exact: true}).click();
+  await pageA.getByRole('button', {name: /Cloud settings, connected/}).click();
   await pageA.waitForFunction(() =>
     document.querySelectorAll('.sync-conflict-item').length === 3, null, {timeout: 25000});
   const localBefore = await readBook(pageA);
