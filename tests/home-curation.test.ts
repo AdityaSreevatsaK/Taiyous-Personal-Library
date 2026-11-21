@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { selectHomeBooks, selectHomeGalleryCovers, selectHomeShelves } from '../src/lib/home-curation';
+import { selectHomeBooks, selectHomeGalleryCovers, selectHomeHeroCover, selectHomeShelves } from '../src/lib/home-curation';
 import type { LibraryBook } from '../src/types';
 
 const book = (n: number, extra: Partial<LibraryBook> = {}): LibraryBook => ({
@@ -88,6 +88,32 @@ describe('curated private library homepage', () => {
     expect(selectHomeGalleryCovers([book(1)], featuredId, 42)).toEqual([]);
     expect(selectHomeGalleryCovers([novels[2]], featuredId, 42)).toEqual([novels[2]]);
     expect(selectHomeGalleryCovers(novels, featuredId, 42, 0)).toEqual([]);
+  });
+
+  it('always describes the central visible hero cover, then the hovered or focused cover', () => {
+    const covers = [
+      book(1, { title: 'Nine by God King', author: 'Author A', description: 'Story A' }),
+      book(2, { title: 'Great Doctor Ling Ran', author: 'Author B', description: 'Story B' }),
+      book(3, { title: 'God-Like Extraction', author: 'Author C', description: 'Story C' }),
+    ];
+    const centre = selectHomeHeroCover(covers);
+    expect(centre).toBe(covers[1]);
+    expect(centre).toMatchObject({
+      title: 'Great Doctor Ling Ran', author: 'Author B', description: 'Story B',
+    });
+    for (const novel of covers) expect(selectHomeHeroCover(covers, novel.id)).toBe(novel);
+    // A stale hover ID must not switch the hero to a hidden fourth novel.
+    expect(selectHomeHeroCover(covers, book(4).id)).toBe(covers[1]);
+    expect(selectHomeHeroCover(covers, null)).toBe(covers[1]);
+  });
+  it('tracks only genuinely loaded covers, including partial loading and empty sets', () => {
+    const covers = [book(1), book(2), book(3)];
+    expect(selectHomeHeroCover([])).toBeUndefined();
+    expect(selectHomeHeroCover([], covers[0].id)).toBeUndefined();
+    expect(selectHomeHeroCover(covers.slice(0, 1))).toBe(covers[0]);
+    expect(selectHomeHeroCover(covers.slice(0, 2))).toBe(covers[1]);
+    expect(selectHomeHeroCover([covers[0], covers[2]], covers[1].id)).toBe(covers[2]);
+    expect(selectHomeHeroCover(covers)).toBe(covers[1]);
   });
 
   it('handles empty and one-novel libraries gracefully', () => {
