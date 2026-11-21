@@ -418,24 +418,31 @@ export default function App() {
           const entry = findCloudEntryForBook([...cloudEntries.current.values()], snapshot);
           if (!entry) continue;
           try {
-            const remote = await retryTransientRead(() =>
-              fetchCloudReadingProgress(cloudRepo, entry.id, cloudSession));
             const current = booksRef.current.find(book => book.id === snapshot.id);
             if (!current?.pendingProgressSync) continue;
             const localTimestamp = current.progressUpdatedAt ?? 0;
-            let updated: LibraryBook;
-            if (remote && remote.updatedAt >= localTimestamp) {
-              updated = applyCloudReadingProgress(current, remote);
-            } else {
-              await saveCloudReadingProgress(cloudRepo, entry.id, cloudSession, current);
-              updated = { ...current, pendingProgressSync: false };
+            const updated = await syncReadingRecord(cloudRepo, cloudSession, entry.id, current);
+            if (updated.progressSyncConflict) {
+              syncFailures++;
+              setLastSyncError('A reading position conflicts with another device. Compare both copies in Cloud Settings.');
             }
             // A new scroll may have occurred during upload; never clear newer edits.
             const latest = booksRef.current.find(book => book.id === snapshot.id);
             if (latest && latest.progressUpdatedAt === localTimestamp) {
-              booksRef.current = booksRef.current.map(book => book.id === latest.id ? updated : book);
+              // Only change the reading slice; leave any newer local review/tag intact.
+              const merged = { ...latest, progress: updated.progress,
+                completedAt: updated.completedAt,
+                currentChapter: updated.currentChapter,
+                currentChapterIndex: updated.currentChapterIndex,
+                currentChapterNumber: updated.currentChapterNumber,
+                lastCfi: updated.lastCfi, lastOpenedAt: updated.lastOpenedAt,
+                progressUpdatedAt: updated.progressUpdatedAt,
+                pendingProgressSync: updated.pendingProgressSync,
+                progressCloudRevision: updated.progressCloudRevision,
+                progressSyncConflict: updated.progressSyncConflict };
+              booksRef.current = booksRef.current.map(book => book.id === latest.id ? merged : book);
               setBooks(booksRef.current);
-              await updateBook(updated);
+              await updateBook(merged);
             }
           } catch (reason) {
             // Leave the pending flag set for a later authorised retry and make
@@ -446,7 +453,7 @@ export default function App() {
               ' failed attempt(s) in the latest cycle): ' + message.slice(0, 140));
           }
         }
-        if (!syncFailures && !booksRef.current.some(book => book.pendingProgressSync)) {
+        if (!syncFailures && !booksRef.current.some(book => book.pendingProgressSync || book.progressSyncConflict)) {
           // A successful progress retry must not clear unrelated notes or
           // collections warnings; those need their own successful refresh.
           setLastSyncError(previous => previous?.startsWith('Reading positions') ? null : previous);
@@ -790,13 +797,19 @@ export default function App() {
       const entry = findCloudEntryForBook([...cloudEntries.current.values()], updated);
       if (!entry) throw new Error('Marked as completed locally; remote novel is not listed for cloud sync.');
       try {
-        await saveCloudReadingProgress(cloudRepo, entry.id, cloudSession, updated);
+        const result = await syncReadingRecord(cloudRepo, cloudSession, entry.id, updated);
         const latest = booksRef.current.find(book => book.id === bookId);
         if (latest?.progressUpdatedAt === updatedAt) {
-          const synced = { ...latest, pendingProgressSync:false };
+          const synced = { ...latest,
+            progressCloudRevision: result.progressCloudRevision,
+            progressSyncConflict: result.progressSyncConflict,
+            pendingProgressSync: result.pendingProgressSync };
           await updateBook(synced);
           booksRef.current = booksRef.current.map(book => book.id === bookId ? synced : book);
           setBooks(booksRef.current);
+        }
+        if (result.progressSyncConflict) {
+          setLastSyncError('Completion was saved locally; the cloud position conflicts with another device.');
         }
       } catch (reason) {
         throw new Error('Marked as completed on this device. Cloud progress will retry: ' + String(reason));
@@ -832,7 +845,7 @@ export default function App() {
     if (rating !== undefined && (!Number.isInteger(rating) || rating < 1 || rating > 10)) {
       throw new Error('Rating must be between 1 and 10');
     }
-    const updatedAt = Date.now();
+    const updatedAt = nextLocalEditTimestamp(Date.now(), current.personalReviewUpdatedAt);
     const updated = { ...current, personalRating: rating, personalReview: review.trim().slice(0, 10000),
        shelfStatus: trialStatus === 'trying' ? 'trying' as const : trialStatus === 'regular' ? undefined : current.shelfStatus,
       personalReviewUpdatedAt: updatedAt, pendingReviewSync: !!current.cloud };
@@ -849,13 +862,19 @@ export default function App() {
       }
       if (!entry) throw new Error('Saved locally, but the hosted novel could not be matched. Cloud sync did not complete.');
       try {
-        await saveCloudPersonalReview(cloudRepo, entry.id, cloudSession, rating, updated.personalReview, updatedAt, updated.shelfStatus);
+        const result = await syncReviewRecord(cloudRepo, cloudSession, entry.id, updated);
         const latest = booksRef.current.find(item => item.id === bookId);
         if (latest && latest.personalReviewUpdatedAt === updatedAt) {
-          const synced = { ...latest, pendingReviewSync: false };
+          const synced = { ...latest,
+            reviewCloudRevision: result.reviewCloudRevision,
+            reviewSyncConflict: result.reviewSyncConflict,
+            pendingReviewSync: result.pendingReviewSync };
           await updateBook(synced);
           booksRef.current = booksRef.current.map(item => item.id === bookId ? synced : item);
           setBooks(booksRef.current);
+        }
+        if (result.reviewSyncConflict) {
+          setLastSyncError('Your notes were saved locally. A cloud conflict needs your choice in Settings.');
         }
       } catch (error) {
         throw new Error(`Saved on this device, but cloud synchronisation failed: ${String(error)}`);
@@ -1217,13 +1236,19 @@ export default function App() {
       const entry = findCloudEntryForBook([...cloudEntries.current.values()], updated);
       if (!entry) throw new Error('Progress reset locally; cloud record unavailable. Synchronisation will retry.');
       try {
-        await saveCloudReadingProgress(cloudRepo, entry.id, cloudSession, updated);
+        const result = await syncReadingRecord(cloudRepo, cloudSession, entry.id, updated);
         const latest = booksRef.current.find(book => book.id === id);
         if (latest && latest.progressUpdatedAt === updated.progressUpdatedAt) {
-          const synced = { ...latest, pendingProgressSync: false };
+          const synced = { ...latest,
+            progressCloudRevision: result.progressCloudRevision,
+            progressSyncConflict: result.progressSyncConflict,
+            pendingProgressSync: result.pendingProgressSync };
           await updateBook(synced);
           booksRef.current = booksRef.current.map(book => book.id === id ? synced : book);
           setBooks(booksRef.current);
+        }
+        if (result.progressSyncConflict) {
+          setLastSyncError('Progress reset locally; the cloud copy needs explicit conflict resolution.');
         }
       } catch (reason) {
         throw new Error('Progress reset safely on this device; cloud sync will retry: ' + String(reason));
