@@ -2529,21 +2529,10 @@ try {
       throw new Error('Exporting EPUB created an unexpected IndexedDB offline download');
     }
     await readPage.getByRole('button', { name: 'Save for offline reading' }).click();
-    await readPage.waitForFunction(async expectedId => {
-      const request = indexedDB.open('folio-personal-library-v1', 3);
-      const db = await new Promise((resolve, reject) => {
-        request.onsuccess = () => resolve(request.result);
-        request.onerror = () => reject(request.error);
-      });
-      const tx = db.transaction('files', 'readonly');
-      const found = await new Promise((resolve, reject) => {
-        const query = tx.objectStore('files').get(expectedId);
-        query.onsuccess = () => resolve(Boolean(query.result?.epub));
-        query.onerror = () => reject(query.error);
-      });
-      db.close();
-      return found;
-    }, hostedId, { timeout: 15000 });
+    // Only the app's confirmed durable save state may expose Remove offline.
+    // This avoids racing a raw IndexedDB transaction before it has committed.
+    await readPage.getByRole('button', { name: 'Remove offline EPUB' })
+      .waitFor({ state: 'visible', timeout: 15000 });
     const stored = await savedIds();
     if (stored.length !== 1 || stored[0] !== hostedId || hostedReads < 1) {
       throw new Error('Explicit Save offline failed after transient reads: ' +
