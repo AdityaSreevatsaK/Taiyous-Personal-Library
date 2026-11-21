@@ -30,6 +30,11 @@ function prepare(files: Record<string, unknown> = {}) {
     if (url === 'https://huggingface.co/api/datasets/' + repo) {
       return new Response(JSON.stringify({ private: true, sha }));
     }
+    if (url.includes('/tree/' + sha + '/data/personal?')) {
+      return new Response(JSON.stringify([...remote.keys()]
+        .filter(path => path !== 'data/personal/state.json')
+        .map(path => ({ type: 'file', path }))));
+    }
     const marker = '/resolve/' + sha + '/';
     if (url.includes(marker)) {
       const path = url.split(marker)[1];
