@@ -8,7 +8,7 @@
 import { chromium } from 'playwright';
 import {
   origin, repo, assert, eventually, getApi, readBook, ownerContext,
-  startIsolatedPages, stopIsolatedPages,
+  startIsolatedPages, stopIsolatedPages, chromiumCertificatePinArgs,
 } from './isolated_hf_pages.mjs';
 
 const id = 'a'.repeat(24);
@@ -74,7 +74,7 @@ async function clickDecision(page,row,label,confirmLabel) {
 
 try {
   await startIsolatedPages();
-  browser=await chromium.launch({headless:true});
+  browser=await chromium.launch({headless:true,args:chromiumCertificatePinArgs()});
   const anon=await browser.newContext();
   const anonPage=await anon.newPage();
   await anonPage.goto(origin,{waitUntil:'domcontentloaded'});
