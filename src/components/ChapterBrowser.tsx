@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { ArrowRight, BookMarked, ChevronLeft, ChevronRight, List, Search } from 'lucide-react';
 import { CHAPTERS_PER_PAGE, resolveChapterNumber, searchChapterCatalog } from '../lib/catalog';
+import { retryTransientRead } from '../lib/network-pool';
 import type { ChapterItem, LibraryBook } from '../types';
 
 interface Props {
@@ -24,6 +25,9 @@ export default function ChapterBrowser({ book, onReadChapter, onLoadChapters }: 
   // version without triggering duplicate downloads on every parent render.
   const loadRef = useRef(onLoadChapters);
   loadRef.current = onLoadChapters;
+  // Initial attempt plus at most three retries for temporary network/server
+  // failures. Auth, missing EPUBs and corrupt content fail immediately.
+  const loadWithRetries = () => retryTransientRead(() => loadRef.current(), 4);
 
   useEffect(() => {
     let active = true;
@@ -32,7 +36,7 @@ export default function ChapterBrowser({ book, onReadChapter, onLoadChapters }: 
     setError(null);
     setChapters([]);
     setPage(0);
-    void loadRef.current().then(list => {
+    void loadWithRetries().then(list => {
       if (!active) return;
       setChapters(list);
       if (!list.length) setError('This EPUB contains no readable chapter entries.');
@@ -50,7 +54,7 @@ export default function ChapterBrowser({ book, onReadChapter, onLoadChapters }: 
     setLoading(true);
     setError(null);
     try {
-      const list = await loadRef.current();
+      const list = await loadWithRetries();
       setChapters(list);
       if (!list.length) setError('This EPUB contains no readable chapter entries.');
     } catch (reason) {

@@ -34,6 +34,20 @@ describe('bounded private cloud refresh', () => {
     await expect(retryTransientRead(unauthorized, 3, sleep)).rejects.toThrow('403');
     expect(unauthorized).toHaveBeenCalledOnce();
   });
+  it('allows three automatic retries after the initial chapter read, then stops', async () => {
+    const read = vi.fn(async () => { throw new Error('HTTP 503'); });
+    const delays: number[] = [];
+    await expect(retryTransientRead(read, 4, async ms => { delays.push(ms); }))
+      .rejects.toThrow('503');
+    expect(read).toHaveBeenCalledTimes(4);
+    expect(delays).toEqual([300, 600, 1200]);
+    const disconnected = vi.fn(async () => {
+      throw new Error('Connect your private library to browse this EPUB’s chapters.');
+    });
+    await expect(retryTransientRead(disconnected, 4, async () => {}))
+      .rejects.toThrow('Connect your private library');
+    expect(disconnected).toHaveBeenCalledOnce();
+  });
   it('stops after the bounded retry budget', async () => {
     const offline = vi.fn(async () => { throw new Error('fetch failed'); });
     await expect(retryTransientRead(offline, 2, async () => {})).rejects.toThrow('fetch failed');

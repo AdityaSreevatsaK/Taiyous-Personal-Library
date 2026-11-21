@@ -191,13 +191,17 @@ try {
     // Local private analytics must be usable and switchable without a server.
     const nav = page.getByRole('navigation', { name: 'Library sections' });
     const navLinks = await nav.locator('.top-nav-links > a[href]').count();
-    if (navLinks !== 8) {
-      throw new Error('Home and all seven desktop shelf tabs must be real links: ' + navLinks);
+    if (navLinks !== 6) {
+      throw new Error('Home and the five primary shelves must be real links: ' + navLinks);
+    }
+    if (await nav.locator('.top-nav-links > a').filter({hasText:/To be read|Analytics/}).count() ||
+        await nav.locator('.mobile-shelf-more option[value="unread"], .mobile-shelf-more option[value="analytics"]').count()) {
+      throw new Error('To Be Read and Analytics should not crowd the main shelf navigation');
     }
     if (await page.getByRole('link', { name: 'Advanced search' }).getAttribute('href') !== '/advanced-search') {
       throw new Error('Advanced search must have a copyable, new-tab URL');
     }
-    if (await nav.getByRole('link', { name: 'Open Master Controls' }).getAttribute('href') !== '/master-controls') {
+    if (await nav.getByRole('link', { name: 'Open Master Controls and Analytics' }).getAttribute('href') !== '/master-controls') {
       throw new Error('Master Controls must have a real deep link');
     }
 
@@ -243,12 +247,18 @@ try {
     await page.waitForURL('**/advanced-search');
     await page.getByRole('button', { name: 'Back to shelf' }).click();
     await page.waitForURL('**/library');
-    await navigateShelf('Analytics', 'analytics');
-    await page.waitForURL('**/analytics');
+    await nav.getByRole('link', { name: 'Open Master Controls and Analytics' }).click();
+    await page.waitForURL('**/master-controls');
     await page.getByRole('heading', { name: 'Reading analytics' }).waitFor();
+    if (await page.locator('.master-unlock, .master-controls table').count()) {
+      throw new Error('Analytics unexpectedly requires the Owner password');
+    }
     await page.reload({ waitUntil: 'networkidle' });
     await page.getByRole('heading', { name: 'Reading analytics' }).waitFor();
-    if (new URL(page.url()).pathname !== '/analytics') throw new Error('Analytics deep link lost on reload');
+    if (new URL(page.url()).pathname !== '/master-controls') throw new Error('Master Controls deep link lost on reload');
+    await page.goto(baseUrl + '/analytics', { waitUntil:'domcontentloaded' });
+    await page.getByRole('heading', { name: 'Reading analytics' }).waitFor();
+    if (await page.locator('.master-unlock').count()) throw new Error('Legacy analytics link requires an Owner passphrase');
     await page.getByText('Private and on-device').waitFor();
     const recordToggle = page.getByRole('checkbox', { name: 'Record analytics on this device' });
     await recordToggle.uncheck();
@@ -274,11 +284,10 @@ try {
     for (const [name, path, heading] of [
       [/Trying out/, '/trying-out', /Trying out/],
       [/Currently reading/, '/currently-reading', /Currently reading/],
-      [/To be read/, '/to-be-read', /To be read/],
       [/Finished/, '/finished', /Finished/],
       [/Available offline/, '/offline', /Available offline/],
     ]) {
-      await navigateShelf(name, path === '/trying-out' ? 'trying' : path === '/currently-reading' ? 'reading' : path === '/to-be-read' ? 'unread' : path === '/finished' ? 'finished' : 'offline');
+      await navigateShelf(name, path === '/trying-out' ? 'trying' : path === '/currently-reading' ? 'reading' : path === '/finished' ? 'finished' : 'offline');
       await page.waitForURL('**' + path);
       await page.getByRole('heading', { name: heading }).first().waitFor();
     }
@@ -286,6 +295,11 @@ try {
     await page.waitForURL('**/finished');
     await page.goForward({ waitUntil: 'domcontentloaded' });
     await page.waitForURL('**/offline');
+    await navigateShelf(/All books/, 'all');
+    await page.waitForURL('**/library');
+    // Legacy shelf bookmarks remain readable even though To Be Read is hidden.
+    await page.goto(baseUrl + '/to-be-read', {waitUntil:'domcontentloaded'});
+    await page.getByRole('heading', {name:/To be read/}).first().waitFor();
     await navigateShelf(/All books/, 'all');
     await page.waitForURL('**/library');
 
@@ -326,9 +340,11 @@ try {
     }
     // Direct access to Master Controls must never reveal record editing until
     // Owner mode is authenticated by the production server.
-    await page.getByRole('link', { name: 'Open Master Controls' }).click();
+    await page.getByRole('link', { name: 'Open Master Controls and Analytics' }).click();
     await page.waitForURL('**/master-controls');
     await page.getByRole('heading', { name: 'Master Controls' }).waitFor();
+    await page.getByRole('heading', { name: 'Reading analytics' }).waitFor();
+    await page.getByRole('button', { name: 'Library management' }).click();
     if (await page.locator('.master-controls table').count()) {
       throw new Error('Master Controls exposed private management tools without Owner unlock');
     }
@@ -351,7 +367,8 @@ try {
       transaction.objectStore('books').put({
         id: 'aaaaaaaaaaaaaaaaaaaaaaaa', title: 'Sample Library Book', author: 'Test Author',
         originalFileName: 'sample.epub', importedAt: Date.now(),
-        progress: 0, size: 128, metadataScanned: true, sourceTags: ['Fantasy', 'Action', 'Adventure', 'Martial Arts', 'Romance'],
+        progress: 0, size: 128, metadataScanned: true, language:'en',
+        sourceTags: ['Fantasy', 'Action', 'Adventure', 'Martial Arts', 'Romance'],
       });
       transaction.objectStore('files').put({ id: 'aaaaaaaaaaaaaaaaaaaaaaaa', epub: new Blob([new Uint8Array(epubData)], { type: 'application/epub+zip' }) });
       await new Promise((resolve, reject) => {
@@ -674,6 +691,22 @@ try {
       }
     }
     if (viewport.width<=700) {
+      // Exercise the status row's actual CSS without changing the original
+      // synthetic novel's publication state or the ribbon inventory tests.
+      const factLeftEdges = await page.locator('.details-hero .details-meta-row').evaluate(row => {
+        const status = document.createElement('span');
+        status.className = 'publication-status publication-status--ongoing';
+        status.textContent = 'Ongoing';
+        row.insertBefore(status, row.lastElementChild);
+        const lefts = [...row.children].map(element => element.getBoundingClientRect().left);
+        status.remove();
+        return lefts;
+      });
+      if (factLeftEdges.length !== 3 ||
+          factLeftEdges.some(x => Math.abs(x - factLeftEdges[0]) > 1)) {
+        throw new Error('Mobile chapter count, publication status and language must align left: '+
+          JSON.stringify(factLeftEdges));
+      }
       const regions=await page.evaluate(() => {
         const rect = selector =>
           document.querySelector('.details-hero '+selector).getBoundingClientRect();
@@ -2190,6 +2223,7 @@ try {
           body:JSON.stringify({configured:true,unlocked:true,expiresAt:Date.now()+600000}),
         }));
         await adminPage.goto(baseUrl + '/master-controls', { waitUntil:'domcontentloaded' });
+        await adminPage.getByRole('button', {name:'Library management'}).click();
         await adminPage.locator('.master-controls table').waitFor({state:'visible',timeout:15000});
         const manage = adminPage.getByRole('button', {name:'Manage novel'}).first();
         await manage.click();
@@ -2236,6 +2270,7 @@ try {
           db.close();
         });
         await adminPage.reload({waitUntil:'domcontentloaded'});
+        await adminPage.getByRole('button', {name:'Library management'}).click();
         await adminPage.locator('.master-controls table').waitFor();
         let shown=await adminPage.getByRole('button',{name:'Manage novel'}).count();
         if(shown!==25)throw new Error('Master must initially render 25 records, got '+shown);
