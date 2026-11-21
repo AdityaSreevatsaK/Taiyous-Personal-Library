@@ -35,6 +35,9 @@
 .editorial-art-book-1{top:2px;left:34%;transform:rotate(4deg);z-index:4}
 .editorial-art-book-2{top:47px;right:1%;transform:rotate(12deg)}
 .editorial-art-book .cover{width:100%;height:auto;aspect-ratio:2/3;min-width:0;box-shadow:9px 16px 28px #060d1e8c}
+/* The metadata shown at left belongs to the subtly outlined selected jacket. */
+.editorial-home .editorial-art-book-selected .cover{outline:2px solid #e7d2a1;outline-offset:3px}
+
 .editorial-art-book .cover-heading{font-size:clamp(10px,1.4vw,17px)}
 .editorial-art-book .cover-author{font-size:9px}
 .editorial-art-caption{position:absolute;bottom:0;left:0;right:0;text-align:center;font-size:9px;color:#ddcba3;letter-spacing:.24em}
