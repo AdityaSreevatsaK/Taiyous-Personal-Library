@@ -29,6 +29,24 @@ describe('cloud refresh cannot clobber live reading and annotations', () => {
       pendingReviewSync: true, personalTags: ['New tag'], userDescription: 'New summary',
     });
   });
+  it('protects a new local edit even when the other device has a clock far in the future', () => {
+    const remote = { ...book, progress: 70, progressUpdatedAt: 9_999_999,
+      personalReview: 'Remote notes', personalReviewUpdatedAt: 9_999_999 };
+    const live = { ...book, progress: 44, progressUpdatedAt: 101, pendingProgressSync: true,
+      personalReview: 'New local edit', personalReviewUpdatedAt: 101, pendingReviewSync: true };
+    const result = reconcileCompletedCloudRefresh([book], [remote], [live]);
+    expect(result[0]).toMatchObject({ progress: 44, progressUpdatedAt: 101,
+      pendingProgressSync: true, personalReview: 'New local edit',
+      pendingReviewSync: true });
+  });
+  it('retains a competing remote revision while keeping newer local progress', () => {
+    const remote = { ...book, progress: 10, pendingProgressSync: true,
+      progressSyncConflict: { value: null, revision: 'b'.repeat(64) } };
+    const live = { ...book, progress: 45, progressUpdatedAt: 101, pendingProgressSync: true };
+    const result = reconcileCompletedCloudRefresh([book], [remote], [live]);
+    expect(result[0].progress).toBe(45);
+    expect(result[0].progressSyncConflict?.revision).toBe('b'.repeat(64));
+  });
   it('accepts a newer remote position and review when local data did not change', () => {
     const remote = { ...book, progress: 70, progressUpdatedAt: 500,
       personalReview: 'New remote', personalReviewUpdatedAt: 500 };
