@@ -10,6 +10,7 @@ from __future__ import annotations
 import json
 import os
 import secrets
+import subprocess
 import sys
 from typing import Any
 
@@ -126,6 +127,16 @@ def main() -> int:
 
             print(f"PASS {kind}: private, version-1 compatible and stale write rejected")
 
+        # Run the shipping TypeScript Cloudflare handler itself, not a hand-
+        # written Python approximation. The exact new dataset identifier is
+        # supplied in a child environment, never as a command argument.
+        live_env = dict(os.environ)
+        live_env["HF_REAL_TEST_REPO"] = repo_id
+        subprocess.run(
+            ["npx", "vitest", "run", "tests/personal-bulk-live-hf.test.ts"],
+            check=True, env=live_env,
+        )
+        print("PASS real private-HF bulk migration and selective PATCH CAS.")
         print("PASS all disposable HF parent-commit and privacy checks.")
         print("NOTE: Browser OAuth/Cloudflare gateway integration is a separate release gate.")
         return 0
