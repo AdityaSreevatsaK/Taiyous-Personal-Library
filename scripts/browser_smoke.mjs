@@ -2336,6 +2336,95 @@ try {
     }
     console.log(`Browser render and offline cold launch passed at ${viewport.width}x${viewport.height}`);
   }
+
+  // A genuine three-jacket gallery must not describe a fourth, uncovered
+  // novel. Test the ACTUAL compiled React view, mouse hover, keyboard focus,
+  // both CTA targets and reset to the middle book after pointer exit.
+  const galleryContext = await browser.newContext({ viewport: { width: 1366, height: 820 } });
+  try {
+    await galleryContext.route('**/api/library?**', route => route.fulfill({
+      status: 200, contentType: 'application/json',
+      body: JSON.stringify({ connected: false }),
+    }));
+    const galleryPage = await galleryContext.newPage();
+    await galleryPage.goto(baseUrl, { waitUntil: 'domcontentloaded' });
+    await galleryPage.locator('.app-shell').waitFor();
+    const galleryBooks = [
+      { id: 'b'.repeat(24), title: 'Nine by God King',
+        author: 'Author One', description: 'The first matching synopsis.' },
+      { id: 'c'.repeat(24), title: 'Great Doctor Ling Ran',
+        author: 'Author Two', description: 'The second matching synopsis.' },
+      { id: 'd'.repeat(24), title: 'God-Like Extraction',
+        author: 'Author Three', description: 'The third matching synopsis.' },
+      { id: 'e'.repeat(24), title: 'Unrivaled Medicine God',
+        author: 'Unrelated Author', description: 'This fourth novel has no cover.' },
+    ];
+    await galleryPage.evaluate(async books => {
+      const request = indexedDB.open('folio-personal-library-v1', 3);
+      const db = await new Promise((resolve, reject) => {
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+      });
+      const tx = db.transaction(['books', 'covers'], 'readwrite');
+      const pngBytes = Uint8Array.from(atob(
+        'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScLItAAAAABJRU5ErkJggg=='
+      ), character => character.charCodeAt(0));
+      for (let i = 0; i < books.length; i++) {
+        const book = books[i];
+        tx.objectStore('books').put({
+          ...book, originalFileName: book.title + '.epub', importedAt: i + 1,
+          progress: 0, size: 1,
+          ...(i < 3 ? { coverPath: 'data/novels/' + book.id + '/cover.png' } : {}),
+        });
+        if (i < 3) tx.objectStore('covers').put({
+          id: book.id, jpeg: new Blob([pngBytes], { type: 'image/png' }),
+        });
+      }
+      await new Promise((resolve, reject) => {
+        tx.oncomplete = resolve;
+        tx.onerror = () => reject(tx.error);
+      });
+      db.close();
+    }, galleryBooks);
+    await galleryPage.reload({ waitUntil: 'domcontentloaded' });
+    await galleryPage.waitForFunction(() =>
+      document.querySelectorAll('.editorial-grand-gallery .editorial-art-book:not(.editorial-art-book-pending):has(.cover-has-image)').length === 3,
+      null, { timeout: 20000 });
+    const coverAt = index => galleryPage.locator('.editorial-grand-gallery .editorial-art-book-' + index);
+    const expectFeatured = async cover => {
+      const label = await cover.getAttribute('aria-label');
+      const title = label?.replace('Featured cover for ', '');
+      const data = galleryBooks.find(book => book.title === title);
+      if (!data) throw new Error('A displayed gallery cover did not resolve to a fixture novel: ' + label);
+      await galleryPage.waitForFunction(value =>
+        document.querySelector('.editorial-featured-book h2')?.textContent === value,
+        data.title, { timeout: 10000 });
+      const author = await galleryPage.locator('.editorial-featured-author').innerText();
+      const synopsis = await galleryPage.locator('.editorial-featured-synopsis').innerText();
+      const detailsHref = await galleryPage.locator('.editorial-secondary').getAttribute('href');
+      const readHref = await galleryPage.locator('.editorial-primary').getAttribute('href');
+      const coverHref = await cover.getAttribute('href');
+      if (author !== 'by ' + data.author || synopsis !== data.description ||
+          detailsHref !== coverHref || readHref !== coverHref + '/read') {
+        throw new Error('Hero text/links do not match selected cover: ' +
+          JSON.stringify({ title, author, synopsis, detailsHref, readHref, coverHref }));
+      }
+    };
+    await expectFeatured(coverAt(1)); // Centre default, never the unrelated fourth book.
+    await coverAt(0).hover();
+    await expectFeatured(coverAt(0));
+    await coverAt(2).hover();
+    await expectFeatured(coverAt(2));
+    await galleryPage.locator('.editorial-grand-tagline').hover();
+    await expectFeatured(coverAt(1));
+    await coverAt(0).focus();
+    await expectFeatured(coverAt(0));
+    await galleryPage.locator('.editorial-grand-tagline').click();
+    await expectFeatured(coverAt(1));
+    console.log('Three-cover hero metadata, hover, keyboard focus and CTA targets passed');
+  } finally {
+    await galleryContext.close();
+  }
 } finally {
   await browser.close();
 }
