@@ -155,6 +155,23 @@ describe('bulk personal-state migration and selective PATCH', () => {
       .toEqual([progressPath, statePath].sort());
   });
 
+  it('fails closed on malformed or oversized PATCH payloads without touching private data', async () => {
+    fixture({ [progressPath]: progress(id, 10), [reviewPath]: review });
+    expect((await bulk('POST')).status).toBe(200);
+    const base = await (await doc('GET', progressPath)).json() as {revision: string};
+    const previousIndex = files.get(statePath);
+    vi.mocked(commit).mockClear();
+    expect((await doc('PATCH', progressPath, base.revision,
+      { ...progress(id, 88), progress: 200 })).status).toBe(400);
+    expect((await doc('PATCH', progressPath, base.revision,
+      { version: 1, bookId: other, progress: 88 })).status).toBe(400);
+    expect((await doc('PATCH', reviewPath, base.revision,
+      { version: 1, comments: 'missing book ID' })).status).toBe(400);
+    expect(files.get(statePath)).toBe(previousIndex);
+    expect(JSON.parse(files.get(progressPath)!).progress).toBe(10);
+    expect(vi.mocked(commit)).not.toHaveBeenCalled();
+  });
+
   it('allows disjoint edits without confusing an unrelated commit with a same-record conflict', async () => {
     fixture({ [progressPath]: progress(id, 10), [otherPath]: progress(other, 20) });
     expect((await bulk('POST')).status).toBe(200);
