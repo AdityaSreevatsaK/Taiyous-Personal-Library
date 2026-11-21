@@ -97,6 +97,28 @@ describe('bulk personal-state migration and selective PATCH', () => {
     expect(commit).not.toHaveBeenCalled();
   });
 
+  it('follows every HF tree pagination cursor so migration cannot drop existing records', async () => {
+    fixture({ [progressPath]: progress(id, 21), [reviewPath]: review });
+    const baseFetch = vi.mocked(fetch).getMockImplementation()!;
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes('/tree/' + sha + '/data/personal?')) {
+        if (url.includes('cursor=second')) {
+          return asResponse([{ type: 'file', path: reviewPath }]);
+        }
+        return new Response(JSON.stringify([{ type: 'file', path: progressPath }]), {
+          headers: { Link: '<' + url + '&cursor=second>; rel="next"' },
+        });
+      }
+      return baseFetch(input);
+    }));
+    const answer = await bulk();
+    expect(answer.status).toBe(200);
+    const data = await answer.json() as {records: Record<string, unknown>};
+    expect(Object.keys(data.records).sort()).toEqual([progressPath, reviewPath].sort());
+    expect(commit).not.toHaveBeenCalled();
+  });
+
   it('bootstrap preserves exact legacy files and future GETs read only one snapshot', async () => {
     fixture({ [progressPath]: progress(id, 41), [reviewPath]: review });
     const previous = new Map(files);
