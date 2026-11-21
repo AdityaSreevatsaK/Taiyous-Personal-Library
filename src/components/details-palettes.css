@@ -806,3 +806,11 @@
   .details-shell .novel-collection-entries .novel-collection-member-state {font-size:9px}
   .details-shell .novel-collection-entries button.is-added {min-width:65px}
 }
+
+/* Mobile book facts are one left-aligned vertical list, including the
+   publication status dot; do not let its legacy self-alignment centre it. */
+@media (max-width:700px) {
+  .details-shell .details-hero .details-meta-row > .publication-status {
+    align-self:flex-start;
+  }
+}
