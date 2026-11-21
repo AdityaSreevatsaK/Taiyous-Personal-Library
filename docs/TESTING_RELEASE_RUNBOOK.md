@@ -173,6 +173,41 @@ A human owner may validate personal taste or real-device appearance, but automat
 
 **Do not merge an old proposed sync PR based on simulated success alone.**
 
+### Personal bulk-state migration (PR #110, Issue #34)
+
+A green build proves only the *simulated* protocol. Before production:
+
+1. Confirm `data/library.json` and a separate private dataset backup can be
+   restored. **Never erase original** `data/personal/progress/*.json`,
+   `reviews/*.json` or `collections.json` during migration.
+2. Run `tests/personal-bulk-gateway.test.ts`,
+   `tests/personal-sync-gateway.test.ts`, the collections/progress tests,
+   and `scripts/browser_sync_smoke.mjs` on the exact candidate commit. The
+   352-title browser fixture asserts **one bulk personal GET** and **zero
+   speculative per-book GETs** during initial refresh.
+3. Use only `HF_DISPOSABLE_TEST_TOKEN` and a disposable private HF dataset
+   for a real parent-commit test. Cover index bootstrap, preservation of
+   existing sidecars, a successful PATCH, a rejected stale PATCH, disjoint
+   changes and a rejected incomplete migration. Credentials must never be
+   logged or included in artefacts.
+4. Use **two authenticated browser sessions** through a separately isolated
+   Cloudflare OAuth test gateway pointing to the disposable dataset. Simulate
+   offline edits, active reading, a third-device revision after conflict
+   display, explicit cloud/device selection and failed/ambiguous writes.
+5. Compare network traces **before and after** against a 352-title catalogue.
+   Count API requests by action/path, not merely browser HTTP response
+   statuses. Initial catalogue plus private state should require one
+   catalogue GET and one bulk personal GET. Cover/EPUB and OAuth requests
+   are separate and should stay on demand.
+6. Repeat Verify + CodeQL on the exact merge commit, complete rollback
+   drill, and only then release. In the absence of evidence for either real
+   test, **keep the PR draft and do not touch production personal data**.
+
+Old `/api/library?action=personal` GET remains for specific, deliberate
+conflict resolution; normal catalogue refresh must not call it for every
+novel. Writes use PATCH with a known content revision and 409 comparisons.
+The old unguarded upload route rejects personal sidecars.
+
 ## 8. Failure triage and recovery
 
 - **Unit/type/build fail:** Find the first meaningful error and fix source or test assumption. Never disable the test. Check whether a changed import is unused or a fixture uses a stale slug.
