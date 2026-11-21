@@ -41,6 +41,8 @@ const cloud = new Map([
   [collectionsPath, { value: {version: 1, collections: [remoteCollection]}, revision: rev('b') }],
 ]);
 const writes = [];
+let bulkReads = 0;
+let individualGets = 0;
 let revisionIndex = 13;
 const json = (value) => JSON.stringify(value);
 let connectedA = false;
@@ -62,11 +64,20 @@ async function attachMock(context, connected = () => true) {
     }
     if (action === 'info') return answer(200, {private: true});
     if (action === 'file' && path === 'data/library.json') return answer(200, catalog);
+    if (action === 'personal-bulk') {
+      if (request.method() !== 'GET') {
+        throw new Error('The bulk fixture is already materialised; bootstrap is unexpected');
+      }
+      bulkReads++;
+      return answer(200, { version: 1, materialised: true,
+        records: Object.fromEntries(cloud) });
+    }
     if (action === 'personal') {
       if (request.method() === 'GET') {
+        individualGets++;
         return answer(200, cloud.get(path) ?? { value: null, revision: null });
       }
-      if (request.method() === 'POST') {
+      if (request.method() === 'PATCH') {
         const body = request.postDataJSON();
         if (!cloud.has(body.path)) return answer(409, { conflict: true, revision: null, value: null });
         const previous = cloud.get(body.path);
@@ -165,6 +176,9 @@ try {
   await pageA.getByRole('button', {name: /Cloud settings, connected/}).click();
   await pageA.waitForFunction(() =>
     document.querySelectorAll('.sync-conflict-item').length === 3, null, {timeout: 25000});
+  assert(bulkReads === 1 && individualGets === 0,
+    'Catalogue refresh must use exactly one bulk personal read, not per-novel GETs: ' +
+      JSON.stringify({bulkReads, individualGets}));
   const localBefore = await readBook(pageA);
   assert(localBefore.progress === 80, 'Offline reading position was lost on first cloud refresh');
   assert(localBefore.personalReview === 'Device A unsynced notes',
