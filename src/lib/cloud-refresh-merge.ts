@@ -46,10 +46,18 @@ export function reconcileCompletedCloudRefresh(
        current.personalRating !== previous.personalRating ||
        current.personalReview !== previous.personalReview ||
        current.shelfStatus !== previous.shelfStatus);
+    // The provider's observed revision is authoritative across devices.
+    // A different device can have an earlier wall clock; do not resurrect
+    // an obsolete, fully-synchronised local value just because its timestamp
+    // appears later than the freshly adopted cloud revision.
+    const adoptedCloudProgress = previous !== undefined &&
+      book.progressCloudRevision !== previous.progressCloudRevision &&
+      !book.pendingProgressSync && !book.progressSyncConflict;
     const currentPosition = current.progressUpdatedAt ?? current.lastOpenedAt ?? 0;
     const snapshotPosition = book.progressUpdatedAt ?? book.lastOpenedAt ?? 0;
-    if (localPositionChanged || currentPosition > snapshotPosition ||
-        (current.pendingProgressSync && currentPosition >= snapshotPosition)) {
+    if (localPositionChanged || (!adoptedCloudProgress &&
+        (currentPosition > snapshotPosition ||
+         (current.pendingProgressSync && currentPosition >= snapshotPosition)))) {
       for (const field of readingFields) {
         // Avoid Object.assign from an older book: only reading fields.
         (merged as unknown as Record<string, unknown>)[field] = current[field];
@@ -61,10 +69,14 @@ export function reconcileCompletedCloudRefresh(
         merged.pendingProgressSync = true;
       }
     }
+    const adoptedCloudReview = previous !== undefined &&
+      book.reviewCloudRevision !== previous.reviewCloudRevision &&
+      !book.pendingReviewSync && !book.reviewSyncConflict;
     const currentReview = current.personalReviewUpdatedAt || 0;
     const snapshotReview = book.personalReviewUpdatedAt || 0;
-    if (localReviewChanged || currentReview > snapshotReview ||
-        (current.pendingReviewSync && currentReview >= snapshotReview)) {
+    if (localReviewChanged || (!adoptedCloudReview &&
+        (currentReview > snapshotReview ||
+         (current.pendingReviewSync && currentReview >= snapshotReview)))) {
       for (const field of reviewFields) {
         (merged as unknown as Record<string, unknown>)[field] = current[field];
       }
