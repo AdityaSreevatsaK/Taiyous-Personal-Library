@@ -1,6 +1,6 @@
 import { commit, uploadFiles, type CommitOperation } from '@huggingface/hub';
 import { hasOwnerGrant } from './owner';
-import { personalRequest } from '../_lib/personal';
+import { personalRequest, personalBulkRequest } from '../_lib/personal';
 import { parseNovelFilePath, verifiedNovelFolder } from '../../src/lib/novel-paths';
 import {
   CATALOGUE_LIMIT, parseDatasetCatalogue, planAdditiveCatalogueUpload,
@@ -455,7 +455,12 @@ export async function onRequest({ request, env }: PagesContext): Promise<Respons
   const respond = (response: Response) => attachRenewal(response, auth);
   const url = new URL(request.url);
   const action = url.searchParams.get('action');
-  if (action === 'personal' && (request.method === 'GET' || request.method === 'POST')) {
+  if (action === 'personal-bulk' &&
+      (request.method === 'GET' || request.method === 'POST')) {
+    return respond(await personalBulkRequest(request, DATASET_REPO, token, json));
+  }
+  if (action === 'personal' &&
+      (request.method === 'GET' || request.method === 'POST' || request.method === 'PATCH')) {
     return respond(await personalRequest(request, DATASET_REPO, token, json));
   }
   if (request.method === 'GET' && action === 'session') {
