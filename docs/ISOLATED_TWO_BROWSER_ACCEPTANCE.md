@@ -1,6 +1,6 @@
 # Isolated two-browser Cloudflare + Hugging Face acceptance
 
-The two-session acceptance suite lives on the PR #110 branch. It is an **opt-in real integration test**, not a replacement for routine synthetic unit or browser smoke checks.
+The two-session acceptance suite was added for PR #110 and is merged into master. It is an **opt-in real integration test**, not a replacement for routine synthetic unit or browser smoke checks. Its recorded passing run is [#44924684751](https://github.com/AdityaSreevatsaK/Taiyous-Personal-Library/actions/runs/44924684751).
 
 ## What is real, and what is isolated
 
