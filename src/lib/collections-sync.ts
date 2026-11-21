@@ -1,4 +1,4 @@
-import { CloudPersonalConflict, type CloudSession } from './cloud';
+import { CloudPersonalConflict, type CloudSession, type CloudRevisionSnapshot } from './cloud';
 import {
   fetchVersionedCollections, writeVersionedCollections,
   type BookCollection, type CollectionsSyncConflict,
@@ -22,9 +22,10 @@ export function equivalentCollections(local: BookCollection[], remote: BookColle
 export async function reconcileCollections(
   repo: string, session: CloudSession, local: BookCollection[],
   pending: boolean, baseRevision: string | null | undefined, unresolved: CollectionsSyncConflict | null,
+  bulkRecord?: CloudRevisionSnapshot<BookCollection[]>,
 ): Promise<CollectionsOutcome> {
   if (session.via !== 'oauth') throw new Error('Sign in with Hugging Face to safely sync collections.');
-  const remote = await fetchVersionedCollections(repo, session);
+  const remote = bulkRecord ?? await fetchVersionedCollections(repo, session);
   const hosted = remote.value ?? [];
   if (unresolved) {
     return { collections: local, baseRevision: baseRevision ?? null, pending: true,
