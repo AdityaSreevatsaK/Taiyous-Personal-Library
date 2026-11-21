@@ -68,6 +68,12 @@ describe('revision-aware collection synchronisation', () => {
     expect(equivalentCollections(deleted, active)).toBe(false);
   });
 
+  it('detects changing a subcollection parent, not only its name and novels', () => {
+    const oldParent = [{ ...original, parentId: 'collection_a123' }];
+    const newParent = [{ ...original, parentId: 'collection_b123' }];
+    expect(equivalentCollections(oldParent, newParent)).toBe(false);
+  });
+
   it('retains local collections if the private cloud is temporarily unreachable', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => { throw new Error('Network unavailable'); }));
     await expect(reconcileCollections('reader/library', session, [original], true, a, null))
