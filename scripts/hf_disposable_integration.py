@@ -137,8 +137,44 @@ def main() -> int:
             check=True, env=live_env,
         )
         print("PASS real private-HF bulk migration and selective PATCH CAS.")
-        print("PASS all disposable HF parent-commit and privacy checks.")
-        print("NOTE: Browser OAuth/Cloudflare gateway integration is a separate release gate.")
+
+        # The same ephemeral dataset now serves the REAL compiled Pages
+        # Functions in isolated desktop/mobile Chromium contexts.
+        # The single catalogue record is fabricated; no production text/data.
+        current_revision = api.repo_info(repo_id=repo_id, repo_type="dataset").sha
+        if not current_revision:
+            raise RuntimeError("Cannot pin disposable catalogue creation.")
+        catalogue = {
+            "version": 1,
+            "books": [{
+                "id": BOOK_ID,
+                "metadata": {
+                    "id": BOOK_ID,
+                    "title": "Disposable Browser Sync Novel",
+                    "author": "Synthetic CI Author",
+                    "originalFileName": "synthetic.epub",
+                    "importedAt": 1,
+                    "progress": 0,
+                    "size": 123,
+                    "metadataScanned": True,
+                },
+                "epubPath": f"data/novels/{BOOK_ID}/source.epub",
+            }],
+        }
+        api.upload_file(
+            repo_id=repo_id, repo_type="dataset",
+            path_in_repo="data/library.json",
+            path_or_fileobj=encoded(catalogue),
+            parent_commit=current_revision,
+            commit_message="Seed disposable browser catalogue",
+        )
+        subprocess.run(
+            ["node", "scripts/isolated_two_browser_acceptance.mjs"],
+            check=True, env=live_env,
+        )
+        print("PASS two authenticated isolated Cloudflare Pages browser sessions.")
+        print("PASS all disposable HF parent-commit, privacy and browser checks.")
+        print("NOTE: Interactive Hugging Face consent/PKCE redirect not exercised.")
         return 0
     finally:
         if created:
