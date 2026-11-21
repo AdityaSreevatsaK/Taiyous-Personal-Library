@@ -610,7 +610,7 @@ export default function LibraryDashboard({
              <span className={online ? 'offline-connection online' : 'offline-connection offline'}>
                {online ? <Cloud size={14} /> : <WifiOff size={14} />}{online ? 'Online' : 'Offline'}
              </span>
-             <span><Download size={14} /> {cachedEpubIds.filter(id => books.some(book => book.id === id)).length} downloaded EPUBs on this device</span>
+             <span><Download size={14} /> {cachedEpubIds.filter(id => books.some(book => book.id === id)).length} EPUBs stored in this browser</span>
              {cachedEpubIds.length < books.length && books.length > 0 && <button type="button" className="offline-cache-all-btn"
                onClick={onCacheAllOffline} disabled={!online || !!bulkOfflineProgress}
                aria-label="Save all novels for offline reading"><Download size={13} />
@@ -626,6 +626,14 @@ export default function LibraryDashboard({
              {pendingProgressCount > 0 && <span className="pending-sync-status">{pendingProgressCount} reading positions waiting to sync</span>}
              {collectionsSyncPending && <span className="pending-sync-status">Collections waiting to sync</span>}
            </section>}
+           {!showAdvanced && !isMasterControls && filter === 'offline' && cachedEpubIds.length > 0 && (
+             <p className="offline-cache-explainer">
+               Earlier versions automatically saved EPUBs when opened for reading. Existing copies
+               are preserved for safety. Reading now uses a temporary copy and will no longer
+               add books here. You can use <strong>Remove download</strong> for any hosted novel
+               after its cloud backup is verified.
+             </p>
+           )}
                     {!isMasterControls && (showAdvanced ? <AdvancedSearch books={books} allBooks={allBooks} offlineIds={cachedEpubIds} nameQuery={globalSearch} onNameQueryChange={onGlobalSearch} cloudRepo={cloudRepo} cloudSession={cloudSession}
             onClose={() => { setShowAdvanced(false); onGlobalSearch(''); onLibraryNavigate(libraryShelfUrl('all')); }} onOpen={onOpen}
             onBrowseTag={browseTag} /> : <>
