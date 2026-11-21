@@ -30,11 +30,14 @@ import {
   reconcileCloudLibrary, clearCloudSession, createCloudSession, discoverHostedOAuthSession, assertPrivateDataset,
   fetchCloudCatalog, fetchCloudEpub, deleteCloudNovel, hostedEpubExists, fetchCloudArchive, findCloudEntryForBook, readDatasetRepo, saveDatasetRepo,
   uploadNovelToCloud, validateDatasetRepo,
+  fetchVersionedPersonalState, getBulkPersonalRecord, bulkReviewPath, bulkProgressPath,
+  validateReadingProgress, parseCloudPersonalReview,
   type CloudEntry, type CloudSession,
 } from './lib/cloud';
 import type { LibraryBook, ReaderSettings } from './types';
 import {
   readLocalCollections, writeLocalCollections, readCollectionsPending, writeCollectionsPending,
+  validateCollections,
   readCollectionsCloudRevision, writeCollectionsCloudRevision,
   readCollectionsConflict, writeCollectionsConflict,
   collectionChildren, moveCollection, deleteCollectionPreservingChildren, collectionMembershipPaths,
@@ -350,19 +353,36 @@ export default function App() {
         return;
       }
 
+      // One authenticated bulk GET contains only present progress/review/
+      // collection documents. Missing IDs have no speculative GET/404.
+      // On first access the server non-destructively materialises existing
+      // sidecar files at a pinned HF revision.
+      const personal = await fetchVersionedPersonalState(repo, session);
       let notesWarning = false;
       const synced = await mapWithConcurrency(merged, 5, async book => {
         const entry = findCloudEntryForBook(catalog.books, book);
         if (!entry) return book;
-        try { return await syncReviewRecord(repo, session, entry.id, book); }
-        catch { notesWarning = true; return book; }
+        try {
+          const remote = getBulkPersonalRecord(personal, bulkReviewPath(entry.id),
+            raw => parseCloudPersonalReview(raw, entry.id));
+          return await syncReviewRecord(repo, session, entry.id, book, remote);
+        } catch {
+          notesWarning = true;
+          return book;
+        }
       });
       let progressWarning = false;
       const withProgress = await mapWithConcurrency(synced, 5, async book => {
         const entry = findCloudEntryForBook(catalog.books, book);
         if (!entry) return book;
-        try { return await syncReadingRecord(repo, session, entry.id, book); }
-        catch { progressWarning = true; return book; }
+        try {
+          const remote = getBulkPersonalRecord(personal, bulkProgressPath(entry.id),
+            raw => validateReadingProgress(raw, entry.id));
+          return await syncReadingRecord(repo, session, entry.id, book, remote);
+        } catch {
+          progressWarning = true;
+          return book;
+        }
       });
       // Reconcile against the live reader, not the start-of-refresh snapshot.
       // A newly recorded scroll or rating must survive an in-flight refresh.
@@ -373,8 +393,11 @@ export default function App() {
       let collectionsWarning = false;
       try {
         const snapshot = collectionsRef.current;
+        const collectionSnapshot = getBulkPersonalRecord(personal, 'data/personal/collections.json',
+          raw => validateCollections(raw));
         const outcome = await reconcileCollections(repo, session, snapshot,
-          readCollectionsPending(), readCollectionsCloudRevision(), readCollectionsConflict());
+          readCollectionsPending(), readCollectionsCloudRevision(), readCollectionsConflict(),
+          collectionSnapshot);
         applyCollectionsOutcome(outcome, snapshot);
       } catch {
         collectionsWarning = true;
