@@ -2510,7 +2510,7 @@ try {
     }
     await readPage.getByRole('link', { name: 'Start reading' }).click();
     await readPage.locator('.reader-shell').waitFor({ timeout: 20000 });
-    await readPage.getByRole('button', { name: 'Go to novel details' }).waitFor();
+    await readPage.locator('.reader-novel-link').waitFor();
     if ((await savedIds()).length !== 0) {
       throw new Error('Opening a reader silently added the EPUB to Available offline');
     }
