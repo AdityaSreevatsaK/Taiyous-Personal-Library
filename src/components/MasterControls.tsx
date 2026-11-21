@@ -7,6 +7,7 @@ import { normalisePublicationStatus, type PublicationStatus } from '../lib/publi
 import { useAppDialogs } from './AppDialogs';
 import { isFinished } from '../lib/reading-status';
 import { getOwnerStatus, ownerPost, type OwnerStatus } from '../lib/owner';
+import UsageDashboard from './UsageDashboard';
 import './master-controls.css';
 
 interface Props {
@@ -226,6 +227,7 @@ export default function MasterControls({
   onMarkCompleted, onResetProgress, onSaveTags, onSaveSummary, onSaveReview, onExportEpub,
   onDeleteNovel, staleCount, onArchiveStale,
 }: Props) {
+  const [section, setSection] = useState<'analytics' | 'management'>('analytics');
   const [status, setStatus] = useState<OwnerStatus | null>(null);
   const { confirm, prompt } = useAppDialogs();
   const [passphrase, setPassphrase] = useState('');
@@ -241,6 +243,8 @@ export default function MasterControls({
     return () => window.clearTimeout(timeout);
   }, [message]);
   useEffect(() => {
+    // Analytics never needs an Owner grant, or even an Owner status request.
+    if (section !== 'management') return;
     let active = true;
     void getOwnerStatus().then(value => { if (active) setStatus(value); })
       .catch(reason => { if (active) setError('Owner access unavailable: ' + errorMessage(reason)); });
@@ -249,7 +253,7 @@ export default function MasterControls({
         ? { ...prev, unlocked:false } : prev);
     }, 5000);
     return () => { active = false; window.clearInterval(timer); };
-  }, []);
+  }, [section]);
 
   const libraryTags = useMemo(() => tagCounts(books).map(({tag}) => tag), [books]);
   const list = useMemo(() => books.filter(book =>
@@ -324,12 +328,21 @@ export default function MasterControls({
   return <section className={`master-controls theme-${theme}`} aria-labelledby="master-title">
     <header className="master-header">
       <div>
-        <span className="section-overline">PROTECTED LIBRARY ADMINISTRATION</span>
+        <span className="section-overline">YOUR LIBRARY OVERVIEW</span>
         <h1 id="master-title">Master Controls</h1>
-        <p>Efficient library maintenance. No novel IDs, chapters, saved reading positions or private EPUBs are changed when editing metadata.</p>
+        <p>Explore on-device reading analytics without a password, or unlock Library management for protected changes.</p>
       </div>
       <button type="button" className="master-back" onClick={onExit}>Back to library</button>
     </header>
+    <nav className="master-subnavigation" aria-label="Master Controls sections">
+      <button type="button" className={section === 'analytics' ? 'is-active' : ''}
+        aria-current={section === 'analytics' ? 'page' : undefined}
+        onClick={() => setSection('analytics')}>Analytics</button>
+      <button type="button" className={section === 'management' ? 'is-active' : ''}
+        aria-current={section === 'management' ? 'page' : undefined}
+        onClick={() => setSection('management')}>Library management</button>
+    </nav>
+    {section === 'analytics' ? <UsageDashboard books={books} /> : <>
     {!status && !error && <p role="status">Checking server-side Owner access…</p>}
     {status && !status.configured && <p className="master-warning" role="alert">
       Owner mode is not configured. Set <code>TAIYOU_OWNER_PASSPHRASE</code> as a Cloudflare Production Secret (16+ characters) and sign in with the owning Hugging Face account.
@@ -397,6 +410,7 @@ export default function MasterControls({
           {onPage.length < list.length && <button type="button" onClick={() => setVisibleCount(n => Math.min(list.length, n + 25))}>Load more</button>}
         </div>
       </section>
+    </>}
     </>}
   </section>;
 }
