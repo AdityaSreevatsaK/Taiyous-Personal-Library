@@ -187,8 +187,17 @@ try {
   // Owner-approved app dialogs replace native browser confirm prompts.
   await progressRow.getByRole('button', {name: 'Keep this device’s copy'}).click();
   await pageA.getByRole('dialog', {name: 'Resolve private sync conflict?'}).getByRole('button', {name: 'Use device copy'}).click();
-  await pageA.waitForFunction(() => [...document.querySelectorAll('.sync-conflict-item')]
-    .some(item => item.textContent.includes('cloud: 30%')), null, {timeout: 15000});
+  try {
+    await pageA.waitForFunction(() => [...document.querySelectorAll('.sync-conflict-item')]
+      .some(item => item.textContent.includes('cloud: 30%')), null, {timeout: 12000});
+  } catch {
+    const rows = await pageA.locator('.sync-conflict-item').allInnerTexts();
+    const currentBook = await readBook(pageA);
+    const banner = await pageA.locator('.alert.error-alert, .cloud-sync-warning').allInnerTexts();
+    throw new Error('Unseen third-device update did not appear after conflict decision: ' +
+      JSON.stringify({rows, progress:currentBook?.progress, cloud:cloud.get(progressPath),
+        writes, banner, errors}).slice(0, 3500));
+  }
   assert(writes.filter(w => w.path === progressPath).length === 0,
     'Keeping device position silently overwrote an unseen third-device edit');
   assert((await readBook(pageA)).progress === 80,
