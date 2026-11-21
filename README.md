@@ -50,7 +50,7 @@ For complete behaviour, see [Capabilities and offline behaviour](docs/CAPABILITI
 | --- | --- |
 | Private Hugging Face Dataset | `data/library.json` catalogue, `data/novels/<id> - <sanitised-title>/source.epub` (historical ID-only folders remain supported), optional ZIPs/covers, and `data/personal/` progress, reviews and collections |
 | Browser IndexedDB | Cached EPUBs/covers, book metadata, progress and pending local edits |
-| Browser localStorage | Collections and device-local preferences |
+| Browser localStorage | Device preferences and selected local UI state (verify each key in code) |
 | GitHub / Cloudflare Pages | Source and public app shell; **no private novels or Hugging Face credentials** |
 
 **Sign-in:** Hugging Face OAuth establishes an encrypted, Secure, HttpOnly server-side session; the HF token is not exposed to React. A fine-grained token entered manually is an **in-memory legacy fallback**. Verify its current permissions and write behaviour in the implementation before changing or documenting it.
