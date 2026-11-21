@@ -1,3 +1,5 @@
+import type { CloudPersonalReview, CloudReadingProgress, CloudRevisionSnapshot } from './lib/cloud';
+
 export type ReaderTheme = 'light' | 'dark' | 'sepia' | 'midnight' | 'ocean' | 'plum';
 import type { PublicationStatus } from './lib/publication-status';
 export type FontChoice = 'literary' | 'classic' | 'georgia' | 'sans' | 'clear';
@@ -35,6 +37,8 @@ export interface LibraryBook {
   personalReviewUpdatedAt?: number;
   /** Saved locally and awaiting publication to the private dataset. */
   pendingReviewSync?: boolean;
+  reviewCloudRevision?: string | null;
+  reviewSyncConflict?: CloudRevisionSnapshot<CloudPersonalReview>;
   /** Source publication state. Legacy unrecognised strings remain readable. */
   status?: PublicationStatus | (string & {});
   sourceUrl?: string;
@@ -56,6 +60,8 @@ export interface LibraryBook {
   progressUpdatedAt?: number;
   /** Progress waiting to be written to the private cloud after reconnect. */
   pendingProgressSync?: boolean;
+  progressCloudRevision?: string | null;
+  progressSyncConflict?: CloudRevisionSnapshot<CloudReadingProgress>;
   size: number;
 }
 
