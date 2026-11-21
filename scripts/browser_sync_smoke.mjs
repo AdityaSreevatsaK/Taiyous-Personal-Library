@@ -184,8 +184,9 @@ try {
 
   // Simulate device C writing after device A had seen revision B.
   cloud.set(progressPath, {value: progress(30, 1_200_000), revision: rev('c')});
-  pageA.on('dialog', dialog => void dialog.accept());
+  // Owner-approved app dialogs replace native browser confirm prompts.
   await progressRow.getByRole('button', {name: 'Keep this device’s copy'}).click();
+  await pageA.getByRole('dialog', {name: 'Resolve private sync conflict?'}).getByRole('button', {name: 'Use device copy'}).click();
   await pageA.waitForFunction(() => [...document.querySelectorAll('.sync-conflict-item')]
     .some(item => item.textContent.includes('cloud: 30%')), null, {timeout: 15000});
   assert(writes.filter(w => w.path === progressPath).length === 0,
@@ -195,6 +196,7 @@ try {
 
   // Reviewing the newly displayed revision now authorises a protected write.
   await progressRow.getByRole('button', {name: 'Keep this device’s copy'}).click();
+  await pageA.getByRole('dialog', {name: 'Resolve private sync conflict?'}).getByRole('button', {name: 'Use device copy'}).click();
   await pageA.waitForFunction(() => document.querySelectorAll('.sync-conflict-item').length === 2,
     null, {timeout: 15000});
   assert(cloud.get(progressPath).value.progress === 80,
@@ -204,6 +206,7 @@ try {
 
   // User chooses cloud notes, which must not write or touch reading progress.
   await reviewRow.getByRole('button', {name: 'Use latest cloud copy'}).click();
+  await pageA.getByRole('dialog', {name: 'Resolve private sync conflict?'}).getByRole('button', {name: 'Use cloud copy'}).click();
   await pageA.waitForFunction(() => document.querySelectorAll('.sync-conflict-item').length === 1,
     null, {timeout: 15000});
   assert((await readBook(pageA)).personalRating === 6, 'Choosing cloud notes did not restore rating');
@@ -216,6 +219,7 @@ try {
   assert((await collectionRow.innerText()).includes('Local series'), 'Local collection is not visible');
   assert((await collectionRow.innerText()).includes('Cloud series'), 'Cloud collection is not visible');
   await collectionRow.getByRole('button', {name: 'Keep this device’s copy'}).click();
+  await pageA.getByRole('dialog', {name: 'Resolve private sync conflict?'}).getByRole('button', {name: 'Use device copy'}).click();
   await pageA.waitForFunction(() => document.querySelectorAll('.sync-conflict-item').length === 0,
     null, {timeout: 15000});
   assert(cloud.get(collectionsPath).value.collections[0].name === 'Local series',
