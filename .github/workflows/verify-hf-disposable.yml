@@ -15,18 +15,19 @@ concurrency:
 
 jobs:
   verify-private-cas:
-    if: github.repository == 'AdityaSreevatsaK/Taiyous-Personal-Library' && github.ref == 'refs/heads/master'
+    # Explicit branch dispatch allows validating the draft WITHOUT merging.
+    if: github.repository == 'AdityaSreevatsaK/Taiyous-Personal-Library' && (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/fix/revision-safe-personal-sync-current-master-20261121')
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     env:
       HF_DISPOSABLE_TEST_TOKEN: ${{ secrets.HF_DISPOSABLE_TEST_TOKEN }}
     steps:
-      # Run only the isolated helper from current-master sync draft PR #57. The
+      # Run only the isolated helper from the explicitly selected ref. The
       # checkout has no write credential and cannot modify the GitHub repo.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          # Run only the audited disposable test helper at an immutable draft SHA.
-          ref: ec7a7df75656940fbffde8fdbc6679810e465ef2
+          # Pin checkout to the workflow-dispatched commit, never a moving external ref.
+          ref: ${{ github.sha }}
           persist-credentials: false
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
@@ -52,4 +53,4 @@ jobs:
         if: steps.token.outputs.available == 'no'
         run: |
           echo 'BLOCKED: no HF_DISPOSABLE_TEST_TOKEN configured. The integration check was NOT run.' >> "$GITHUB_STEP_SUMMARY"
-          echo 'Do not merge sync PR #57 or tag a release solely from simulated CI.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'Do not merge sync PR #106 or tag a release solely from simulated CI.' >> "$GITHUB_STEP_SUMMARY"
