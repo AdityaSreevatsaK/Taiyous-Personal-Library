@@ -1358,7 +1358,7 @@ export default function App() {
     {!libraryReady ? (
       <main className={`library-bootstrap theme-${settings.theme}`} role="status" aria-live="polite">
         <div className="library-bootstrap-mark" aria-hidden="true">✦</div>
-        <strong>Taiyou's Personal Library</strong>
+        <strong>Taiyou's Novel Library</strong>
         <span>{cloudSession ? 'Checking your private catalogue…' : 'Opening your library…'}</span>
       </main>
     ) : activeBook && !cachedEpubIds.includes(activeBook.id) ? (

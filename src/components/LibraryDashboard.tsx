@@ -437,7 +437,7 @@ export default function LibraryDashboard({
       {dragging && <div className="drop-overlay" aria-hidden="true"><Upload size={46} /><strong>Drop your novels to import</strong><span>EPUB or supported Novel ZIP</span></div>}
 
       <main className="main-panel">
-        <header className="topbar"><a className="library-wordmark" href="/" aria-label="Taiyou's Personal Library home" onClick={event => openInternalLinkInCurrentTab(event, goHome)}><span className="library-wordmark-mark"><BrandMark size={36} theme={theme}/></span><span className="library-wordmark-text"><strong>TAIYOU'S</strong><small>PERSONAL LIBRARY</small></span></a><section className="cloud-connect" aria-label="Cloud library storage" ref={cloudRoot}>
+        <header className="topbar"><a className="library-wordmark" href="/" aria-label="Taiyou's Novel Library home" onClick={event => openInternalLinkInCurrentTab(event, goHome)}><span className="library-wordmark-mark"><BrandMark size={36} theme={theme}/></span><span className="library-wordmark-text"><strong>TAIYOU'S</strong><small>NOVEL LIBRARY</small></span></a><section className="cloud-connect" aria-label="Cloud library storage" ref={cloudRoot}>
             <div className="cloud-connect-head">
               <button type="button" className="cloud-status-toggle"
                 aria-label={cloudRepo && cloudSession && online ? 'Cloud settings, connected' : 'Cloud settings, disconnected'}
@@ -769,7 +769,7 @@ export default function LibraryDashboard({
           <button className="mobile-fab" onClick={onImportClick} aria-label="Add a novel"><Plus size={24} /></button>
           </>)}
         </div>
-        <footer className="site-credit-footer">© {new Date().getFullYear()} Taiyou's Personal Library <span aria-hidden="true">·</span> Created by Taiyou</footer>
+        <footer className="site-credit-footer">© {new Date().getFullYear()} Taiyou's Novel Library <span aria-hidden="true">·</span> Created by Taiyou</footer>
       </main>
     </div>
   );

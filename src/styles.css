@@ -1592,7 +1592,9 @@ html {
   --library-scroll-thumb: #a88f70;
   --library-scroll-hover: #80694d;
   scrollbar-color: var(--library-scroll-thumb) var(--library-scroll-track);
-  scrollbar-width: thin;
+  /* The main page scrollbar is deliberately wide enough to grab on desktop.
+     Keep compact scrollbars inside chapter lists and dropdowns. */
+  scrollbar-width: auto;
 }
 html:has(.theme-light) {
   --library-scroll-track: #f5f3f0;
@@ -1616,10 +1618,10 @@ html:has(.theme-ocean) {
   --library-scroll-thumb: #88abbc;
   --library-scroll-hover: #56829b;
 }
-html::-webkit-scrollbar { width: 11px; height: 11px; }
+html::-webkit-scrollbar { width: 18px; height: 11px; }
 html::-webkit-scrollbar-track { background: var(--library-scroll-track); }
 html::-webkit-scrollbar-thumb {
-  border: 3px solid var(--library-scroll-track);
+  border: 2px solid var(--library-scroll-track);
   border-radius: 999px;
   background: var(--library-scroll-thumb);
 }
