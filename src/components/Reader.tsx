@@ -10,12 +10,13 @@ import ThemeSwitcher from './ThemeSwitcher';
 import QuickNavigation from './QuickNavigation';
 import type { BookCollection } from '../lib/collections';
 import { approximateProgress, chapterIndexForHref, findChapter, firstRealChapterIndex, flattenToc, nextChapterHref, type NavigationNode, normalizeChapterHref } from '../lib/chapters';
-import { getBookFile } from '../lib/storage';
 import { disableActiveEpubLinks } from '../lib/epub-safety';
 import { virtualChapterWindow } from '../lib/chapter-virtual';
 
 interface Props {
   book: LibraryBook;
+  /** Temporary or explicitly saved EPUB; reader does not persist its bytes. */
+  epub: Blob;
   settings: ReaderSettings;
   onSettings: (settings: ReaderSettings) => void;
   onBack: () => void;
@@ -98,7 +99,7 @@ function applyAppearance(rendition: any, settings: ReaderSettings) {
   rendition.themes.fontSize(`${settings.fontSize}%`);
 }
 
-export default function Reader({ book, settings, onSettings, onBack, collections, onBrowseLibrary, onNovelDetails, onProgress, initialChapterHref, initialChapterNumber, onChapterChange }: Props) {
+export default function Reader({ book, epub, settings, onSettings, onBack, collections, onBrowseLibrary, onNovelDetails, onProgress, initialChapterHref, initialChapterNumber, onChapterChange }: Props) {
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const bookRef = useRef<any>(null);
   const renditionRef = useRef<any>(null);
@@ -130,7 +131,7 @@ export default function Reader({ book, settings, onSettings, onBack, collections
     async function open() {
       try {
         setLoading(true);
-        const file = await getBookFile(book.id);
+        const file = epub;
         if (cancelled) return;
         const contents = await file.arrayBuffer();
         if (cancelled) return;
@@ -351,9 +352,9 @@ export default function Reader({ book, settings, onSettings, onBack, collections
         try { epubBook.destroy(); } catch { /* already closing */ }
       }
     };
-    // Intentionally initialize only when the selected book changes.
+    // Reinitialise only when switching novels or their verified EPUB blob.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [book.id]);
+  }, [book.id, epub]);
 
   // In scrolled-doc mode, each EPUB spine section is a vertically scrolling document.
   // Navigate via table-of-contents targets, not page turns, so each new chapter
