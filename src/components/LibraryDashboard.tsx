@@ -314,6 +314,10 @@ export default function LibraryDashboard({
   useEffect(() => {
     if (!showCloud) return;
     const closeOutside = (event: PointerEvent) => {
+      // Our confirmation dialog is rendered in a portal outside cloudRoot.
+      // Do not dismiss the conflict comparison while the user confirms a
+      // choice, otherwise both versions disappear from view prematurely.
+      if ((event.target as Element).closest?.('.app-dialog-overlay')) return;
       if (!cloudRoot.current?.contains(event.target as Node)) setShowCloud(false);
     };
     const closeEscape = (event: KeyboardEvent) => {
