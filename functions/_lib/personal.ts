@@ -118,20 +118,53 @@ function validateState(value: unknown): PersonalState {
 async function readLegacyRecords(repo: string, token: string, sha: string): Promise<PersonalState> {
   const url = ORIGIN + '/api/datasets/' + repo + '/tree/' + sha + '/data/personal' +
     '?recursive=true&limit=' + TREE_LIMIT;
-  const tree = await fetch(url, {
-    headers: { Authorization: 'Bearer ' + token }, cache: 'no-store',
-  });
-  if (tree.status === 404) return { version: 1, records: Object.create(null) };
-  if (!tree.ok) throw new Error('Cannot list existing private personal documents');
-  const listing: unknown = await tree.json();
-  if (!Array.isArray(listing) || listing.length >= TREE_LIMIT) {
-    // Never silently omit paginated private records during migration.
-    throw new Error('Personal-data listing incomplete. Migration stopped without changing any files.');
+  // HF's tree listing is cursor-paginated. Follow every authenticated page
+  // at the *same immutable revision*; an incomplete enumeration must never
+  // be materialised as an authoritative index.
+  let nextUrl: string | null = url;
+  const visited = new Set<string>();
+  const pathsFound: string[] = [];
+  let totalEntries = 0;
+  while (nextUrl) {
+    if (visited.has(nextUrl) || visited.size > 20) throw new Error('Personal-data pagination cycle detected');
+    visited.add(nextUrl);
+    const tree = await fetch(nextUrl, {
+      headers: { Authorization: 'Bearer ' + token }, cache: 'no-store',
+    });
+    if (tree.status === 404 && visited.size === 1) {
+      return { version: 1, records: Object.create(null) };
+    }
+    if (!tree.ok) throw new Error('Cannot list existing private personal documents');
+    const listing: unknown = await tree.json();
+    if (!Array.isArray(listing)) throw new Error('Invalid personal-data directory listing');
+    totalEntries += listing.length;
+    if (totalEntries > LEGACY_LIMIT) {
+      throw new Error('Personal-data tree exceeds safe migration limit; no files were changed.');
+    }
+    for (const row of listing) {
+      if (row && typeof row === 'object' && typeof row.path === 'string' &&
+          (row.type === 'file' || row.type === 'blob') && PERSONAL_PATH.test(row.path)) {
+        pathsFound.push(row.path);
+      }
+    }
+    const linkHeader = tree.headers.get('Link') ?? '';
+    const nextLink = linkHeader.match(/<([^>]+)>;\\s*rel="?next"?/i);
+    if (!nextLink) {
+      // If exactly the server's maximum page size arrived without a next
+      // link, assume truncation rather than silently losing private records.
+      if (listing.length >= TREE_LIMIT) throw new Error('Incomplete personal-data tree listing');
+      nextUrl = null;
+    } else {
+      const continuation = new URL(nextLink[1], ORIGIN);
+      const expected = new URL(url);
+      if (continuation.origin !== ORIGIN || continuation.pathname !== expected.pathname ||
+          continuation.searchParams.get('recursive') !== 'true') {
+        throw new Error('Unsafe or incomplete personal-data pagination link');
+      }
+      nextUrl = continuation.href;
+    }
   }
-  const paths = [...new Set(listing.filter((row): row is { path: string; type: string } =>
-    !!row && typeof row === 'object' && typeof row.path === 'string' &&
-    (row.type === 'file' || row.type === 'blob') && PERSONAL_PATH.test(row.path)
-  ).map(row => row.path))];
+  const paths = [...new Set(pathsFound)];
   if (paths.length > LEGACY_LIMIT) throw new Error('Too many private personal documents');
   const records = Object.create(null) as Record<string, PersonalSnapshot>;
   let next = 0;
