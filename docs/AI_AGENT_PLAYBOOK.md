@@ -1,6 +1,6 @@
 # AI Agent Playbook: Taiyou's Personal Library
 
-**Status:** Canonical maintainer guide, 20 November 2026. **Applies to the existing production Novel Library**, not the other Taiyou applications.
+**Status:** Maintainer guide; state last reconciled 21 November 2026. Follow the dynamic preflight in root AGENTS.md before acting. **Applies to the existing production Novel Library**, not the other Taiyou applications.
 
 **Start here:** [Root AGENTS rules](../AGENTS.md) | [README](../README.md) | [UX contract](UX_BEHAVIOUR_CONTRACT.md) | [Architecture](ARCHITECTURE_AND_DATA_LIFECYCLE.md) | [Testing and release](TESTING_RELEASE_RUNBOOK.md) | [Operations and decisions](OPERATIONS_DECISIONS_AND_BACKLOG.md).
 
@@ -23,7 +23,7 @@ The owner cares deeply about **design consistency, readable long-form text, true
 ## 2. Mandatory preparation for every new session
 
 1. Identify the precise user request, intended repo and whether it is documentation, UI, state, authentication, dataset or deployment work. Do not act in another Taiyou repository without separate authorisation.
-2. Fetch live `master` SHA, pending PRs, relevant issues, latest Verify/CodeQL/deploy runs and exact affected source. Never assume a prior chat or handover is current. If a PR for the same change exists, review it before branching.
+2. Fetch live master SHA, working-tree status if local, recent commits, pending PRs, relevant issues, branch heads, latest Verify/CodeQL/auto-deploy/deploy runs and exact affected source. Never assume a prior chat or handover is current. If a PR for the same change exists, review it before branching.
 3. Read `AGENTS.md`, this playbook, the UX contract, architecture/data guide, release guide and the topic-specific docs. Read historical handovers only as historical evidence.
 4. Inspect the actual implementation and tests; check both desktop and mobile. Use the browser smoke suites for regressions involving real layout, offline operation or in-iframe EPUB display.
 5. Record current behaviour and the proposed acceptance checks. Use a small branch off latest `master`, not a stale feature branch.
@@ -105,9 +105,9 @@ Read [Architecture and data lifecycle](ARCHITECTURE_AND_DATA_LIFECYCLE.md) befor
 - Cloud catalogue and EPUB/ZIP/cover assets: private HF Dataset.
 - Per-book reading progress, notes/reviews and collections: selected synced private documents, also locally available/cached.
 - Personal tags, custom synopsis, reader settings and local usage analytics: **device-local** according to the current contract.
-- Pending uploads and timestamp merging are **not** a fully conflict-proof multi-device solution. [Issue #34](https://github.com/AdityaSreevatsaK/Taiyous-Personal-Library/issues/34) remains the active revision-safe personal-sync follow-up; the prior PR #57 was closed unmerged.
-- Do not claim real two-browser OAuth acceptance or disposable HF concurrency tests passed if only mocked/synthetic CI ran.
-- No opportunistic sync refactor in an unrelated UI PR. Use a dedicated, approved migration plan and non-production dataset.
+- PR #110 merged on 21 November 2026 (commit d774b9121999c15d233b144e522fee5959305cd1) and implements bulk progress/review/collection retrieval, revision-bound sidecar bootstrap, selective PATCH and conflict handling. See Architecture, Testing/Release and Project State docs.
+- The disposable private-HF and two-browser Pages acceptance passed for PR #110. It did not exercise interactive Hugging Face consent/PKCE redirect; do not claim full sign-in E2E coverage.
+- Device-local tags, custom summaries and reader preferences are not automatically covered by PR #110. Inspect current persistence code before promising cross-device sync.
 
 ## 7. Engineering task matrix
 
