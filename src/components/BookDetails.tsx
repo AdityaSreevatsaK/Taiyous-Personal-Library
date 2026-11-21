@@ -172,7 +172,7 @@ export default function BookDetails({ book, availableTags, theme, onThemeChange,
         <BrandMark size={32} theme={theme} />
         <span className="details-brand-wordmark">
           <span className="details-brand-full">Taiyou's Novel Library</span>
-          <span className="details-brand-short">Taiyou's Library</span>
+          <span className="details-brand-short">Taiyou's Novel Library</span>
         </span>
       </a>
       <QuickNavigation collections={collections} onNavigate={onBrowseLibrary} />
