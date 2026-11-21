@@ -2367,7 +2367,7 @@ try {
       });
       const tx = db.transaction(['books', 'covers'], 'readwrite');
       const pngBytes = Uint8Array.from(atob(
-        'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScLItAAAAABJRU5ErkJggg=='
+        'iVBORw0KGgoAAAANSUhEUgAAAAQAAAAGCAIAAABrW6giAAAAFElEQVR4nGO8s7OHAQaYGJAAORwApD4CLQ82eWkAAAAASUVORK5CYII='
       ), character => character.charCodeAt(0));
       for (let i = 0; i < books.length; i++) {
         const book = books[i];
