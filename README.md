@@ -1,6 +1,6 @@
-# Taiyou's Personal Library
+# Taiyou's Novel Library
 
-> **Five-repository ecosystem note (18 November 2026):** This repository remains the independent, working **Novel Library**. The optional [Taiyou Shared Core / Personal Hub](https://github.com/AdityaSreevatsaK/Taiyous-Shared-Core) is a separate private repo and is **not** a runtime dependency or a deployed replacement. See [AI-agent rules](AGENTS.md), [ecosystem architecture](docs/ECOSYSTEM_ARCHITECTURE.md), [integration contract](docs/ECOSYSTEM_INTEGRATION.md) and [agent handover](docs/SESSION_HANDOVER_PROMPT.md). The novel app source repository is currently **public**; the novel dataset is **private**. Four newly created ecosystem repos are private.
+> **Ecosystem note (21 November 2026):** This repository remains the independent, working **Novel Library**. The optional [Taiyou Shared Core / Personal Hub](https://github.com/AdityaSreevatsaK/Taiyous-Shared-Core) is a separate private repo and is **not** a runtime dependency or a deployed replacement. See [AI-agent rules](AGENTS.md), [ecosystem architecture](docs/ECOSYSTEM_ARCHITECTURE.md), [integration contract](docs/ECOSYSTEM_INTEGRATION.md) and [agent handover](docs/SESSION_HANDOVER_PROMPT.md). The novel app source repository is currently **public**; the novel dataset is **private**. Four newly created ecosystem repos are private.
 
 A responsive, installable EPUB reader and personal novel library for desktop and mobile. The **application shell is public**, but the novels and selected synchronised personal data live in a **private Hugging Face Dataset**. EPUBs saved for offline reading stay in the browser's IndexedDB.
 
@@ -37,7 +37,7 @@ A responsive, installable EPUB reader and personal novel library for desktop and
 
 - **Library:** responsive bookshelf, alphabetic browsing, global/advanced search, imported and personal tags, independent named collections, and a **Trying out** shelf.
 - **Novel details:** synopsis, chapter list and jump-to-chapter, progress, optional private-dataset covers, 1–10 ratings, comments and source metadata. Personal synopsis and tag edits require confirmation.
-- **Reading:** EPUB.js vertical chapter scrolling, previous/next chapter controls, resume, sepia/light/dark themes, typography and reading-width controls.
+- **Reading:** EPUB.js vertical chapter scrolling, previous/next chapter controls, resume, six themes (Sepia, Paper, Charcoal, Midnight, Ocean and Plum), typography and reading-width controls.
 - **Files:** import EPUB or supported novel ZIP files; download EPUBs and original ZIPs where available.
 - **Offline:** installable PWA, local bookshelf management and **Save all offline**. A downloaded EPUB can be removed with ordinary confirmation only after the hosted replacement is verified.
 - **Private cloud:** Hugging Face OAuth for novel imports, covers, reading progress, personal reviews and collections. Personal tags, custom summaries and reader settings remain device-local.
