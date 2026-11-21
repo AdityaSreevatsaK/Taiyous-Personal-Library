@@ -75,7 +75,7 @@ async function clickDecision(page,row,label,confirmLabel) {
 try {
   await startIsolatedPages();
   browser=await chromium.launch({headless:true});
-  const anon=await browser.newContext({ignoreHTTPSErrors:true});
+  const anon=await browser.newContext();
   const anonPage=await anon.newPage();
   await anonPage.goto(origin,{waitUntil:'domcontentloaded'});
   assert((await getApi(anonPage,'session')).status===401,'Unauthenticated user obtained session');
