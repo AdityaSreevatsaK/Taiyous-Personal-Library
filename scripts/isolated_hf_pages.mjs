@@ -23,13 +23,7 @@ export function chromiumCertificatePinArgs() {
     'No scoped certificate pin for disposable HTTPS gateway');
   // Chromium trusts ONLY the generated local test certificate's SPKI.
   // This is not an unrestricted certificate-verification bypass.
-  return [
-    '--ignore-certificate-errors-spki-list=' + chromiumPinnedKey,
-    // Chrome headless-shell versions can still reject a pinned, self-signed
-    // localhost certificate. Only this exact loopback host is permitted;
-    // external HTTPS certificate verification stays enabled.
-    '--allow-insecure-localhost',
-  ];
+  return ['--ignore-certificate-errors-spki-list=' + chromiumPinnedKey];
 }
 assert(/^[A-Za-z0-9_.-]+\/taiyou-disposable-sync-[a-f0-9]{10}$/.test(repo) &&
   repo !== 'AdityaSreevatsaK/Taiyous-Novels' && token.startsWith('hf_'),
