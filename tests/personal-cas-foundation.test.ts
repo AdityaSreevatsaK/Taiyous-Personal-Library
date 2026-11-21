@@ -67,6 +67,8 @@ describe('isolated compare-and-set transport foundation (Issue #34)', () => {
   it('provides a content revision for legacy v1 documents', async () => {
     privateHub({ [path]: progress(14, 1000) });
     const result = await endpoint('GET');
+    if (result.status !== 200) console.error('PERSONAL_TEST_DIAGNOSTIC', await result.clone().text(),
+      vi.mocked(fetch).mock.calls.map(([url]) => String(url)));
     expect(result.status).toBe(200);
     const body = await result.json() as { revision: string; value: { progress: number } };
     expect(body.revision).toMatch(/^[a-f0-9]{64}$/);
