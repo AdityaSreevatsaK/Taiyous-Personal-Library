@@ -2441,6 +2441,118 @@ try {
   } finally {
     await galleryContext.close();
   }
+
+  // Regression: a private, hosted EPUB can be read, reopened from a bookmark
+  // and exported without ever entering the permanent Offline shelf. Only
+  // Save for offline reading writes it into IndexedDB. Entirely fabricated
+  // assets and mocked OAuth responses; no production dataset or credentials.
+  const readingContext = await browser.newContext({
+    viewport: { width: 1366, height: 820 }, acceptDownloads: true,
+  });
+  const hostedId = 'f'.repeat(24);
+  const hostedPath = 'data/novels/' + hostedId + '/source.epub';
+  const hostedEntry = {
+    id: hostedId,
+    epubPath: hostedPath,
+    metadata: {
+      id: hostedId, title: 'Transient Test Novel', author: 'CI Fixture',
+      originalFileName: 'test.epub', importedAt: 1, progress: 0,
+      size: epubBytes.length, chapterCount: 2, cloud: true,
+    },
+  };
+  let hostedReads = 0;
+  try {
+    await readingContext.route('**/api/library?**', route => {
+      const url = new URL(route.request().url());
+      const action = url.searchParams.get('action');
+      const path = url.searchParams.get('path');
+      if (action === 'session') {
+        return route.fulfill({ status: 200, contentType: 'application/json',
+          body: JSON.stringify({ connected: true, repo: 'CI/PrivateNovels' }) });
+      }
+      if (action === 'file' && path === 'data/library.json') {
+        return route.fulfill({ status: 200, contentType: 'application/json',
+          body: JSON.stringify({ version: 1, books: [hostedEntry] }) });
+      }
+      if (action === 'file' && path === hostedPath) {
+        hostedReads++;
+        return route.fulfill({ status: 200, contentType: 'application/epub+zip',
+          body: Buffer.from(epubBytes) });
+      }
+      if (action === 'info') {
+        return route.fulfill({ status: 200, contentType: 'application/json',
+          body: JSON.stringify({ private: true }) });
+      }
+      return route.fulfill({ status: 404, contentType: 'application/json',
+        body: JSON.stringify({ error: 'No note or progress sidecar in fixture' }) });
+    });
+    const readPage = await readingContext.newPage();
+    const savedIds = async () => readPage.evaluate(async () => {
+      const request = indexedDB.open('folio-personal-library-v1', 3);
+      const db = await new Promise((resolve, reject) => {
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+      });
+      const tx = db.transaction('files', 'readonly');
+      const keys = await new Promise((resolve, reject) => {
+        const query = tx.objectStore('files').getAllKeys();
+        query.onsuccess = () => resolve(query.result.map(String));
+        query.onerror = () => reject(query.error);
+      });
+      db.close();
+      return keys;
+    });
+    const detailUrl = baseUrl + '/novels/transient-test-novel';
+    await readPage.goto(detailUrl, { waitUntil: 'domcontentloaded' });
+    await readPage.locator('.details-shell').waitFor({ timeout: 20000 });
+    if ((await savedIds()).length !== 0) {
+      throw new Error('Cloud metadata unexpectedly persisted a hosted EPUB');
+    }
+    await readPage.getByRole('link', { name: 'Start reading' }).click();
+    await readPage.locator('.reader-shell').waitFor({ timeout: 20000 });
+    await readPage.getByRole('button', { name: 'Go to novel details' }).waitFor();
+    if ((await savedIds()).length !== 0) {
+      throw new Error('Opening a reader silently added the EPUB to Available offline');
+    }
+    const readerUrl = readPage.url();
+    await readPage.reload({ waitUntil: 'domcontentloaded' });
+    await readPage.locator('.reader-shell').waitFor({ timeout: 20000 });
+    if ((await savedIds()).length !== 0) {
+      throw new Error('A reader bookmark silently downloaded a permanent EPUB: ' + readerUrl);
+    }
+    await readPage.goto(detailUrl, { waitUntil: 'domcontentloaded' });
+    await readPage.locator('.details-shell').waitFor();
+    const exportStarted = readPage.waitForEvent('download', { timeout: 20000 });
+    await readPage.getByRole('button', { name: 'Download EPUB' }).click();
+    await exportStarted;
+    if ((await savedIds()).length !== 0) {
+      throw new Error('Exporting EPUB created an unexpected IndexedDB offline download');
+    }
+    await readPage.getByRole('button', { name: 'Save for offline reading' }).click();
+    await readPage.waitForFunction(async expectedId => {
+      const request = indexedDB.open('folio-personal-library-v1', 3);
+      const db = await new Promise((resolve, reject) => {
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+      });
+      const tx = db.transaction('files', 'readonly');
+      const found = await new Promise((resolve, reject) => {
+        const query = tx.objectStore('files').get(expectedId);
+        query.onsuccess = () => resolve(Boolean(query.result?.epub));
+        query.onerror = () => reject(query.error);
+      });
+      db.close();
+      return found;
+    }, hostedId, { timeout: 15000 });
+    const stored = await savedIds();
+    if (stored.length !== 1 || stored[0] !== hostedId || hostedReads < 1) {
+      throw new Error('Explicit Save offline failed after transient reads: ' +
+        JSON.stringify({stored, hostedReads}));
+    }
+    console.log('Transient read, bookmark, export and explicit offline opt-in passed');
+  } finally {
+    await readingContext.close();
+  }
 } finally {
   await browser.close();
 }
