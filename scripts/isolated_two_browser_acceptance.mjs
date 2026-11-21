@@ -172,10 +172,34 @@ try {
   assert(done[collectionsPath].value.collections[0].name==='Device A offline series',
     'Approved collections did not save');
   await pageB.reload({waitUntil:'domcontentloaded'});
-  await eventually('second real browser recovered chosen data',async()=>{
-    const book=await readBook(pageB);
-    return book?.progress===80&&book?.personalRating===7;
-  },100);
+  try {
+    await eventually('second real browser recovered chosen data',async()=>{
+      const book=await readBook(pageB);
+      return book?.progress===80&&book?.personalRating===7;
+    },100);
+  } catch (failure) {
+    const actual=await readBook(pageB);
+    const cloud=await remoteState(pageB);
+    const banners=await pageB.locator('.cloud-sync-warning,.alert.error-alert').allInnerTexts();
+    // Test fixture has fabricated records ONLY. Never log session cookies,
+    // access tokens or production private book contents.
+    console.error('SAFE_CROSS_DEVICE_DIAGNOSTIC',JSON.stringify({
+      actual:actual?{
+        progress:actual.progress,rating:actual.personalRating,
+        progressCloudRevision:actual.progressCloudRevision,
+        reviewCloudRevision:actual.reviewCloudRevision,
+        pendingProgressSync:actual.pendingProgressSync,
+        pendingReviewSync:actual.pendingReviewSync,
+        progressSyncConflict:Boolean(actual.progressSyncConflict),
+        reviewSyncConflict:Boolean(actual.reviewSyncConflict),
+        progressUpdatedAt:actual.progressUpdatedAt,
+      }:null,
+      remoteProgress:cloud[progressPath]?.value?.progress,
+      remoteRating:cloud[reviewPath]?.value?.rating,
+      banners,errors,
+    }).slice(0,2500));
+    throw failure;
+  }
   assert(errors.length===0,'Actual browser errors: '+errors.join('; '));
   console.log('PASS: real isolated Cloudflare Pages Functions, two independently authenticated browsers');
   console.log('PASS: authenticated HF bulk GET, private session denial, no per-ID startup waterfall');
