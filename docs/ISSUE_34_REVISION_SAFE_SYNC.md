@@ -1,32 +1,33 @@
-# Issue #34: Safe multi-device personal synchronisation
+# Issue #34: Revision-safe personal data synchronisation
 
-**Status: development-only draft. NOT deployed.**
+**Status:** Development integrated on draft [PR #106](https://github.com/AdityaSreevatsaK/Taiyous-Personal-Library/pull/106); **not merged or deployed**. The production application and private `Taiyous-Novels` dataset remain untouched by these changes.
 
-Scope: `AdityaSreevatsaK/Taiyous-Personal-Library` on the current `master` baseline. Do not touch, re-upload, delete or migrate the production Hugging Face dataset. The existing `version: 1` progress, review and collection documents remain supported.
+## Implemented on current master baseline
 
-## Problem
+- `functions/_lib/personal.ts` and `/api/library?action=personal` enforce OAuth-authorised, private-dataset, allowlisted version-1 JSON reads and compare-and-set (CAS) writes.
+- Per-document SHA-256 revisions and Hugging Face `parentCommit` prevent two devices from overwriting an unobserved update. Stale writes return 409 with the current record, while ambiguous failures leave edits pending.
+- `src/lib/personal-sync.ts` and `collections-sync.ts` reconcile progress, explicit Finished status, ratings, notes, Trying Out and nested collections without cross-device wall-clock ordering.
+- Preserve local and remote versions, expose a side-by-side comparison in Cloud Settings, and require explicit user confirmation before choosing a winning version. A third-device revision arriving during the decision prevents an unseen overwrite.
+- Retain current reader layouts, catalogue paths, immutable IDs, offline EPUBs, Owner actions and the live refresh/in-flight edit protection. Raw-token mode is read-only, and the old unrevisioned sidecar-upload route refuses writes.
+- Automated synthetic gateway/unit tests, local refresh race tests, and a two-browser simulation are included in normal `Verify novel reader` CI. They use fabricated data and no private credentials.
+- `.github/workflows/verify-hf-disposable.yml` can be dispatched explicitly on this draft branch for the separate real-HF parent-commit check; it must report **BLOCKED** rather than claim success when its dedicated secret is missing.
 
-Personal progress, reviews and collections currently reconcile mainly by timestamps. Device-clock skew or simultaneous edits can overwrite unobserved changes. A green simulation alone cannot validate the Hugging Face commit or OAuth browser path.
+## Mandatory acceptance before merging
 
-## Development in this draft
+1. **Real Hugging Face check:** Use only a distinct, short-lived token and the automatic `taiyou-disposable-sync-*` private dataset created by `scripts/hf_disposable_integration.py`. Confirm expected writes, 409/412 stale-parent rejection, privacy and cleanup. No production token or data.
+2. **Real OAuth integration:** Test two genuinely authenticated browser sessions through an **isolated Cloudflare OAuth gateway configured for a disposable dataset**, not the fixed production endpoint. Include a third-device write, concurrent notes/progress/collections edits, offline reconnect, conflict comparison and selective resolution. The current production-origin and fixed-dataset restrictions must **not** be bypassed to force a green result.
+3. **Release safety:** Re-run current-sha Verify and CodeQL, mobile/desktop/offline regressions, production auth/Owner denial tests, backup restoration checks and rollback review.
+4. **No merge, deployment or release tag** before all gates have documented passing evidence. A green simulated CI run alone is insufficient.
 
-- Isolated `src/lib/revision-sync.ts` makes upload/adopt/conflict decisions from **observed content revisions**, not remote timestamps.
-- Isolated `functions/_lib/personal.ts` implements allowlisted progress/review/collection JSON reads and compare-and-set writes using a verified private Hugging Face dataset, immutable SHA snapshot, SHA-256 content revision and Hugging Face `parentCommit`.
-- Synthetic tests cover stale writes, clock skew, v1 reading, rejected malformed/unauthorised requests and non-private dataset refusal.
-- **These foundations are not yet connected to the deployed App, Cloudflare gateway or UI.** Nothing here changes live personal-data writes.
+## Required owner action for the HF test
 
-## Next integration work, before merge
+1. Create a separate Hugging Face test token with the minimum privileges needed to create and delete a **new private test dataset**. Do not reuse or broaden the production novel-storage token.
+2. In GitHub repository **Settings > Secrets and variables > Actions**, add the token as `HF_DISPOSABLE_TEST_TOKEN`. Never paste it into chat, an issue, a PR or logs.
+3. In **Actions > Verify Disposable Hugging Face Dataset > Run workflow**, choose the branch `fix/revision-safe-personal-sync-current-master-20261121`. Run and inspect the result. The helper creates its own uniquely named dataset and deletes only that dataset afterwards; no manual dataset creation is required.
+4. The real two-browser OAuth acceptance needs a separately isolated preview and authorisation. This is **not** permission to repoint the live application to a test dataset.
 
-1. Port the current-master transport and browser state integration from historical closed draft PR #57, not its entire old App/Reader/UI. Add **per-record saved revision**, retained local and remote conflict snapshots, pending flags and explicit user choices. Protect Finished, Trying Out, ratings, notes, collections and offline EPUBs.
-2. Integrate via the same-origin OAuth Cloudflare gateway. Forbid unrevisioned writes and token-based bypasses without an independently reviewed migration. Do not enable production writes until backend tests, threat modelling and rollback are approved.
-3. Test absent files, independent concurrent edits, rapid reopen, offline/reconnect, failed/ambiguous writes, competing unseen third-device change and stale UI acknowledgement. Preserve other sidecars and immutable IDs.
-4. Run normal Verify, CodeQL, actual desktop/mobile/offline browser regressions and master-equivalent build.
+## Rollback and preservation
 
-## Non-negotiable real-world acceptance
-
-1. The owner creates a separate disposable **private** Hugging Face dataset, a short-lived fine-grained credential, and adds it as the GitHub Actions secret `HF_DISPOSABLE_TEST_TOKEN`. The production dataset and its token must never be used for tests. Secrets never appear in logs or chat.
-2. Execute an actual private-Hub parent-commit CAS test proving both a successful write and a rejected stale update.
-3. Exercise **two independently authenticated browser clients through the Cloudflare OAuth gateway**, against the isolated dataset. Verify simultaneous progress, review and collection edits, explicit conflict choices, unseen third-device writes and recovery.
-4. Demonstrate backward compatibility, offline reading, Owner-mode restrictions, backup and rollback. Document exact passing runs and accepted behaviour.
-
-**Release gate:** Leave Issue #34 open and this PR in draft until *all* tests above have been observed. Green synthetic CI is insufficient. Do not publish a release/tag or claim production synchronisation is resolved.
+- The draft PR is never merged while the real acceptance gate is blocked. Closing it leaves live code and remote data unchanged.
+- Before any future deployment, export independent progress, review and collection recovery records and confirm an independent dataset backup. Do not delete or replace any production catalogue or EPUB.
+- On a conflict/error, preserve both local records and remote snapshots, leave pending flags set and allow a later explicit retry.
