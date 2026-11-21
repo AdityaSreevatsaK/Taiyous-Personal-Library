@@ -1,5 +1,6 @@
 import { commit, uploadFiles, type CommitOperation } from '@huggingface/hub';
 import { hasOwnerGrant } from './owner';
+import { personalRequest } from '../_lib/personal';
 import { parseNovelFilePath, verifiedNovelFolder } from '../../src/lib/novel-paths';
 import {
   CATALOGUE_LIMIT, parseDatasetCatalogue, planAdditiveCatalogueUpload,
@@ -206,19 +207,9 @@ async function upload(request: Request, repo: string, token: string): Promise<Re
   // Sidecar notes/collections are independent and never carry book files.
   if (hasCatalogue) return uploadCatalogueAddition(repo, token, files, title);
   if (hasNovelData) return reject(403, 'Direct novel-file replacement is not permitted');
-  // The browser's visibility check is advisory only. Enforce privacy at the
-  // actual write boundary as well, including for direct API callers. A dataset
-  // accidentally made public must never receive private reading notes.
-  if (!(await isPrivateDataset(token))) {
-    return reject(403, 'Private reading data was not uploaded because the dataset is inaccessible or not private');
-  }
-  await uploadFiles({
-    repo: { type: 'dataset', name: repo },
-    accessToken: token,
-    files,
-    commitTitle: title,
-  });
-  return json({ saved: true });
+  // Older clients must not bypass revision-aware personal CAS uploads.
+  // The shared catalogue still uses the existing guarded upload mechanism.
+  return reject(409, 'Private personal data requires revision-aware synchronisation. Refresh the app; local changes remain saved.');
 }
 
 /** Destructive deletion is server-side, never a reusable general-purpose delete API.
@@ -464,6 +455,9 @@ export async function onRequest({ request, env }: PagesContext): Promise<Respons
   const respond = (response: Response) => attachRenewal(response, auth);
   const url = new URL(request.url);
   const action = url.searchParams.get('action');
+  if (action === 'personal' && (request.method === 'GET' || request.method === 'POST')) {
+    return respond(await personalRequest(request, DATASET_REPO, token, json));
+  }
   if (request.method === 'GET' && action === 'session') {
     if (!(await isPrivateDataset(token))) return respond(reject(502, 'The private novel dataset is inaccessible'));
     return respond(secureResponse({ connected: true, repo: DATASET_REPO, username: auth.session.username }));
