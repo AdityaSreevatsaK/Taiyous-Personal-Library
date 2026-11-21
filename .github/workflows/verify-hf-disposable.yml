@@ -20,7 +20,7 @@ jobs:
     # Explicit branch dispatch allows validating the draft WITHOUT merging.
     if: github.repository == 'AdityaSreevatsaK/Taiyous-Personal-Library' && (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/feature/bulk-personal-state-revision-sync-20261121')
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 30
     env:
       HF_DISPOSABLE_TEST_TOKEN: ${{ secrets.HF_DISPOSABLE_TEST_TOKEN }}
     steps:
@@ -53,11 +53,20 @@ jobs:
       - name: Install exact integration-test dependencies
         if: steps.token.outputs.available == 'yes'
         run: npm ci --no-fund --no-audit
-      - name: Execute real private-dataset optimistic-concurrency checks
+      - name: Build the exact candidate application for isolated local Pages
+        if: steps.token.outputs.available == 'yes'
+        run: npm run build
+      - name: Install isolated Cloudflare Pages and Chromium test runtimes
+        if: steps.token.outputs.available == 'yes'
+        run: |
+          npm install --no-save --package-lock=false wrangler@4 playwright
+          npx playwright install chromium
+      - name: Execute real private HF and two-browser Pages acceptance
         if: steps.token.outputs.available == 'yes'
         run: |
           python scripts/hf_disposable_integration.py
-          echo 'Real private Hugging Face CAS test PASSED; browser OAuth gateway is a separate gate.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'PASS: disposable private HF migration/PATCH and real Cloudflare Pages Functions with two authenticated browser sessions.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'Interactive Hugging Face provider consent and redirect remain outside this test.' >> "$GITHUB_STEP_SUMMARY"
       - name: Record the blocked integration gate without a false pass
         if: steps.token.outputs.available == 'no'
         run: |
