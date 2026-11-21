@@ -25,6 +25,7 @@ function validDocument(path: string, value: unknown): boolean {
       if (!item || typeof item !== 'object') return false;
       const c = item as Record<string, unknown>;
       if (typeof c.id !== 'string' || !VALID_COLLECTION_ID.test(c.id) || seen.has(c.id) ||
+          (c.parentId !== undefined && (typeof c.parentId !== 'string' || !VALID_COLLECTION_ID.test(c.parentId) || c.parentId === c.id)) ||
           typeof c.name !== 'string' || !c.name.trim() || c.name.length > 90 ||
           !Array.isArray(c.bookIds) || c.bookIds.length > 2000 ||
           c.bookIds.some(id => typeof id !== 'string' || !VALID_ID.test(id)) ||
