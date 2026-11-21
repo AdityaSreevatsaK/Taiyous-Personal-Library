@@ -778,3 +778,19 @@
 @media (prefers-reduced-motion:reduce) {
   .app-shell .topbar .cloud-status-toggle { transition:none; }
 }
+
+/* Side-by-side review of competing private records; no hidden overwrite. */
+.cloud-sync-conflicts { padding: 12px; margin: 12px 0; border: 1px solid currentColor; border-radius: 10px; }
+.cloud-sync-conflicts > strong { display: block; margin-bottom: 6px; }
+.cloud-sync-conflicts > p { font-size: .9rem; line-height: 1.5; }
+.sync-conflict-item { margin: 12px 0 0; padding: 12px; border: 1px solid var(--journal-row-stripe, #9a8f7a); border-radius: 9px; }
+.sync-conflict-item p { margin: 6px 0; overflow-wrap: anywhere; }
+.sync-conflict-comparison { margin: 8px 0; }
+.sync-conflict-comparison summary { cursor: pointer; font-weight: 600; }
+.sync-conflict-comparison pre {
+  overflow: auto; max-height: 200px; white-space: pre-wrap; overflow-wrap: anywhere;
+  padding: 8px; border: 1px solid currentColor; border-radius: 8px;
+  font: inherit; font-size: .85rem;
+}
+.sync-conflict-item .cloud-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.sync-conflict-item .cloud-actions button { min-height: 40px; }
