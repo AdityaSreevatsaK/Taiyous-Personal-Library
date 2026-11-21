@@ -8,9 +8,8 @@ import { mkdtemp, cp, mkdir, readFile, writeFile, rm, symlink } from 'node:fs/pr
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { spawn } from 'node:child_process';
-import { request as httpsRequest } from 'node:https';
 
-export const origin = 'https://127.0.0.1:8797';
+export const origin = 'http://localhost:8797';
 export const repo = process.env.HF_REAL_TEST_REPO ?? '';
 const token = process.env.HF_DISPOSABLE_TEST_TOKEN ?? '';
 const owner = repo.split('/')[0];
@@ -40,7 +39,7 @@ export function secureCookieValue() {
     .toString('base64url');
 }
 export async function ownerContext(browser, viewport) {
-  const ctx = await browser.newContext({ viewport, ignoreHTTPSErrors: true });
+  const ctx = await browser.newContext({ viewport });
   await ctx.addCookies([{
     url: origin, name: '__Host-taiyou_session',
     value: secureCookieValue(), httpOnly: true, secure: true, sameSite: 'Lax',
@@ -97,7 +96,6 @@ export async function startIsolatedPages() {
   const wrangler = join(root,'node_modules/.bin/wrangler');
   server = spawn(wrangler, [
     'pages','dev','dist','--ip','127.0.0.1','--port','8797',
-    '--local-protocol','https',
     '--compatibility-date','2026-11-10','--compatibility-flags','nodejs_compat',
   ], {cwd:staging, env:{
     PATH:process.env.PATH, HOME:process.env.HOME, CI:'true', NODE_ENV:'test',
@@ -107,17 +105,9 @@ export async function startIsolatedPages() {
   await eventually('local Cloudflare Pages runtime',async () => {
     if (server.exitCode !== null) throw Error('Pages worker failed (no credentials logged): '+stderr);
     try {
-      // Self-signed TLS is accepted ONLY for this local loopback probe.
-      // No global TLS bypass and no external server is granted this exception.
-      const status = await new Promise((ok, err) => {
-        const req = httpsRequest(origin+'/api/library?action=session',
-          { rejectUnauthorized: false, timeout: 1600 }, res => {
-            res.resume();ok(res.statusCode);
-          });
-        req.on('error',err);req.on('timeout',()=>req.destroy());
-        req.end();
-      });
-      return status === 401;
+      const response = await fetch(origin+'/api/library?action=session',
+        { signal: AbortSignal.timeout(1600) });
+      return response.status === 401;
     } catch {return false;}
   },125);
 }
