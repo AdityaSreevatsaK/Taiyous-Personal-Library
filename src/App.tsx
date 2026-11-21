@@ -106,6 +106,10 @@ export default function App() {
   // Never delete local records or cached EPUBs as a side effect of syncing.
   const verifiedCloudCatalogue = useRef(false);
   const deepLinkFetches = useRef(new Set<string>());
+  // An in-flight fetch can outlive a catalogue rerender. Track the current
+  // route rather than cancelling its only fetch when React effects restart.
+  const liveReadingId = useRef(readingId);
+  liveReadingId.current = readingId;
   const readingForUsage = useRef<string | null>(null);
   const onlineForUsage = useRef(online);
   readingForUsage.current = readingId && readerFile?.id === readingId ? readingId : null;
@@ -673,24 +677,22 @@ export default function App() {
     if (!target) return;
     deepLinkFetches.current.add(readingId);
     setLoadingBook(target.title);
-    let active = true;
     void getReadableEpub(target).then(epub => {
-      if (!active) return;
+      if (liveReadingId.current !== target.id) return;
       const prepared = { id: target.id, epub };
       readerFileRef.current = prepared;
       setReaderFile(prepared);
       setError(null);
     }).catch(reason => {
-      if (!active) return;
+      if (liveReadingId.current !== target.id) return;
       setError('Unable to open this bookmark: ' + String(reason));
       setReadingId(null);
       setDetailsId(target.id);
       navigate(namedNovelUrl(target, booksRef.current), true);
     }).finally(() => {
-      deepLinkFetches.current.delete(readingId);
-      if (active) setLoadingBook(null);
+      deepLinkFetches.current.delete(target.id);
+      if (liveReadingId.current === target.id) setLoadingBook(null);
     });
-    return () => { active = false; };
   }, [readingId, books, readerFile?.id, getReadableEpub]);
 
   const makeAvailableOffline = useCallback(async (book: LibraryBook) => {
