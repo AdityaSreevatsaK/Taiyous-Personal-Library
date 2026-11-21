@@ -2,8 +2,23 @@ name: Verify Disposable Hugging Face Dataset
 
 on:
   push:
-    branches: [master]
-    paths: [.github/workflows/verify-hf-disposable.yml]
+    # Allow the opt-in test to execute against this exact draft commit
+    # without putting any application/data migration code on master.
+    branches: [feature/bulk-personal-state-revision-sync-20261121]
+    paths:
+      - .github/workflows/verify-hf-disposable.yml
+      - scripts/isolated_hf_pages.mjs
+      - scripts/isolated_two_browser_acceptance.mjs
+      - scripts/hf_disposable_integration.py
+      - tests/personal-bulk-live-hf.test.ts
+      - src/App.tsx
+      - src/lib/cloud-refresh-merge.ts
+      - src/lib/cloud-refresh-merge.test.ts
+      - src/lib/personal-sync.ts
+      - src/lib/cloud.ts
+      - functions/_lib/personal.ts
+      - functions/_lib/oauth.ts
+      - functions/api/library.ts
   workflow_dispatch:
 
 permissions:
@@ -15,18 +30,19 @@ concurrency:
 
 jobs:
   verify-private-cas:
-    if: github.repository == 'AdityaSreevatsaK/Taiyous-Personal-Library' && github.ref == 'refs/heads/master'
+    # Explicit branch dispatch allows validating the draft WITHOUT merging.
+    if: github.repository == 'AdityaSreevatsaK/Taiyous-Personal-Library' && (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/feature/bulk-personal-state-revision-sync-20261121')
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 30
     env:
       HF_DISPOSABLE_TEST_TOKEN: ${{ secrets.HF_DISPOSABLE_TEST_TOKEN }}
     steps:
-      # Run only the isolated helper from current-master sync draft PR #57. The
+      # Run only the isolated helper from the explicitly selected ref. The
       # checkout has no write credential and cannot modify the GitHub repo.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          # Run only the audited disposable test helper at an immutable draft SHA.
-          ref: ec7a7df75656940fbffde8fdbc6679810e465ef2
+          # Pin checkout to the workflow-dispatched commit, never a moving external ref.
+          ref: ${{ github.sha }}
           persist-credentials: false
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
@@ -43,13 +59,29 @@ jobs:
       - name: Install Hugging Face integration dependency
         if: steps.token.outputs.available == 'yes'
         run: python -m pip install --disable-pip-version-check 'huggingface_hub>=0.28,<2'
-      - name: Execute real private-dataset optimistic-concurrency checks
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        if: steps.token.outputs.available == 'yes'
+        with:
+          node-version: '22'
+      - name: Install exact integration-test dependencies
+        if: steps.token.outputs.available == 'yes'
+        run: npm ci --no-fund --no-audit
+      - name: Build the exact candidate application for isolated local Pages
+        if: steps.token.outputs.available == 'yes'
+        run: npm run build
+      - name: Install isolated Cloudflare Pages and Chromium test runtimes
+        if: steps.token.outputs.available == 'yes'
+        run: |
+          npm install --no-save --package-lock=false wrangler@4 playwright
+          npx playwright install chromium
+      - name: Execute real private HF and two-browser Pages acceptance
         if: steps.token.outputs.available == 'yes'
         run: |
           python scripts/hf_disposable_integration.py
-          echo 'Real private Hugging Face CAS test PASSED; browser OAuth gateway is a separate gate.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'PASS: disposable private HF migration/PATCH and real Cloudflare Pages Functions with two authenticated browser sessions.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'Interactive Hugging Face provider consent and redirect remain outside this test.' >> "$GITHUB_STEP_SUMMARY"
       - name: Record the blocked integration gate without a false pass
         if: steps.token.outputs.available == 'no'
         run: |
           echo 'BLOCKED: no HF_DISPOSABLE_TEST_TOKEN configured. The integration check was NOT run.' >> "$GITHUB_STEP_SUMMARY"
-          echo 'Do not merge sync PR #57 or tag a release solely from simulated CI.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'Do not merge bulk-state PR #110 or tag a release solely from simulated CI.' >> "$GITHUB_STEP_SUMMARY"

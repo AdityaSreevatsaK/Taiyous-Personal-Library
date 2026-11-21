@@ -115,6 +115,9 @@ jobs:
             sleep 1
           done
           node scripts/browser_smoke.mjs
+      - name: Test cross-device conflicts in two isolated simulated browsers
+        run: |
+          node scripts/browser_sync_smoke.mjs
       - name: Browser-test the actual CSP-protected Cloudflare Pages app
         shell: bash
         run: |

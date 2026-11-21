@@ -1,4 +1,4 @@
-import { uploadFiles } from '@huggingface/hub';
+import { retryTransientRead } from './network-pool';
 import type { LibraryBook, ImportedBook } from '../types';
 import { isOngoingNovel } from './reading-status';
 import { coverPathForEntry, novelFolderFromEpubPath, parseNovelFilePath, readableNovelFolder, verifiedNovelFolder } from './novel-paths';
@@ -88,19 +88,10 @@ export async function uploadPrivateDatasetFiles(
   repo: string, session: CloudSession,
   files: Array<{ path: string; content: Blob }>, commitTitle: string,
 ): Promise<void> {
-  const id = validateDatasetRepo(repo);
+  validateDatasetRepo(repo);
   if (session.via !== 'oauth') {
-    // A raw HF token cannot use the server's revision-bound catalogue guard.
-    // Keep legacy reading and personal-note writes, but prevent this UI from
-    // silently overwriting hosted novels or the authoritative book listing.
-    if (files.some(file => file.path === 'data/library.json' || file.path.startsWith('data/novels/'))) {
-      throw new Error('Adding or changing cloud novels requires Hugging Face OAuth sign-in. The legacy token connection is limited to personal notes and reading progress.');
-    }
-    await uploadFiles({
-      repo: { type: 'dataset', name: id }, accessToken: session.accessToken,
-      files, commitTitle,
-    });
-    return;
+    // A manual token cannot make revision-checked personal writes. It is read-only.
+    throw new Error('Cloud editing requires Hugging Face OAuth sign-in. Local changes remain saved.');
   }
   const data = new FormData();
   data.set('title', commitTitle.slice(0, 130));
@@ -589,6 +580,11 @@ export function blendCloudAndLocal(remote: CloudEntry[], local: LibraryBook[]): 
       ...(coverPathForEntry(entry) ? { coverPath: coverPathForEntry(entry) } : prior?.coverPath ? { coverPath: prior.coverPath } : {}),
       ...(prior ? { personalTags: prior.personalTags, userDescription: prior.userDescription,
         personalRating: prior.personalRating, personalReview: prior.personalReview,
+        shelfStatus: prior.shelfStatus,
+        reviewCloudRevision: prior.reviewCloudRevision,
+        reviewSyncConflict: prior.reviewSyncConflict,
+        progressCloudRevision: prior.progressCloudRevision,
+        progressSyncConflict: prior.progressSyncConflict,
         personalReviewUpdatedAt: prior.personalReviewUpdatedAt,
         pendingReviewSync: prior.pendingReviewSync,
         progressUpdatedAt: prior.progressUpdatedAt, pendingProgressSync: prior.pendingProgressSync,
@@ -623,3 +619,179 @@ export function reconcileCloudLibrary(
     .map(book => hostedIds.has(book.id) ? book : { ...book, cloud: false });
   return { books, hiddenStaleEntries: merged.length - books.length };
 }
+
+/** Revision metadata is kept on this device, not added to legacy v1 JSON. */
+export interface CloudRevisionSnapshot<T> { value: T | null; revision: string | null }
+
+/** The entire private notes/progress index loads in one request, never
+ * one request for each novel ID that might not have a personal file. */
+export interface CloudBulkPersonalState {
+  records: Record<string, CloudRevisionSnapshot<unknown>>;
+  materialised: boolean;
+}
+const PERSONAL_BULK_PATH = /^data\/personal\/(?:collections\.json|(?:progress|reviews)\/[a-f0-9]{24}\.json)$/;
+
+function validateBulkPersonalState(value: unknown): CloudBulkPersonalState {
+  if (!value || typeof value !== 'object') throw new Error('Malformed bulk personal-state response');
+  const raw = value as Record<string, unknown>;
+  if (raw.version !== 1 || typeof raw.materialised !== 'boolean' ||
+      !raw.records || typeof raw.records !== 'object' || Array.isArray(raw.records)) {
+    throw new Error('Invalid bulk personal-state version');
+  }
+  const entries = Object.create(null) as Record<string, CloudRevisionSnapshot<unknown>>;
+  for (const [path, item] of Object.entries(raw.records as Record<string, unknown>)) {
+    const record = item as Record<string, unknown> | null;
+    if (!PERSONAL_BULK_PATH.test(path) || !record || typeof record !== 'object' ||
+        typeof record.revision !== 'string' || !/^[a-f0-9]{64}$/.test(record.revision) ||
+        !record.value || typeof record.value !== 'object') {
+      throw new Error('Invalid bulk personal record or revision');
+    }
+    entries[path] = { value: record.value, revision: record.revision };
+    if (Object.keys(entries).length > 950) throw new Error('Bulk personal state exceeds safety limit');
+  }
+  return { records: entries, materialised: raw.materialised };
+}
+
+export function getBulkPersonalRecord<T>(
+  state: CloudBulkPersonalState, path: string, validator: (value: unknown) => T,
+): CloudRevisionSnapshot<T> {
+  if (!PERSONAL_BULK_PATH.test(path)) throw new Error('Invalid private document path');
+  const remote = state.records[path];
+  if (!remote) return { value: null, revision: null };
+  return { value: validator(remote.value), revision: remote.revision };
+}
+export const bulkProgressPath = (id: string): string => readingProgressPath(id);
+export const bulkReviewPath = (id: string): string => personalReviewPath(id);
+
+export async function fetchVersionedPersonalState(
+  repo: string, session: CloudSession,
+): Promise<CloudBulkPersonalState> {
+  validateDatasetRepo(repo);
+  if (session.via !== 'oauth') {
+    throw new Error('Private bulk state requires Hugging Face OAuth sign-in');
+  }
+  const read = async () => {
+    const response = await fetch('/api/library?action=personal-bulk', {
+      credentials: 'same-origin', cache: 'no-store',
+    });
+    if (!response.ok) throw new Error('Cannot read bulk personal state (' + response.status + ')');
+    return validateBulkPersonalState(await response.json());
+  };
+  const loaded = await retryTransientRead(read);
+  if (loaded.materialised) return loaded;
+  // One-time, lossless migration of real existing files. POST is not retried
+  // blindly. Revision-checked server commit retains every legacy source file.
+  const response = await fetch('/api/library?action=personal-bulk', {
+    method: 'POST', credentials: 'same-origin', cache: 'no-store',
+    headers: { 'Content-Type': 'application/json', 'X-Taiyou-Request': 'personal-sync' },
+    body: JSON.stringify({ operation: 'bootstrap' }),
+  });
+  if (response.status === 409) return retryTransientRead(read);
+  if (!response.ok) {
+    throw new Error('Private personal-state migration was not verified (' + response.status +
+      '). Existing local and remote records were preserved.');
+  }
+  return validateBulkPersonalState(await response.json());
+}
+
+export class CloudPersonalConflict<T> extends Error {
+  constructor(readonly snapshot: CloudRevisionSnapshot<T>) {
+    super('Another device changed this private record. Choose which copy to keep.');
+    this.name = 'CloudPersonalConflict';
+  }
+}
+
+const REVISION_PATTERN = /^[a-f0-9]{64}$/;
+
+/**
+ * The Cloudflare API is the sole writer for personal sidecars in OAuth mode.
+ * A manual bearer token can read the same documents, but safe concurrent
+ * writes require the server-side compare-and-set boundary.
+ */
+export async function readRevisionedPersonal<T>(
+  repo: string, session: CloudSession, path: string, validate: (v: unknown) => T,
+): Promise<CloudRevisionSnapshot<T>> {
+  if (session.via !== 'oauth') {
+    const response = await privateGet(repo, path, session);
+    if (response.status === 404) return { value: null, revision: null };
+    if (!response.ok) throw new Error('Could not read private personal data (' + response.status + ')');
+    // Do not manufacture an authoritative revision without the CAS gateway.
+    return { value: validate(await response.json()), revision: null };
+  }
+  // Only idempotent GETs receive backoff; POSTs must not be retried blindly
+  // because a timeout may occur after Hugging Face has committed the write.
+  const result = await retryTransientRead(async () => {
+    const response = await fetch('/api/library?action=personal&path=' + encodeURIComponent(path), {
+      credentials: 'same-origin', cache: 'no-store',
+    });
+    if (!response.ok) throw new Error('Cannot read revisioned private data (' + response.status + ')');
+    return response.json() as Promise<CloudRevisionSnapshot<unknown>>;
+  });
+  if (!(result.revision === null || (typeof result.revision === 'string' &&
+    REVISION_PATTERN.test(result.revision)))) throw new Error('Invalid private record revision');
+  return { value: result.value === null ? null : validate(result.value), revision: result.revision };
+}
+
+export async function writeRevisionedPersonal<T>(
+  repo: string, session: CloudSession, path: string, value: T,
+  baseRevision: string | null, validate: (v: unknown) => T,
+): Promise<CloudRevisionSnapshot<T>> {
+  validateDatasetRepo(repo);
+  if (session.via !== 'oauth') {
+    throw new Error('Safe cross-device editing requires Hugging Face OAuth sign-in; your local changes are preserved.');
+  }
+  const response = await fetch('/api/library?action=personal', {
+    method: 'PATCH', credentials: 'same-origin', cache: 'no-store',
+    headers: { 'Content-Type': 'application/json', 'X-Taiyou-Request': 'personal-sync' },
+    body: JSON.stringify({ path, baseRevision, value }),
+  });
+  const result = await response.json().catch(() => ({})) as {
+    conflict?: boolean; value?: unknown; revision?: unknown; error?: string;
+  };
+  if (response.status === 409 && result.conflict === true &&
+      (result.revision === null || (typeof result.revision === 'string' &&
+        REVISION_PATTERN.test(result.revision)))) {
+    throw new CloudPersonalConflict<T>({
+      value: result.value === null ? null : validate(result.value),
+      revision: result.revision as string | null,
+    });
+  }
+  if (!response.ok) throw new Error(result.error || 'Private cloud write failed (' + response.status + ')');
+  if (typeof result.revision !== 'string' || !REVISION_PATTERN.test(result.revision)) {
+    throw new Error('Cloud write returned an invalid revision; local change remains pending');
+  }
+  return { value: validate(result.value), revision: result.revision };
+}
+
+export const fetchVersionedReadingProgress = (repo: string, id: string, session: CloudSession) =>
+  readRevisionedPersonal(repo, session, readingProgressPath(id), value => validateReadingProgress(value, id));
+
+export const writeVersionedReadingProgress = (
+  repo: string, id: string, session: CloudSession, book: LibraryBook, baseRevision: string | null,
+) => {
+  const value = validateReadingProgress({
+    version: 1, bookId: id, progress: book.progress,
+    currentChapter: book.currentChapter ?? null, currentChapterIndex: book.currentChapterIndex ?? null,
+    currentChapterNumber: book.currentChapterNumber ?? null, lastCfi: book.lastCfi ?? null,
+    lastOpenedAt: book.lastOpenedAt ?? null,
+    completedAt: book.completedAt ?? null,
+    updatedAt: book.progressUpdatedAt ?? book.lastOpenedAt ?? Date.now(),
+  }, id);
+  return writeRevisionedPersonal(repo, session, readingProgressPath(id), value, baseRevision,
+    raw => validateReadingProgress(raw, id));
+};
+
+export const fetchVersionedPersonalReview = (repo: string, id: string, session: CloudSession) =>
+  readRevisionedPersonal(repo, session, personalReviewPath(id), value => parseCloudPersonalReview(value, id));
+
+export const writeVersionedPersonalReview = (
+  repo: string, id: string, session: CloudSession, book: LibraryBook, baseRevision: string | null,
+) => {
+  const value = parseCloudPersonalReview({
+    version: 1, bookId: id, rating: book.personalRating ?? null,
+    comments: (book.personalReview ?? '').trim().slice(0, 10000),
+    shelfStatus: book.shelfStatus ?? null, updatedAt: book.personalReviewUpdatedAt ?? Date.now(),
+  }, id);
+  return writeRevisionedPersonal(repo, session, personalReviewPath(id), value, baseRevision,
+    raw => parseCloudPersonalReview(raw, id));
+};

@@ -119,6 +119,63 @@ The app deliberately prevents an ongoing/hiatus/dropped publication at the lates
 
 **Unfinished sync project:** [Issue #34](https://github.com/AdityaSreevatsaK/Taiyous-Personal-Library/issues/34) requests revision-safe personal-data concurrency. Closed PR #57 is **not merged**. Its design may be examined, but do not cherry-pick stale app files. Acceptance requires a **dedicated disposable** private dataset and two authenticated OAuth browser sessions, including stale-write rejection, selective recovery and backup verification.
 
+
+## Bulk personal-state retrieval and migration (draft PR #110)
+
+The hosted **novel catalogue** is `data/library.json`; it contains the full list and
+basic metadata of every novel. Never perform N independent GET requests just to
+display the All Novels shelf. The private, owner-only **personal state** consists
+of reading progress, Finished markers, comments, ratings, Trying Out and
+nested collections.
+
+The previous startup code read `progress/<bookId>.json` and
+`reviews/<bookId>.json` for every catalogue entry, generating two browser
+requests per novel, including large numbers of ordinary 404s for unpublished
+optional records. With 352 novels that was up to **704 speculative GETs**
+in addition to the catalogue, covers and other operations.
+
+The replacement, pending real-provider acceptance, uses:
+
+1. **One catalogue GET:** `GET /api/library?action=file&path=data%2Flibrary.json`.
+2. **One personal-state GET:** `GET /api/library?action=personal-bulk`.
+   Response `{version:1, materialised:true, records:{<path>:{value,revision}}}`.
+   Only existing sidecars are indexed, so missing IDs are not probed.
+3. **Legacy migration once:** If `data/personal/state.json` is missing, the
+   authenticated API enumerates the actual private HF tree at a *pinned dataset
+   revision* and reads only existing v1 progress/review/collection documents.
+   It validates every document, calculates opaque SHA-256 content revisions
+   and returns a complete in-memory index. A separate same-origin
+   `POST /api/library?action=personal-bulk` with
+   `{"operation":"bootstrap"}` makes a parent-commit-checked addition of
+   `data/personal/state.json`. No existing sidecar is deleted or rewritten.
+4. **Selective personal updates:** `PATCH /api/library?action=personal` takes
+   a whitelisted personal path, `baseRevision` and one validated v1 value.
+   The server compares the observed revision, then commits the new sidecar
+   **and index in the same HF parent-commit transaction**. Same-record racing
+   edits receive 409 with the competing copy for review. An unrelated
+   catalogue/record commit may be retried with a fresh pinned snapshot.
+5. **No automatic content downloads:** Novel details use catalogue metadata;
+   chapter/EPUB data loads on demand. A read-only EPUB fetch remains
+   temporary in memory unless the user explicitly requests offline storage.
+
+The aggregate is an **owner-private materialised view**, not a new public
+catalogue, not a separate source of book identity, and not a replacement for
+recoverable per-file sidecars. The API enforces authenticated OAuth, dataset
+privacy, strict path allowlists, same-origin write headers, bounded document
+and index sizes, immutable HF revision checks and no-store response headers.
+Manual-token mode cannot safely write.
+
+**Fail closed:** Invalid legacy documents, an incomplete HF tree listing,
+oversized files, absent privacy checks, ambiguous commits and stale base
+revisions stop migration/writes. Do not quietly drop records or mark pending
+edits saved. The existing browser IndexedDB data and original sidecars remain
+available for recovery.
+
+This change shares Issue #34's two-device CAS and recovery release gates. Do
+not deploy before the real disposable-dataset and isolated OAuth-browser
+tests have passed; the simulated 352-title browser test alone does not
+authorise production migration.
+
 ## OAuth and Owner authorisation
 
 1. The user chooses Hugging Face sign-in from the Cloudflare app.

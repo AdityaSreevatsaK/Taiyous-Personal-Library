@@ -56,6 +56,14 @@ interface Props {
   pendingReviewCount: number;
   pendingProgressCount: number;
   collectionsSyncPending: boolean;
+  syncConflicts: Array<{
+    kind: 'progress' | 'review' | 'collections'; bookId?: string;
+    title: string; detail: string; localText?: string; remoteText?: string;
+  }>;
+  onResolveSyncConflict: (
+    kind: 'progress' | 'review' | 'collections',
+    bookId: string | undefined, choice: 'cloud' | 'device',
+  ) => void;
   collections: BookCollection[];
   onCreateCollection: (name: string, parentId?: string) => Promise<void>;
   onMoveCollection: (id: string, parentId: string | null) => Promise<void>;
@@ -257,6 +265,7 @@ export default function LibraryDashboard({
   onMasterMarkCompleted, onMasterResetProgress, onMasterSaveTags, onMasterSaveSummary,
   onMasterSaveReview, onMasterExportEpub, onMasterDeleteNovel, staleCount, onMasterArchiveStale,
   localBackups, cachedEpubIds, online, offlineShellReady, bulkOfflineProgress, onCacheAllOffline, offlineRetention, pendingReviewCount, pendingProgressCount, collectionsSyncPending,
+  syncConflicts, onResolveSyncConflict,
   collections, onCreateCollection, onMoveCollection, onRenameCollection, onDeleteCollection, onCollectionMembership,
   initialTag, libraryPath, onLibraryNavigate, globalSearch, onGlobalSearch, theme, onThemeChange, onImportClick, onFiles, onOpen, onRead, onRemoveOffline,
   importing, notice, onDismissNotice, error, storageError, cloudRepo, cloudSession,
@@ -305,6 +314,10 @@ export default function LibraryDashboard({
   useEffect(() => {
     if (!showCloud) return;
     const closeOutside = (event: PointerEvent) => {
+      // Our confirmation dialog is rendered in a portal outside cloudRoot.
+      // Do not dismiss the conflict comparison while the user confirms a
+      // choice, otherwise both versions disappear from view prematurely.
+      if ((event.target as Element).closest?.('.app-dialog-overlay')) return;
       if (!cloudRoot.current?.contains(event.target as Node)) setShowCloud(false);
     };
     const closeEscape = (event: KeyboardEvent) => {
@@ -484,7 +497,28 @@ export default function LibraryDashboard({
                   </details>
                 </div>}
               </div>
-              {syncProblem && <p className="cloud-sync-warning" role="status">{syncProblem}</p>}
+              {syncConflicts.length > 0 && <section className="cloud-sync-conflicts" aria-label="Cross-device sync conflicts">
+                <strong>{syncConflicts.length} private sync conflict{syncConflicts.length === 1 ? '' : 's'} need a decision</strong>
+                <p>Both copies are retained. Compare them before choosing. A choice affects only the specified private record, not EPUBs or the shared novel catalogue.</p>
+                {syncConflicts.map(item => <div className="sync-conflict-item" key={item.kind + ':' + (item.bookId || 'all')}>
+                  <strong>{item.title}</strong><p>{item.detail}</p>
+                  {item.localText !== undefined && item.remoteText !== undefined &&
+                    <details className="sync-conflict-comparison">
+                      <summary>Compare the complete saved versions</summary>
+                      <p><strong>This device</strong></p>
+                      <pre>{item.localText}</pre>
+                      <p><strong>Private cloud</strong></p>
+                      <pre>{item.remoteText}</pre>
+                    </details>}
+                  <div className="cloud-actions">
+                    <button type="button" className="secondary-button" disabled={cloudBusy || !online || cloudSession?.via !== 'oauth'}
+                      onClick={() => onResolveSyncConflict(item.kind, item.bookId, 'cloud')}>Use latest cloud copy</button>
+                    <button type="button" className="secondary-button" disabled={cloudBusy || !online || cloudSession?.via !== 'oauth'}
+                      onClick={() => onResolveSyncConflict(item.kind, item.bookId, 'device')}>Keep this device’s copy</button>
+                  </div>
+                </div>)}
+              </section>}
+                            {syncProblem && <p className="cloud-sync-warning" role="status">{syncProblem}</p>}
               {cloudMessage && <p className="cloud-sync-message" role="status">{cloudMessage}</p>}
               {cloudSession?.via !== 'oauth' && <p className="cloud-caution" id="cloud-token-note">Legacy manual connection: use only a fine-grained dataset token. It is held in memory only and not retained after restarting the app. The Hugging Face OAuth sign-in is preferred, so you need not re-enter a token on every visit.</p>}
             </div>}

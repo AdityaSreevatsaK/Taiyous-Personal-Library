@@ -29,6 +29,24 @@ describe('cloud refresh cannot clobber live reading and annotations', () => {
       pendingReviewSync: true, personalTags: ['New tag'], userDescription: 'New summary',
     });
   });
+  it('protects a new local edit even when the other device has a clock far in the future', () => {
+    const remote = { ...book, progress: 70, progressUpdatedAt: 9_999_999,
+      personalReview: 'Remote notes', personalReviewUpdatedAt: 9_999_999 };
+    const live = { ...book, progress: 44, progressUpdatedAt: 101, pendingProgressSync: true,
+      personalReview: 'New local edit', personalReviewUpdatedAt: 101, pendingReviewSync: true };
+    const result = reconcileCompletedCloudRefresh([book], [remote], [live]);
+    expect(result[0]).toMatchObject({ progress: 44, progressUpdatedAt: 101,
+      pendingProgressSync: true, personalReview: 'New local edit',
+      pendingReviewSync: true });
+  });
+  it('retains a competing remote revision while keeping newer local progress', () => {
+    const remote = { ...book, progress: 10, pendingProgressSync: true,
+      progressSyncConflict: { value: null, revision: 'b'.repeat(64) } };
+    const live = { ...book, progress: 45, progressUpdatedAt: 101, pendingProgressSync: true };
+    const result = reconcileCompletedCloudRefresh([book], [remote], [live]);
+    expect(result[0].progress).toBe(45);
+    expect(result[0].progressSyncConflict?.revision).toBe('b'.repeat(64));
+  });
   it('accepts a newer remote position and review when local data did not change', () => {
     const remote = { ...book, progress: 70, progressUpdatedAt: 500,
       personalReview: 'New remote', personalReviewUpdatedAt: 500 };
@@ -36,6 +54,48 @@ describe('cloud refresh cannot clobber live reading and annotations', () => {
     expect(result[0].progress).toBe(70);
     expect(result[0].personalReview).toBe('New remote');
   });
+  it('adopts newer cloud revisions even when the other device clock runs behind', () => {
+    const initial = {
+      ...book, progress: 79, progressUpdatedAt: 9300,
+      progressCloudRevision: 'a'.repeat(64), pendingProgressSync: false,
+      personalRating: 9, personalReview: 'Old local note', personalReviewUpdatedAt: 9300,
+      reviewCloudRevision: 'a'.repeat(64), pendingReviewSync: false,
+    };
+    const next = {
+      ...initial, progress: 80, progressUpdatedAt: 1700,
+      progressCloudRevision: 'b'.repeat(64),
+      personalRating: 7, personalReview: 'Approved latest cloud note',
+      personalReviewUpdatedAt: 1700, reviewCloudRevision: 'b'.repeat(64),
+    };
+    const result = reconcileCompletedCloudRefresh([initial], [next], [initial]);
+    expect(result[0]).toMatchObject({
+      progress: 80, progressCloudRevision: 'b'.repeat(64),
+      personalRating: 7, personalReview: 'Approved latest cloud note',
+      reviewCloudRevision: 'b'.repeat(64),
+      pendingProgressSync: false, pendingReviewSync: false,
+    });
+  });
+  it('keeps an actual concurrent local edit over an adopted cloud revision', () => {
+    const initial = {
+      ...book, progressCloudRevision: 'a'.repeat(64),
+      reviewCloudRevision: 'a'.repeat(64),
+    };
+    const remote = {
+      ...initial, progress: 22, progressCloudRevision: 'b'.repeat(64),
+      personalReview: 'Remote update', reviewCloudRevision: 'b'.repeat(64),
+    };
+    const live = {
+      ...initial, progress: 91, pendingProgressSync: true,
+      progressUpdatedAt: 101, personalReview: 'Edited while refreshing',
+      pendingReviewSync: true, personalReviewUpdatedAt: 101,
+    };
+    const result = reconcileCompletedCloudRefresh([initial], [remote], [live]);
+    expect(result[0].progress).toBe(91);
+    expect(result[0].personalReview).toBe('Edited while refreshing');
+    expect(result[0].pendingProgressSync).toBe(true);
+    expect(result[0].pendingReviewSync).toBe(true);
+  });
+
   it('does not resurrect deleted books or discard a new local import', () => {
     const newBook: LibraryBook = { ...book, id: addedId, title: 'New offline import', cloud: false };
     const results = reconcileCompletedCloudRefresh([book], [book], [newBook]);
