@@ -14,7 +14,7 @@ export interface CollectionsOutcome {
 
 export function equivalentCollections(local: BookCollection[], remote: BookCollection[]): boolean {
   const shape = (records: BookCollection[]) =>
-    records.map(c => ({ id: c.id, name: c.name, deleted: !!c.deleted,
+    records.map(c => ({ id: c.id, name: c.name, parentId: c.parentId ?? null, deleted: !!c.deleted,
       bookIds: [...c.bookIds].sort() })).sort((a, b) => a.id.localeCompare(b.id));
   return JSON.stringify(shape(local)) === JSON.stringify(shape(remote));
 }
