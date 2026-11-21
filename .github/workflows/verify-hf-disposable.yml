@@ -5,7 +5,12 @@ on:
     # Allow the opt-in test to execute against this exact draft commit
     # without putting any application/data migration code on master.
     branches: [feature/bulk-personal-state-revision-sync-20261121]
-    paths: [.github/workflows/verify-hf-disposable.yml]
+    paths:
+      - .github/workflows/verify-hf-disposable.yml
+      - scripts/isolated_hf_pages.mjs
+      - scripts/isolated_two_browser_acceptance.mjs
+      - scripts/hf_disposable_integration.py
+      - tests/personal-bulk-live-hf.test.ts
   workflow_dispatch:
 
 permissions:
