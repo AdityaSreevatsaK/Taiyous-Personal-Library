@@ -32,9 +32,19 @@ const book = {
   originalFileName: 'fixture.epub', importedAt: 1,
   progress: 0, size: 100, metadataScanned: true,
 };
+// Exercise a realistic 352-novel catalogue with no sidecars for 351 titles.
+// A bad per-ID design would generate >700 useless 404s during initial refresh.
+const absentBooks = Array.from({ length: 351 }, (_, index) => {
+  const nextId = (index + 1).toString(16).padStart(24, '0');
+  return {
+    id: nextId,
+    metadata: { ...book, id: nextId, title: 'Catalogue fixture ' + (index + 1) },
+    epubPath: 'data/novels/' + nextId + '/source.epub',
+  };
+});
 const catalog = { version: 1, books: [{
   id, metadata: book, epubPath: 'data/novels/' + id + '/source.epub',
-}] };
+}, ...absentBooks] };
 const cloud = new Map([
   [progressPath, { value: progress(20, 1_300_000), revision: rev('b') }],
   [reviewPath, { value: review(6, 'Cloud notes with complete text', 1_300_000), revision: rev('b') }],
