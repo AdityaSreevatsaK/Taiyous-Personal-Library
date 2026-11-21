@@ -966,6 +966,9 @@ try {
     if (await libraryTitle.getAttribute('href') !== '/') {
       throw new Error('Sun wordmark must link to the Library homepage');
     }
+    if ((await libraryTitle.locator('.details-brand-wordmark').innerText()).trim() !== "Taiyou's Novel Library") {
+      throw new Error('Novel details header must show the new name on desktop and mobile');
+    }
     if (await libraryTitle.locator('img.taiyou-brand-mark').count() !== 1 ||
         await page.locator('.details-topbar .details-top-read, .details-topbar .details-back').count() !== 0) {
       throw new Error('Details header must contain a Sun home link, no duplicate Back or Read action');
