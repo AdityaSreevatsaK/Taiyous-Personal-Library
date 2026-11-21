@@ -3,7 +3,6 @@ import AdvancedSearch from './AdvancedSearch';
 import EditorialHome from './EditorialHome';
 import ThemeSwitcher from './ThemeSwitcher';
 import BrandMark from './BrandMark';
-import UsageDashboard from './UsageDashboard';
 import MasterControls from './MasterControls';
 import { useAppDialogs } from './AppDialogs';
 import { ratingSummary, ratingToneClass } from '../lib/ratings';
@@ -12,7 +11,7 @@ import { useCoverArt } from './useCoverArt';
 import { generatedCoverVariant } from '../lib/novel-hero';
 import './site-footer.css';
 import {
-  BarChart3, Book, BookOpen, CheckCircle2, ChevronDown, CloudOff, Download, WifiOff,
+  BookOpen, CheckCircle2, ChevronDown, CloudOff, Download, WifiOff,
   Hash, Library, LockKeyhole, Pencil, Plus, Search, Settings2,
   Sparkles, Star, Tag, Trash2, Upload, X, Cloud, RefreshCw, LogIn, LogOut,
 } from 'lucide-react';
@@ -263,7 +262,8 @@ export default function LibraryDashboard({
   importing, notice, onDismissNotice, error, storageError, cloudRepo, cloudSession,
   cloudBusy, cloudMessage, syncProblem, onCloudRepo, onCloudLogin, onCloudLogout, onCloudRefresh, onCloudPublishCached,
 }: Props) {
-  const isMasterControls = libraryPath === '/master-controls';
+  // Keep existing /analytics links working inside Master Controls.
+  const isMasterControls = libraryPath === '/master-controls' || libraryPath === libraryShelfUrl('analytics');
   const [filter, setFilter] = useState<Filter>(() => parseLibraryViewPath(libraryPath).filter);
   const [showAdvanced, setShowAdvanced] = useState(() => parseLibraryViewPath(libraryPath).advanced);
   const [sort, setSort] = useState<Sort>('title');
@@ -429,9 +429,7 @@ export default function LibraryDashboard({
     { id: 'trying' as Filter, name: 'Trying out', count: books.filter(b => b.shelfStatus === 'trying').length, icon: Sparkles },
     { id: 'offline' as Filter, name: 'Available offline', count: books.filter(b => cachedEpubIds.includes(b.id)).length, icon: Download },
     { id: 'finished' as Filter, name: 'Finished', count: finished.length, icon: CheckCircle2 },
-    { id: 'unread' as Filter, name: 'To be read', count: books.filter((b) => b.shelfStatus !== 'trying' && b.progress === 0 && !isFinished(b)).length, icon: Book },
     { id: 'all' as Filter, name: 'All books', count: books.length, icon: Library },
-    { id: 'analytics' as Filter, name: 'Analytics', count: 0, icon: BarChart3 },
   ];
 
   return (
@@ -498,7 +496,7 @@ export default function LibraryDashboard({
               onClick={event => openInternalLinkInCurrentTab(event, goHome)}>Home</a>
             {navEntries.map(({ id, name, count }) => <a href={libraryShelfUrl(id)} key={id} className={`top-nav-link ${!globalMode && !showAdvanced && !isMasterControls && libraryPath === libraryShelfUrl(id) && !selectedTag && !selectedAuthor && !selectedCollectionId ? 'active' : ''}`}
               aria-current={!globalMode && !showAdvanced && !isMasterControls && libraryPath === libraryShelfUrl(id) && !selectedTag && !selectedAuthor && !selectedCollectionId ? 'page' : undefined}
-              onClick={event => openInternalLinkInCurrentTab(event, () => goTo(id))}><span>{name}</span>{id !== 'analytics' && <small>{count}</small>}</a>)}
+              onClick={event => openInternalLinkInCurrentTab(event, () => goTo(id))}><span>{name}</span><small>{count}</small></a>)}
           </div>
           <div className="mobile-shelf-nav" aria-label="Quick library shelves">
             <a href={libraryShelfUrl('reading')} className={libraryPath === libraryShelfUrl('reading') && !globalMode ? 'selected' : ''}
@@ -510,13 +508,11 @@ export default function LibraryDashboard({
             <label className="mobile-shelf-more">
               <span className="sr-only">More library shelves</span>
               <select aria-label="More library shelves"
-                value={['finished','unread','all','analytics'].includes(filter) && !globalMode && libraryPath === libraryShelfUrl(filter) ? filter : ''}
+                value={['finished','all'].includes(filter) && !globalMode && libraryPath === libraryShelfUrl(filter) ? filter : ''}
                 onChange={event => goTo(event.target.value as Filter)}>
                 <option value="" disabled>More…</option>
                 <option value="finished">Finished</option>
-                <option value="unread">To be read</option>
                 <option value="all">All books</option>
-                <option value="analytics">Analytics</option>
               </select>
               <ChevronDown size={14} aria-hidden="true"/>
             </label>
@@ -570,10 +566,10 @@ export default function LibraryDashboard({
                 {collectionError && <p className="collection-form-error" role="alert">{collectionError}</p>}
               </div>
             </details>
-            <a href="/master-controls" className="top-nav-master" aria-label="Open Master Controls"
+            <a href="/master-controls" className="top-nav-master" aria-label="Open Master Controls and Analytics"
               aria-current={isMasterControls ? 'page' : undefined}
               onClick={event => openInternalLinkInCurrentTab(event, () => { setShowCloud(false); onLibraryNavigate('/master-controls'); })}>
-              <LockKeyhole size={16}/><span>Master</span>
+              <Settings2 size={16}/><span>Master</span>
             </a>
             <button type="button" className="top-nav-add" onClick={onImportClick} disabled={importing}>
               <Plus size={16}/><span>{importing ? 'Importing…' : 'Add novel'}</span>
@@ -599,7 +595,7 @@ export default function LibraryDashboard({
             <p className="collection-unavailable" role="status">
               This collection is not on this device yet. Refresh cloud or choose another collection.
             </p>}
-          {!showAdvanced && !showEditorialHome && !isMasterControls && filter !== 'analytics' && (selectedTag || selectedAuthor) && <div className="page-head page-head-compact">
+          {!showAdvanced && !showEditorialHome && !isMasterControls && (selectedTag || selectedAuthor) && <div className="page-head page-head-compact">
             <div><div className="eyebrow"><span className="eyebrow-line" /> TAIYOU'S COLLECTION</div>
               <h1>{filter === 'offline' ? 'Offline library' : filter === 'trying' ? 'Trying out' : selectedCollection ? selectedCollection.name : selectedTag ? displayTag : selectedAuthor ? selectedAuthor : 'Your library'}<span className="serif-accent">.</span></h1>
               <p>{selectedAuthor && !globalMode ? `${visible.length} novels by ${selectedAuthor}` : selectedTag && !globalMode ? `${visible.length} ${visible.length === 1 ? 'novel' : 'novels'} in this category` : filter === 'offline' ? `${cachedEpubIds.length} downloaded for reading without a connection` : filter === 'trying' ? `${books.filter(b => b.shelfStatus === 'trying').length} novels to sample before deciding` : `${books.length} stories to explore, all in one place`}</p>
@@ -632,7 +628,7 @@ export default function LibraryDashboard({
            </section>}
                     {!isMasterControls && (showAdvanced ? <AdvancedSearch books={books} allBooks={allBooks} offlineIds={cachedEpubIds} nameQuery={globalSearch} onNameQueryChange={onGlobalSearch} cloudRepo={cloudRepo} cloudSession={cloudSession}
             onClose={() => { setShowAdvanced(false); onGlobalSearch(''); onLibraryNavigate(libraryShelfUrl('all')); }} onOpen={onOpen}
-            onBrowseTag={browseTag} /> : filter === 'analytics' ? <UsageDashboard books={books} /> : <>
+            onBrowseTag={browseTag} /> : <>
 
           {showEditorialHome && <EditorialHome books={books} allBooks={allBooks} collections={collections}
             onBrowseAll={() => goTo('all')} onBrowseShelf={goTo} onBrowseCollection={browseCollection}
