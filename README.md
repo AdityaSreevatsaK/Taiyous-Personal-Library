@@ -11,7 +11,7 @@ A responsive, installable EPUB reader and personal novel library for desktop and
 
 ## Maintainers and AI agents: canonical documentation
 
-**Start with [`AGENTS.md`](AGENTS.md)**, then use the documents below. They consolidate the implementation architecture, source/storage boundaries, owner-approved UI design, persistent production incidents, testing and operational policy. They were reviewed against `master` on **20 November 2026**.
+**Start with [`AGENTS.md`](AGENTS.md)**, then use the documents below. They consolidate the implementation architecture, source/storage boundaries, owner-approved UI design, persistent production incidents, testing and operational policy. They are maintained references; verify live repository state before relying on dated status.
 
 | Document | Purpose |
 | --- | --- |
@@ -19,7 +19,8 @@ A responsive, installable EPUB reader and personal novel library for desktop and
 | [UI/UX Behaviour Contract](docs/UX_BEHAVIOUR_CONTRACT.md) | Six primary destinations, Analytics inside Master Controls, themes, Home, tags, collections, ribbons, reader layout and regressions |
 | [Architecture and Data Lifecycle](docs/ARCHITECTURE_AND_DATA_LIFECYCLE.md) | Code map, EPUB/Catalogue/IndexedDB/HF paths, authentication, sync and immutable identity |
 | [Testing and Release Runbook](docs/TESTING_RELEASE_RUNBOOK.md) | Commands, verification matrix, exact automatic Cloudflare deployment and release gates |
-| [Operations, Decisions and Backlog](docs/OPERATIONS_DECISIONS_AND_BACKLOG.md) | Recovery procedures, known incidents, decisions, pending cross-device sync work |
+| [Operations, Decisions and Backlog](docs/OPERATIONS_DECISIONS_AND_BACKLOG.md) | Recovery procedures, known incidents, decisions and current follow-up work |
+| [Project State Snapshot](docs/PROJECT_STATE.md) | Dated implementation status, release evidence and explicit unverified gaps |
 | [Comprehensive Repository Audit (20 November 2026)](docs/COMPREHENSIVE_REPOSITORY_AUDIT_2026-11-20.md) | Evidence-based security, performance and correctness findings, fixes, tests and remaining risks |
 | [Session Handover Prompt](docs/SESSION_HANDOVER_PROMPT.md) | Copyable brief to initialise a fresh assistant session |
 
@@ -29,7 +30,7 @@ A responsive, installable EPUB reader and personal novel library for desktop and
 
 - **`master`** is the production source branch. Verified merges deploy **automatically** to Cloudflare after successful `master` Verify + CodeQL checks. The owner has granted standing approval for routine reviewed PR merges and releases (19 November 2026); see [AGENTS.md](AGENTS.md).
 - Short-lived feature/fix branches may open pull requests against `master`. The former long-lived `dev` branch was merged and deleted.
-- **[PR #57](https://github.com/AdityaSreevatsaK/Taiyous-Personal-Library/pull/57)** was closed without merge. It proposed revision-safe personal sync and explicit conflict handling, but those proposed changes **must not be treated as deployed**. Reassess the current code and real authenticated two-device behaviour before reviving that design.
+- **[PR #110](https://github.com/AdityaSreevatsaK/Taiyous-Personal-Library/pull/110)** merged on 21 November 2026 (commit `d774b9121999c15d233b144e522fee5959305cd1`). It introduced bulk personal-state retrieval and revision-safe PATCH/conflict handling. See [Project State](docs/PROJECT_STATE.md) and [Architecture](docs/ARCHITECTURE_AND_DATA_LIFECYCLE.md).
 - There is **no published GitHub Release or version tag**. A package version is not a release announcement. **Do not create a `v1.0` tag or GitHub Release without the owner's explicit approval and acceptance testing.**
 
 ## Features
@@ -52,13 +53,13 @@ For complete behaviour, see [Capabilities and offline behaviour](docs/CAPABILITI
 | Browser localStorage | Collections and device-local preferences |
 | GitHub / Cloudflare Pages | Source and public app shell; **no private novels or Hugging Face credentials** |
 
-**Sign-in:** Hugging Face OAuth establishes an encrypted, Secure, HttpOnly server-side session; the HF token is not exposed to React. A fine-grained token entered manually is an **in-memory legacy fallback**, not the recommended method for editing cloud data. Closed, unmerged PR #57 proposed making legacy token mode read-only for private dataset writes. **This proposal was not deployed.** Do not claim that it is current behaviour.
+**Sign-in:** Hugging Face OAuth establishes an encrypted, Secure, HttpOnly server-side session; the HF token is not exposed to React. A fine-grained token entered manually is an **in-memory legacy fallback**. Verify its current permissions and write behaviour in the implementation before changing or documenting it.
 
 **Owner mode:** Deleting an *entire novel* or named collection requires a fresh owner session, separate Owner passphrase and exact-title confirmation. Removing just a locally downloaded EPUB **does not** require Owner mode. Full deletion remains disabled without the Owner secret.
 
 **Novel catalogue integrity:** The production code already guards imports with revision-checked commits and refuses unsafe catalogue overwrites. The web upload limit is about **70 MiB per file / 75 MiB per request**; use the separate Storage Controller for larger archives.
 
-**Personal sync:** The deployed `master` code still has timestamp-based cross-device reconciliation limitations. [Closed, unmerged PR #57](https://github.com/AdityaSreevatsaK/Taiyous-Personal-Library/pull/57) proposed content revisions, preservation of competing copies and explicit conflict resolution for progress, reviews and collections. **Those proposed changes were not merged or deployed**. The disposable HF test workflow currently **skips the real integration test** because this repository has no `HF_DISPOSABLE_TEST_TOKEN` secret; two authenticated, isolated-dataset browser tests are also required.
+**Personal sync:** PR #110 implements one bulk GET for progress/reviews/collections, non-destructive legacy sidecar bootstrap to `data/personal/state.json`, revision-checked selective PATCH and explicit conflict resolution. The disposable private-HF and two-browser acceptance runs passed for the merged change. Interactive HF consent/PKCE redirect remains untested by that isolated suite. Do not infer that all device-local preferences or metadata are synchronised.
 
 **Backups:** Browser storage can be cleared or evicted. Keep EPUB/ZIP backups separately. Offline storage from the historical `dev.taiyous-personal-library.pages.dev` hostname does not transfer automatically to the permanent URL.
 
