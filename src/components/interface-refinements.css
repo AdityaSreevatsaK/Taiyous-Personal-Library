@@ -778,3 +778,14 @@
 @media (prefers-reduced-motion:reduce) {
   .app-shell .topbar .cloud-status-toggle { transition:none; }
 }
+
+/* Legacy EPUBs remain recoverable, but the Offline shelf must explain why
+   existing files can predate the new explicit-only caching rule. */
+.app-shell .offline-cache-explainer {
+  margin: -3px 0 17px;
+  padding: 0 4px;
+  color: var(--subtext);
+  font-size: 12px;
+  line-height: 1.55;
+}
+.app-shell .offline-cache-explainer strong { color: var(--text); }
