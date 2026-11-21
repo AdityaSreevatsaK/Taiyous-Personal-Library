@@ -11,6 +11,14 @@ on:
       - scripts/isolated_two_browser_acceptance.mjs
       - scripts/hf_disposable_integration.py
       - tests/personal-bulk-live-hf.test.ts
+      - src/App.tsx
+      - src/lib/cloud-refresh-merge.ts
+      - src/lib/cloud-refresh-merge.test.ts
+      - src/lib/personal-sync.ts
+      - src/lib/cloud.ts
+      - functions/_lib/personal.ts
+      - functions/_lib/oauth.ts
+      - functions/api/library.ts
   workflow_dispatch:
 
 permissions:
