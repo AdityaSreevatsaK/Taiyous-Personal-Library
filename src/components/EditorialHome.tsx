@@ -2,7 +2,7 @@ import { useCallback, useMemo, useState, type ReactNode } from 'react';
 import { ArrowRight, BookOpen, Bookmark, Feather, Sparkles } from 'lucide-react';
 import { bookTags, tagCounts } from '../lib/tags';
 import type { BookCollection } from '../lib/collections';
-import { selectHomeBooks, selectHomeGalleryCovers, selectHomeShelves } from '../lib/home-curation';
+import { selectHomeBooks, selectHomeGalleryCovers, selectHomeHeroCover, selectHomeShelves } from '../lib/home-curation';
 import { isFinished, isCurrentlyReading } from '../lib/reading-status';
 import { namedNovelUrl } from '../lib/routes';
 import { openNovelInCurrentTab, revealClippedLinkTitle } from '../lib/novel-links';
@@ -49,6 +49,10 @@ export default function EditorialHome({
   // real book covers. A coverPath may be stale, so render a bounded shortlist
   // of candidates and reveal only the first three whose images actually load.
   const [loadedGalleryIds, setLoadedGalleryIds] = useState<ReadonlySet<string>>(() => new Set());
+  // Hover/focus previews do not alter the catalogue or saved reading progress.
+  // On touch devices, first tap previews and second tap follows the real link.
+  const [hoveredGalleryId, setHoveredGalleryId] = useState<string | null>(null);
+  const [tappedGalleryId, setTappedGalleryId] = useState<string | null>(null);
   const handleGalleryArtwork = useCallback((id: string, loaded: boolean) => {
     setLoadedGalleryIds(previous => {
       if (previous.has(id) === loaded) return previous;
@@ -59,10 +63,14 @@ export default function EditorialHome({
     });
   }, []);
   const galleryCandidates = useMemo(
-    () => selectHomeGalleryCovers(books, featured?.id, heroSeed ^ 0x6c8e9cf5),
-    [books, featured?.id, heroSeed]);
-  const visibleGalleryIds = galleryCandidates.filter(book => loadedGalleryIds.has(book.id))
-    .slice(0, 3).map(book => book.id);
+    () => selectHomeGalleryCovers(books, undefined, heroSeed ^ 0x6c8e9cf5),
+    [books, heroSeed]);
+  const visibleGalleryBooks = galleryCandidates.filter(book => loadedGalleryIds.has(book.id))
+    .slice(0, 3);
+  const visibleGalleryIds = visibleGalleryBooks.map(book => book.id);
+  // Displayed text and BOTH CTAs always refer to the selected visible jacket.
+  // The old featured book is only a fallback until the first real cover loads.
+  const displayedBook = selectHomeHeroCover(visibleGalleryBooks, hoveredGalleryId ?? tappedGalleryId) ?? featured;
   // Randomise only this four-card discovery section, once per page visit.
   // Preserve the canonical shelves, catalogue order and all deep links.
   const [shelfSeed] = useState(() => (Math.floor(Math.random() * 0xffffffff) || 1));
@@ -71,10 +79,10 @@ export default function EditorialHome({
   const trialCount = books.filter(book => book.shelfStatus === 'trying').length;
   const completedCount = books.filter(book => book.shelfStatus !== 'trying' && isFinished(book)).length;
   if (!featured) return null;
-  const featuredFinished = isFinished(featured);
-  const featuredReading = isCurrentlyReading(featured);
+  const featuredFinished = isFinished(displayedBook);
+  const featuredReading = isCurrentlyReading(displayedBook);
   const featuredAction = featuredFinished ? 'Read again'
-    : featured.progress > 0 ? 'Continue reading' : 'Begin reading';
+    : displayedBook.progress > 0 ? 'Continue reading' : 'Begin reading';
 
   return <div className="editorial-home" aria-label="Your library front page">
     <section className="editorial-grand" aria-labelledby="editorial-grand-heading">
@@ -83,21 +91,21 @@ export default function EditorialHome({
           <p className="editorial-kicker"><Sparkles size={14} /> TAIYOU'S PRIVATE LIBRARY <span>·</span> THE READER'S EDITION</p>
           <h1 id="editorial-grand-heading">Where worlds <em>unfold.</em></h1>
           <p className="editorial-grand-tagline">A home for extraordinary stories and all the places they take you.</p>
-          <div className="editorial-featured-book">
+          <div className="editorial-featured-book" id="editorial-featured-book-details" aria-live="polite" aria-atomic="true">
             <span className="editorial-eyebrow">{featuredReading ? 'YOUR NEXT CHAPTER'
               : featuredFinished ? 'REDISCOVER A STORY' : 'DISCOVER A STORY'}</span>
-            <h2>{featured.title}</h2>
-            <p className="editorial-featured-author">by {featured.author}</p>
-            <p className="editorial-featured-synopsis">{featured.userDescription || featured.description || 'Your next reading journey is ready when you are.'}</p>
-            {featured.progress > 0 && <div className="editorial-featured-progress" aria-label={Math.round(featured.progress) + '% read'}>
-              <span style={{ width: Math.max(0, Math.min(100, featured.progress)) + '%' }} />
+            <h2>{displayedBook.title}</h2>
+            <p className="editorial-featured-author">by {displayedBook.author}</p>
+            <p className="editorial-featured-synopsis">{displayedBook.userDescription || displayedBook.description || 'Your next reading journey is ready when you are.'}</p>
+            {displayedBook.progress > 0 && <div className="editorial-featured-progress" aria-label={Math.round(displayedBook.progress) + '% read'}>
+              <span style={{ width: Math.max(0, Math.min(100, displayedBook.progress)) + '%' }} />
             </div>}
           </div>
           <div className="editorial-grand-actions">
-            <a href={namedNovelUrl(featured, allBooks, true)} className="editorial-primary" onClick={event => openNovelInCurrentTab(event, () => onRead(featured))}>
+            <a href={namedNovelUrl(displayedBook, allBooks, true)} className="editorial-primary" onClick={event => openNovelInCurrentTab(event, () => onRead(displayedBook))}>
               <BookOpen size={18} /> {featuredAction} <ArrowRight size={16} />
             </a>
-            <a href={namedNovelUrl(featured, allBooks)} className="editorial-secondary" title={featured.title} onClick={event => openNovelInCurrentTab(event, () => onOpen(featured))}>
+            <a href={namedNovelUrl(displayedBook, allBooks)} className="editorial-secondary" title={displayedBook.title} onClick={event => openNovelInCurrentTab(event, () => onOpen(displayedBook))}>
               Explore this novel <ArrowRight size={15} />
             </a>
           </div>
@@ -108,12 +116,28 @@ export default function EditorialHome({
             const index = visibleGalleryIds.indexOf(book.id);
             return <a
               href={namedNovelUrl(book, allBooks)}
-              className={'editorial-art-book ' + (index < 0 ? 'editorial-art-book-pending' : 'editorial-art-book-' + index)}
+              className={'editorial-art-book ' + (index < 0 ? 'editorial-art-book-pending' : 'editorial-art-book-' + index) +
+                (index >= 0 && displayedBook.id === book.id ? ' editorial-art-book-selected' : '')}
               key={book.id}
               aria-label={'Featured cover for ' + book.title}
               tabIndex={index < 0 ? -1 : 0}
               aria-hidden={index < 0 ? true : undefined}
-              onClick={event => openNovelInCurrentTab(event, () => onOpen(book))}
+              onMouseEnter={() => setHoveredGalleryId(book.id)}
+              onMouseLeave={() => setHoveredGalleryId(current => current === book.id ? null : current)}
+              onFocus={() => setHoveredGalleryId(book.id)}
+              onBlur={() => setHoveredGalleryId(current => current === book.id ? null : current)}
+              onClick={event => {
+                // A touch cannot hover. Preview on the first tap and navigate
+                // on a second tap; Ctrl/Cmd-click and keyboard links stay native.
+                if (event.detail > 0 && event.button === 0 && !event.ctrlKey &&
+                    !event.metaKey && !event.shiftKey && !event.altKey &&
+                    window.matchMedia?.('(hover: none)').matches && tappedGalleryId !== book.id) {
+                  event.preventDefault();
+                  setTappedGalleryId(book.id);
+                  return;
+                }
+                openNovelInCurrentTab(event, () => onOpen(book));
+              }}
             >{cover(book, true, handleGalleryArtwork)}<span className="editorial-art-hover-label" aria-hidden="true">{book.title}</span></a>;
           })}
           <span className="editorial-art-caption">{books.length} WORLDS · YOUR COLLECTION</span>
