@@ -63,6 +63,19 @@ export function selectHomeGalleryCovers(
 }
 
 /**
+ * The homepage introduction must always describe a visible cover. The
+ * middle of the three successfully decoded jackets is the default; a
+ * hovered/focused/tapped jacket temporarily replaces it. Never select an
+ * unrelated fourth novel just because it was separately curated.
+ */
+export function selectHomeHeroCover(
+  visibleCovers: readonly LibraryBook[], previewId?: string | null,
+): LibraryBook | undefined {
+  const preferred = previewId && visibleCovers.find(book => book.id === previewId);
+  return preferred || visibleCovers[Math.min(1, visibleCovers.length - 1)];
+}
+
+/**
  * Curate a reading desk and journal from private catalogue data. A nonzero
  * visit seed randomises only the featured hero, never reading history, shelf
  * membership or the reading-desk order. No external recommendations.
