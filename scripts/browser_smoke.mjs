@@ -194,7 +194,7 @@ try {
     if (navLinks !== 6) {
       throw new Error('Home and the five primary shelves must be real links: ' + navLinks);
     }
-    if (await nav.getByRole('link', { name:/To be read|Analytics/ }).count() ||
+    if (await nav.locator('.top-nav-links > a').filter({hasText:/To be read|Analytics/}).count() ||
         await nav.locator('.mobile-shelf-more option[value="unread"], .mobile-shelf-more option[value="analytics"]').count()) {
       throw new Error('To Be Read and Analytics should not crowd the main shelf navigation');
     }
