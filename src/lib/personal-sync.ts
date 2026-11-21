@@ -58,9 +58,10 @@ function takeRemoteReview(book: LibraryBook, remote: CloudRevisionSnapshot<Cloud
 /** Never resolve a concurrent edit based on device timestamps. */
 export async function syncReadingRecord(
   repo: string, session: CloudSession, id: string, book: LibraryBook,
+  bulkRecord?: CloudRevisionSnapshot<CloudReadingProgress>,
 ): Promise<LibraryBook> {
   if (session.via !== 'oauth') throw new Error('Sign in with Hugging Face to safely sync reading progress.');
-  const remote = await fetchVersionedReadingProgress(repo, id, session);
+  const remote = bulkRecord ?? await fetchVersionedReadingProgress(repo, id, session);
   if (book.progressSyncConflict) {
     return { ...book, pendingProgressSync: true, progressSyncConflict: remote };
   }
@@ -87,9 +88,10 @@ export async function syncReadingRecord(
 
 export async function syncReviewRecord(
   repo: string, session: CloudSession, id: string, book: LibraryBook,
+  bulkRecord?: CloudRevisionSnapshot<CloudPersonalReview>,
 ): Promise<LibraryBook> {
   if (session.via !== 'oauth') throw new Error('Sign in with Hugging Face to safely sync private notes.');
-  const remote = await fetchVersionedPersonalReview(repo, id, session);
+  const remote = bulkRecord ?? await fetchVersionedPersonalReview(repo, id, session);
   if (book.reviewSyncConflict) {
     return { ...book, pendingReviewSync: true, reviewSyncConflict: remote };
   }
