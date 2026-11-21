@@ -1,6 +1,6 @@
 # Issue #34: Revision-safe personal data synchronisation
 
-**Status:** Development integrated on draft [PR #106](https://github.com/AdityaSreevatsaK/Taiyous-Personal-Library/pull/106); **not merged or deployed**. The production application and private `Taiyous-Novels` dataset remain untouched by these changes.
+**Status:** Bulk state and revision-safe sync integrated on draft [PR #110](https://github.com/AdityaSreevatsaK/Taiyous-Personal-Library/pull/110), superseding the prior [PR #106](https://github.com/AdityaSreevatsaK/Taiyous-Personal-Library/pull/106); **not merged or deployed**. The production application and private `Taiyous-Novels` dataset remain untouched by these changes.
 
 ## Implemented on current master baseline
 
@@ -31,3 +31,18 @@
 - The draft PR is never merged while the real acceptance gate is blocked. Closing it leaves live code and remote data unchanged.
 - Before any future deployment, export independent progress, review and collection recovery records and confirm an independent dataset backup. Do not delete or replace any production catalogue or EPUB.
 - On a conflict/error, preserve both local records and remote snapshots, leave pending flags set and allow a later explicit retry.
+
+## Bulk personal-state extension (PR #110)
+
+- Initial refresh loads all owner-private personal records in one
+  `personal-bulk` GET, with one `library.json` catalogue GET.
+- The first authenticated access migrates existing **present** v1 sidecars
+  into a private materialised `data/personal/state.json` index using a
+  compare-and-set bootstrap. Existing sidecars are never deleted.
+- Subsequent selective PATCH commits the sidecar and its indexed version
+  atomically. Stale updates retain both device/cloud versions for explicit
+  conflict resolution.
+- Browser regression uses 352 catalogue novels, 351 with absent progress/
+  reviews, and asserts zero speculative ID-specific GETs.
+- The real provider gates **still apply**: isolated HF bootstrap/PATCH and
+  two authenticated OAuth browser clients. Keep this in draft until passed.
