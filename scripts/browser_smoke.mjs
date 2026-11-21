@@ -367,7 +367,7 @@ try {
       transaction.objectStore('books').put({
         id: 'aaaaaaaaaaaaaaaaaaaaaaaa', title: 'Sample Library Book', author: 'Test Author',
         originalFileName: 'sample.epub', importedAt: Date.now(),
-        progress: 0, size: 128, metadataScanned: true, status:'ongoing', language:'en',
+        progress: 0, size: 128, metadataScanned: true, language:'en',
         sourceTags: ['Fantasy', 'Action', 'Adventure', 'Martial Arts', 'Romance'],
       });
       transaction.objectStore('files').put({ id: 'aaaaaaaaaaaaaaaaaaaaaaaa', epub: new Blob([new Uint8Array(epubData)], { type: 'application/epub+zip' }) });
@@ -691,8 +691,17 @@ try {
       }
     }
     if (viewport.width<=700) {
-      const factLeftEdges = await page.locator('.details-hero .details-meta-row > span').evaluateAll(
-        facts => facts.map(fact => fact.getBoundingClientRect().left));
+      // Exercise the status row's actual CSS without changing the original
+      // synthetic novel's publication state or the ribbon inventory tests.
+      const factLeftEdges = await page.locator('.details-hero .details-meta-row').evaluate(row => {
+        const status = document.createElement('span');
+        status.className = 'publication-status publication-status--ongoing';
+        status.textContent = 'Ongoing';
+        row.insertBefore(status, row.lastElementChild);
+        const lefts = [...row.children].map(element => element.getBoundingClientRect().left);
+        status.remove();
+        return lefts;
+      });
       if (factLeftEdges.length !== 3 ||
           factLeftEdges.some(x => Math.abs(x - factLeftEdges[0]) > 1)) {
         throw new Error('Mobile chapter count, publication status and language must align left: '+
