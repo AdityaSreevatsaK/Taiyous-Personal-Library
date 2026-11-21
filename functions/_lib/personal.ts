@@ -148,7 +148,7 @@ async function readLegacyRecords(repo: string, token: string, sha: string): Prom
       }
     }
     const linkHeader = tree.headers.get('Link') ?? '';
-    const nextLink = linkHeader.match(/<([^>]+)>;\\s*rel="?next"?/i);
+    const nextLink = linkHeader.match(/<([^>]+)>;\s*rel="?next"?/i);
     if (!nextLink) {
       // If exactly the server's maximum page size arrived without a next
       // link, assume truncation rather than silently losing private records.
