@@ -58,26 +58,176 @@ async function contentRevision(bytes: string): Promise<string> {
   return [...new Uint8Array(hash)].map(n => n.toString(16).padStart(2, '0')).join('');
 }
 
-async function snapshot(repo: string, token: string, path: string): Promise<{sha: string; record: Snapshot}> {
-  const headers = { Authorization: 'Bearer ' + token };
-  const meta = await fetch(ORIGIN + '/api/datasets/' + repo, { headers, cache: 'no-store' });
-  if (!meta.ok) throw new Error('Unable to inspect private dataset revision');
-  const info = await meta.json() as { sha?: unknown; private?: unknown };
+
+/** A compact private, immutable-revision materialised view. Existing per-book
+ * files remain untouched as recoverable legacy copies. Normal GETs never
+ * probe missing individual IDs. */
+const INDEX_PATH = 'data/personal/state.json';
+const INDEX_LIMIT = 8 * 1024 * 1024;
+const TREE_LIMIT = 1000;
+const LEGACY_LIMIT = 950;
+export type PersonalSnapshot = { value: unknown | null; revision: string | null };
+export interface PersonalState {
+  version: 1;
+  records: Record<string, PersonalSnapshot>;
+}
+type CurrentState = { sha: string; materialised: boolean; data: PersonalState };
+const encoder = new TextEncoder();
+
+async function datasetRevision(repo: string, token: string): Promise<string> {
+  const response = await fetch(ORIGIN + '/api/datasets/' + repo, {
+    headers: { Authorization: 'Bearer ' + token }, cache: 'no-store',
+  });
+  if (!response.ok) throw new Error('Unable to inspect private dataset');
+  const info = await response.json() as { private?: unknown; sha?: unknown };
   if (info.private !== true || typeof info.sha !== 'string' || !/^[0-9a-f]{40}$/.test(info.sha)) {
-    throw new Error('Dataset privacy or revision could not be verified');
+    throw new Error('Private dataset revision cannot be verified');
   }
-  const response = await fetch(ORIGIN + '/datasets/' + repo + '/resolve/' + info.sha + '/' + path,
-    { headers, cache: 'no-store' });
-  if (response.status === 404) return { sha: info.sha, record: { value: null, revision: null } };
-  if (!response.ok || Number(response.headers.get('Content-Length') || 0) > MAX_DOCUMENT_BYTES) {
-    throw new Error('Cannot safely read private personal data');
+  return info.sha;
+}
+
+async function pinnedFile(repo: string, token: string, sha: string, path: string): Promise<Response> {
+  const response = await fetch(ORIGIN + '/datasets/' + repo + '/resolve/' + sha + '/' + path, {
+    headers: { Authorization: 'Bearer ' + token }, cache: 'no-store',
+  });
+  return response;
+}
+
+function validateState(value: unknown): PersonalState {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('Invalid personal-state index');
+  const index = value as Record<string, unknown>;
+  if (index.version !== 1 || !index.records || typeof index.records !== 'object' || Array.isArray(index.records)) {
+    throw new Error('Unsupported personal-state index');
+  }
+  const records = Object.create(null) as Record<string, PersonalSnapshot>;
+  for (const [path, item] of Object.entries(index.records as Record<string, unknown>)) {
+    if (!PERSONAL_PATH.test(path) || !item || typeof item !== 'object' || Array.isArray(item)) {
+      throw new Error('Invalid personal-state record key');
+    }
+    const record = item as Record<string, unknown>;
+    if (typeof record.revision !== 'string' || !HASH.test(record.revision) ||
+        !validDocument(path, record.value)) {
+      throw new Error('Malformed personal-state record');
+    }
+    records[path] = { value: record.value, revision: record.revision };
+    if (Object.keys(records).length > LEGACY_LIMIT) throw new Error('Personal-state index is too large');
+  }
+  return { version: 1, records };
+}
+
+async function readLegacyRecords(repo: string, token: string, sha: string): Promise<PersonalState> {
+  const url = ORIGIN + '/api/datasets/' + repo + '/tree/' + sha + '/data/personal' +
+    '?recursive=true&limit=' + TREE_LIMIT;
+  const tree = await fetch(url, {
+    headers: { Authorization: 'Bearer ' + token }, cache: 'no-store',
+  });
+  if (tree.status === 404) return { version: 1, records: Object.create(null) };
+  if (!tree.ok) throw new Error('Cannot list existing private personal documents');
+  const listing: unknown = await tree.json();
+  if (!Array.isArray(listing) || listing.length >= TREE_LIMIT) {
+    // Never silently omit paginated private records during migration.
+    throw new Error('Personal-data listing incomplete. Migration stopped without changing any files.');
+  }
+  const paths = [...new Set(listing.filter((row): row is { path: string; type: string } =>
+    !!row && typeof row === 'object' && typeof row.path === 'string' &&
+    (row.type === 'file' || row.type === 'blob') && PERSONAL_PATH.test(row.path)
+  ).map(row => row.path))];
+  if (paths.length > LEGACY_LIMIT) throw new Error('Too many private personal documents');
+  const records = Object.create(null) as Record<string, PersonalSnapshot>;
+  let next = 0;
+  let total = 0;
+  const workers = Array.from({ length: Math.min(8, paths.length) }, async () => {
+    while (next < paths.length) {
+      const path = paths[next++];
+      const response = await pinnedFile(repo, token, sha, path);
+      if (!response.ok || Number(response.headers.get('Content-Length') || 0) > MAX_DOCUMENT_BYTES) {
+        throw new Error('Unable to safely preserve an existing personal file: ' + path);
+      }
+      const raw = await response.text();
+      const bytes = encoder.encode(raw).byteLength;
+      if (bytes > MAX_DOCUMENT_BYTES) throw new Error('Private personal document exceeds limit');
+      total += bytes;
+      if (total > INDEX_LIMIT) throw new Error('Private data exceeds snapshot safety limit');
+      let value: unknown;
+      try { value = JSON.parse(raw); } catch { throw new Error('Private personal document is malformed'); }
+      if (!validDocument(path, value)) throw new Error('Existing private record failed validation: ' + path);
+      records[path] = { value, revision: await contentRevision(raw) };
+    }
+  });
+  await Promise.all(workers);
+  return { version: 1, records };
+}
+
+async function loadState(repo: string, token: string, sha: string): Promise<CurrentState> {
+  const response = await pinnedFile(repo, token, sha, INDEX_PATH);
+  if (response.status === 404) {
+    return { sha, materialised: false, data: await readLegacyRecords(repo, token, sha) };
+  }
+  if (!response.ok || Number(response.headers.get('Content-Length') || 0) > INDEX_LIMIT) {
+    throw new Error('Cannot safely read private personal-state index');
   }
   const raw = await response.text();
-  if (new TextEncoder().encode(raw).length > MAX_DOCUMENT_BYTES) throw new Error('Private personal document is too large');
-  let value: unknown;
-  try { value = JSON.parse(raw); } catch { throw new Error('Private personal document is malformed'); }
-  if (!validDocument(path, value)) throw new Error('Private personal document has invalid fields');
-  return { sha: info.sha, record: { value, revision: await contentRevision(raw) } };
+  if (encoder.encode(raw).byteLength > INDEX_LIMIT) throw new Error('Private personal-state index is too large');
+  let jsonValue: unknown;
+  try { jsonValue = JSON.parse(raw); } catch { throw new Error('Private personal-state index is malformed'); }
+  return { sha, materialised: true, data: validateState(jsonValue) };
+}
+
+function stateBody(data: PersonalState): string {
+  const content = JSON.stringify(data) + '\n';
+  if (encoder.encode(content).byteLength > INDEX_LIMIT) throw new Error('Private index exceeds limit');
+  return content;
+}
+
+function atPath(data: PersonalState, path: string): Snapshot {
+  return data.records[path] ?? { value: null, revision: null };
+}
+
+/** Bulk read is ONE browser request, not two speculative GETs per novel.
+ * Initial migration enumerates ONLY actual, existing sidecars. Later loads
+ * read a single materialised index at a pinned HF revision. */
+export async function personalBulkRequest(
+  request: Request, repo: string, token: string, json: ResponseFactory,
+): Promise<Response> {
+  if (request.method !== 'GET' && request.method !== 'POST') {
+    return json({ error: 'Unsupported method' }, 405);
+  }
+  if (request.method === 'POST') {
+    const origin = new URL(request.url).origin;
+    if (request.headers.get('Origin') !== origin ||
+        request.headers.get('X-Taiyou-Request') !== 'personal-sync') {
+      return json({ error: 'Same-origin migration request required' }, 403);
+    }
+    if (Number(request.headers.get('Content-Length') || '0') > 128) return json({ error: 'Invalid migration request' }, 413);
+    const raw = await request.text();
+    let data: unknown;
+    try { data = JSON.parse(raw); } catch { return json({ error: 'Invalid migration request' }, 400); }
+    if (!data || typeof data !== 'object' || (data as Record<string, unknown>).operation !== 'bootstrap') {
+      return json({ error: 'Unsupported personal-state operation' }, 400);
+    }
+  }
+  try {
+    const sha = await datasetRevision(repo, token);
+    const state = await loadState(repo, token, sha);
+    if (request.method === 'GET' || state.materialised) {
+      return json({ ...state.data, materialised: state.materialised });
+    }
+    // One-time non-destructive migration. The old per-novel files remain
+    // available for recovery and the parent revision guards concurrent writes.
+    await commit({
+      repo: { type: 'dataset', name: repo }, accessToken: token, parentCommit: sha,
+      title: 'Create private personal-state index',
+      operations: [{ operation: 'addOrUpdate', path: INDEX_PATH,
+        content: new Blob([stateBody(state.data)], { type: 'application/json' }) }],
+    });
+    return json({ ...state.data, materialised: true });
+  } catch (error) {
+    const message = String(error);
+    return json({ error: /parent.commit|409|412|conflict/i.test(message)
+      ? 'Personal state changed during migration. Refresh and retry; legacy records were retained.'
+      : 'Personal-state migration/read could not be verified. Existing files were not changed.' },
+    /parent.commit|409|412|conflict/i.test(message) ? 409 : 502);
+  }
 }
 
 /**
@@ -94,7 +244,7 @@ export async function personalRequest(
   let value: unknown;
   if (request.method === 'GET') {
     path = url.searchParams.get('path');
-  } else if (request.method === 'POST') {
+  } else if (request.method === 'POST' || request.method === 'PATCH') {
     if (request.headers.get('Origin') !== url.origin ||
         request.headers.get('X-Taiyou-Request') !== 'personal-sync') {
       return json({ error: 'Same-origin personal sync is required' }, 403);
@@ -130,33 +280,48 @@ export async function personalRequest(
     return json({ error: 'Invalid private document' }, 400);
   }
   try {
-    if (request.method === 'GET') return json((await snapshot(repo, token, path)).record);
+    if (request.method === 'GET') {
+      const sha = await datasetRevision(repo, token);
+      const state = await loadState(repo, token, sha);
+      return json(atPath(state.data, path));
+    }
     const content = JSON.stringify(value, null, 2) + '\n';
-    if (new TextEncoder().encode(content).length > MAX_DOCUMENT_BYTES) {
+    if (encoder.encode(content).byteLength > MAX_DOCUMENT_BYTES) {
       return json({ error: 'Personal document too large' }, 413);
     }
     const revision = await contentRevision(content);
     for (let attempt = 0; attempt < 3; attempt++) {
-      const current = await snapshot(repo, token, path);
-      if (current.record.revision !== expected) {
-        return json({ error: 'Another device changed this record', conflict: true, ...current.record }, 409);
+      const sha = await datasetRevision(repo, token);
+      const state = await loadState(repo, token, sha);
+      const current = atPath(state.data, path);
+      if (current.revision !== expected) {
+        // Idempotent recovery after an ambiguous successful commit is safe.
+        if (current.revision === revision) return json({ saved: true, value, revision });
+        return json({ error: 'Another device changed this record', conflict: true, ...current }, 409);
       }
+      const records = { ...state.data.records, [path]: { value, revision } };
+      const indexed = stateBody({ version: 1, records });
       try {
+        // An atomic CAS commit updates both the fast index and original sidecar.
+        // Older clients cannot write individual sidecars through the old route.
         await commit({
           repo: { type: 'dataset', name: repo }, accessToken: token,
-          parentCommit: current.sha, title: 'Sync private personal data',
-          operations: [{ operation: 'addOrUpdate', path, content: new Blob([content], { type: 'application/json' }) }],
+          parentCommit: sha, title: 'Sync private personal data',
+          operations: [
+            { operation: 'addOrUpdate', path,
+              content: new Blob([content], { type: 'application/json' }) },
+            { operation: 'addOrUpdate', path: INDEX_PATH,
+              content: new Blob([indexed], { type: 'application/json' }) },
+          ],
         });
         return json({ saved: true, value, revision });
       } catch (error) {
-        // Do not retry an arbitrary storage failure. Only optimistic-concurrency
-        // errors can be retried against the freshly inspected target.
         if (!/409|412|parent.commit|revision|conflict/i.test(String(error))) {
-          return json({ error: 'Private personal data could not be saved' }, 502);
+          return json({ error: 'Private personal data could not be saved; local changes were retained' }, 502);
         }
       }
     }
-    return json({ error: 'The dataset changed repeatedly. Refresh and retry without discarding local edits.' }, 409);
+    return json({ error: 'Dataset changed repeatedly; refresh without discarding local edits' }, 409);
   } catch {
     return json({ error: 'Private sync state could not be verified; local changes were not discarded' }, 502);
   }
