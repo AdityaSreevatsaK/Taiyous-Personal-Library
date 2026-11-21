@@ -70,7 +70,6 @@ export default function EditorialHome({
   const visibleGalleryIds = visibleGalleryBooks.map(book => book.id);
   // Displayed text and BOTH CTAs always refer to the selected visible jacket.
   // The old featured book is only a fallback until the first real cover loads.
-  const displayedBook = selectHomeHeroCover(visibleGalleryBooks, hoveredGalleryId ?? tappedGalleryId) ?? featured;
   // Randomise only this four-card discovery section, once per page visit.
   // Preserve the canonical shelves, catalogue order and all deep links.
   const [shelfSeed] = useState(() => (Math.floor(Math.random() * 0xffffffff) || 1));
@@ -79,6 +78,7 @@ export default function EditorialHome({
   const trialCount = books.filter(book => book.shelfStatus === 'trying').length;
   const completedCount = books.filter(book => book.shelfStatus !== 'trying' && isFinished(book)).length;
   if (!featured) return null;
+  const displayedBook = selectHomeHeroCover(visibleGalleryBooks, hoveredGalleryId ?? tappedGalleryId) ?? featured;
   const featuredFinished = isFinished(displayedBook);
   const featuredReading = isCurrentlyReading(displayedBook);
   const featuredAction = featuredFinished ? 'Read again'
