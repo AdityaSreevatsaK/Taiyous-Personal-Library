@@ -2,7 +2,9 @@ name: Verify Disposable Hugging Face Dataset
 
 on:
   push:
-    branches: [master]
+    # Allow the opt-in test to execute against this exact draft commit
+    # without putting any application/data migration code on master.
+    branches: [feature/bulk-personal-state-revision-sync-20261121]
     paths: [.github/workflows/verify-hf-disposable.yml]
   workflow_dispatch:
 
