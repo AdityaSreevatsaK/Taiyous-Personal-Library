@@ -22,6 +22,14 @@ Build performs TypeScript project compilation, Vite production bundling, icon ge
 
 CodeQL is separate. A green Verify alone does not mean CodeQL passed.
 
+### Automated isolated OAuth browser acceptance (mock provider)
+
+The normal Verify workflow executes `node scripts/isolated_oauth_browser_acceptance.mjs` against **shipping Cloudflare Pages Functions** running in a temporary local Wrangler Pages HTTPS environment. A narrowly pinned, short-lived self-signed certificate is trusted only by its isolated browser. The temporary test copy replaces only the public origin, private dataset identifier and Hugging Face token API base URL, all verified by exact-string guards. The permanent application source, production Cloudflare environment and private novel Dataset are untouched.
+
+Chromium follows the shipping `/api/oauth/login` redirect into an in-browser **mock consent screen** in place of the real HF authorisation service. A localhost-only HTTP fixture validates one-time authorisation codes, PKCE S256 verifier/challenge matching and client/redirect identity, then simulates access token, whoami and private-dataset responses. Positive coverage checks the encrypted Secure/HttpOnly session and protected `action=session`, reload persistence, CSRF-resistant logout and sign-out. Negative coverage checks mismatched state, denied consent, invalid PKCE, missing scope, unrelated owner and inaccessible synthetic dataset. No production HF token, novel, or data migration is involved.
+
+**Evidence boundary:** this is a genuine browser + Pages Functions protocol test with a *simulated HF provider*. It does **not** exercise the external Hugging Face live consent application, registration/CIMD acceptance, real authorisation-code exchange, or a credentialed production login. Those remain a separate owner-driven, non-destructive manual acceptance gate. Do not report a green simulated test as full provider-interactive OAuth acceptance.
+
 ## Personal-state integration acceptance
 
 PR #110 merged on 21 November 2026. It added bulk personal-state retrieval and revision-safe PATCH. Coverage includes:
@@ -69,7 +77,7 @@ Routine code/documentation PRs and verified deployments are pre-authorised. This
 | Tags/collections | Add/remove semantics, alphabetical tags, nested membership and reload persistence |
 | Offline | PWA cold start and cached EPUB after disconnect; do not remove only copy |
 | Sync | Competing edits, explicit conflict resolution, offline reconnect and second-device recovery |
-| OAuth | Interactive consent, callback/state/PKCE and session establishment; not covered by PR #110 isolated test |
+| OAuth | Automated mock-provider browser redirect/callback/state/PKCE/session/logout plus separate real Hugging Face consent, owner permission and protected catalogue login on a non-destructive manual path |
 
 ## Failure triage
 
