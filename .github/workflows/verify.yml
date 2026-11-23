@@ -103,10 +103,12 @@ jobs:
         run: npm audit --omit=dev --audit-level=high
       - name: Install browser smoke test dependencies
         run: |
-          npm install --no-save --package-lock=false playwright
+          npm install --no-save --package-lock=false playwright wrangler@4
           # Avoid apt-get --with-deps: runner mirror DNS failures should not break browser checks.
           # ubuntu-24.04 hosted runners already include shared browser runtime libraries.
           npx playwright install chromium
+      - name: Exercise isolated browser OAuth consent, PKCE and session lifecycle
+        run: node scripts/isolated_oauth_browser_acceptance.mjs
       - name: Test desktop, mobile, offline cold launch and advanced search
         run: |
           npm run preview -- --host 127.0.0.1 --port 4173 --strictPort > /tmp/preview.log 2>&1 &
