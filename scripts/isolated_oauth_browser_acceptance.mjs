@@ -202,8 +202,12 @@ async function scenario(mode, error) {
   let simulatedConsentPages = 0;
   await context.route('https://huggingface.co/**', async route => {
     const target = new URL(route.request().url());
-    assert(target.pathname === '/oauth/authorize',
-      'Unexpected external provider navigation in isolated acceptance');
+    if (target.pathname !== '/oauth/authorize') {
+      // Browsers may request a favicon after the synthetic consent document.
+      // Deny all other external HF requests rather than reaching the network.
+      await route.fulfill({ status: 404, body: '' });
+      return;
+    }
     simulatedConsentPages++;
     await route.fulfill({
       status: 200, contentType: 'text/html',
