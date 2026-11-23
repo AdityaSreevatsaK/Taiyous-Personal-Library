@@ -9,7 +9,7 @@
  */
 import { createHash, createPublicKey, randomBytes } from 'node:crypto';
 import { createServer } from 'node:http';
-import { request as httpsRequest } from 'node:https';
+import { request as httpsRequest, createServer as createHttpsServer } from 'node:https';
 import { execFileSync, spawn } from 'node:child_process';
 import { cp, mkdir, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -17,11 +17,12 @@ import { join, resolve } from 'node:path';
 import { chromium } from 'playwright';
 
 const origin = 'https://localhost:8798';
+const mockConsentOrigin = 'https://127.0.0.1:8799';
 const owner = 'OAuthFixtureOwner';
 const repo = owner + '/taiyou-isolated-oauth-fixture';
 const grants = new Map();
 const issued = new Map();
-let provider, pages, browser, staging, tlsCert, pin;
+let provider, consentServer, pages, browser, staging, tlsCert, pin;
 let tokenCalls = 0;
 const assert = (ok, message) => { if (!ok) throw Error(message); };
 const digest = value => createHash('sha256').update(value).digest('base64url');
@@ -94,6 +95,10 @@ async function stageWorker(providerBase) {
   const root = resolve('.');
   staging = await mkdtemp(join(tmpdir(), 'taiyou-mock-oauth-browser-'));
   await cp(join(root, 'dist'), join(staging, 'dist'), { recursive: true });
+  // Keep the callback landing page inert: no app bootstrap or unrelated HF reads.
+  await writeFile(join(staging, 'dist/index.html'),
+    '<!doctype html><html><head><title>Isolated OAuth return</title></head>' +
+    '<body>Local OAuth acceptance landing only</body></html>');
   await cp(join(root, 'functions'), join(staging, 'functions'), { recursive: true });
   await mkdir(join(staging, 'src'), { recursive: true });
   await cp(join(root, 'src/lib'), join(staging, 'src/lib'), { recursive: true });
@@ -111,6 +116,12 @@ async function stageWorker(providerBase) {
     "const AUTH_BASE = 'https://huggingface.co';",
     "const AUTH_BASE = '" + providerBase + "';");
   await writeFile(file, source);
+  const login = join(staging, 'functions/api/oauth/[action].ts');
+  let loginSource = await readFile(login, 'utf8');
+  loginSource = changeExactly(loginSource,
+    "new URL('https://huggingface.co/oauth/authorize')",
+    "new URL('" + mockConsentOrigin + "/oauth/authorize')");
+  await writeFile(login, loginSource);
   await writeFile(join(staging, '.dev.vars'),
     'HF_OAUTH_SESSION_KEY="' + randomBytes(32).toString('hex') + '"\n',
     { mode: 0o600 });
@@ -159,7 +170,7 @@ async function stageWorker(providerBase) {
   assert(ready, 'Temporary Pages Functions never became ready: ' + errors);
 }
 function consentPage(url) {
-  assert(url.origin === 'https://huggingface.co' && url.pathname === '/oauth/authorize',
+  assert(url.origin === mockConsentOrigin && url.pathname === '/oauth/authorize',
     'Unexpected external browser navigation');
   const p = url.searchParams;
   assert(p.get('response_type') === 'code' &&
@@ -197,37 +208,42 @@ function consentPage(url) {
     '<input type="hidden" name="error" value="access_denied">' +
     '<button type="submit">Deny consent</button></form></body></html>';
 }
+async function startConsentServer() {
+  consentServer = createHttpsServer({
+    cert: tlsCert,
+    key: await readFile(join(staging, 'localhost.key')),
+  }, (req, res) => {
+    try {
+      const url = new URL(req.url, mockConsentOrigin);
+      if (url.pathname !== '/oauth/authorize' || req.method !== 'GET') {
+        res.writeHead(404, { 'Cache-Control': 'no-store' });
+        res.end();
+        return;
+      }
+      const body = consentPage(url);
+      res.writeHead(200, {
+        'Content-Type': 'text/html; charset=utf-8',
+        'Cache-Control': 'no-store',
+        'Referrer-Policy': 'no-referrer',
+      });
+      res.end(body);
+    } catch {
+      res.writeHead(400, { 'Cache-Control': 'no-store' });
+      res.end('Invalid synthetic OAuth request');
+    }
+  });
+  await new Promise((ok, fail) => {
+    consentServer.once('error', fail);
+    consentServer.listen(8799, '127.0.0.1', ok);
+  });
+}
 async function scenario(mode, error) {
   const context = await browser.newContext();
-  let simulatedConsentPages = 0;
-  await context.route('https://huggingface.co/**', async route => {
-    const target = new URL(route.request().url());
-    if (target.pathname !== '/oauth/authorize') {
-      // Browsers may request a favicon after the synthetic consent document.
-      // Deny all other external HF requests rather than reaching the network.
-      await route.fulfill({ status: 404, body: '' });
-      return;
-    }
-    simulatedConsentPages++;
-    await route.fulfill({
-      status: 200, contentType: 'text/html',
-      body: consentPage(new URL(route.request().url())),
-    });
-  });
-  // Prevent unrelated React catalogue requests. This is an API/browser
-  // redirect acceptance test, not a full application UI test.
-  await context.route(url => url.origin === origin && url.pathname === '/',
-    route => route.fulfill({
-      status: 200, contentType: 'text/html',
-      body: '<!doctype html><title>OAuth callback landing</title>',
-    }));
   const page = await context.newPage();
   const before = tokenCalls;
   await page.goto(origin + '/api/oauth/login', { waitUntil: 'domcontentloaded' });
-  assert(new URL(page.url()).host === 'huggingface.co',
-    'Browser did not follow the OAuth provider redirect');
-  assert(simulatedConsentPages >= 1,
-    'Mock authorisation was not intercepted (count: ' + simulatedConsentPages + ')');
+  assert(new URL(page.url()).origin === mockConsentOrigin,
+    'Browser did not follow the HTTPS mock provider redirect');
   await page.getByRole('heading', { name: 'Mock provider, not real Hugging Face' })
     .waitFor({ timeout: 5000 });
   const flow = (await context.cookies(origin)).find(x => x.name === '__Host-taiyou_oauth_flow');
@@ -301,6 +317,7 @@ async function scenario(mode, error) {
 try {
   const providerBase = await startProvider();
   await stageWorker(providerBase);
+  await startConsentServer();
   browser = await chromium.launch({
     headless: true,
     args: ['--ignore-certificate-errors-spki-list=' + pin],
@@ -323,6 +340,7 @@ try {
     await sleep(450);
     if (pages.exitCode === null) pages.kill('SIGKILL');
   }
+  if (consentServer) await new Promise(ok => consentServer.close(ok));
   if (provider) await new Promise(ok => provider.close(ok));
   if (staging) await rm(staging, { recursive: true, force: true });
 }
