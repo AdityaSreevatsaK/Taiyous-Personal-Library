@@ -1,6 +1,6 @@
 # Operations, Decisions and Backlog
 
-Last reconciled: 21 November 2026, against master commit d774b9121999c15d233b144e522fee5959305cd1. Recheck live issues, workflows and code before acting; this is not live telemetry.
+Last reconciled: 23 November 2026, against master commit d774b9121999c15d233b144e522fee5959305cd1 and PR #111 documentation review. Recheck live issues, workflows and code before acting; this is not live telemetry.
 
 ## Operational invariants
 
