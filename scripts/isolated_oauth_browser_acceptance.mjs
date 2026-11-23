@@ -199,7 +199,12 @@ function consentPage(url) {
 }
 async function scenario(mode, error) {
   const context = await browser.newContext();
-  await context.route('https://huggingface.co/oauth/authorize*', async route => {
+  let simulatedConsentPages = 0;
+  await context.route('https://huggingface.co/**', async route => {
+    const target = new URL(route.request().url());
+    assert(target.pathname === '/oauth/authorize',
+      'Unexpected external provider navigation in isolated acceptance');
+    simulatedConsentPages++;
     await route.fulfill({
       status: 200, contentType: 'text/html',
       body: consentPage(new URL(route.request().url())),
@@ -217,6 +222,10 @@ async function scenario(mode, error) {
   await page.goto(origin + '/api/oauth/login', { waitUntil: 'domcontentloaded' });
   assert(new URL(page.url()).host === 'huggingface.co',
     'Browser did not follow the OAuth provider redirect');
+  assert(simulatedConsentPages === 1,
+    'Real provider page must not be accessed in an isolated mock-provider test');
+  await page.getByRole('heading', { name: 'Mock provider, not real Hugging Face' })
+    .waitFor({ timeout: 5000 });
   const flow = (await context.cookies(origin)).find(x => x.name === '__Host-taiyou_oauth_flow');
   assert(flow && flow.httpOnly && flow.secure && flow.sameSite === 'Lax',
     'OAuth state/PKCE cookie is not Secure, HttpOnly, SameSite=Lax');
