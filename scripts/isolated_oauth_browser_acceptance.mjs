@@ -1,8 +1,8 @@
 /**
  * Browser-level OAuth redirect acceptance with a local, deliberately FAKE
  * provider. Shipping Pages Functions run in Wrangler over locally pinned TLS.
- * The temporary OAuth module copies only production origin, dataset and HF
- * provider base constants. No real HF account, dataset or token is accessed.
+ * Temporary source copies overlay only the origin, dataset, provider token API
+ * and authorisation URL, with exact-string guards. No real HF account, dataset or token is accessed.
  *
  * Run after npm run build and installing playwright + wrangler@4.
  * This does NOT certify Hugging Face's actual interactive consent service.
@@ -27,7 +27,6 @@ let tokenCalls = 0;
 const assert = (ok, message) => { if (!ok) throw Error(message); };
 const digest = value => createHash('sha256').update(value).digest('base64url');
 const sleep = ms => new Promise(r => setTimeout(r, ms));
-const formValue = data => new URLSearchParams(data).toString();
 const asJson = (res, status, data) => {
   res.writeHead(status, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
   res.end(JSON.stringify(data));
