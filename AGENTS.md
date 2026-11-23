@@ -54,7 +54,7 @@ PR #110, “Bulk personal state and revision-safe PATCH migration”, merged to 
 
 Implemented:
 - One authenticated bulk personal-state GET for existing progress, reviews and collections, replacing speculative per-novel GETs.
-- First-use, revision-bound, non-destructive migration of existing v1 sidecars to data/personal/state.json. Legacy files remain as recovery copies.
+- First-use, revision-bound, non-destructive migration of existing v1 sidecars to data/personal/state.json. Bootstrap retains existing sidecars without deletion; subsequent selective PATCH operations update the relevant sidecar and index together. Sidecars are not substitutes for an independent historical backup.
 - Selective PATCH with content revisions and compare-and-set conflict handling.
 - Explicit reconciliation of competing edits, offline recovery and protection against client clock skew.
 - Tests for bulk loading, migration, malformed input, races and two isolated authenticated browser contexts.

@@ -64,7 +64,7 @@ Inspect current imports/call sites before assuming a module still owns a behavio
 
 Merged to master on 21 November 2026 (d774b9121999c15d233b144e522fee5959305cd1):
 - GET /api/library?action=personal-bulk returns a validated compact index of existing progress, reviews and collections in one request.
-- First access enumerates legacy v1 sidecars at an immutable HF revision and non-destructively materialises data/personal/state.json using compare-and-set. Existing sidecars are retained as recovery copies.
+- First access enumerates legacy v1 sidecars at an immutable HF revision and non-destructively materialises data/personal/state.json using compare-and-set. Existing sidecars are not deleted at bootstrap. Later selective PATCH commits update the affected sidecar and the index together; they are not immutable historical backups. Keep an independently restorable backup for recovery.
 - Selective PATCH updates a document and aggregate index with a revision-bound parent commit. Stale competing updates are rejected with conflict information for explicit resolution.
 - Normal refresh avoids per-novel probes for absent records. Individual reads remain for deliberate reconciliation paths.
 - Client wall-clock timestamps are not concurrency authority. A fresh checked remote revision takes priority over stale local timestamps while genuinely concurrent edits remain resolvable.

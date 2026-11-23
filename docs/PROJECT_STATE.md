@@ -18,7 +18,7 @@ This is a dated evidence snapshot, not live telemetry. Future agents must repeat
 | PWA/offline shell and IndexedDB EPUB caching | Implemented | Build/Verify browser smoke; physical-device quota varies |
 | OAuth gateway and separate Owner authorisation | Implemented | Current Pages Functions and gateway tests |
 | Bulk progress/review/collection retrieval | Implemented | PR #110 merged to master |
-| Non-destructive sidecar bootstrap to data/personal/state.json | Implemented | PR #110 code and isolated disposable HF acceptance |
+| Non-destructive bootstrap to data/personal/state.json (later PATCHes update the sidecar and index) | Implemented | PR #110 code and isolated disposable HF acceptance |
 | Revision-safe selective PATCH and conflict handling | Implemented | PR #110 code and two-browser disposable acceptance |
 | Two isolated authenticated browser sessions against real Pages Functions + disposable HF | Implemented/tested | Run 44924684751; temporary dataset deleted |
 | Interactive Hugging Face consent/PKCE redirect E2E | Unverified | Explicitly excluded from the isolated two-browser acceptance |

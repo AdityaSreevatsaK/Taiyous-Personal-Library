@@ -8,11 +8,11 @@
 | --- | --- |
 | Library and search | Compact responsive bookshelf; All, Trying out, Reading, Unread and Finished; global search spanning all novels; scoped search within shelves, tags and collections; alphabetical tag/collection results |
 | Novel tags | Click imported or personal tags to open a list of novels with that tag; tags are not collections |
-| Named collections | Create, rename and delete collections; assign/remove novels without deleting books; series grouping such as *Harry Potter*; local state plus optional private-dataset sync |
+| Named collections | Create, rename and delete collections; assign/remove novels without deleting books; series grouping such as *Harry Potter*; local state plus revision-checked private-dataset synchronisation when signed in with HF OAuth |
 | Details | Synopsis and metadata; reading progress; original source links; chapters; personal tags and summary; comments below information in left column. Synopsis saves prompt for confirmation; personal tags are batched as a draft and confirmed once. |
 | Rating and comments | Personal 1–10 rating in the green novel header, and separate reading notes. Locally cached; when connected for a hosted book, written to separate private per-book JSON documents and reloaded from cloud |
 | Reading | EPUB.js vertical chapter scroll; chapter selection/search; local reading progress and resume; chapter navigation at bottom-left (**Previous**) and bottom-right (**Next**); keyboard arrow shortcuts; header navigation to novel details and library. Bookmarkable `/novels/<title-slug>` and `/novels/<title-slug>/read` routes support direct links and browser history; legacy `/book/<id>` links are resolved and rewritten to the name-based route. Duplicate titles receive a short ID suffix to prevent ambiguity. Internal storage and progress remain keyed by immutable ID. |
-| Appearance | Sepia/light/dark themes, fonts, line height, font size and reading width |
+| Appearance | Six saved theme IDs (Sepia, Paper, Charcoal, Midnight, Ocean and Plum), fonts, line height, font size and reading width |
 | Novel cover artwork | Real JPEG covers are loaded from the private Hugging Face Dataset when catalogue entries contain `coverPath: data/novels/<existing-id>/cover.jpg`. Images appear on the bookshelf, advanced search results and novel details, are cached in a new IndexedDB `covers` store for offline reuse, and fall back to generated covers when missing or unavailable. Existing EPUBs, ZIPs and novel IDs are unchanged. |
 | EPUB and ZIP download | **Download EPUB** saves a real `.epub` file through the browser. Uses a cached EPUB, or obtains one from the authorised private dataset if missing. **Original ZIP** is offered only when a hosted archive exists and requires a network fetch |
 | Book imports | Local EPUB/ZIP imports and IndexedDB caching. When connected, may publish EPUB, ZIP (when provided) and catalogue to the separate private dataset |
@@ -21,7 +21,7 @@
 | Offline library management | Offline tab holds download count, PWA readiness and **Save all offline**. The Novel Details storage card manages individual downloads. A cached EPUB can be removed with a normal confirmation (no Owner passphrase), but only after the private server confirms the hosted replacement exists. Local-only EPUBs cannot be cleared this way. |
 | Protected Owner mode | Additional Cloudflare passphrase Secret, independent of HF OAuth; 10-minute encrypted HttpOnly owner cookie, exact-title confirmation for deleting any entire local/hosted novel or a collection. The hosted deletion is an exact-novel, revision-guarded HF commit (catalogue plus book folder and private notes). No arbitrary-path deletion is exposed. |
 | Bulk offline library | **Save all offline** downloads missing EPUBs sequentially with progress and per-book failure reporting |
-| Reading-position sync | Per-book private progress JSON, local pending queue and timestamp-based restore/retry when connected |
+| Reading-position sync | Authenticated bulk progress retrieval, revision-safe selective PATCH of version-1 personal documents, locally pending offline edits and explicit cross-device conflict resolution (PR #110) |
 | Build/deploy | TypeScript, Vitest, Vite build, production dependency audit, browser smoke tests and automatic verified deployment to **Cloudflare Pages** from `master` |
 
 ### Storage map
@@ -31,7 +31,7 @@
 - **Private Hugging Face Dataset:** `data/library.json` catalogue and catalogue-declared `data/novels/<book-id> - <sanitised-title>/source.epub` (legacy ID-only paths also supported); optional `original.zip`; per-book notes at `data/personal/reviews/<book-id>.json`; per-book reading positions at `data/personal/progress/<book-id>.json`; collections at `data/personal/collections.json`.
 - **GitHub repository/Cloudflare Pages:** source code and built UI only; **never** the private novel dataset or user tokens.
 
-**Sync limitations:** Reading progress/last position, ratings/comments and collections use private cloud files when connected. Offline edits remain locally pending until a successful authorised retry. Personal tags, custom summaries and typography remain local to each browser. **Trying out** shelf state is recorded with private per-book reading notes and synchronised between devices when connected. Avoid simultaneous edits from multiple devices: collections use timestamp-based merging rather than transactional multi-writer guarantees; cloud notes also lack conflict-proof concurrent editing. A passing CI run does not replace testing with the actual private dataset.
+**Sync scope and limitations (PR #110, merged 21 November 2026):** Reading progress/CFI, explicit Finished state, ratings/comments, Trying out status and collections use private version-1 records. An authenticated bulk GET reads existing records without per-book request waterfalls; first access can non-destructively materialise `data/personal/state.json` from existing sidecars. Selective PATCH writes each updated sidecar and the index together under an observed HF revision. Competing edits yield a 409 and require explicit cloud/device resolution, never timestamp-based silent overwrite. Offline edits remain locally pending until confirmed. Personal tags, custom summaries, typography and usage analytics are device-local. The isolated real-HF/two-browser test passed, but did **not** exercise interactive provider consent/PKCE or production private-data acceptance. A green ordinary CI run alone is not proof of those paths.
 
 ### Name-based deep-link behaviour
 
@@ -54,9 +54,9 @@ The dedicated **Offline tab** displays connectivity, downloaded EPUB count, PWA 
 | App loaded through the private Hugging Face Space wrapper | The surrounding Hugging Face page or iframe may still need an internet connection and may restrict service-worker registration/installation. **An offline launch from the HF Space page is not guaranteed** |
 | Hosted book not cached | First-time **Save offline**, EPUB download or open requires access to the private dataset while connected |
 | Hosted original ZIP download | Requires internet and dataset authentication; the ZIP is not cached merely by caching the EPUB |
-| Offline edits to personal ratings/comments | Saved locally with a persisted pending flag. They are retried when online with a still-active cloud session or when the private dataset is reconnected, provided the app can reach the cloud. Newer remote notes are not overwritten by older local edits |
-| Offline collection edits | Stored locally, marked pending and merged with private cloud collections during the next successful authorised refresh. Timestamp-based merging is **not** a transactional conflict-resolution service |
-| Offline progress | Locally saved with a pending-sync marker and uploaded to separate private progress files after reconnection and authorisation; simultaneous edits use timestamps and are not transactionally conflict-proof |
+| Offline edits to personal ratings/comments | Saved locally with a persisted pending flag; authorised reconnect uses a revision-checked update. Competing remote changes require an explicit choice rather than being silently overwritten |
+| Offline collection edits | Retained locally with pending state. Reconnection uses observed cloud revisions and explicit conflict resolution if another device changed the collection |
+| Offline progress | Saved locally with a pending-sync marker; authorised reconnection uses revision-checked PATCH and preserves both versions on conflicts |
 | Personal tags and custom summaries | Local to that browser, not synchronised across devices |
 
 ### Prepare to read without internet
@@ -67,7 +67,7 @@ The dedicated **Offline tab** displays connectivity, downloaded EPUB count, PWA 
 4. Where supported, install/add the web app from the browser's PWA menu while online, and test a fresh offline launch **before** relying on it. Private HF wrapper limitations may prevent installing it; in that case export the EPUB and use an independent offline EPUB reader.
 5. For the most dependable independent backup, use **Download EPUB** to save actual files outside the browser's IndexedDB. Keep the original ZIP separately.
 
-**Important:** Browser storage can be evicted or cleared; private browsing, origin changes and browser resets may remove both EPUBs and app-shell caches. After a refresh, the fine-grained private dataset token must be re-entered before cloud sync can resume. “Online” is based on browser connectivity status and is not proof that Hugging Face is reachable.
+**Important:** Browser storage can be evicted or cleared; private browsing, origin changes and browser resets may remove both EPUBs and app-shell caches. After a refresh, legacy manually entered tokens are not persisted and must be re-entered; safe personal-state writes require a current Hugging Face OAuth session. “Online” is based on browser connectivity status and is not proof that Hugging Face is reachable.
 
 ### Standalone installation
 
@@ -75,7 +75,7 @@ The standalone production Cloudflare PWA is deployed at https://taiyous-personal
 
 ### Outstanding offline work
 
-Test actual cross-device private Dataset sync and reconnection using authorised credentials; handle simultaneous multi-device edits with explicit conflict UI/transactional revision checks; add bulk-download cancellation/storage-quota management and an independent metadata backup/restore flow. Offline launch was manually validated on Android on 10 November 2026. Browser CI exercises a synthetic EPUB; it never contains private novel content or tokens.
+PR #110 delivered revision-safe cross-device progress/review/collection sync, with successful isolated disposable-HF and two-browser acceptance. Still outstanding: isolated interactive HF consent/PKCE end-to-end coverage, physical-device validation on the permanent Cloudflare origin, bulk-download cancellation/storage-quota management and independently tested production backup/restore. Do not use the owner's production dataset for destructive acceptance. Offline launch was manually validated on Android on 10 November 2026. Browser CI exercises a synthetic EPUB; it never contains private novel content or tokens.
 
 ## Release and production safety
 

@@ -24,4 +24,4 @@ For a failing test, check the exact CI job step, fix the issue on the feature br
 
 In November 2026, a second browser sometimes retained progress 79 despite Hugging Face having freshly accepted progress 80. The local timestamp (9300) was greater than the legitimate remote timestamp (1700), and `reconcileCompletedCloudRefresh` incorrectly treated it as newer despite an updated **remote content revision**. The fix gives a new checked cloud revision priority over older, fully-synchronised local timestamps while still preserving genuinely concurrent local edits. Both the real browser test and a focused clock-skew unit test guard against regression.
 
-Use [Implementation Status and Roadmap](IMPLEMENTATION_STATUS_AND_ROADMAP.md) for the currently approved release gate, and inspect fresh workflow conclusions before stating that testing passed or production changed.
+Use the dated [Project State Snapshot](PROJECT_STATE.md) to distinguish delivered functionality from unverified acceptance. Recheck current workflow conclusions and deployed SHA before treating that snapshot as current state.
