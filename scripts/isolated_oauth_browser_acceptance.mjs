@@ -193,23 +193,25 @@ function consentPage(url) {
     ['dataset-denied', 'Approve inaccessible dataset'],
     ['bad-pkce', 'Approve invalid PKCE'],
   ];
+  const form = (code, label) =>
+    '<form action="' + mockConsentOrigin + '/choose" method="get">' +
+    '<input type="hidden" name="code" value="' + code + '">' +
+    '<button type="submit">' + label + '</button></form>';
   const forms = buttons.map(([mode, label]) => {
     const code = randomBytes(18).toString('hex');
+    // Never reflect the query-supplied OAuth state in HTML.
     grants.set(code, {
       mode,
+      state,
       challenge: mode === 'bad-pkce' ? 'invalid-challenge' : p.get('code_challenge'),
     });
-    return '<form action="' + origin + '/api/oauth/callback" method="get">' +
-      '<input type="hidden" name="state" value="' + state + '">' +
-      '<input type="hidden" name="code" value="' + code + '">' +
-      '<button type="submit">' + label + '</button></form>';
+    return form(code, label);
   }).join('\n');
+  const denyCode = randomBytes(18).toString('hex');
+  grants.set(denyCode, { mode: 'deny', state });
   return '<!doctype html><html><head><title>Isolated mock consent</title></head>' +
     '<body><h1>Mock provider, not real Hugging Face</h1>' + forms +
-    '<form action="' + origin + '/api/oauth/callback" method="get">' +
-    '<input type="hidden" name="state" value="' + state + '">' +
-    '<input type="hidden" name="error" value="access_denied">' +
-    '<button type="submit">Deny consent</button></form></body></html>';
+    form(denyCode, 'Deny consent') + '</body></html>';
 }
 async function startConsentServer() {
   consentServer = createHttpsServer({
@@ -218,6 +220,32 @@ async function startConsentServer() {
   }, (req, res) => {
     try {
       const url = new URL(req.url, mockConsentOrigin);
+      if (url.pathname === '/choose' && req.method === 'GET') {
+        const code = url.searchParams.get('code') || '';
+        const grant = /^[a-f0-9]{36}$/.test(code) ? grants.get(code) : null;
+        if (!grant) {
+          res.writeHead(400, { 'Cache-Control': 'no-store' });
+          res.end('Unknown synthetic consent request');
+          return;
+        }
+        // Redirect encoding is performed by URLSearchParams. Raw provider
+        // query values must never reach an HTML response body.
+        const callback = new URL(origin + '/api/oauth/callback');
+        callback.searchParams.set('state', grant.state);
+        if (grant.mode === 'deny') {
+          grants.delete(code);
+          callback.searchParams.set('error', 'access_denied');
+        } else {
+          callback.searchParams.set('code', code);
+        }
+        res.writeHead(303, {
+          Location: callback.toString(),
+          'Cache-Control': 'no-store',
+          'Referrer-Policy': 'no-referrer',
+        });
+        res.end();
+        return;
+      }
       if (url.pathname !== '/oauth/authorize' || req.method !== 'GET') {
         res.writeHead(404, { 'Cache-Control': 'no-store' });
         res.end();
