@@ -121,7 +121,7 @@ accounts can still clear browser files or modify private data outside this UI.
 7. Disconnect/sign out. Confirm cloud operations need fresh login but cached EPUBs still read offline.
 8. Test both desktop and phone. If the login redirect fails, keep the manual token fallback and report the OAuth error displayed in the library.
 
-The live OAuth redirect cannot be fully simulated in GitHub CI because it requires consent from your real HF account; the tests simulate HF callbacks without using your real credentials.
+GitHub Verify now includes an isolated Chromium + shipping Pages Functions OAuth redirect, mock consent, PKCE exchange, session and logout acceptance test. Its fake local provider is **not** the real Hugging Face consent/token service, and it never accesses your production dataset. A genuine live HF consent and authorised catalogue read still requires manual testing with your own account; do not paste credentials into tests or chat.
 
 ## Security controls
 
