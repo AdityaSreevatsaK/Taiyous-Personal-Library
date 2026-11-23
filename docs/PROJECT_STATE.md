@@ -21,7 +21,8 @@ This is a dated evidence snapshot, not live telemetry. Future agents must repeat
 | Non-destructive bootstrap to data/personal/state.json (later PATCHes update the sidecar and index) | Implemented | PR #110 code and isolated disposable HF acceptance |
 | Revision-safe selective PATCH and conflict handling | Implemented | PR #110 code and two-browser disposable acceptance |
 | Two isolated authenticated browser sessions against real Pages Functions + disposable HF | Implemented/tested | Run 44924684751; temporary dataset deleted |
-| Interactive Hugging Face consent/PKCE redirect E2E | Unverified | Explicitly excluded from the isolated two-browser acceptance |
+| Browser OAuth redirect/PKCE/callback/session with an isolated mock HF provider | Implemented on PR #112 branch, simulated browser step passed | [Verify run #45123131816](https://github.com/AdityaSreevatsaK/Taiyous-Personal-Library/actions/runs/45123131816) exercised shipping Pages Functions with a temporary HTTPS provider; confirm the full run conclusion before release |
+| Real Hugging Face hosted consent/PKCE token exchange E2E | Unverified | Requires the account owner's credentialed, non-destructive interactive acceptance; PR #110 deliberately excluded it |
 | Physical mobile-device acceptance | Unverified | CI uses browser viewports, not owner's physical device |
 | Independent production dataset backup/restore drill | Unverified in this evidence set | Required before destructive production data operations |
 | Historical HF Spaces/staging deployment paths | Deprecated | Not current hosting/deployment instructions |
@@ -39,7 +40,7 @@ The two-browser test exercised real shipping Pages Functions locally over HTTPS,
 
 ## Current priority
 
-Add isolated interactive OAuth consent/callback/PKCE end-to-end coverage without pointing destructive tests at production data. Separately complete owner-device mobile/offline acceptance and document a restorable production dataset backup process before any destructive migration.
+Review and merge PR #112 only after its complete Verify and CodeQL checks pass, then carry out a separate real-provider consent sign-in without sharing secrets. Also complete owner-device mobile/offline acceptance and document a restorable production dataset backup process before any destructive migration.
 
 ## How to keep this file current
 
