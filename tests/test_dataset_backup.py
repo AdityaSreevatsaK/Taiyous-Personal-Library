@@ -108,11 +108,16 @@ class IndependentDatasetBackupTests(unittest.TestCase):
     def test_refuses_duplicate_archived_paths(self):
         self.make()
         duplicate = self.base / "duplicate.zip"
-        with zipfile.ZipFile(self.archive) as original, zipfile.ZipFile(duplicate, "w") as out:
-            for item in original.infolist():
-                out.writestr(item, original.read(item.filename))
+        # Read source ZIP members before writing. Reusing a ZipInfo in a second
+        # ZIP mutates its header_offset, corrupting the original fixture.
+        with zipfile.ZipFile(self.archive) as original:
+            members = [(item.filename, original.read(item.filename))
+                       for item in original.infolist()]
+        with zipfile.ZipFile(duplicate, "w") as out:
+            for name, data in members:
+                out.writestr(name, data)
             with self.assertWarns(UserWarning):
-                out.writestr("manifest.json", original.read("manifest.json"))
+                out.writestr("manifest.json", dict(members)["manifest.json"])
         with self.assertRaises(backup.BackupError):
             backup.verify(duplicate)
 
