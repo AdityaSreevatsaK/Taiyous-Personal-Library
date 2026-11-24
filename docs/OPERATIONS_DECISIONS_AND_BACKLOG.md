@@ -35,7 +35,7 @@ Last reconciled: 23 November 2026, against master commit d774b9121999c15d233b144
 | Real Hugging Face hosted OAuth consent/PKCE E2E | Unverified | PR #112 now covers mock-provider browser redirects and PKCE; real hosted consent and owner account sign-in still require manual acceptance |
 | Sync of every local preference | Not implemented by this change | Verify current code; do not promise universal sync |
 | Real-device mobile acceptance | Unverified | Synthetic viewports are not physical-device acceptance |
-| Dataset-wide independent backup and local restore drill | Read-only capture and synthetic integrity tooling proposed; live production backup remains unverified | Independent encrypted production archive and verified restore drill required before destructive migration/deletion |
+| Dataset-wide independent backup and local restore drill | Local read-only capture and synthetic integrity checks delivered in this workstream; live production backup remains unverified | Independent encrypted production archive and verified restore drill required before destructive migration/deletion |
 | Historical HF Spaces/staging docs | Deprecated | Retain as history only |
 
 ## PR #110 and Issue #34 outcome
@@ -139,7 +139,7 @@ Before any destructive request, identify its exact scope: local cached EPUB, one
 
 ## Backlog and follow-up
 
-1. High: dedicated end-to-end test for interactive HF OAuth consent, callback/state validation, PKCE exchange and session establishment in an isolated environment. Do not use production data for destructive tests.
+1. High: perform real-provider interactive HF consent, callback and owner-session acceptance in the user's browser. Isolated mock-provider browser checks already pass (PR #112); do not use production data for destructive tests.
 2. Medium: owner-device acceptance for mobile layout, offline launch and real reading/storage behaviour.
 3. Medium: document and verify independent production dataset backup/restore before destructive operations.
 4. Medium: reassess local-only preferences/metadata sync only if requested; do not silently expand scope.

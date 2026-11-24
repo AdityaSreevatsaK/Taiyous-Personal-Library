@@ -24,7 +24,7 @@ This is a dated evidence snapshot, not live telemetry. Future agents must repeat
 | Browser OAuth redirect/PKCE/callback/session with an isolated mock HF provider | Implemented and deployed via PR #112 | [Master Verify](https://github.com/AdityaSreevatsaK/Taiyous-Personal-Library/actions/runs/45124678716), [CodeQL](https://github.com/AdityaSreevatsaK/Taiyous-Personal-Library/actions/runs/45124678529) and [deployment](https://github.com/AdityaSreevatsaK/Taiyous-Personal-Library/actions/runs/45124935580) passed on befe35bf |
 | Real Hugging Face hosted consent/PKCE token exchange E2E | Unverified | Requires the account owner's credentialed, non-destructive interactive acceptance; PR #110 deliberately excluded it |
 | Physical mobile-device acceptance | Unverified | CI uses browser viewports, not owner's physical device |
-| Independent production dataset backup/restore drill | Unverified | Standalone read-only HF capture, manifest and local drill proposed in follow-up branch; an actual independent production backup still needs separate verification |
+| Independent production dataset backup/restore drill | Unverified | Read-only HF capture, integrity manifest and local drill added with synthetic tests; an actual independent production backup still needs separate verification |
 | Historical HF Spaces/staging deployment paths | Deprecated | Not current hosting/deployment instructions |
 | Universal cross-device sync for every preference/tag/custom summary | Not established | Inspect current persistence paths; PR #110 scope is progress, reviews and collections |
 

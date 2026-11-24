@@ -50,7 +50,7 @@ The app shell is public. OAuth tokens and owner credentials remain server-side. 
 
 ## Current personal-state implementation: PR #110
 
-PR #110, “Bulk personal state and revision-safe PATCH migration”, merged to master on 21 November 2026. Merge commit: d774b9121999c15d233b144e522fee5959305cd1. The current master was checked against that SHA and was identical at the time of this documentation update.
+PR #110, “Bulk personal state and revision-safe PATCH migration”, merged to master on 21 November 2026. Merge commit: d774b9121999c15d233b144e522fee5959305cd1. That SHA is historical; repeat the dynamic preflight for the current master and deployment.
 
 Implemented:
 - One authenticated bulk personal-state GET for existing progress, reviews and collections, replacing speculative per-novel GETs.
