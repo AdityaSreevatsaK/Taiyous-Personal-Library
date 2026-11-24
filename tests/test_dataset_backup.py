@@ -1,9 +1,14 @@
 """Synthetic-only integrity and local restore-drill coverage. No HF credentials."""
 import importlib.util
 import json
+import os
 from pathlib import Path
+import shutil
+import subprocess
 import tempfile
+import types
 import unittest
+from unittest import mock
 import zipfile
 import sys
 
@@ -145,6 +150,67 @@ class IndependentDatasetBackupTests(unittest.TestCase):
             with self.subTest(path=path), self.assertRaises(backup.BackupError):
                 backup.safe_path(path)
 
+
+    def test_read_only_hf_capture_requires_token(self):
+        with mock.patch.dict(os.environ, {"HF_READONLY_BACKUP_TOKEN": ""}):
+            with self.assertRaises(backup.BackupError):
+                backup.capture_hf("SyntheticOwner/test-dataset", self.archive)
+        self.assertFalse(self.archive.exists())
+
+    def test_read_only_hf_capture_pins_revision_and_complete_inventory(self):
+        revision = "b" * 40
+        repo = "SyntheticOwner/test-dataset"
+        expected = {p.relative_to(self.data).as_posix()
+                    for p in self.data.rglob("*") if p.is_file()}
+        calls = []
+        class FakeReadOnlyHfApi:
+            def __init__(self, token):
+                self.token = token
+
+            def repo_info(self, *, repo_id, repo_type, token):
+                calls.append(("info", repo_id, repo_type))
+                self_token = self.token
+                if self_token != token:
+                    raise AssertionError("Token changed")
+                return types.SimpleNamespace(private=True, sha=revision)
+
+            def list_repo_files(self, *, repo_id, repo_type, revision, token):
+                calls.append(("inventory", revision, repo_type))
+                return sorted(expected)
+
+        def fake_snapshot_download(*, repo_id, repo_type, revision, local_dir, token):
+            calls.append(("download", revision, repo_type))
+            for name in expected:
+                dest = Path(local_dir) / name
+                dest.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(self.data / name, dest)
+            return local_dir
+
+        provider = types.ModuleType("huggingface_hub")
+        provider.HfApi = FakeReadOnlyHfApi
+        provider.snapshot_download = fake_snapshot_download
+        with mock.patch.dict(os.environ, {"HF_READONLY_BACKUP_TOKEN": "hf_synthetic_readonly"}):
+            with mock.patch.dict(sys.modules, {"huggingface_hub": provider}):
+                manifest, total = backup.capture_hf(repo, self.archive)
+        self.assertEqual(manifest["source"]["mode"], "hf-readonly")
+        self.assertTrue(manifest["source"]["revision_verified"])
+        self.assertEqual(manifest["source"]["revision"], revision)
+        self.assertEqual(manifest["source"]["repo_id"], repo)
+        self.assertEqual(len(manifest["files"]), len(expected))
+        self.assertGreater(total, 0)
+        self.assertEqual(
+            calls, [("info", repo, "dataset"), ("inventory", revision, "dataset"),
+                    ("download", revision, "dataset")])
+        self.assertEqual(backup.restore_drill(self.archive)[0], len(expected))
+
+    def test_command_line_verify_and_temporary_restore(self):
+        self.make()
+        for command in ("verify", "restore-drill"):
+            completed = subprocess.run(
+                [sys.executable, str(SCRIPT), command, "--archive", str(self.archive)],
+                capture_output=True, text=True, check=False)
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            self.assertIn("PASS", completed.stdout)
 
 if __name__ == "__main__":
     unittest.main()
