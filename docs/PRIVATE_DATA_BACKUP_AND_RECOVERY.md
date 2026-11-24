@@ -24,7 +24,7 @@ python scripts/dataset_backup.py verify --archive 'D:\PrivateEncryptedBackups\Ta
 python scripts/dataset_backup.py restore-drill --archive 'D:\PrivateEncryptedBackups\Taiyou\snapshot-2026-11-24.zip'
 ```
 
-The tool refuses to overwrite an existing archive. Select a unique filename each time. The capture pins HF reads to one dataset SHA and requires that the downloaded file set exactly matches the provider's pinned file inventory. A missing or malformed `data/library.json` is a recovery incident, **not** permission to create an empty catalogue.
+The tool refuses to overwrite an existing archive. Select a unique filename each time. **Record the printed archive SHA-256 in a separate trusted location**, so a compromised archive cannot simply substitute its own manifest and claim authenticity. Retain at least one independently encrypted, offline/offsite copy. The capture pins HF reads to one dataset SHA and requires that the downloaded file set exactly matches the provider's pinned file inventory. A missing or malformed `data/library.json` is a recovery incident, **not** permission to create an empty catalogue.
 
 For a complete directory export already held privately, you can instead run `python scripts/dataset_backup.py create-local --source PATH --output ARCHIVE`. Local exports have no authenticated remote revision proof.
 
