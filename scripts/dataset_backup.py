@@ -191,7 +191,10 @@ def create(source: Path, output: Path, *, mode: str = "local-export",
     total, entries = 0, []
     fd, temporary = tempfile.mkstemp(prefix=".taiyou-backup-", suffix=".part", dir=output.parent)
     try:
-        os.fchmod(fd, 0o600)
+        # Windows lacks os.fchmod on some Python builds. mkstemp creates a
+        # private file; keep the POSIX permission hardening when available.
+        if hasattr(os, "fchmod"):
+            os.fchmod(fd, 0o600)
         with os.fdopen(fd, "wb") as output_handle:
             with zipfile.ZipFile(output_handle, "w", allowZip64=True) as bundle:
                 for name, p in records:
