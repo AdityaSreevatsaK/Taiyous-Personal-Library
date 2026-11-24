@@ -49,6 +49,10 @@ Evidence recorded for PR #110:
 
 The two-browser acceptance did not exercise Hugging Face interactive consent/PKCE redirect. It validates the authenticated-session boundary after two independent encrypted sessions were established. Keep this distinction explicit.
 
+## Independent private backup and local recovery
+
+The [private-data backup runbook](PRIVATE_DATA_BACKUP_AND_RECOVERY.md) covers a read-only, immutable-revision HF snapshot, byte-wise SHA-256 checks and a purely local restore drill. It contains no remote upload or deletion actions. The normal Verify workflow runs all standard-library backup/restore tests on synthetic EPUB/catalogue/personal-state fixtures, including corruption and unsafe ZIP inputs. **A green synthetic test does not prove an independently stored, restorable production backup exists.** Obtain and verify that separately before any destructive data operation.
+
 ## Release process
 
 1. Work from a short-lived branch based on latest master.

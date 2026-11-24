@@ -50,7 +50,7 @@ The app shell is public. OAuth tokens and owner credentials remain server-side. 
 
 ## Current personal-state implementation: PR #110
 
-PR #110, “Bulk personal state and revision-safe PATCH migration”, merged to master on 21 November 2026. Merge commit: d774b9121999c15d233b144e522fee5959305cd1. The current master was checked against that SHA and was identical at the time of this documentation update.
+PR #110, “Bulk personal state and revision-safe PATCH migration”, merged to master on 21 November 2026. Merge commit: d774b9121999c15d233b144e522fee5959305cd1. That SHA is historical; repeat the dynamic preflight for the current master and deployment.
 
 Implemented:
 - One authenticated bulk personal-state GET for existing progress, reviews and collections, replacing speculative per-novel GETs.
@@ -67,7 +67,7 @@ Known boundary: the test did not drive Hugging Face's interactive consent/author
 
 - Never expose HF tokens, OAuth refresh material, session keys, owner passphrases, private novel content or personal notes in frontend bundles, public files, logs, screenshots or fixtures.
 - Never use production HF credentials for disposable tests. The test must create/delete only its uniquely named private dataset.
-- Never delete/recreate production dataset, bulk-delete EPUBs, rewrite catalogue identities, or migrate/delete production records without separate explicit owner approval and a verified independent backup.
+- Never delete/recreate production dataset, bulk-delete EPUBs, rewrite catalogue identities, or migrate/delete production records without separate explicit owner approval and a verified independent backup. See docs/PRIVATE_DATA_BACKUP_AND_RECOVERY.md for read-only pinned captures and strictly local restore drills.
 - Do not weaken owner checks, OAuth state/PKCE, cookie flags, path allowlists, revision checks, upload validation, CSP or security gates.
 - Preserve legacy folder and sidecar compatibility. Missing catalogue plus other data files is a recovery condition, not an empty library.
 - Keep cloud personal records distinct from device-local preferences/tags/summaries where code defines them separately. Inspect current state logic before promising sync scope.
