@@ -18,6 +18,8 @@ jobs:
         run: npm ci --no-fund --no-audit
       - name: Unit tests
         run: npm test
+      - name: Prove independent backup integrity and recovery (synthetic fixtures only)
+        run: python3 -m unittest discover -s tests -p 'test_dataset_backup.py' -v
       - name: Production build
         run: npm run build
       - name: Validate production package privacy and OAuth metadata

@@ -32,10 +32,10 @@ Last reconciled: 23 November 2026, against master commit d774b9121999c15d233b144
 | Bulk personal-state GET | Implemented | PR #110 merged; one bulk snapshot replaces speculative per-ID GETs |
 | Legacy sidecar bootstrap | Implemented | Revision-bound, non-destructive index; old sidecars retained |
 | Revision-safe PATCH and conflict handling | Implemented | PR #110 merged; disposable HF two-browser acceptance passed |
-| Interactive OAuth consent/PKCE redirect E2E | Unverified | Isolated test injected authenticated sessions; did not run provider sign-in |
+| Real Hugging Face hosted OAuth consent/PKCE E2E | Unverified | PR #112 now covers mock-provider browser redirects and PKCE; real hosted consent and owner account sign-in still require manual acceptance |
 | Sync of every local preference | Not implemented by this change | Verify current code; do not promise universal sync |
 | Real-device mobile acceptance | Unverified | Synthetic viewports are not physical-device acceptance |
-| Dataset-wide backup/restore drill | Operational requirement; not evidenced by PR #110 | Required before destructive migration/deletion |
+| Dataset-wide independent backup and local restore drill | Read-only capture and synthetic integrity tooling proposed; live production backup remains unverified | Independent encrypted production archive and verified restore drill required before destructive migration/deletion |
 | Historical HF Spaces/staging docs | Deprecated | Retain as history only |
 
 ## PR #110 and Issue #34 outcome
@@ -65,7 +65,7 @@ The isolated acceptance used shipping Pages Functions locally, two distinct encr
 
 ## Incident history and actionable recovery
 
-The production private HF Dataset was previously deleted and recreated, disrupting catalogue/EPUB access. Never treat a missing catalogue or a 404 as permission to initialise an empty replacement dataset: preserve cached originals, inspect the private dataset revision and tree, then check an independently restorable backup. The retired HF Spaces deployment is not the private Dataset.
+The production private HF Dataset was previously deleted and recreated, disrupting catalogue/EPUB access. Consult [Private Dataset Backup and Recovery](PRIVATE_DATA_BACKUP_AND_RECOVERY.md) for safe local integrity checks and drills. Never treat a missing catalogue or a 404 as permission to initialise an empty replacement dataset: preserve cached originals, inspect the private dataset revision and tree, then check an independently restorable backup. The retired HF Spaces deployment is not the private Dataset.
 
 Cloudflare Access previously redirected the public `/oauth-client.json` metadata URL and broke HF OAuth. Keep that metadata anonymously accessible while protecting private content through same-origin server sessions. Do not restore a blanket Access gate over that URL without a verified alternative.
 
